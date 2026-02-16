@@ -23,14 +23,37 @@ async function bootstrap(): Promise<void> {
       return;
     }
 
-    if (error instanceof ZodError) {
-      const first = error.issues[0];
+    const zodLikeError =
+      error instanceof ZodError ||
+      (typeof error === "object" &&
+        error !== null &&
+        "name" in error &&
+        (error as { name?: string }).name === "ZodError" &&
+        "issues" in error &&
+        Array.isArray((error as { issues?: unknown }).issues));
+
+    if (zodLikeError) {
+      const issues = (error as { issues: Array<{ message?: string }> }).issues;
+      const first = issues[0];
       reply.code(400).send({
         error: "VALIDATION_ERROR",
         message: first?.message ?? "Datos de entrada invalidos"
       });
       return;
     }
+
+    if (typeof (error as { statusCode?: unknown }).statusCode === "number") {
+      const statusCode = (error as { statusCode: number }).statusCode;
+      if (statusCode >= 400 && statusCode < 500) {
+        reply.code(statusCode).send({
+          error: "REQUEST_ERROR",
+          message: error.message || "Solicitud invalida"
+        });
+        return;
+      }
+    }
+
+    app.log.error({ err: error }, "Unhandled API error");
 
     reply.code(500).send({
       error: "INTERNAL_SERVER_ERROR",
