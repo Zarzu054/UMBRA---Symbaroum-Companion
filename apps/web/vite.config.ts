@@ -7,6 +7,18 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5173,
     proxy: {
+      "/auth": {
+        target: process.env.VITE_API_PROXY ?? "http://api:4000",
+        changeOrigin: true
+      },
+      "/admin": {
+        target: process.env.VITE_API_PROXY ?? "http://api:4000",
+        changeOrigin: true
+      },
+      "/health": {
+        target: process.env.VITE_API_PROXY ?? "http://api:4000",
+        changeOrigin: true
+      },
       "/api": {
         target: process.env.VITE_API_PROXY ?? "http://api:4000",
         changeOrigin: true
