@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type { CreateCharacterInput, UpdateCharacterInput } from "@umbra/shared";
 import { CharacterController } from "../controllers/CharacterController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { CharacterModel } from "../models/CharacterModel.js";
@@ -10,9 +11,12 @@ export async function characterRoutes(app: FastifyInstance): Promise<void> {
   const controller = new CharacterController(service);
 
   app.get("/characters", { preHandler: [requireAuth] }, controller.list.bind(controller));
-  app.post<{ Body: { name: string; archetype: string; race: string; level: number } }>(
-    "/characters",
+  app.post<{ Body: CreateCharacterInput }>("/characters", { preHandler: [requireAuth] }, async (request, reply) =>
+    controller.create(request, reply)
+  );
+  app.put<{ Params: { characterId: string }; Body: UpdateCharacterInput }>(
+    "/characters/:characterId",
     { preHandler: [requireAuth] },
-    async (request, reply) => controller.create(request, reply)
+    async (request, reply) => controller.update(request, reply)
   );
 }

@@ -1,5 +1,6 @@
 import cors from "@fastify/cors";
 import Fastify from "fastify";
+import { ZodError } from "zod";
 import { verifyDatabaseConnection, prisma } from "./config/prisma.js";
 import { env } from "./config/env.js";
 import { registerRoutes } from "./routes/index.js";
@@ -18,6 +19,15 @@ async function bootstrap(): Promise<void> {
       reply.code(error.statusCode).send({
         error: error.code,
         message: error.message
+      });
+      return;
+    }
+
+    if (error instanceof ZodError) {
+      const first = error.issues[0];
+      reply.code(400).send({
+        error: "VALIDATION_ERROR",
+        message: first?.message ?? "Datos de entrada invalidos"
       });
       return;
     }

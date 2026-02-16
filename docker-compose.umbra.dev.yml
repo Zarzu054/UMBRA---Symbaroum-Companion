@@ -35,7 +35,7 @@ services:
     volumes:
       - ./:/app
       - umbra_api_node_modules:/app/node_modules
-    command: sh -c "npm install --prefix packages/shared && npm install --prefix apps/api && npm run prisma:generate --prefix apps/api && npm run prisma:migrate:deploy --prefix apps/api && npm run prisma:seed --prefix apps/api && npm run dev --prefix apps/api"
+    command: sh -c "if [ ! -d packages/shared/node_modules ]; then npm install --prefix packages/shared; fi && if [ ! -d apps/api/node_modules ]; then npm install --prefix apps/api; fi && npm run prisma:generate --prefix apps/api && npm run prisma:migrate:deploy --prefix apps/api && npm run prisma:seed --prefix apps/api && npm run dev --prefix apps/api"
 
   web:
     build:
@@ -52,7 +52,7 @@ services:
     volumes:
       - ./:/app
       - umbra_web_node_modules:/app/node_modules
-    command: sh -c "npm install --prefix packages/shared && npm install --prefix apps/web && npm run dev --prefix apps/web"
+    command: sh -c "if [ ! -d packages/shared/node_modules ]; then npm install --prefix packages/shared; fi && if [ ! -d apps/web/node_modules ]; then npm install --prefix apps/web; fi && npm run dev --prefix apps/web"
 
 volumes:
   umbra_postgres_data:
