@@ -27,7 +27,7 @@ export class AuthService {
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
-      throw new AppError("EMAIL_TAKEN", "Email already registered", 409);
+      throw new AppError("EMAIL_TAKEN", "El correo ya esta registrado", 409);
     }
 
     const passwordHash = await argon2.hash(payload.password);
@@ -49,12 +49,12 @@ export class AuthService {
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      throw new AppError("INVALID_CREDENTIALS", "Invalid credentials", 401);
+      throw new AppError("INVALID_CREDENTIALS", "Credenciales invalidas", 401);
     }
 
     const validPassword = await argon2.verify(user.passwordHash, payload.password);
     if (!validPassword) {
-      throw new AppError("INVALID_CREDENTIALS", "Invalid credentials", 401);
+      throw new AppError("INVALID_CREDENTIALS", "Credenciales invalidas", 401);
     }
 
     return this.issueSession({ id: user.id, email: user.email, role: toAppRole(user.role) });
@@ -71,12 +71,12 @@ export class AuthService {
     });
 
     if (!stored || stored.userId !== decoded.sub || stored.revokedAt || stored.expiresAt < new Date()) {
-      throw new AppError("INVALID_REFRESH_TOKEN", "Invalid refresh token", 401);
+      throw new AppError("INVALID_REFRESH_TOKEN", "Token de refresco invalido", 401);
     }
 
     const tokenMatches = await argon2.verify(stored.tokenHash, payload.refreshToken);
     if (!tokenMatches) {
-      throw new AppError("INVALID_REFRESH_TOKEN", "Invalid refresh token", 401);
+      throw new AppError("INVALID_REFRESH_TOKEN", "Token de refresco invalido", 401);
     }
 
     await prisma.refreshToken.update({
@@ -111,7 +111,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new AppError("USER_NOT_FOUND", "User not found", 404);
+      throw new AppError("USER_NOT_FOUND", "Usuario no encontrado", 404);
     }
 
     return { ...user, role: toAppRole(user.role) };
@@ -164,7 +164,7 @@ export class AuthService {
       const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET) as jwt.JwtPayload;
 
       if (decoded.type !== "refresh" || typeof decoded.sub !== "string" || typeof decoded.tokenId !== "string") {
-        throw new AppError("INVALID_REFRESH_TOKEN", "Invalid refresh token", 401);
+        throw new AppError("INVALID_REFRESH_TOKEN", "Token de refresco invalido", 401);
       }
 
       return {
@@ -173,7 +173,7 @@ export class AuthService {
         type: "refresh"
       };
     } catch {
-      throw new AppError("INVALID_REFRESH_TOKEN", "Invalid refresh token", 401);
+      throw new AppError("INVALID_REFRESH_TOKEN", "Token de refresco invalido", 401);
     }
   }
 }

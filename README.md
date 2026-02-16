@@ -79,3 +79,11 @@ API hot-reload is handled by `nodemon` in Docker (`apps/api/nodemon.json`).
 
 - Superadmin dashboard is available in the frontend when logged in as a superadmin.
 - Revoke sessions action invalidates all refresh tokens for the target user.
+
+## Analisis de libros PDF
+
+- Script de extraccion inicial: `python scripts/extract_symbaroum_kb.py`
+- Salidas generadas:
+  - `data/knowledge/symbaroum_library_index.json`
+  - `data/knowledge/symbaroum_rule_signals.json`
+  - `docs/SYMBAROUM_REGLAS_BASELINE_ES.md`

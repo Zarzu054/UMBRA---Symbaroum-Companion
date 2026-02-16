@@ -29,7 +29,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       const list = await fetchCharacters(token);
       setCharacters(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load character list");
+      setError(err instanceof Error ? err.message : "No se pudo cargar la lista de personajes");
     } finally {
       setIsLoading(false);
     }
@@ -47,7 +47,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       setForm(defaultForm);
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create character");
+      setError(err instanceof Error ? err.message : "No se pudo crear el personaje");
     }
   }
 

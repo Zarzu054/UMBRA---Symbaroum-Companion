@@ -28,25 +28,25 @@ export function AuthGatewayView({ mode, isSubmitting, error, onModeChange, onLog
     <main className="page">
       <section className="panel auth-panel">
         <h1>UMBRA</h1>
-        <p>Symbaroum Companion</p>
+        <p>Companion de Symbaroum</p>
 
         <div className="auth-switch">
-          <button className={mode === "login" ? "active" : ""} onClick={() => onModeChange("login")}>Login</button>
-          <button className={mode === "register" ? "active" : ""} onClick={() => onModeChange("register")}>Register</button>
+          <button className={mode === "login" ? "active" : ""} onClick={() => onModeChange("login")}>Entrar</button>
+          <button className={mode === "register" ? "active" : ""} onClick={() => onModeChange("register")}>Registro</button>
         </div>
 
         <div className="form-grid">
-          <input placeholder="Email" value={email} onChange={(event) => setEmail(event.target.value)} />
+          <input placeholder="Correo" value={email} onChange={(event) => setEmail(event.target.value)} />
           <input
             type="password"
-            placeholder="Password"
+            placeholder="Contrasena"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
           {mode === "register" ? (
             <select value={role} onChange={(event) => setRole(event.target.value as "player" | "gm") }>
-              <option value="player">Player</option>
-              <option value="gm">GM</option>
+              <option value="player">Jugador</option>
+              <option value="gm">Director de Juego</option>
             </select>
           ) : null}
         </div>
@@ -54,7 +54,7 @@ export function AuthGatewayView({ mode, isSubmitting, error, onModeChange, onLog
         {error ? <p className="error">{error}</p> : null}
 
         <button disabled={isSubmitting} onClick={() => void submit()}>
-          {isSubmitting ? "Working..." : mode === "login" ? "Login" : "Create account"}
+          {isSubmitting ? "Procesando..." : mode === "login" ? "Entrar" : "Crear cuenta"}
         </button>
       </section>
     </main>

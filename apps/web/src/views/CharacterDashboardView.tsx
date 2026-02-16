@@ -19,29 +19,29 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           <h1>UMBRA</h1>
           <p>{user.email} ({user.role})</p>
         </div>
-        <button onClick={() => void onLogout()}>Logout</button>
+        <button onClick={() => void onLogout()}>Salir</button>
       </header>
 
       <section className="panel">
-        <h2>Create character</h2>
+        <h2>Crear personaje</h2>
         <div className="form-grid">
           <input
-            placeholder="Name"
+            placeholder="Nombre"
             value={controller.form.name}
             onChange={(event) => controller.updateForm("name", event.target.value)}
           />
           <input
-            placeholder="Archetype"
+            placeholder="Arquetipo"
             value={controller.form.archetype}
             onChange={(event) => controller.updateForm("archetype", event.target.value)}
           />
           <input
-            placeholder="Race"
+            placeholder="Raza"
             value={controller.form.race}
             onChange={(event) => controller.updateForm("race", event.target.value)}
           />
           <input
-            placeholder="Level"
+            placeholder="Nivel"
             type="number"
             min={1}
             max={20}
@@ -49,12 +49,12 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             onChange={(event) => controller.updateForm("level", Number(event.target.value || 1))}
           />
         </div>
-        <button onClick={() => void controller.submit()}>Create</button>
+        <button onClick={() => void controller.submit()}>Guardar personaje</button>
       </section>
 
       <section className="panel">
-        <h2>Characters</h2>
-        {controller.isLoading ? <p>Loading...</p> : null}
+        <h2>Personajes</h2>
+        {controller.isLoading ? <p>Cargando...</p> : null}
         {controller.error ? <p className="error">{controller.error}</p> : null}
         <div className="cards">
           {controller.characters.map((character) => (

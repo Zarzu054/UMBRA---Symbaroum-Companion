@@ -8,9 +8,9 @@ type ApiResponse<T> = { data: T };
 async function parseError(response: Response): Promise<string> {
   try {
     const payload = (await response.json()) as { message?: string; error?: string };
-    return payload.message ?? payload.error ?? `Request failed (${response.status})`;
+    return payload.message ?? payload.error ?? `Fallo de solicitud (${response.status})`;
   } catch {
-    return `Request failed (${response.status})`;
+    return `Fallo de solicitud (${response.status})`;
   }
 }
 

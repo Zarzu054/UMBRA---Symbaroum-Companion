@@ -1,0 +1,293 @@
+{
+  "books": [
+    {
+      "path": "docs\\Adventure books\\Aventuras 1.pdf",
+      "kind": "adventure_book",
+      "pages": 26,
+      "extracted_pages": 26,
+      "total_chars": 85179,
+      "top_signals": {
+        "resolucion": 88,
+        "corrupcion": 62,
+        "combate": 47,
+        "equipo": 44,
+        "atributos": 43,
+        "bestiario": 36,
+        "talentos": 35,
+        "magia": 25
+      }
+    },
+    {
+      "path": "docs\\Adventure books\\Aventuras en la ciudad.pdf",
+      "kind": "adventure_book",
+      "pages": 42,
+      "extracted_pages": 39,
+      "total_chars": 146855,
+      "top_signals": {
+        "magia": 62,
+        "aventura": 42,
+        "equipo": 34,
+        "combate": 29,
+        "talentos": 27,
+        "corrupcion": 23,
+        "atributos": 19,
+        "resolucion": 18
+      }
+    },
+    {
+      "path": "docs\\Adventure books\\La corona de cobre.pdf",
+      "kind": "adventure_book",
+      "pages": 82,
+      "extracted_pages": 72,
+      "total_chars": 247835,
+      "top_signals": {
+        "aventura": 157,
+        "resolucion": 150,
+        "corrupcion": 135,
+        "magia": 115,
+        "equipo": 102,
+        "combate": 97,
+        "bestiario": 88,
+        "atributos": 85
+      }
+    },
+    {
+      "path": "docs\\Adventure books\\La Tierra Prometida.pdf",
+      "kind": "adventure_book",
+      "pages": 25,
+      "extracted_pages": 25,
+      "total_chars": 85719,
+      "top_signals": {
+        "combate": 102,
+        "atributos": 92,
+        "equipo": 88,
+        "resolucion": 64,
+        "aventura": 46,
+        "corrupcion": 45,
+        "magia": 31,
+        "talentos": 25
+      }
+    },
+    {
+      "path": "docs\\Adventure books\\Localizaciones de aventura.pdf",
+      "kind": "adventure_book",
+      "pages": 37,
+      "extracted_pages": 36,
+      "total_chars": 125076,
+      "top_signals": {
+        "combate": 58,
+        "resolucion": 46,
+        "talentos": 44,
+        "equipo": 40,
+        "magia": 33,
+        "corrupcion": 28,
+        "atributos": 25,
+        "aventura": 18
+      }
+    },
+    {
+      "path": "docs\\Adventure books\\Symbaroum - TdE1_Fuerte Espina.pdf",
+      "kind": "adventure_book",
+      "pages": 178,
+      "extracted_pages": 175,
+      "total_chars": 649641,
+      "top_signals": {
+        "combate": 289,
+        "resolucion": 275,
+        "corrupcion": 261,
+        "talentos": 241,
+        "atributos": 205,
+        "equipo": 204,
+        "magia": 186,
+        "aventura": 163
+      }
+    },
+    {
+      "path": "docs\\Adventure books\\Symbaroum - TdE2_Karvosti.pdf",
+      "kind": "adventure_book",
+      "pages": 154,
+      "extracted_pages": 151,
+      "total_chars": 549147,
+      "top_signals": {
+        "resolucion": 270,
+        "combate": 228,
+        "talentos": 199,
+        "equipo": 192,
+        "atributos": 153,
+        "corrupcion": 145,
+        "magia": 145,
+        "aventura": 138
+      }
+    },
+    {
+      "path": "docs\\Adventure books\\Symbaroum - TdE3_Yndaros.pdf",
+      "kind": "adventure_book",
+      "pages": 178,
+      "extracted_pages": 175,
+      "total_chars": 638993,
+      "top_signals": {
+        "combate": 240,
+        "corrupcion": 218,
+        "equipo": 174,
+        "talentos": 167,
+        "resolucion": 161,
+        "magia": 144,
+        "aventura": 136,
+        "atributos": 109
+      }
+    },
+    {
+      "path": "docs\\Adventure books\\Symbaroum - TdE4_Symbar.pdf",
+      "kind": "adventure_book",
+      "pages": 242,
+      "extracted_pages": 239,
+      "total_chars": 782686,
+      "top_signals": {
+        "corrupcion": 332,
+        "resolucion": 304,
+        "talentos": 282,
+        "combate": 239,
+        "magia": 228,
+        "equipo": 205,
+        "aventura": 160,
+        "atributos": 156
+      }
+    },
+    {
+      "path": "docs\\Adventure books\\Symbaroum - TdE5_The_Haunted_Waste.pdf",
+      "kind": "adventure_book",
+      "pages": 178,
+      "extracted_pages": 177,
+      "total_chars": 634847,
+      "top_signals": {
+        "magia": 47,
+        "resolucion": 4
+      }
+    },
+    {
+      "path": "docs\\Hoja personaje editable.pdf",
+      "kind": "other",
+      "pages": 2,
+      "extracted_pages": 2,
+      "total_chars": 1178,
+      "top_signals": {
+        "corrupcion": 7,
+        "atributos": 6,
+        "equipo": 6,
+        "combate": 4
+      }
+    },
+    {
+      "path": "docs\\Libro Basico.pdf",
+      "kind": "other",
+      "pages": 268,
+      "extracted_pages": 263,
+      "total_chars": 767822,
+      "top_signals": {
+        "combate": 739,
+        "equipo": 598,
+        "resolucion": 479,
+        "atributos": 419,
+        "corrupcion": 417,
+        "talentos": 391,
+        "magia": 380,
+        "bestiario": 243
+      }
+    },
+    {
+      "path": "docs\\Rule books\\Códice de monstruos.pdf",
+      "kind": "rule_book",
+      "pages": 192,
+      "extracted_pages": 189,
+      "total_chars": 455527,
+      "top_signals": {
+        "combate": 618,
+        "bestiario": 424,
+        "equipo": 401,
+        "atributos": 356,
+        "talentos": 351,
+        "corrupcion": 320,
+        "resolucion": 158,
+        "magia": 149
+      }
+    },
+    {
+      "path": "docs\\Rule books\\Guía Avanzada del jugador.pdf",
+      "kind": "rule_book",
+      "pages": 140,
+      "extracted_pages": 137,
+      "total_chars": 421258,
+      "top_signals": {
+        "combate": 471,
+        "equipo": 415,
+        "resolucion": 374,
+        "magia": 352,
+        "talentos": 329,
+        "corrupcion": 267,
+        "atributos": 169,
+        "bestiario": 87
+      }
+    },
+    {
+      "path": "docs\\Rule books\\Guía del jugador.pdf",
+      "kind": "rule_book",
+      "pages": 94,
+      "extracted_pages": 94,
+      "total_chars": 257485,
+      "top_signals": {
+        "combate": 390,
+        "resolucion": 301,
+        "equipo": 297,
+        "talentos": 293,
+        "magia": 244,
+        "atributos": 165,
+        "corrupcion": 142,
+        "bestiario": 67
+      }
+    },
+    {
+      "path": "docs\\Rule books\\Guía DM.pdf",
+      "kind": "rule_book",
+      "pages": 70,
+      "extracted_pages": 70,
+      "total_chars": 203360,
+      "top_signals": {
+        "combate": 203,
+        "corrupcion": 188,
+        "equipo": 170,
+        "bestiario": 139,
+        "atributos": 136,
+        "resolucion": 96,
+        "aventura": 92,
+        "magia": 66
+      }
+    },
+    {
+      "path": "docs\\Rule books\\Mundo de symbaroum.pdf",
+      "kind": "rule_book",
+      "pages": 58,
+      "extracted_pages": 58,
+      "total_chars": 187472,
+      "top_signals": {
+        "magia": 31,
+        "combate": 11,
+        "bestiario": 10,
+        "equipo": 9,
+        "corrupcion": 9,
+        "resolucion": 8,
+        "talentos": 6,
+        "aventura": 4
+      }
+    },
+    {
+      "path": "docs\\Rule books\\Symbaroum_Errata_v1.14.pdf",
+      "kind": "rule_book",
+      "pages": 4,
+      "extracted_pages": 4,
+      "total_chars": 9022,
+      "top_signals": {
+        "magia": 1
+      }
+    }
+  ]
+}

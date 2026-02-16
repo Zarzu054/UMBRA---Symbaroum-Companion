@@ -10,7 +10,7 @@ export function App() {
     return (
       <main className="page">
         <section className="panel">
-          <p>Loading session...</p>
+          <p>Cargando sesión...</p>
         </section>
       </main>
     );

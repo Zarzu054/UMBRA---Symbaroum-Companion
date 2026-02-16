@@ -1,0 +1,1667 @@
+{
+  "global_signals": {
+    "resolucion": 2796,
+    "corrupcion": 2599,
+    "combate": 3765,
+    "equipo": 2979,
+    "atributos": 2138,
+    "bestiario": 1094,
+    "talentos": 2390,
+    "magia": 2239,
+    "aventura": 956
+  },
+  "samples": {
+    "docs\\Adventure books\\Aventuras 1.pdf": [
+      {
+        "page": 2,
+        "snippet": "volumen 1 aventuras järnringen: martin grip, mattias johnsson, mattias lilja un cariñoso agra d ecim iento a paul baldowski, jocke bergström, brandon bowling, lars g bäckström, martin englund, aline gladh, ulrika haake, andreas marklund, john marron, johan normark, kina nyman, krister persson, brett rosenberg y todos nuestros amigos de rollspel.nu y r/symbar"
+      },
+      {
+        "page": 3,
+        "snippet": "otras veces son los propios personajes jugadores los que van a la caza de tesoros, ya sea en busca de cierto artefacto o simplemente con la esperanza de superar tanto en fama como en fortuna a sus camaradas de fuerte espina. en vista de lo anterior, esta guia presenta un gran numero de tesoros con los que los personajes jugadores pueden toparse durante sus v"
+      },
+      {
+        "page": 4,
+        "snippet": "◆ el lugar de excavacion: el yacimiento puede e star mas o menos explorado y ofrecer mas o menos riquezas y tesoros, dependiendo de la suerte y habilidad del grupo. ◆ teso ros: las reliquias de tiempos de symbaroum pueden ser de muchos tipos, desde autentica basura u objetos decorativos hasta poderosos artefactos. ◆ pe ligros: es muy probable que quien tenga"
+      },
+      {
+        "page": 5,
+        "snippet": "tabla 2.1: tesoros en davokar la luminosa d20 tip o de tes o r o 1–3 despojos 4–15 curiosidad, tabla 3 16–19 t esoro mistico, tabla 4 20 artefacto, tabla 5 investigar los personajes jugadores con la habilidad estudioso pueden investigar en bibliotecas y archivos. el proceso lleva una semana y cuesta 10+1d6 taleros en permisos y sobornos. tras investigar, el "
+      },
+      {
+        "page": 6,
+        "snippet": "5 tabla 3: curiosidades d100 c uri o sid ades 1–2 un estandarte bordado, hecho de una tela oleosa que brilla con los colores del arcoiris. 3–4 un anillo de bronce con una sencilla piedra gris. 5–6 un broche de cobre con el rostro de un enano apesadumbrado. 7–8 una hebilla de cinturon con lo que parece ser un mapa en relieve. 9–10 un fragmento de un friso de "
+      },
+      {
+        "page": 7,
+        "snippet": "el escud o d e abal o g hay una serie de relatos fantasticos muy discutidos, de origen barbaro, que tratan sobre «abalog, el troll sabio», quien supuestamente vivio en la epoca del rey araña y lucho apoyando el bando de los humanos. una cancion muy extendida de esa leyenda trata sobre como abalog le arranco al comandante arxerodd el aguijon y la cabeza de un"
+      },
+      {
+        "page": 8,
+        "snippet": "rasgos regeneracion (i), alado (i) agil 15 (−5), atento 9 (+1), diestro 10 (0), discreto 13 (−3), fuerte 7 (+3), inteligente 11 (−1), persuasivo 5 (+5), tenaz 10 (0) a taque mordisco 1d4 (corto) defensa 15 armadura ninguna resistencia 10 umbral de dolor 4 habilidad especial: megase recuerda todo el texto que devore, lo que le convierte en una fuente de saber"
+      },
+      {
+        "page": 9,
+        "snippet": "segun la leyenda, la solucion ideada por el rey fue tan necia como imprudente: le encargo un velo mistico a luselorda, una bruja troll, y le prometio que le pagaria «cualquier cosa que quisiera». el precio le fue revelado con la entrega del velo: su propia virili- dad. y asi es como el rey mial le encontro al velo un uso muy diferente del planeado: para esco"
+      },
+      {
+        "page": 10,
+        "snippet": "tabla 6.1: encuentros en davokar la luminosa d20 e ncuentr o 1 elfos vernales (tantos como p j+1) 2 un grupo de elfos estivales verdes (tan- tos como p j) bajo el mando de un elfo es tival maduro 3 un troll saqueador hambriento 4 un grupo de seguidores cultistas (tan- tos como p j+1) bajo el mando de un lider 5 un grupo de bandido s salteadores (tan- tos com"
+      },
+      {
+        "page": 11,
+        "snippet": "10 11 2 la maldicion de la diosa del rio la maldicion de la diosa del rio es una pequeña aventura abierta para symbaroum. en ella se presenta una situacion (un viaje en barco), varios personajes no jugadores (un contraban - dista, un polizon y un taimado devorador de rio, entre otros) y una situacion que pone la partida en marcha (la desaparicion de un pasaj"
+      },
+      {
+        "page": 12,
+        "snippet": "10 11 2 la maldicion de la diosa del rio nigra, trasgo trotarrios. nigra cree que harasto es el culpable de la desaparicion de belda. despues de todo, es un tipo muy sospechoso y el ultimo que vio a belda antes de que desapareciera. si necesitas sus caracteristicas puedes usar las del salteador, en la pagina 209 del manual basico. harasto, «estudioso» y cont"
+      },
+      {
+        "page": 14,
+        "snippet": "12 13 2 la maldicion de la diosa del rio la dama del rio l a dama del rio cuenta con tres pares de remos y una pequeña vela y es un buen ejemplo de los veloces barcos mercantes que se usan en los lagos y rios de ambria. en las aguas de las tierras bajas, mas lentas, los barcos de este tipo se sustituyen por barcazas de vela grande capaces de llevar cargas ma"
+      },
+      {
+        "page": 15,
+        "snippet": "14 15 2 la maldicion de la diosa del rio nigra: la trasgo se inclina por dirigir miradas suspicaces e insultos contra harasto, en parte porque no le cae bien y en parte para desviar la atencion de la zona del barco donde se esconde el granuja de su hermano, mogga. harasto: el «estudioso» afirma no saber nada, pero si le presionan dirige un dedo acusador cont"
+      },
+      {
+        "page": 16,
+        "snippet": "14 15 2 la maldicion de la diosa del rio ◆ puede que los personajes jugadores decidan a bandonar el barco. en ese caso tendran que enfrentarse a un duro viaje a pie. ◆ qu izas decidan unirse a mogga para robar el alijo de harasto y ganarse un chelin o dos. o pueden proteger a harasto de mogga a cambio de parte de los beneficios. harasto intentara emboscar a "
+      },
+      {
+        "page": 17,
+        "snippet": "16 mt 2 la maldicion de la diosa del rio la siguiente lista proporciona diferentes situaciones y encuentros que los personajes pueden encontrarse durante su viaje. si quieres que el evento sea mas letal, incluye el texto en cursiva. la lista puede usarse para cualquier viaje por barco dentro o fuera de davokar, pero resulta especialmente apropiada como un su"
+      },
+      {
+        "page": 18,
+        "snippet": "mt 17 3 noche de corrupcion noche de corrupcion es una miniaventura abierta en la que se presenta una localizacion (el corazon de jakad), un puñado de pnj con sus propias motivaciones (la caballero hojanocturna, entre otros) y un suceso dramatico (el asedio) que pone los acontecimientos en marcha. ¡depende de los personajes como reaccionar! la leyenda de las"
+      },
+      {
+        "page": 19,
+        "snippet": "18 19 3 noche de corrupcion t ra s f ondo un par de dias antes de la llegada de los personajes juga- dores, koldra expulsa a un sospechoso «peregrino» despues de que este mostrara un interes malsano en el manantial sagrado. el hombre estaba a todas luces drogado (ver ashfaru, mas abajo) y hablaba de forma incoherente. aunque decia que debia «preparar la fuen"
+      },
+      {
+        "page": 20,
+        "snippet": "18 19 3 noche de corrupcion tizonero, trovador. tizonero viaja por la frontera de davokar, entreteniendo a los demas a cambio de unos chelines y ortegs. de modales anticuados y gran bebedor, conoce muchas leyendas de la region y dice haber estudiado «con los elfos de ylhurandy». si nadie lo hace antes, tizonero le cuenta al grupo la historia del corazon de j"
+      },
+      {
+        "page": 21,
+        "snippet": "20 21 3 noche de corrupcion shuggludd, trasgo rebelde. aunque la tribu de los varraguldru esta sometida por hojanocturna y por su dependencia constante de las drogas confeccionada por ashfaru el envenenador, hay una excepcion: uno de los trasgos, shuggludd, ha estudiado las artes de ashfaru lo suficiente como para aprender a destilar sus propias gotas azules"
+      },
+      {
+        "page": 22,
+        "snippet": "20 21 3 noche de corrupcion el asedio l o s p er sonaje s j u gad ore s s e despiertan en mitad de la noche cuando unas flechas se clavan contra los postigos de sus ventanas: ¡les atacan! la hija mayor de koldra, melga, hace sonar la alarma y momentos mas tarde la posada fortificada es un caos. ashfaru ha regresado acompañado de su señora y esta no piensa pe"
+      },
+      {
+        "page": 23,
+        "snippet": "22 drogas trasgo los trasgos se han vuelto adictos al consumo de varias drogas de gran potencia que les suministra el compañero de hojanocturna, ashfaru. el brujo obtiene los ingredientes de varios rincones secretos de davokar y puede combinarlos para crear tres destilados diferentes. t odos estos elixires pueden ser fabricados con la habilidad alquimista (p"
+      },
+      {
+        "page": 24,
+        "snippet": "jugador arma armadura armadura arma arma arma daño cualidad cualidad proteccion proteccion daño daño daño atributo atributo atributo atributo cualidad cualidad cualidad cualidad sombra nombre raza ocupacion cita experiencia por gastar agil habilidades, rasgos, poderes y rituales armas y arm adu ra fuertediestro persuasivo defensa defensa atento inteligentedi"
+      },
+      {
+        "page": 25,
+        "snippet": "equipoedad nombre dinero otro s recursos raza ocupacion jugador altura peso apariencia trasfondo objetivo personal nombre del grupo objetivo del grupo nombre nombre raza raza ocupacion ocupacion jugador jugador nombre poderes corrupcion nombre poderes corrupcion nombre poderes corrupcion nombre poderes corrupcion nombre raza ocupacion jugador nombre raza ocu"
+      },
+      {
+        "page": 26,
+        "snippet": "st e suplemen t o para sym baroum incluye d os pequeñas aventuras abiertas mas una ayuda con consejos para diseñar o dirigir expediciones de cazatesoros por los bosques de davokar. en combinacion con la aventura tutorial del manual basico de symbaroum, este material resulta perfecto para comenzar a sumergirse en su ambientacion y vivir aventuras por ambria y"
+      }
+    ],
+    "docs\\Adventure books\\Aventuras en la ciudad.pdf": [
+      {
+        "page": 4,
+        "snippet": "2 el misterio de kumuma incluso entre miles de personas, las referencias mas someras pueden bastar para llamar la atencion. la importancia de kumuma proviene de la breve mencion de su anti- gua carrera como artista ambulante y de su aparicion en el mapa de yndaros. el director de juego haria bien en hacer aparecer a kumuma antes de que comience la aventura p"
+      },
+      {
+        "page": 5,
+        "snippet": "3 1el misterio de kumuma obligados a actuar por simple decencia y civismo, y no por la necesidad basica de una recompen- sa personal. sin embargo, si los personajes juga- dores tienen una brujula moral laxa o no tienen demasiado sentido de la responsabilidad civica, el director de juego tendra que improvisar y encon- trar una manera de involucrarlos, a pesar"
+      },
+      {
+        "page": 6,
+        "snippet": "4 los personajes jugadores las razones de los personajes jugadores para in- volucrarse en la penosa situacion de kumuma de- rivan de un interes personal en la comunidad. las dificultades experimentadas por gran parte de la poblacion de yndaros tienden a unir a la gente. y lo que seria aun mejor, los personajes jugadores podrian tener un interes personal, dad"
+      },
+      {
+        "page": 7,
+        "snippet": "5 posteriores. no obstante, no te desvies demasiado para evitar que los jugadores se pierdan. si es nece- sario, llama su atencion con un asalto repentino de los secuaces de uno de los grupos clave descritos a continuacion. los personajes jugadores que metan las narices en los asuntos de otros merecen que les recuerden que es mejor no mover algunas piedras. "
+      },
+      {
+        "page": 8,
+        "snippet": "6 el culto de la araña juguetea con la tradicion esoterica de la brujeria barbara mezclada con las armas y vestimenta asociada a los clanes del norte del davokar. buscan reliquias y conoci- mientos relacionados con los cultos barbaros y en especial con las brujas, y roban fragmentos de saber como pueden. ulstano ha inculcado una ferviente lealtad en los trei"
+      },
+      {
+        "page": 11,
+        "snippet": "9 la planta del medio tambien cuenta con una sala de reuniones, con mesas y sillas, una sala en la que los lugareños pueden realizar pequeñas funciones o reunirse en privado. kumuma no hace preguntas ni espera pago alguno, aunque acepta con gusto donaciones de lo que sea que ofrezcan. el sotano la mayor parte del sotano esta repleto de provi- siones, comida,"
+      },
+      {
+        "page": 12,
+        "snippet": "10 aunque no esta claro que busca la ordo magica, ulstano ha colocado a uno de sus seguidores en las filas de los trabajadores que buscan una ruta hacia el subsuelo. esto sirve como alternativa para que los per- sonajes jugadores descubran el culto. el equipo de trabajo dedicado a la penosa labor bajo la to- rre, proviene de los barrios bajos y de los barrio"
+      },
+      {
+        "page": 13,
+        "snippet": "11 do el culto intenta incendiar el rincon, poniendo vidas en peligro, y luego abrir el gran telon de los terratenientes y promotores ambiciosos y con- tundentes. esa parte de la historia sirve como una posible pista o una falsa, aunque, pase lo que pase, debe- ria enturbiar las aguas y hacer que el grupo de juego se pregunte si este acto destructivo se re- "
+      },
+      {
+        "page": 14,
+        "snippet": "12 extinguir la antorcha la aventura de una sola sesion extinguir la antorcha va sobre la organizacion de jovenes pregoneros que, encima de sus taburetes rojo brillante, denuncian a voz en grito las injusticias y la opresion en la segregada capital de ambria. las chicas y chicos de la antorcha han infundido coraje a los trabajadores y jornaleros de la ciudad"
+      },
+      {
+        "page": 15,
+        "snippet": "13 2extinguir la antorch a trasfondo como organizacion, la antorcha fue fundada y sigue encabezada por el padre peonio, el primer teurgo de la catedral de los martires. el nume- ro de personas involucradas es muy limitado y todos los miembros han jurado guardar el secre- to. saben muy bien que incluso la mas minima violacion de ese juramento provocara la ira"
+      },
+      {
+        "page": 16,
+        "snippet": "14 mientras la antorcha evito comentar asuntos re- ligiosos, onan pudo contener su lengua, pero a medida que mas y mas simpatizantes destacados de los reformistas son tildados de herejes, el va- lor para hablar crece en su pecho. como es natural, le aterroriza ser el blanco de los cazamonstruos de los mantos negros, o peor aun, que le den caza los verdugos d"
+      },
+      {
+        "page": 17,
+        "snippet": "15 2extinguir la antorch a si los personajes jugadores adoptan un enfo- que defensivo y solo se defienden de los ataques, una patrulla de la guardia de la ciudad (refor- zada con un joven pansar) aparecera tres turnos despues de que lancen las primeras piedras, o cuando el director de juego lo considere opor- tuno. la multitud se dispersa y el orden queda re"
+      },
+      {
+        "page": 18,
+        "snippet": "16 no importa como se desarrolle la aventura al- rededor de tu mesa de juego, el supuesto traidor (personaje jugador o contacto) pronto recibe un mensaje anonimo. su autora es, por supuesto, onan, que ve en el objetivo a una persona con el poder y la habilidad de exponer a los lideres de la antorcha y llevarlos ante la justicia. el mensaje es el siguiente: q"
+      },
+      {
+        "page": 19,
+        "snippet": "17 las escaleras, luego… abre. ¡soy importante, de… es… importante! ¡por la causa! ¡peligro! el es el problema. ¡es peligroso! robo, lo hizo. el… valke, el panadero… solo hace pan. ¡solo! el callejon de alimer. ¡ahi… pe - ligroso! pero no malvado. lo adverti… lo acabo de hacer. desobediente. se nego a obedecer… ¡mata! descubre, expon, castiga. maaata… el amo"
+      },
+      {
+        "page": 20,
+        "snippet": "18 relacionada con la iglesia del sol, o mas concre- tamente con los mantos negros. el amo hubart identificar y localizar al «amo hubart» no debe- ria ser un problema para nuestros audaces solu- cionadores de problemas. si visitan a la casera veola puede explicarles de inmediato que este era el jefe de algal, y donde encontrar su oficina y residencia cerca d"
+      },
+      {
+        "page": 21,
+        "snippet": "19 el dato mas importante que deben recordar los personajes jugadores es el ultimo: las asignacio- nes mas duraderas de algal. junto al testimonio de valke, esto deberia dirigirlos hacia la escuela monacal de la ultima luz, y si le preguntan es- pecificamente sobre esto, hubart responde con brevedad: «el primer dia de cada semana, tanto en verano como en inv"
+      },
+      {
+        "page": 22,
+        "snippet": "20 presentacion la escuela monacal de la ultima luz esta situada en una parcela esquinera en el extremo este del barrio del templo. la parcela esta rodeada por un muro de piedra de casi dos metros de altura rema- tado por barras metalicas de medio metro de altu- ra en forma de simbolo de prios, el sol poniente, en una larga fila, cuyos rayos afilados acaban "
+      },
+      {
+        "page": 24,
+        "snippet": "22 tacion y otros enseres relacionados con la coci- na y el salon comedor. en la esquina norte hay dos librerias con una seleccion de las tallas, bordados y pinturas de los estudiantes. cabe destacar que el unico objeto hecho por trasgos es un pañuelo bordado con la firma garm gu- sanotorcido. 11. las celdas de la vergüenza los estudiantes que infringen las "
+      },
+      {
+        "page": 25,
+        "snippet": "23 2extinguir la antorch a fletos hasta altas horas de la noche. el director de juego puede hacer que la trocalenga este alli cuando los personajes jugadores irrumpen en la sede, aunque deben superar una tirada de dis- creto al abrir la puerta, para no despertarla o distraerla de su trabajo. 14. la sede la modesta sede de la antorcha cuenta con poco mas de d"
+      },
+      {
+        "page": 26,
+        "snippet": "24 en ese caso deben pasar por encima de berto y sus guardias, y seguramente tambien abele- na y los demas profesores (las estadisticas ade- cuadas pueden encontrarse bajo el titulo cam- peones de prios, en la pagina 122 del codice de monstruos ). a pesar de todo lo que logren encontrar o pro- bar, un ataque asi es suficiente para sentenciarlos a muerte, seg"
+      },
+      {
+        "page": 27,
+        "snippet": "25 2extinguir la antorch a hermano berto «¡alejate de mis niños!». el moreno y obeso hermano berto tiene cin- cuenta años. cuando era mas joven estaba deseoso de dejar la escuela para dedicarse a actividades mas gloriosas, como perseguir cultistas o brujas en las partes septentriona- les del reino. pero en realidad, esta muy satis- fecho con su suerte en la "
+      },
+      {
+        "page": 28,
+        "snippet": "26 el calor de la noche si bien algunas localizaciones de aventura invitan al receloso o desafian al be- ligerante, la que aparece en el corazon de este incidente es una especie de rompecabezas, un punto de referencia que puede generar mas preguntas que respuestas. la aventura presenta el resurgimiento de una antigua fe, la veneracion de uno de los dioses jo"
+      },
+      {
+        "page": 29,
+        "snippet": "27 3el calor de la noch e han enviado a sus gorrones a lo largo de los tita- nes desde hace un tiempo, para buscar los restos y recuerdos del hogar para venderlos a esos clientes ricos y nostalgicos de los dias ya pasados de albere- tor. estos viajes son tan peligrosos como cualquier expedicion a las profundidades del davokar. cual- quier gorron enviado al s"
+      },
+      {
+        "page": 30,
+        "snippet": "28 esto encajaria mejor si el grupo tiene un miembro con las habilidades de estudioso o me- dicus para quien esto sea de interes, aunque es aun mejor si algun asociado (o asociados) del grupo ha contraido la afeccion hace poco, pero todavia no la ha superado. por medio de este enfoque, el director de juego involucrara a los personajes jugadores de forma tang"
+      },
+      {
+        "page": 31,
+        "snippet": "29 3el calor de la noch e ademas de los comerciantes, hay tres indi- viduos en yndaros con la atencion puesta en este artefacto: branco de la academia suprema, mirwar de la ordo magica y kenna del fulgor de las ascuas, un culto de prios. las siguientes secciones proporcionan una vi- sion general de quienes son estas personas y sus motivaciones concretas con "
+      }
+    ],
+    "docs\\Adventure books\\La corona de cobre.pdf": [
+      {
+        "page": 3,
+        "snippet": "la corona de cobre järnringen: martin grip, mattias johnsson, mattias lilja un cariñoso agradecimiento a: paul baldowski, ingo beyer, martin englund, aline gladh, robert hagström, ulrika haake, tomas härenstam, isabel kaiser, inga lekberg, magnus lekberg, andreas marklund, john marron, sofie nohr, kina nyman, tobias ohls y todos nuestros amigos de rollspel.n"
+      },
+      {
+        "page": 4,
+        "snippet": "2 la marca de la bestia introduccion 8 la introduccion del director de juego ..................... 8 la introduccion del jugador .................................. 10 los capitulos .......................................................... 10 el dilema del maestre vernam 11 escena 1: complicaciones divinas .......................... 11 escena 2: la academia "
+      },
+      {
+        "page": 5,
+        "snippet": "3 la tumba de los sueños moribundos introduccion 30 el prefacio del dj .................................................... 30 el prefacio del jugador ........................................... 31 viaje al puesto avanzado ........................................ 32 la aventura abierta 34 el puesto avanzado de la ordo magica .................. 36 el bosque m"
+      },
+      {
+        "page": 6,
+        "snippet": "4 la corona de cobre la aventura sigue ¡unete a la comunidad! cuando se escribe esto, a finales de abril de 2016, la comunidad de juga- dores de symbaroum crece de forma constante. en www.jarnringen.com encontraras enlaces que te llevaran a nuestro foro en ingles, al grupo de google+ symbaroum trpg, a la pagina de facebook de järnringen y a otros grandes lug"
+      },
+      {
+        "page": 9,
+        "snippet": "la marca de la bestia f uerte espina, la ciudad de las esperanzas y los sueños. tambien es el asentamiento ambrio mas cercano al davokar y por eso mismo, el mas favorecido y castigado por los dones del bosque. tensos susurros aven- turan que el asesino que acecha los distritos septentriona- les de la ciudad es un ejemplo de los dones mas oscuros, que debe se"
+      },
+      {
+        "page": 10,
+        "snippet": "8 introduccion bienvenido a la marca de la bestia, una aventura para symbaroum destinada a introducir a los jugadores y a los directores de juego a la ciudad de fuerte espina a traves de una serie de asesinatos espantosos. la marca de la bestia es una aventura clasica, con un principio, un nudo y un des- enlace. el texto se estructura de acuerdo a una serie "
+      },
+      {
+        "page": 11,
+        "snippet": "9 la amargura de una muerte demasiado pre- matura, combinada con unas habilidades mis- ticas bien desarrolladas, hizo que su espiritu se aferrara al cuerpo sin vida, a la espera de una segunda oportunidad para gobernar. esa oportu- nidad aparecio cuando el cazatesoros gorak entro en su cripta. gorak, aventurero marcado por la corrupcion junto a su amigo alah"
+      },
+      {
+        "page": 12,
+        "snippet": "10 para que esta aventura sea realmente placentera, los personajes jugadores necesitan incentivos, primero para acercarse al maestre vernam y luego para querer resolver los asesi - natos. es preferible que estos incentivos esten enraizados en los objetivos del grupo de juego. en grupos que basan su juego en los objetivos personales de los personajes jugadore"
+      },
+      {
+        "page": 13,
+        "snippet": "11 2 el dilema delmaestre vernam al comienzo de la aventura los personajes jugadores se encuentran en fuerte es- pina o justo llegan alli. tienen un incentivo para visitar al maestre vernam y por lo tanto se veran envueltos en el misterio de asesinato. la primera escena presenta al falso cazamonstruos baumelo, y despues de eso vienen las escenas que describe"
+      },
+      {
+        "page": 14,
+        "snippet": "12 al llegar a la academia una mujer con semblante palido se encuentra con ellos en la puerta, presentandose como esbetha, una tutora junior. esta sensiblemente alterada; su labio infe- rior tiembla. una vez los personajes jugadores pi- den ver a vernam y le aseguran que tienen inten- ciones pacificas, esbetha los guia en silencio por las escaleras hasta el "
+      },
+      {
+        "page": 15,
+        "snippet": "13 2 escena 2.1: la escena del crimen hay varias pistas en la escena del crimen: el cuerpo: esbetha puede confirmar que el cuerpo colgado del techo coincide con la fisono- mia del maestre vernam. al cadaver desollado la faltan dos dedos de la mano izquierda, lo que fa- cilita su identificacion (perdio los dedos mientras vivia con las brujas del davokar). una"
+      },
+      {
+        "page": 16,
+        "snippet": "14 la marca de la bestia encontraras la carta a los personajes jugado- res en la pagina 72 de este libro. escena 2.4: la carta de vernam a los personajes jugadores si el director de juego lo desea, puede aña- dir lo siguiente a la investigacion: una carta de vernam a los personajes, entregada en caso de fallecimiento. quizas esto no encaje en todos los grupo"
+      },
+      {
+        "page": 17,
+        "snippet": "15 el dilema del maestre vernam 2 es muy importante que el dj recompense a los juga- dores con algo util cuando hacen un uso adecuado de los rituales: los jugado- res han decidido gastar experiencia en rituales y eso no deberia sentirse como un desperdicio. esta claro que el dj tambien deberia explotar las limita- ciones de los rituales para mantener el mist"
+      },
+      {
+        "page": 18,
+        "snippet": "16 este capitulo introduce una pequeña aventura abierta, con una serie de escenas que probablemente apareceran cuando los personajes investiguen los recientes asesi- natos en fuerte espina. los personajes jugadores pueden afrontar las escenas de la 3 a la 6 en el orden que quieran, y ni siquiera tienen que enfrentarlas todas para pasar al tercer capitulo y a"
+      },
+      {
+        "page": 19,
+        "snippet": "17 3 escena 4: el pasado sangriento tarde o temprano los personajes mostraran interes en los asesinatos anteriores. la mejor manera de obtener informacion es comenzar ha- blando con el examinador de cadaveres ilantro, y el capitan marvello quien esta a cargo del distrito donde se cometieron los asesinatos. escena 4.1: el examinador de cadaveres ilantro es el"
+      },
+      {
+        "page": 20,
+        "snippet": "18 una tirada superada contra persuasivo da ac- ceso a los diarios del examinador de cadaveres, mediante los cuales los personajes pueden llegar a otra conclusion… antes de que empezara la matanza del desolla- dor, dos personas fueron asesinadas en un callejon de la plaza del sapo. ilantro no las ha relacionado con las muertes del desollador, pero los person"
+      },
+      {
+        "page": 21,
+        "snippet": "19 su jefe, pero solo si los personajes jugadores les cuentan la verdad acerca de su demanda y supe - ran una tirada contra persuasivo . si superan la tirada, los guardias los escolta - ran a traves de la puerta y subiran la colina hasta la residencia de madera. tienen que esperar en el porche delantero mientras uno de sus escoltas habla con el alcalde. aun "
+      },
+      {
+        "page": 22,
+        "snippet": "20 la marca de la bestia pero la mayoria simplemente se desvanecio. al mismo tiempo habia rumores sobre la infiltra - cion de elfos en la ciudad, pero eso nunca se con- firmo. gorak y alahara probablemente se escondie - ron y la ultima compañera se volvio una abo - minacion renacida y mato a un par de guardias antes de ser abatida. en resumen, todos desapa -"
+      },
+      {
+        "page": 23,
+        "snippet": "21 rastrear al desollador 3 odako y alahara las entrevistas de los anteriores testigos y el ultimo interrogatorio mental de keita- ra han hecho que odako se de cuenta que el desollador es alahara y que se han co- nocido antes. esto sucedio hace un año, cuando odako tuvo una reunion secreta con gorak sobre una posible expedicion al davokar. alahara tambien es"
+      },
+      {
+        "page": 24,
+        "snippet": "22 el capitulo 3 comienza cuando los personajes localizan el antiguo almacen de la casa de comercio luna azul. todo el capitulo se desarrolla dentro y debajo del edificio que alahara ha convertido en el escondite, y carcel, de su amado gorak. gorak esta atrapado a medio camino de convertirse en una abominacion y alahara comete sus atroces actos en un intento"
+      },
+      {
+        "page": 25,
+        "snippet": "23 4 escena 9: la torre de vigilancia hundida una torre de vigilancia symbarana se erguia en este lugar, ahora escondida por la em- palizada de fuerte espina, cerca de la plaza del sapo. la torre fue arrasada hace cientos de años, pero no antes de que su planta baja se hundiera en el suelo fangoso para crear una camara oculta bajo tierra. la casa de comercio"
+      },
+      {
+        "page": 26,
+        "snippet": "24 gorak, abominacion renacida “no puedo soportarlo mmmaaasss!” conducta sacudidas enfurecidas raza abominacion desafio complicado rasgos arma natural (i), duro (i), robusto (i) agil 10 (0), atento 10 (0), diestro 13 (-3), discreto 7 (+3), fuerte 15 (-5), inteligente 9 (+1), persuasivo 5 (+5), t enaz 11 (-1) habilidades berserker (maestro), combate con armad"
+      },
+      {
+        "page": 27,
+        "snippet": "25 escena 9.2: la exigencia del cazamonstruos si los personajes no se sacaron de encima a bau- melo, entra en escena. si ya los acompaña, hara cualquier cosa para hacerse con la calavera. si la batalla es dura, ayudara a los personajes; odako no tiene nada que ganar si caen demasia- do rapido, ya que tendra que enfrentarse a gorak sin ellos. despues de la ba"
+      },
+      {
+        "page": 28,
+        "snippet": "la marca de la bestia escena 10.1: destruir la calavera destruir el craneo no es muy dificil; puede aplas - tarse, quemarse o corroerse como cualquier otra calavera. sin embargo, no es del todo seguro ha - cerlo, incluso si nadie toca el hueso. el espiritu del rey hurian-lo apak esta sediento de vida y no ha pasado una eternidad en una tumba para ser derrota"
+      },
+      {
+        "page": 29,
+        "snippet": "27 la voluntad de un rey 4 fragmentos de situaciones finales cuando el polvo se asiente, podria ser opor- tuno proporcionar a los jugadores una idea del futuro que han creado. ademas, dependiendo de donde acabe la calavera, surgiran oportunidades para seguir jugando, como por ejemplo, si deciden esconderla en algun lugar, darsela a los mantos negros o entreg"
+      }
+    ],
+    "docs\\Adventure books\\La Tierra Prometida.pdf": [
+      {
+        "page": 2,
+        "snippet": "este primer capitulo incluye un tutorial narrativo protagonizado por arisca y diseñado para ilustrar como puede desarrollarse la comunicacion entre jugadores y director de juego durante las escenas de la partida. el texto podria ser leido por todo el grupo, pero se ha escrito principalmente para el director de juego, ya que esta basado en escenas de esta ave"
+      },
+      {
+        "page": 3,
+        "snippet": "adversidades que pueden encontrarse en sus viajes. los personajes jugadores recien creados son indi - viduos competentes, pero estan lejos de ser heroes capaces de enfrentarse a cualquier peligro. esta parte de la aventura les ayudara a ver que el mundo es mas grande y oscuro de lo que se imaginan, incluso para aquellos que en el pasado se enfrentaron a las "
+      },
+      {
+        "page": 4,
+        "snippet": "¿que significa la ←? a lo largo de este libro usamos una flecha apun- tando a la izquierda para repre sentar el «modi- ficador» a una tirada. por ejemplo, la formula [agil← diestro] significa «agil modificado por el atributo de diestro del oponente». la modifica- cion puede ser positiva (+) o negativa (−). primero hay que determinar el orden del turno, es de"
+      },
+      {
+        "page": 5,
+        "snippet": "corrupcion temporal sufre arisca; saca un 3 y lo anota en su ficha de personaje. despues tira 1d6 para determinar el efecto de la confusion (ver pagina 131). el resultado es un 2, lo que segun la descripcion del poder significa que su oponente se queda paralizado. empieza el siguiente turno. esta vez el alcance del arma de arisca no tiene efecto, pero como e"
+      },
+      {
+        "page": 6,
+        "snippet": "personajes pregenerados l a tierra prometida puede ser jugada con cual - quier tipo de personaje, aunque los que aparecen a continuacion estan diseñados para crear un grupo equilibrado. hay tres ambrios (orlan, bartelom y ansel) especialmente indicados para jugadores principiantes, ya que ninguno ha estado al norte de los titanes y saben tan poco sobre ambri"
+      },
+      {
+        "page": 7,
+        "snippet": "parece que hay mucho que aprender sobre el mundo. puede que hayas acabado al sur de los titanes por casualidad («¿que habra alla al sur?») o porque trabaras amistad con fenya, karla o kvarek y simplemente les hayas seguido. otra alternativa mas emocionante es que la bruja que te crio hubiera sido asesinada por los templarios. en ese caso, es posible que tant"
+      },
+      {
+        "page": 8,
+        "snippet": "magdala, bruja barbara «los espiritus asi lo quieren» creciste bajo la sombra de karvosti, la meseta de davokar donde vive el gran jefe. tu iniciacion acabo en tragedia cuando el ritual fue interrumpido por una abominacion que surgio del bosque negro como la noche. durante el combate encontraste tu bestia interior y fue por eso que la lider de tu cabildo de "
+      },
+      {
+        "page": 9,
+        "snippet": "karla, exploradora barbara «silencio, dejad que las huellas cuenten su historia» eres originaria del este de davokar, pero vives en el exilio desde que tuviste un sangriento malentendido con un hijo del jefe del clan. al jefe todavia le quedan muchos hijos vivos, pero aun asi te guarda rencor, de modo que decidiste irte a explorar el mundo mas alla de davoka"
+      },
+      {
+        "page": 10,
+        "snippet": "rumbo a yndaros los persona j es j uga dores tienen diferentes razones para encontrarse en un campamento de caravanas justo al sur de los titanes. el campamento se extiende por una gran superficie poblada por arboles esbeltos cuya hojas han comenzado a teñirse de otoño. hay cerca de cuarenta carromatos repartidos sin orden alguno, mas algunas tiendas de camp"
+      },
+      {
+        "page": 11,
+        "snippet": "acercando rapidamente. la cuestion es si aciertan al pensar que los pasos de montaña van a resultar infranqueables en pocos dias o si aun hay una posi- bilidad de atravesarlos antes de que el invierno entre con toda su fuerza. tambien hay tiempo para hablar de otras cosas. telk (o quienquiera que este sentado junto a los personajes) es un tipo curioso y no t"
+      },
+      {
+        "page": 12,
+        "snippet": "en compañia de ladrones e ste segundo capitulo tr ata sobre la caza y enfrentamiento con un ladron lo suficientemente temerario como para robar la piedra solar, un artefacto sin el que la caravana dificilmente podra sobrevivir al invierno que se aproxima. ademas de algunas secuencias de combate mas o menos complicadas, el capitulo tambien incluye varios reto"
+      },
+      {
+        "page": 13,
+        "snippet": "persuadir al amigo del ladr o n (solucion rapida) keler viajaba con un grupo grande, pero se relacionaba principalmente con otro cuidador de mulas, telk. este sabia que keler es un ladron y un mentiroso, pero aun asi lo considera su amigo. los personajes deben hablar con telk (hay mucha gente que puede confirmarles que era uno de los mas cercanos a keler) y "
+      },
+      {
+        "page": 14,
+        "snippet": "keler se ve a si mismo como un genio incomprendido; en particular, considera que es un ladron excepcional. su curiosidad y atencion constante le permitieron darse cuenta del tesoro de bartelom cuando este lo saco de su bolsillo para calentarse las manos heladas. keler decidio probarle a su antigua banda la inmensidad de su talento, asi que robo el artefacto "
+      },
+      {
+        "page": 15,
+        "snippet": "247 26 en compañia de ladrones 2×2m 2×2mn el molino en ruinas el molino fue construido hace muchos años por un ba- ron excesivamente optimista que pretendia colonizar las montañas. en la actualidad se encuentra cubierto de musgo y plantas trepadoras. los suelos de madera del interior se han venido abajo, pero el tercer piso, he- cho completamente de piedra, "
+      },
+      {
+        "page": 16,
+        "snippet": "el peaje de las montañas sin que los persona j es lo s epan, entre sus compañeros de viaje se ocultan un par exploradores de davokar que en el pasado trabajaron para los cazatesoros de fuerte espina. sus andanzas les llevaron a atraer el interes de lestra (una manto negro), enemistarse con el pacto de hierro y desatar una horrible maldicion que ya ha acabado"
+      },
+      {
+        "page": 17,
+        "snippet": "la introduccion para los jugadores e l tiempo continua siendo favorable mientras cruzais el paso montañoso, aunque el viento ha empe- zado a morder con crueldad vuestros dedos y mejillas. la piedra solar sigue inactiva y asi debe permanecer mientras sea posible, porque de acuerdo con las leyes de la magia, cada vela que se encienda crea una sombra. ademas, l"
+      },
+      {
+        "page": 18,
+        "snippet": "jakaar, (tantos como los pj) los jakaar son una manada de animales caninos que normalmente capturan sus propias presas o se comen los restos dejados por otras bestias. la manada que sigue a keri-las aprovecha la oportunidad para atacar junto a la hambrienta loba. escena 4.1: el cad a ver de la el f a si la loba gigante muere durante el combate, los personaje"
+      },
+      {
+        "page": 19,
+        "snippet": "mas, godrai dice: «esas vidas nos pertenecen. si os negais, correra la sangre. volveremos al anochecer». los elfos se dan la vuelta y los viajeros de la caravana empiezan a discutir sobre el ultimatum. escena 7: entre la espada y la tormenta los miembros de la caravana deben ponerse de acuerdo: ¿entregan a belun y ludo o los defienden cuando vuelvan los elfo"
+      },
+      {
+        "page": 20,
+        "snippet": "escena 8−1: r endici o n belun entrara en la ultima fase de su enfermedad en cuanto se de cuenta de que lo van a entregar, momen- tos antes de que los elfos vuelvan para reclamar su presa. aunque ludo tambien se resistira, parece que la transformacion de belun le sorprende tanto como a los demas. si ludo sobrevive y se lo entregan a los elfos, saran-ri se tr"
+      },
+      {
+        "page": 21,
+        "snippet": "saran-ri, elfo estival verde «solo puedes acabar de una manera: cubierto por tu propia sangre» el elfo cambiaformas aparece corriendo sobre la nieve, transformado en osogro y listo para sacrificar su vida a cambio de matar a los barbaros marcados por la corrupcion. con argasto y sus compañeros. en ese caso, el resultado de ambos combates se decide segun lo q"
+      },
+      {
+        "page": 22,
+        "snippet": "argasto, dueño de la caravana «la caravana es mia, ¡y yo estoy al mando!» lestra, manto negro «t engo ordenes, no te interpongas» escena final: el futuro aguarda acabe como acabe la escena anterior, la tormenta termina por disiparse. los fuertes vientos amainan, la nevada cesa y el mundo vuelve a descansar tran- quilo bajo un manto de blanca nieve. la carava"
+      },
+      {
+        "page": 23,
+        "snippet": "apendice e n esta secci o n podr as encontrar una descripcion de los artefactos misticos que los personajes pueden conseguir (o sufrir) durante la aventura. tambien incluye dos mapas y unas pequeñas descripciones de algunos de los lugares que se visitan al final del escenario. artefactos la mano momif icada de mal - roga n en realidad, el «amuleto» que cuelg"
+      },
+      {
+        "page": 24,
+        "snippet": "avivar llama: la piedra permite aumentar la poten- cia de cualquier poder capaz de producir fuego que tenga su propietario. una tirada con exito de tenaz aumenta los efectos de dichos poderes en un nivel (por ejemplo, de 1d6 a 1d8, o con un +1 si ya esta en 1d12). accion: gratuita corrupcion: 1d4 espiritu de fuego: el amo de la piedra puede, mediante una tir"
+      },
+      {
+        "page": 25,
+        "snippet": "localizaciones las siguientes localizaciones aparecen a lo largo de la aventura. si el dj desea ampliarlas, o si los pj toman decisiones que les llevan por otros caminos, siempre es posible dibujar mapas adicionales antes de que empiece la partida o durante la misma. el paso de montaña en realidad, el paso de montaña es doble y se extiende por una vasta mese"
+      }
+    ],
+    "docs\\Adventure books\\Localizaciones de aventura.pdf": [
+      {
+        "page": 2,
+        "snippet": "localizaciones de aventura autor (nº1): mattias johnsson autor (nº2 y 3): paul baldowski traduccion: niklas lundmark järnringen : martin grip, mattias johnsson, mattias lilja version: 1.0.0 isbn: 000-00-00000-00-0 copyright: nya järnringen ab 2018 portada: martin grip maquetacion: mattias johnsson mapas: tobias tranell"
+      },
+      {
+        "page": 3,
+        "snippet": "2 el señor del pantano el señor del pantano es una localizacion de aventura diseñada para presentar la capacidad de las lindromas despertadas de evolucionar en dragormas y, con el tiem- po, en dragones adultos. en su forma original, la historia tiene lugar en la cienaga de breanegra con el legendario skaramagos como protagonista. sin embargo, tanto el en- to"
+      },
+      {
+        "page": 4,
+        "snippet": "3 1el señor del pantano y se haran excepciones en situaciones en las que el fin parece justificar los medios. en este caso, la combinacion de humanos y dragones se conside- ro peligrosa en si misma; dos fuerzas destructivas que juntas amenazaban con destruir toda la crea- cion. al restringir el ciclo vital de los dragones, la amenaza podia manejarse sin que "
+      },
+      {
+        "page": 5,
+        "snippet": "4 quienes se acercan a la zona son recibidos pri- mero por un elfo estival maduro desarmado que les dice, en elfo (y con gestos), que se den la vuel- ta, tras lo cual se hunde en el abrazo de la natu- raleza. si alguien no hace caso, recibe un disparo de advertencia, seguido de ataques de verdad. los personajes jugadores cuando, por alguna razon (ver mas ade"
+      },
+      {
+        "page": 6,
+        "snippet": "5 1el señor del pantano aparte del arroyo principal, que el rio mal- gomor mantiene vivo, la cienaga de breanegra es fangosa, de vegetacion desbordante y, por lo tan- to, no muy transitable. es posible remar o avan- zar a traves de las aguas, pero uno tiene que asu- mir que dedicara mucho tiempo a cortar, serrar o quemar para abrirse paso. en realidad, algun"
+      },
+      {
+        "page": 9,
+        "snippet": "8 a pesar de las numerosas cartas al gran maes- tre, y luego al consejo de la reina, todavia no ha recibido permiso para ordenar a las tropas del ejercito y de exploradores del lugar que ata- quen. odella esta cada dia mas desesperada; ¡pronto hara caso omiso de la politica de dis- crecion de sus superiores y tomara cartas en el asunto! tiene a su disposicio"
+      },
+      {
+        "page": 10,
+        "snippet": "9 1el señor del pantano y al hecho de que la tensa situacion asusta a los visitantes que antes pasaban la noche en sus em- barcaciones o acampaban fuera de la empalizada. el puesto avanzado consta de cinco casas y una torre con vistas a los marjales. uno de los edificios sirve como comedor y enfermeria, dos como barracones, y uno como capilla, dirigida por l"
+      },
+      {
+        "page": 11,
+        "snippet": "10 otras ruinas hay muchas ruinas en la cienaga de breanegra, y debido a la alianza entre skaramagos y la coro- na ambria, los aventureros de visita han tenido dificultades para llegar a ellas. sin embargo, la situacion actual ofrece la oportunidad de colarse en las islas exteriores, y tal vez incluso llegar a las ruinas interiores si pueden llegar a un acue"
+      },
+      {
+        "page": 12,
+        "snippet": "11 1el señor del pantano el brasero tiene el tamaño de un tazon de sopa, y es de ceramica agrietada con hilos de hie- rro entretejidos. cuando se usa, hay que encen- der el aceite y sostener el artefacto en la mano ahuecada de su dueño, que sufre la corrupcion al activarse los poderes. la penitencia del mentiroso: el dueño puede hacer una pregunta a alguien "
+      },
+      {
+        "page": 13,
+        "snippet": "12 golangarg «eres pequeño, eres debil; ¡y o estoy al mando!». golangarg desafio al gobernante de un reino troll menor del inframundo, y perdio. la regeneracion ha curado las cicatrices de su cuerpo, pero las de su alma no se curaran hasta que haya creado su propio reino, lo bastante fuerte como para atacar y aplastar a los debiluchos que lo desterraron. ten"
+      },
+      {
+        "page": 14,
+        "snippet": "13 1el señor del pantano armadura coraza de seda lacada 4 (flexible) defensa –5 resistencia 10 umbral de dolor 5 equipo 20 flechas, 3 hierbas curativas, 2 dosis de elixir de vida. sombra verde, que cambia de brillante a oscuro, como una hoja balanceada en las ramas bajas de un arbol (corrupcion: 0). tacticas: los elfos de otoño prefieren mantener la distanci"
+      },
+      {
+        "page": 15,
+        "snippet": "14 el abismo de erdugald los mayores peligros y secretos mas traicioneros del davokar no provienen de la oscura maleza virgen o de las retorcidas torres de antiguas ruinas, sino de los inespe- rados y cambiantes individuos que parecen materializarse de la nada y desaparecer sin rastro o aviso alguno. cualquier cazatesoros que merezca ese nombre no se aventur"
+      },
+      {
+        "page": 16,
+        "snippet": "15 de los capullos, buscando el huesped mas fuerte, matando a algunos, y anidando en otros. el veneno convirtio a los trolls maduros y estudiosos en ani- males furiosos de una estatura inusual, similares a los parientes hambrientos y desesperados que a menudo acechaban la superficie. los no afectados trataron de hacer algo al res- pecto, pero la furia de los"
+      },
+      {
+        "page": 17,
+        "snippet": "16 en el pasado lejano, la parte del inframundo que ahora esta expuesta a la superficie sirvio como una fundicion de artefactos arcanos raros. los trolls buscaban un medio para almacenar su riqueza de saber y conocimiento, aunque en una forma irre- conocible para los ambrios. una gran torre de lar- gos escalones se hundia profunda en la tierra con corredores"
+      },
+      {
+        "page": 18,
+        "snippet": "17 la columna consiste en dos niveles completos, como una torre, con el nivel superior mas estre- cho que el inferior. la parte superior luce una corona de arboles floridos asentados en capas de tierra suelta y sotobosque, de los que cuelgan copiosas raices retorcidas que se unen alrededor del nivel, casi ahogando la palida superficie de piedra en una telara"
+      },
+      {
+        "page": 19,
+        "snippet": "18 de marmol y piedra finamente trabajada. mover- se por los pasillos que rodean la sala es como na- vegar por los retorcidos y destrozados pozos de una mina olvidada, con algunas partes dobladas 90 o 180 grados, de tal manera que un cazateso- ros podria andar por la pared o tener encima de la cabeza elaborados suelos de cuadros. la sala tiene paredes labrad"
+      },
+      {
+        "page": 21,
+        "snippet": "20 rastros en el inframundo a continuacion, tienes media docena de suge- rencias sobre lo que pueden encontrar los perso- najes al investigar erdugald. el director de juego puede dejar que decida el azar (lanza 1d6) o elegir de la lista en funcion del estilo y preferencias de juego. 1. el rastreador encuentran un miembro del grupo de rastreo de duendes, heri"
+      },
+      {
+        "page": 22,
+        "snippet": "21 una tirada de atento o alguien con rastreador observa un rastro separado del ensangrentado que conduce a uno de los muchos pasajes latera- les accesibles, aunque con dificultad, a traves de una maraña de escombros y cascotes que obstru- yen el balcon. si los personajes investigan, tiran en la tabla de rastros en el inframundo. el estrechamiento un pasadiz"
+      },
+      {
+        "page": 23,
+        "snippet": "22 masacre en el pico del cuervo las duras exigencias de los viajes a traves de cualquier tramo de naturaleza hacen que tanto los comerciantes como los conductores de caravanas busquen siempre nuevas rutas y oportunidades para facilitar su paso. asi como el cazatesoros puede hacer for- tuna en las ruinosas profundidades del oscuro davokar, los rastreadores v"
+      },
+      {
+        "page": 24,
+        "snippet": "23 avanzados ocasionales, la mayoria compuestos por poco mas que antros de madera o cabañas de piedra, proporcionan refugio a lo largo del ca- mino –y se rumorea que los enanos crearon esas robustas estructuras que han resistido el paso de los pasos en pie. comparado con una noche a la intemperie en medios de los elevados picos, con el frio viento metiendose"
+      },
+      {
+        "page": 25,
+        "snippet": "24 glorias de antaño el duque sesario ha dado al gremio de ingenie- ros la tarea de elaborar planes de refuerzo de los caminos y apoyo marcial en mervidun. susurros imprudentes insinuarian que el duque no solo pretende convertir el dominio en el corazon del comercio de ambria sino tambien en una forta- leza desde la que gobernar toda la nacion, si algo le su"
+      },
+      {
+        "page": 26,
+        "snippet": "25 si cualquiera de estos casos se aplica a los ani- males de los personajes, saldran corriendo a la primera oportunidad. los intentos de calmar a los animales desconcertados por el destello se- ran dificiles (–3). la torre lejana las piedras y los cascotes yacen dispersos en la ori- lla, en ocasiones como una espina dorsal de roca desmenuzada o un pilar de "
+      },
+      {
+        "page": 28,
+        "snippet": "27 pico del cuervo 1. caravana masacrada 2. el puesto 3. t orre de los bandidos 4. mina 5. t orre de guardia 6. cueva sumergida 7 . canales sin luz 8. cueva de la piedra cierre 1 5 100 m0 n"
+      },
+      {
+        "page": 29,
+        "snippet": "28 bajo la fortaleza 1. un nido de araña trampera (consulta la pagina 217 del manual basico) en una sala con una do- cena de capullos pequeños de los restos en des- composicion de alimañas, la mayoria drenados de sus jugos internos. quien busque en la sala encontrara (lanza 1d6): 1 una hebilla de cintu- ron de plata, 2 una jarra con el dibujo de una lindorma"
+      },
+      {
+        "page": 30,
+        "snippet": "29 puedes utilizar las entradas de la tabla 1 para involucrar a los personajes en encuentros mien- tras registran los pasillos o tirar de forma alea- toria. en este ultimo caso, lanza 1d8 y ajustala con un +1 acumulativo despues de cada tirada. si los personajes tienen una bendicion, habilidad o poder mistico util, ajustala con un +1 adicional despues de la "
+      }
+    ],
+    "docs\\Adventure books\\Symbaroum - TdE1_Fuerte Espina.pdf": [
+      {
+        "page": 2,
+        "snippet": "«soñando me llevaron al salon, tumbado sobre las hojas de suelos musgosos, debajo de bovedas escalofriantes. me coloque frente a un asiento real; era de diseño humano, roble y pino, un trono terrible cubierto de espinas. llevado por el asiento habia una criatura, el padre de la ruina y la madre de la esperanza, en carne, en sangre»."
+      },
+      {
+        "page": 5,
+        "snippet": "la ira del guardian el primer episodio de la cronica del trono de espinas järnringen: martin grip, mattias johnsson, mattias lilja, johan nohr un cariñoso agradecimiento a: stuart bailey, paul baldowski, jocke bergström, brandon bowling, lars g bäckström, claus bo christensen, martin englund, evan, mattiaz fredriksson, aline gladh, ulrika haake, scott kehl, "
+      },
+      {
+        "page": 6,
+        "snippet": "4 el puerto del cazador la ciudad fronteriza 10 primeras impresiones ........................................... 11 sucesos memorables ............................................. 12 establecimientos y autoridades 16 tabernas ................................................................ 16 entretenimiento ................................................."
+      },
+      {
+        "page": 7,
+        "snippet": "5 seccion del director de juego a la sombra del faro 36 sangre del pasado .................................................. 38 intereses enfrentados ............................................ 42 los secretos ........................................................... 47 juego orientado a objetivos 52 establecer un puesto avanzado ........................."
+      },
+      {
+        "page": 8,
+        "snippet": "6 la batalla por... … el trono de espinas comienza en fuerte espina! se ha dicho que la ciudad a la sombra del gran bosque es una isla protegida y si- tuada donde un oceano espumoso rompe contra las rocas dentadas. ambria, revuelta y asolada por crecientes penurias, seria el oceano; los implacables horrores de da- vokar las rocas y las olas serian el diluvio"
+      },
+      {
+        "page": 9,
+        "snippet": "7 la analogia tiene sus meritos, pero tambien refleja la idea romantica de que una empalizada de madera y unas normas estrictas pueden fun - cionar como un escudo eficaz contra las fuerzas de la naturaleza. esta claro, de muchas maneras, que fuerte espina es mas seguro y menos caotico que el cercano brezoscuro, y que ofrece comodi - dades con las que uno sol"
+      },
+      {
+        "page": 10,
+        "snippet": "odos los dias durante ocho largos años, merdalo se ha levantado de la cama de paja, peinado la barba desgreñada y caminado hasta la plaza vieja. todos los dias durante ocho lar- gos años, ha entrado en su caja de madera para cantar las alabanzas de fuerte espina, y sonreido en agradecimiento por cada chelin que ha hecho cantar la copa de bronce a sus pies. s"
+      },
+      {
+        "page": 12,
+        "snippet": "10 la ciudadfronteiza casi todos los ambrios comparten el mismo sueño. esta claro que puedes mantener una existencia tolerable cultivando el suelo ambrio, o participando en la construccion de yndaros u otra ciudad de rapido crecimiento. aunque quienes tienen exito en esas empresas dificil- mente pueden evitar fantasear con la vida segura, a la vez que exci- "
+      },
+      {
+        "page": 13,
+        "snippet": "11 1la ciudad fronteriza la mayoria de quienes cruzan por prime - ra vez una de las puertas de fuerte espina, lo hacen con expectativas claras. se supone que es nueva, calmada, organizada y limpia, al menos comparada con ciudades como yndaros o la cre - ciente corvida. inicialmente puede parecer que las expectativas se corresponden con la realidad. ningun ed"
+      },
+      {
+        "page": 14,
+        "snippet": "12 por otro lado… si uno se niega a ceder ante el brazo fuerte de la ley y se queda un tiempo en la ciudad, pronto descubrira que hay formas de evitar la deteccion. mientras te mantengas aleja- do de testigos parlanchines, coloques un soborno en la mano correcta y consideres cuidadosamente a quienes pueden enfadar tus acciones, a menudo puedes seguir trabaja"
+      },
+      {
+        "page": 15,
+        "snippet": "13 en los años siguientes, los elfos hicieron nume- rosos intentos de demoler el fuerte mediante ata- ques directos o sabotajes furtivos, el mas reciente durante el invierno del año 20, cuando dos asesi- nos elfos fueron capturados en un atico cerca del retiro de la noche. sin embargo, ninguno de los in- cidentes posteriores ha causado tantas perdidas en vid"
+      },
+      {
+        "page": 16,
+        "snippet": "14 comenzo con unos pocos casos. la gente em- pezaba a quejarse de dolores en el pecho y mas tarde comenzaba a toser sangre. a medida que el numero de infectados aumentaba con rapidez, el estado de las victimas iniciales empeoraba. la tos se volvio tan violenta que rompia las costillas de la victima desde dentro y el sangrado se extendia a todas las demas me"
+      },
+      {
+        "page": 17,
+        "snippet": "15 aguasclaras cargado de tesoros. pero nunca mas se ha vuelto a inundar el mercado con articulos, como cuando iasogoi brigo regreso de las cata- cumbas de akkona, situadas debajo a la ciudad en ruinas de odaban. la guerra de los mercaderes (año 17) cuando el fuerte era joven, el comercio de arte- factos y objetos antiguos se manejaba de mane- ra diferente c"
+      },
+      {
+        "page": 18,
+        "snippet": "16 la victoria de afadir quien tenga muchos taleros en el bolsillo y de- see un viaje culinario de vuelta al viejo albere- tor, deberia hacer una reserva en la taberna de la victoria de afadir. ni los ingredientes ni las especias coinciden con las recetas originales, aunque el tabernero y su personal hacen todo lo posible para encontrar sustitutos locales di"
+      },
+      {
+        "page": 19,
+        "snippet": "17 tabernas 1. la victoria de afadir 2. el fermento 3. el antro 4. odovakar 5. el fermento negro 6. los salones de symbaroum 7 . el matadero posadas 8. la corte y el harpa 9. el cucharon alado 10. la bruja y el familiar 11. hospederia arkerio 12. el jardin de rosas 13. la ruina 14. las barracas 15. el reposo de la costurera datos de fuerte espina fundacion: "
+      },
+      {
+        "page": 20,
+        "snippet": "18 desgracia, el sustituto resulto ser toxico y el chico inmune a sus efectos. sufrio diez dias en la picota antes de ser ejecutado en la horca. afadir pago las grandes multas y juro en nombre de prios que nun- ca dejaria que nadie repitiera ese error. pudin de trucha y nabos con mantequilla 15 chelines salchicha roka con pure de verduras 12 chelines jarra d"
+      },
+      {
+        "page": 21,
+        "snippet": "19 2 entretenimiento la moda de relatos y canciones barbaras que ca- racteriza a muchos establecimientos de yndaros apenas es reconocible en fuerte espina. esto pue- de explicarse como un efecto de que esas leyendas forman parte del trabajo de los residentes, y que la mayoria de la gente del fuerte quiere mantener todo lo relacionado con davokar fuera de la "
+      },
+      {
+        "page": 22,
+        "snippet": "20 de ellos se corto una oreja y la añadio a la enorme fortuna depositada sobre la mesa; el otro vio la oreja y subio tres dedos de la mano izquierda. y asi siguieron con los dedos de los pies, los ojos las lenguas y los labios hasta que uno de ellos decidio ir a lo grande y coloco literalmente su corazon en la mesa. el perdedor se va con vida y la familia d"
+      },
+      {
+        "page": 23,
+        "snippet": "21 posadas en una ciudad donde una cuarta parte de quie- nes se alojan en el interior de la empalizada son vi- sitas mas o menos temporales, las posadas tienen que desempeñar un papel vital. el gran numero de visitantes tambien explica por que las hospederias de la ciudad son tan numerosas y variadas. hay camas para alquilar en casi todos los barrios de la c"
+      },
+      {
+        "page": 25,
+        "snippet": "23 2establecimientos y autoridades final es una mentira poetica, hay algo de verdad en el texto pintado en el letrero de la parte infe- rior de la escalera: «una calurosa bienvenida al cucharon alado –la posada que ofrece una cena celestial, bebidas divinas y camas tan suaves como las nubes a precios de suelo» . la bruja y el familiar en una ciudad con tanta"
+      },
+      {
+        "page": 26,
+        "snippet": "24 ambria tiene una orgullosa tradicion de ha - biles artesanos y, en la mayoria de los casos, estos tambien venden sus productos, como sus padres antes que ellos. pero despues de atrave - sar los titanes, un nuevo establecimiento vio la luz del dia, apareciendo por vez primera en fuerte espina. cuando la ciudad era joven, solo unos pocos ar- tesanos habian "
+      },
+      {
+        "page": 27,
+        "snippet": "25 2 establecimientos y autoridades dinero, pero por otro lado pueden suponer la di- ferencia entre la vida y la muerte al enfrentarse a los horrores de davokar. apoteca del talero la apoteca del talero es el equivalente de los al- quimistas de casa marvalom, una tienda donde se puede encontrar de todo. la tienda la regen- tan las hermanas ofera y moria, per"
+      },
+      {
+        "page": 28,
+        "snippet": "26 engañados, antes o despues de regresar de una expedicion a las profundidades de davokar. los charlatanes que dicen conocer todo lo que hay que saber sobre el sitio objetivo pueden estar sol- tando una sarta de mentiras, lo que da lugar a unos preparativos deficientes y, por lo tanto, a un resultado desastroso. y el explorador que revela su valioso conocim"
+      },
+      {
+        "page": 29,
+        "snippet": "27 y pergaminos, que describen los grandes y pe- queños acontecimientos de la historia y desa- rrollo de la region. la busqueda de informacion en los archivos cuesta un talero la hora, aunque tambien es posible pagar de otro modo por ese tiempo –como por ejemplo, informar a los es- cribanos de algun acontecimiento mas o menos importante que les interese pres"
+      },
+      {
+        "page": 30,
+        "snippet": "28 agdala la bruja agdala no es la persona mas amable de la ciudad. parece detestar fuerte espina y a juz- gar por como habla en su presencia, odia todavia mas a su hijo alomar –por ser un inutil, por obli- garla a vivir entre los ambrios y por no haberle dado nietos. la unica cosa que parece ponerla de buen humor es cuando tiene la oportunidad de chismorrea"
+      }
+    ],
+    "docs\\Adventure books\\Symbaroum - TdE2_Karvosti.pdf": [
+      {
+        "page": 2,
+        "snippet": "“cai como una hoja entre eones, desde la rama de la creacion al momento y lugar presente. abajo habia una meseta desolada, cortada de la corteza terrestre, lecho rocoso y polvo, y el hogar de un dios voraz. al igual que yo, sucumbio al otoño, hundida y apaleada para descansar en el corazon de la piedra” ."
+      },
+      {
+        "page": 5,
+        "snippet": "el martillo de monstruos el segundo episodio de la cronica del trono de espinas järnringen: martin grip, mattias johnsson, mattias lilja autor: mattias johnsson edicion: mattias lilja diseño grafico: johan nohr christian granath diseño grafico: johan nohr tobias tranell lars strömquist version: 1.0.0 isbn: 000-00-00000-00-0 copyright: nya järnringen ab 2017 "
+      },
+      {
+        "page": 6,
+        "snippet": "4 el refugio del explorador la ciudad fronteriza 10 primeras impresiones ........................................... 11 sucesos memorables ............................................. 13 gente y lugares 16 alojamiento ........................................................... 16 comida y bebida ................................................... 18 entrete"
+      },
+      {
+        "page": 7,
+        "snippet": "5 seccion del director de juego en la oscuridad 38 la madre de garavarax ........................................ 39 aumento de la tension ........................................... 42 semillas de aventura .............................................. 48 nuevas reglas 54 exploracion de ruinas .......................................... 54 intriga .........."
+      },
+      {
+        "page": 8,
+        "snippet": "6 las tinieblas del davokar... … se ciernen sobre el karvosti del gran jefe tharaban. todo el mundo lo ha oido decir, quienes ponen los pies bajo el follaje pueden sentirlo, y solo quienes se benefician de afirmar lo contrario lo negaran: el bosque es cada vez mas oscuro. es como si el musgo esmeralda perdiera poco a poco el brillo, como si las aguas claras "
+      },
+      {
+        "page": 9,
+        "snippet": "7 sea cual sea la verdad, el risco de karvosti se eleva como una isla solitaria entre el oceano de ar- boles. durante siglos, si no milenios, la meseta ha sido un santuario para la gente que huye de los ho- rrores de abajo. los ultimos quinientos años, tam- bien ha sido considerado terreno neutral, un lugar donde la gente de todos los rincones del mundo pued"
+      },
+      {
+        "page": 10,
+        "snippet": "a transformacion es lo bas- tante lenta como para que la ma- yoria de la gente no se de cuenta. pero okramal si lo hace. durante casi dos decadas, la huldra le ha encargado escuchar el bosque y respirar su aroma salvaje. la ociosa oscuridad no la va a enga- ñar, ni siquiera con el ocasional resurgir de luz y calor. no, don- de otras ven casualidad, ella ve p"
+      },
+      {
+        "page": 12,
+        "snippet": "10 el dominio de tharaban pocas partes de la region del davokar son objeto de tantos rumores y leyendas como el risco de karvosti. si, se cantan canciones de symbar, saroklaw y el mitico dako- vak. sin embargo, a diferencia de estos lugares legendarios y otros como estos, karvosti esta muy vivo, y lo que es mas, es el hogar de muchas personas de renombre. mu"
+      },
+      {
+        "page": 13,
+        "snippet": "11 1el dominio de tharaban endo evelin entrena con alonar, un guardia de la furia zareko, a la sombra de la pared escarpada. radores ambrios. en otras palabras, es razonable que los personajes que hayan pasado un tiempo en el risco, o hayan socializado con curtidos aven- tureros en yndaros o fuerte espina, tengan acce- so a la siguiente informacion. todos lo"
+      },
+      {
+        "page": 14,
+        "snippet": "12 sorprenderse ante la recepcion de unos pocos guar- dias, acompañados probablemente de lumedo, el anciano ambrio que ha hecho de interprete de los guardias de la furia estos ultimos cuatro años. el res- to de guardias de la furia es probable que les echen miradas rapidas antes de centrar su atencion en el bosque, en busca de cualquier movimiento que pue- d"
+      },
+      {
+        "page": 15,
+        "snippet": "13 1el dominio de tharaban ““¿conoces a aniabar, ese calvo que siempre se escabulle por la me- seta? ¡pertenece a la or- den del baculo! podria acabar con cualquiera... quien fuera... con solo una mirada” . sucesos memorables se dice que vivia gente en karvosti mucho an- tes de que el davokar echara raices y terminara tragandose el risco. solo existen unos p"
+      },
+      {
+        "page": 16,
+        "snippet": "14 alambres unidos a ocho campanas se conoce como la venganza de karlaban. el predecesor de dormegor, el gran jefe karlaban, fue corrompi- do por la oscuridad, por razones desconocidas, y huyo al bosque cuando los guardias de furia y la huldra fulba fueron a arrestarlo. dos años mas tarde, el antiguo gran jefe regreso con una horda de abominaciones renacidas"
+      },
+      {
+        "page": 17,
+        "snippet": "15 1el dominio de tharaban herida huldra, deadorna se habia convertido en una abominacion y yeleta la mato en defensa propia. se especulo mucho con que yeleta, elegida in- mediatamente para suceder a la popular guar- diana, lo habia planeado todo como una forma de acercarse a la huldra. estas especulaciones ganaron credibilidad unas pocas lunas mas tar- de c"
+      },
+      {
+        "page": 18,
+        "snippet": "16 alojamiento pocas personas se plantearian dormir bajo los ar- boles del davokar si tuvieran otra opcion. las pocas alternativas viables en karvosti y sus alrededores son muy caras, y ninguna puede igualar a los colchones de paja de las posadas como la ruina o el reposo de la costurera. por otro lado, por lo general no hace fal- ta mucho para satisfacer a "
+      },
+      {
+        "page": 19,
+        "snippet": "17 2gente y lugares huespedes, tanto invitados como de pago, aunque las camas y la cocina no estan al alcance de cual- quiera. hay que ser de noble cuna, tener buenos contactos entre la elite ambria (contactos: nobles o equivalente), o poder permitirse gastar una peque- ña fortuna para disfrutar de tales comodidades. los que consiguen una cama en la fortalez"
+      },
+      {
+        "page": 20,
+        "snippet": "18 que lo atrapara tratando de usar el cuarto de invitados como base para su planificado allanamiento del sota- no abovedado de la camara del sotano del gran jefe. el halcon victorioso la unica autentica posada de la region se encuen- tra detras de la empalizada que rodea el puesto co- mercial de la casa vearra, a una hora a pie al este de karvosti. llamada "
+      },
+      {
+        "page": 21,
+        "snippet": "19 gustativas o cultivar paladares! esta claro que se hacen excepciones en ciertos dias festivos y festivales. sin duda, hay personas que por casua- lidad cocinan bien, o por lo menos de forma inte- resante, sin siquiera intentarlo. en cuanto a las bebidas, las mas habituales son el agua dulce y deliciosa del bosque y la nu- tritiva vesa (una mezcla de leche"
+      },
+      {
+        "page": 22,
+        "snippet": "20 tribu de trasgos braddokkkugru, y la comunidad libre de jakaar. cada uno de ellos tiene su propia cocina tradicional, y los aficionados a la cocina seguramente disfrutaran visitandolos –la tortu- ga en su concha de jakaar y la anguila rellena de angulas de bradokk no solo son exoticas, sino que incluso son sabrosas. sin embargo, sin duda hay que visitar e"
+      },
+      {
+        "page": 23,
+        "snippet": "21 a los dados y a juegos de mesa; compiten en concur- sos de pulsos y se baten en duelo hasta la primera sangre o moreton. sin embargo, hay que tener cui- dado de no terminar como los aventureros levana y leda. mientras leda se recuperaba de un caso grave de fiebre del pantano, su hermana levana perdio a los dados todas las riquezas ganadas con tanto es- fu"
+      },
+      {
+        "page": 24,
+        "snippet": "22 ante la angustia de los guardias de la furia y de los visitantes barbaros, levanta su voz aguda y deja que su odiosa retorica resuene sobre la meseta, llegan- do al punto algido cuando el sol se pone en el ho- rizonte. su comentario final es siempre el mismo: “concedenos fuerza, oh prios, padre de nues - tras leyes. limpianos para que podamos reflejar tu "
+      },
+      {
+        "page": 25,
+        "snippet": "23 2gente y lugares deres o entre ellos. en realidad, muchos merca- deres ambrios acuden expresamente para inter- cambiar productos de primera necesidad muy baratos por artesanias y curiosidades exoticas. no hace falta decir que esto molesta mucho a sus clientes, y que los comerciantes hacen bien en tener guardaespaldas cerca, al menos si tienen el temple de"
+      },
+      {
+        "page": 26,
+        "snippet": "24 uno de los pilares de las profesiones de ex - plorador y cazatesoros es la investigacion y la busqueda de informacion. sin embargo, en el davokar pronto se aprende que toda la infor - macion esta sujeta a interpretacion, algo que se olvida facilmente en ambria, donde las au - toridades como la ordo magica y la iglesia del sol a menudo presentan sus interp"
+      },
+      {
+        "page": 27,
+        "snippet": "25 el malgomor se agita, salpica y espumea. segun los barbaros, los rapidos son de hecho una enti- dad viviente llamada el susurrante. tras muchas investigaciones, los estudiosos de la ordo magica han llegado a la conclusion de que hay algo de verdad en ello, pero rechazan todas las ideas de que el propio rio cobre vida. en lugar de eso, han declarado que es"
+      },
+      {
+        "page": 28,
+        "snippet": "26 en general, las tendencias radicales tienen una forma de suavizarse con el tiempo, pero si es verdad lo que dicen del padre piromei, esto no se le aplica. sus puntos de vista se han vuel- to mas radicales, y no se abstiene de entrelazar insinuaciones provocativas en sus ardientes sermones: insinuaciones de que las brujas es- tan aliadas con los males del "
+      },
+      {
+        "page": 29,
+        "snippet": "27 la antepasada odaiva, odamagala, suele re- presentarse como una mujer voluptuosa. las personas que viajan entre fuerte espina y karvosti, tarde o temprano se topan con miembros del clan odaiova. una vez lo hacen, seguro que escucharan historias so- bre el clan baiaga y su poblado cerca del lago aguagrande. son dos culturas barbaras muy diferentes, y junta"
+      }
+    ],
+    "docs\\Adventure books\\Symbaroum - TdE3_Yndaros.pdf": [
+      {
+        "page": 2,
+        "snippet": "«al sur huyeron los pisoteados y vencidos, con la oscuridad detras, y con la calidez y la luz del sol delante. una fortaleza levantaron en las tierras bajas, una maravilla de piedras, sobre los huesos del guardian, custodia las reliquias de symbar. aunque corruptos y desgarrados eran sus cuerpos. los pecados de los padres resonaban en su carne, y la oscurida"
+      },
+      {
+        "page": 5,
+        "snippet": "la estrella mas oscura el tercer episodio de la cronica del trono de espinas free league: christian granath, martin grip, tomas härenstam, mattias johnsson haake, nils karlen, kosta kostulas, mattias lilja, simon stålenhag autor: mattias johnsson haake edicion: mattias lilja diseño grafico y ayudas: johan nohr ilustraciones : martin grip version: 1.0.0 isbn:"
+      },
+      {
+        "page": 6,
+        "snippet": "4 ciudad de contrastes el corazon de ambria 10 primeras impresiones ........................................... 11 sucesos memorables ............................................. 12 gente y lugares 16 comida y bebida ................................................... 16 alojamiento ........................................................... 20 entretenimie"
+      },
+      {
+        "page": 7,
+        "snippet": "5 seccion del director de juego un corazon doliente 40 kalthar y korinthia .............................................. 42 facciones ............................................................... 46 semillas de aventura ............................................. 55 casas nobles 60 la sangre mas noble ............................................. 62 otr"
+      },
+      {
+        "page": 8,
+        "snippet": "6 ¡el dulce sabor de la victoria... … persiste en los labios de los subditos de la reina! aunque han pasado dos decadas desde la victoria de korinthia hiendenoche sobre los señores oscuros, su recuerdo perdura a traves de las obras y los desfiles, en las estatuas y mosaicos, en las canciones y conversaciones de los castillos, las chozas y las tiendas andrajo"
+      },
+      {
+        "page": 9,
+        "snippet": "7 y su objetivo es ayudar a los jugadores y a sus personajes a resolver problemas y a afrontar los retos sociales sin tener que depender de la guia del director de juego. y por supuesto, no esta de mas que los jugadores sepan de antemano cual es su taberna favorita, donde suelen comprar su armadura, y en que partes de la ciudad se sien- ten mas a gusto sus p"
+      },
+      {
+        "page": 10,
+        "snippet": "i no hubiera tenido tan poco tiempo, habria pedido al cochero que tomara el camino largo, pero el sol ya estaba bajo, y de ninguna manera se iba a perder la fiesta en casa de junia. todos sus ami- gos estarian alli, o mejor dicho, todos los que importaban. el carruaje aminoro al cru- zar el arroyo angosto, y siguio a un ritmo suave al pasar por los edificios"
+      },
+      {
+        "page": 12,
+        "snippet": "10 el corazon de ambria yndaros lo tiene todo. ¡todo! en el aclamado poema de taubio ruina de la noche se refiere a la ciudad como «la cuna y la tumba del arco iris» y seguramente nadie podria haberlo dicho mejor. no importa que deseo arda en tu piel, que metas tengas en la vida, que visiones de ensueño floten frente a tu ojo interior –yndaros suele ser dond"
+      },
+      {
+        "page": 13,
+        "snippet": "11 1el corazon de ambria con o sin la participacion de la guardia de la ciudad y los pansars –el agitador que por la mañana grita su rabia desde un podio improvisado en la plaza del tendero, puede que por la tarde se aferre a un anda- mio en el distrito del templo. cualquiera que haya vivido en la ciudad de la reina durante algun tiempo puede entender por qu"
+      },
+      {
+        "page": 14,
+        "snippet": "12 tan pronto como el impacto inicial desaparece y los visitantes pueden asimilar sus nuevas expe- riencias, los contrastes se hacen evidentes, entre lo nuevo y lo viejo, lo elegante y lo simple, lo lujoso y lo barato, lo ambrio y lo barbaro. los contrastes pueden verse en todo, desde las personas y su for- ma de vestir, hasta los edificios y monumentos, pas"
+      },
+      {
+        "page": 15,
+        "snippet": "13 1el corazon de ambria «por lo que he oido, no me sorprenderia que el baron manvar grendel en realidad este aliado con su hija, esa «bruja de hielo». quiero decir, ¿como pudo sobrevivir sin que nadie quisiera hacer negocios con el?». chan en toda la capital se centran en el periodo que va desde la caida de lindaros hasta el pre- sente, que sin duda ha sido"
+      },
+      {
+        "page": 16,
+        "snippet": "14 sus propios subditos), aunque quienes disfruta- ban de la fiesta no se dieron ni cuenta. el baño de sangre la mayoria de quienes abandonaron la alberetor moribunda, cruzaron las montañas y obtuvieron la bendicion de la reina para entrar en la tierra prometida, creen que este fue el final de sus penu- rias. no siempre es asi. ni mucho menos. la gra- titud "
+      },
+      {
+        "page": 17,
+        "snippet": "15 1el corazon de ambria del templo, presuntamente fue descubierto en la primavera del año 17. no es raro que miembros de varias facciones sean acusados de cultistas y se enfrenten al encarcelamiento o la ejecucion, pero por supuesto, la situacion se vuelve mas de- licada cuando se trata de dignatarios locales. en este caso, el culto en cuestion era un gran "
+      },
+      {
+        "page": 18,
+        "snippet": "16 un libro de tamaño limitado como este no podria cubrir todos los establecimientos y personajes destacados de yndaros. y los rapidos cambios que siempre se producen en la ciudad no lo hacen mas facil: una taberna llena de parroquianos podria conver- tirse al mes en una herreria, el fugazmente famoso capitan de la de la guardia de la ciudad que tumbo a un o"
+      },
+      {
+        "page": 19,
+        "snippet": "17 2gente y lugares durante todo el año, hay vendedores de comida en cada plaza y esquina, con sus carros y bandejas llenas de comida sencilla como tartas, salchichas, chuletas y pan. la competencia es brutal, y quienes gozan de una reputacion mayor que la de sus rivales pueden ganarse la vida con ello (como madame eli- nora, que despues de tres años como ve"
+      },
+      {
+        "page": 21,
+        "snippet": "19 59 8 12 6 2 3 10 1 36 35 31 27 16 20 18 14 47 39 56 51 58 58 58 50 1. 2. 3. 4. 5. 6. 7. 8. 9. 10. 11. 12. 1 7. 18. 19. 20. 33. 34. 35. 36. 3 7. 38. 50. 51. 52. 53. 54. 55. 56. 5 7. 58. 13. 14. 15. 16. 32. 21. 22. 23. 24. 25. 26. 2 7. 28. 29. 30. 31. 39. 40. 41. 42. 43. 44. 45. 46. 47. 48. 49. 59. 60. 61. 62. 63. comida y bebida hermano humlu el festin de "
+      },
+      {
+        "page": 22,
+        "snippet": "20 alojamiento comparado con fuerte espina, no hay mu- chas posadas y pensiones en la capital. por lo ge- neral, la gente tiene razones concretas para visitar el lugar, a menudo a peticion de una determinada persona u organizacion que tambien puede pro- porcionar alojamiento. ademas, siempre se puede montar una tienda de campaña en el campamento de refugiado"
+      },
+      {
+        "page": 23,
+        "snippet": "21 tabla 1: el coste del hospedaje en yndaros nombre descripcion 1 noche 1 semana 1 mes en propiedad la t orre dormitorio/habitacion simple 0,5/1 chelin 2/4 chelines 2 taleros — sima de los titanes habitacion de dos o cuatro camas 1 chelin 3 chelines 15 chelines — posada de zoltar habitacion doble 2 chelines 9 chelines 3 taleros — la t orre suite 1 talero 4 "
+      },
+      {
+        "page": 25,
+        "snippet": "23 2gente y lugares no tiene nada que ver con el jefe del clan vajvod, aparte de su decoracion, que se supone que fue hecha para que se pareciera a la de su residencia sin ventanas: la fortaleza de piedra de vojvodar. es simple y robusta, hecha por manos expertas de madera, piedra y lino. la habilidad de la cocinera aztri es muy reconocida, en especial cuand"
+      },
+      {
+        "page": 26,
+        "snippet": "24 una parece una abominacion en todo su esplen- dor de multiples brazos, y la otra es dulce e in- fantil. por supuesto, es posible que la poblacion de lindaros se reuniera alli por las mismas y varia- das razones que los ambrios. como en muchos otros lugares de ocio, las entradas tienen diferentes precios, en el caso de la cupula van desde unos pocos chelin"
+      },
+      {
+        "page": 27,
+        "snippet": "25 2gente y lugares hoy el antiguo edificio es uno de los mas be- llos de yndaros, con brillantes fachadas blancas, cupulas relucientes, y paredes interiores, suelos y techos decorados con elegantes mosaicos. hom- bres y mujeres se bañan en zonas separadas con piscinas frias y calientes, y varias saunas de vapor. no se permiten trasgos ni ogros, debido a lo "
+      },
+      {
+        "page": 28,
+        "snippet": "26 cada gremio tiene su gran maestro, elegido por y entre un numero variable de maestros, que a su vez puede promover a los novicios diligen- tes a adeptos. el gran maestro de cada gremio –desde albañiles y moldeadores, hasta herreros y cerveceros, sastres, alfareros, etc.– se encuen- tra en la capital, mientras que la mayoria de los maestros residen en otra"
+      },
+      {
+        "page": 29,
+        "snippet": "27 aplica a los ejemplos mencionados, asi como a los archivos de la guardia de la ciudad, el ejerci- to, el sekretorium real, y el sanatorio rada, por nombrar algunos. para obtener esa informacion clasificada, hay que recurrir a medidas mucho mas inmorales –robo, infiltracion o lograr cierta influencia sobre las personas con la autorizacion adecuada (y chant"
+      },
+      {
+        "page": 30,
+        "snippet": "28 mucha gente es reacia a convertirse en miembro de la biblioteca de anearia, y por lo tanto a tener derecho a la ayuda de los biblio- tecarios para buscar respuestas a las posibles preguntas. esto requiere algo mas que una fir- ma en algun libro de registro: hay que enviar un pequeño mechon de pelo para archivarlo. una vez hecho esto, se es libre de pagar "
+      },
+      {
+        "page": 31,
+        "snippet": "29 el verdugo gigante ripe se ha convertido en el sim- bolo de la ley y el castigo en yndaros. cuencia a la torre prision del barrio del palacio, o al sanatorio rada –un centro dirigido por la ordo magica en el islote situado a mas o menos una hora al oeste de la ciudad, donde se retiene, cuida y estudia a los pacientes levemente man- chados por la corrupcio"
+      }
+    ],
+    "docs\\Adventure books\\Symbaroum - TdE4_Symbar.pdf": [
+      {
+        "page": 2,
+        "snippet": "«un campo empapado de sangre, vestido de oscuridad, donde los cuerpos yacen en podredumbre, en ondulantes paisajes de muerte. los vencedores, triunfantes, aunque llorosos, debido a la caida de la humanidad, y el temor por todo, por la tierra, el viento y el agua tocados por la corrupcion. con grilletes de raices y enredaderas, encadenaron al vastago, de la o"
+      },
+      {
+        "page": 5,
+        "snippet": "madre de las tinieblas el cuarto episodio de la cronica del trono de espinas autor y director del proyecto: mattias johnsson haake contribuciones: jens gråhed erik hylander simon lundmark isak ström diseño grafico y ayudas: christian granath johan nohr portada: martin grip version: 1.0.0 isbn: 000-00-00000-00-0 copyright: fria ligan ab 2019 mapas: tobias tra"
+      },
+      {
+        "page": 6,
+        "snippet": "4 viaje al templo de la exal tacion ¡el punto de inflexion de la cronica! puede parecer deliberado que este episodio de la cronica del trono de espinas sea el primero en escribirse despues de la fusion de järnringen con la editorial free league. sin embargo, el hecho de que el punto de inflexion dramatico de la serie coin- cida con un acontecimiento clave en"
+      },
+      {
+        "page": 7,
+        "snippet": "5 seccion del director de juego la sombra de symbaroum 58 auge, caida y duermevela ..................................... 59 facciones ............................................................... 64 ruinas 72 prisioneros del crater de la muerte ........................ 72 amanecer del sol negro ............................................... 78 expedicione"
+      },
+      {
+        "page": 8,
+        "snippet": "6 los bosques ensombrecen... … al igual que las aguas y las llanuras. ni los subditos de la reina korinthia ni los clanes de davokar se han tomado lo bastante en serio las advertencias. muchos las han ignorado por completo y otros las han descartado como intentos de brujas y elfos de retener las riquezas del bosque para ellos. el apetito por los frutos del b"
+      },
+      {
+        "page": 9,
+        "snippet": "7 de hierro y el tiempo transcurrido desde enton- ces hasta hoy. la informacion y conocimientos se dividen en tres secciones: una primera pen- sada para que la lean tanto los jugadores como los directores de juego, seguida de una seccion del director de juego con informacion exclusiva y nuevas reglas y, por ultimo, la epica aventura madre de las tinieblas qu"
+      },
+      {
+        "page": 10,
+        "snippet": "d eseando un viaje sin complicaciones y un regreso seguro, al contratado abajo firmante se le confia la tarea de dirigir la expedicion y exploracion del objeto de la expedicion: el templo de la exaltacion. el contratado es responsable de la planificacion de la ruta, la adquisicion del equipo y suministros y el reclutamiento de personal. dispone de un fondo d"
+      },
+      {
+        "page": 12,
+        "snippet": "10 en el fu ert e es horrible. repugnante. no solo baboso y arrogante… hay algo vil detras de su sonrisa. si claro, parece sincero en querer buscar una cura para la afliccion de su amada. ¿pero por que el secreto? ¿por que el t emplo de la exaltacion? ¿y por que la negrura en sus ojos? una cosa es cierta: no tiene intencion de pagarmelo todo. por lo tan- to,"
+      },
+      {
+        "page": 13,
+        "snippet": "11 1viaje al templo de la exaltacion r eclut ami ento no es un buen comienzo. los guias que tenia en mente no estan disponibles. arval y f onsiul han salido de mision. beor esta muerto (a causa de unos ferberos). me aconsejaron un recien llegado, un barbaro del clan zarek, pero estaba borracho como una cuba y era todo un sobon. seguire buscando. hable con ly"
+      },
+      {
+        "page": 14,
+        "snippet": "12 engañada hoy he conseguido mi licencia de explorador. es ridiculamente cara, aunque lo bueno es que lo paga el cerdo: mas de doscientos taleros por un mes. espero que sea tiempo suficiente, de lo contrario tendre que pagar una multa a la vuelta. aparte de eso… malditos. t odos ellos. humanos, trasgos, trocalengos, todos. ¡maldita malga! estaba segura de q"
+      },
+      {
+        "page": 15,
+        "snippet": "13 el sacerdote solar erdan parece bastante competente, y ansioso de com- placer en todos los sentidos. su vanidad es una molesta, pero eso es de- bido a la juventud, y sin duda se desvanecera tras pasar unos dias en la mugre de davokar. t engo mas dudas sobre orgai. a pesar de su baja al- curnia, ya ha empezado a cuestionar mi liderazgo. no de forma explici"
+      },
+      {
+        "page": 16,
+        "snippet": "14 d ia 1 en el bosqu e resuelto el primer gran conflicto con orgai, a medio camino entre el borde del bosque y el rio eanor. empezo a gruñir y a gimotear durante mi pre- sentacion de nuestra ruta a karvosti, pero no dijo nada hasta que tuvimos un pequeño contratiempo: un viejo y famelico monje escondido en unos ar- bustos, a la espera de una victima. ahora "
+      },
+      {
+        "page": 17,
+        "snippet": "15 d ia 2 hoy hemos sufrido la primera baja, una de las porteadoras. se llama- ba ugl-algo, o ulg- creo. una pena, ya que era fuerte y habil con el hacha. «una superviviente», como señalo el lider de los porteadores (olfions), sin ver la ironia en su declaracion. en todo caso, a la bes- tia que la mato no le importaba su caracter. era un marlot, lo cual es s"
+      },
+      {
+        "page": 18,
+        "snippet": "16 d ia 3 pasamos la noche en uno de los campamentos de los kariteos. estaba vacio, como era de esperar. t odo apunta a que los rumores son ciertos: el clan esta en crisis, ya que muchos de sus miembros se han unido al gran jefe, mientras el resto se han dispersado y dirigido hacia el este. espero que yerola este con los primeros. t am- bien kora y aroun. qu"
+      },
+      {
+        "page": 19,
+        "snippet": "17 la siguiente persona que me salvo la vida fue harlar. me arrodille para beber de un pequeño arroyo, pero antes de que el agua tocara mis labios, me dio una patada en la espalda y casi me caigo dentro. al principio me cabreo, hasta que me di la vuelta y recorde que habia ordenado silencio despues de nuestro encuen- tro con los barbaros. ademas, sus ojos lo"
+      },
+      {
+        "page": 20,
+        "snippet": "18 d ia 6 han sido dos dias sin mucho de que informar. bueno, anoche algo merodeo por nuestro campamento. a lo mejor hadas, aunque lo mas probable es que fueran animales pequeños. morea echo un vistazo antes de partir, pero no pudo encontrar ningun rastro. ademas, dos de los porteadores han enfer- mado. vomitan y cagan como bebes trasgos, tal vez por algo qu"
+      },
+      {
+        "page": 21,
+        "snippet": "19 el descanso para almorzar de hoy ha sido interesante. me sente con los portea- dores, y aunque la conversacion no fue muy fluida (solo olfions y otro mas ha- blan un ambrio decente), parecian saber un par de cosas sobre el t emplo de la exaltacion. es evidente que no hay garantia de que el lugar del que hablan sea el que buscamos, pero seguire preguntando"
+      },
+      {
+        "page": 22,
+        "snippet": "20 d ia 9 hay campamentos militares al este, oeste y sur. al norte, hacia el oeste del arroyo obala, se esta construyendo un monticulo. t ambien se ha comenza- do a construir una empalizada de madera alrededor. con nuestra licencia en regla, no tuvimos problemas para entrar en la meseta. encontrar un lugar para las tiendas de campaña en el campamento de pere"
+      },
+      {
+        "page": 23,
+        "snippet": "21 1viaje al templo de la exaltacion d ia 10 rann tiene un corte profundo en el cuello. t uvo una pelea con un aventu- rero ambrio por una partida de «sol de prios» y recibio una cuchillada del amigo borracho de su oponente. el oponente ahora esta encerrado en la fortaleza. rann sangraba mucho, se sentia debil, pero no se ha quedado atras, a pesar de que el "
+      },
+      {
+        "page": 24,
+        "snippet": "22 d ia 11 hemos acampado a mitad de camino de serand, antes de lo planeado. hasta ahora no hay rastro de las tropas de la soberana, pero rann esta debil y yo tambien me siento un poco rara. venida a menos. no lo mencione antes, aunque se me paso por la cabeza. empiezo a sospechar que nos siguen. t al vez son imaginaciones mias, pero incluso antes de llegar "
+      },
+      {
+        "page": 25,
+        "snippet": "23 1viaje al templo de la exaltacion estamos a una hora al sur de la piramide de serand, escondidos en una cabaña aban- donada que apesta a troll y a moho. no obstante, rann y morea no estan aqui. los gue- rreros de la soberana que encontramos nos obligaron, a los ambrios, a retroceder junto con los porteadores. el comandante me pidio que hablara a nuestros "
+      },
+      {
+        "page": 26,
+        "snippet": "24 d ia 14 puede que hayamos conseguido despistar a nuestros perseguidores, o al menos ganar algo de tiempo. unas horas antes del amanecer llegamos a un arroyo que se cruzo en nuestro camino, tan poco profundo que pudimos caminar sobre el lecho y seguirlo hacia los cuervos. nos movimos despacio, no habia estrellas en el cielo, por lo que tropezamos en la osc"
+      },
+      {
+        "page": 27,
+        "snippet": "25 1viaje al templo de la exaltacion d ia 16 no descansamos mucho estos ultimos dias, aunque tampoco hemos llegado muy lejos: elegimos la ruta y la zona para sacarnos de encima la promesa de la soberana, no para ganar terreno. sin embargo, dejamos atras el t emplo del sol y giramos hacia el norte. pasamos a cierta distancia y solo usula y yo nos acercamos. a"
+      },
+      {
+        "page": 28,
+        "snippet": "26 d ia 17 hoy he vivido toda una experiencia en davokar, como le habria encantado a alavan: incomprensible, inexplicable y, por tanto, muy inquietante. usula nos hizo un gesto para que nos detuvieramos y me hizo señas, señalando a tra- ves de la neblinosa oscuridad a una figura sentada sobre una roca musgosa, rodeada de animales dormidos; un par de liebres,"
+      },
+      {
+        "page": 29,
+        "snippet": "27 1viaje al templo de la exaltacion despues de rodear la extraña escena, continuamos a traves de un tramo de bosque que parecia mas tranquilo de lo habitual. pudo ser mi imaginacion, o tal vez me arrullaba la sensacion de armonia que irradiaba la criatura de la roca. o quizas orgai tiene razon y la criatura que vimos era uno de los ancianos, uno de los past"
+      }
+    ],
+    "docs\\Adventure books\\Symbaroum - TdE5_The_Haunted_Waste.pdf": [
+      {
+        "page": 2,
+        "snippet": "we are the rock, the foundation upon which walls shall be built. we are the thoughtful observer, who shall watch, understand, and guide but not construct, not manage, not lead. you shall build, but also listen – or the walls you raise around the flame of life shall be a prison that smothers and darkens."
+      },
+      {
+        "page": 4,
+        "snippet": "the haunted waste the fifth episode in the chronicle of the throne of thorns alberetor constru ction & projec t lead mattias johnsson haake contributions by erik hylander mattias lilja illustrations gustaf ekelund aline gladh maps tobias tranell johan nohr cover martin grip gra phic design johan nohr layout mattias johnsson haake christian granath trans lati"
+      },
+      {
+        "page": 5,
+        "snippet": "1 v ict ory at a n y cost 10 background ............................................................. 11 factions in the adventure .......................................15 other factions .........................................................16 2 t h e civi l war 20 the course of the war ............................................ 20 the state of the war"
+      },
+      {
+        "page": 6,
+        "snippet": "6 i ntrodu ction 68 the player characters’ journey ..............................69 7 al beretor 71 overview ................................................................ 72 people and places .................................................... 74 journeys in the darkened south ............................ 78 8 cast le brigo 87 introduction .............."
+      },
+      {
+        "page": 7,
+        "snippet": "ye s, it shou ld be said here and now: although there are still rare glimpses of light and rela - tive safety south of the mountains, your time there will be marked by darkness, distress, and constant danger. you will experience the repercussions of the great war on humankind and the world, and be forced to endure both heartrending encounters and acute threa"
+      },
+      {
+        "page": 8,
+        "snippet": "this book is structured differently than the previous episodes of the throne of thorns . there is no player’s section; instead we head straight into the background and factions of the adventure. the first section also contains a chapter on the civil war, before the adventure itself is introduced and begins with a battle scene set in ambria. the section concl"
+      },
+      {
+        "page": 9,
+        "snippet": "he ri pples caused by the weepers’ tears, spreading across the surface, were now only a hair’s breadth away from flowing over the smoothly worn edge of the well. the moment drew near, as relentless as a tidal wave. “there is room, isn’t there? for interpretation, i mean.” prince elori asked the question out loud, but as expected there was no reply, not from "
+      },
+      {
+        "page": 11,
+        "snippet": "before we co ntinue, it must be said that the contents of this book are nothing but suggestions and inspirational guidelines. the haunted waste is the fifth episode of the chronicle of the throne of thorns, and by now the situation in the davokar region may differ greatly from gaming group to gaming group, depending on what alliances the player characters ha"
+      },
+      {
+        "page": 12,
+        "snippet": "the battle at oralak’s winter dunes colored the cotton fields red with loyalist blood. been the second – the game master’s section. this chapter explains the background and historical context of the adventure, describes the situation between and within the factions of the game world, and provides information and adventure set-ups related to the current civil"
+      },
+      {
+        "page": 13,
+        "snippet": "has gone missing, often lost on the way to another order chapter for analysis, and eventually picked up by servants of the crown. it is by analyzing this material that korinthia has gained knowledge of the historical links which she is now acting upon; links related to the history of lindaros and the order of dakothnic. the order of dakothni c as the elves a"
+      },
+      {
+        "page": 14,
+        "snippet": "worldly leaders offered her the position of the future city’s chieftain: ”we are the rock, the foundation upon which walls shall be built. we are the thoughtful observer, who shall watch, understand, and guide, but not construct, not manage, not lead. you shall build, but also listen – or the walls you raise around the flame of life shall be a prison that sm"
+      },
+      {
+        "page": 15,
+        "snippet": "carried with her from the dying symbaroum is difficult to say; some would probably point to the order’s organization, where leading representatives were also rulers in a worldly sense. but whatever the case, the nairs’ principles of moderation and consideration were relentlessly the intelligence reports the two reports that brought korinthia closer to rosae "
+      },
+      {
+        "page": 16,
+        "snippet": "ever since she stopped listening to her advisors, all reports from the royal sekretorium have been delivered directly to her. anything of relevance to the kingdom at large is forwarded to her subordi - nates, but she has also kept a great deal to herself, including many analysis reports regarding symbar, the throne of thorns, and the region’s ancient his- to"
+      },
+      {
+        "page": 17,
+        "snippet": "order to slowly seize positions of power and valuable information. the reason for this does not only have to do with the civil war and its distracting effect. equally significant, if not more so, is the fact that they are descending deeper and deeper into the darkness of corruption. while not completely lost, they are both balancing on the brink of being tho"
+      },
+      {
+        "page": 18,
+        "snippet": "create goroth, new ceremony tradition: sorcery those who are not prepared to sacrifice life and limb, and are not concerned about the darken- ing of their soul, can create a flesh-and-blood copy of themselves and through meditation use it as their vessel in the world. the creation process is conducted during a five-day cere- mony and requires at least a doze"
+      },
+      {
+        "page": 19,
+        "snippet": "more factions, or if the game master wants to use a specific faction as the characters’ quest giver. the lo ya lis ts the motley group of people calling themselves loyalists have little in common except their deter- mination to defend the current regime: they have all agreed to fight for the queen and the lawgiver. but they have different reasons for doing s"
+      },
+      {
+        "page": 20,
+        "snippet": "themselves the new masters of the ruined city, but when the ambrian civil war broke out they turned their focus to karvosti. the battle against the high chieftain’s allies was bloody and brutal, but did not last more than a few weeks, and their victory was complete when the blood-daughter personally cap- tured and decapitated the high chieftain tharaban and "
+      },
+      {
+        "page": 21,
+        "snippet": "the civil war this cha pter is meant to provide the game master with enough information about the ambrian civil war to portray it to the players and use it as a backdrop for homebrew adventures, directly or indirectly. you are of course free (as usual) to add, remove, and alter things as you see fit – what happens between the start of the war and its abrupt "
+      },
+      {
+        "page": 22,
+        "snippet": "olandan naturally the queen’s spies learn about the enemy’s military build-up, and during the latter part of olandan month a mighty army of soldiers from mervidun and a platoon of pansar cavalry begin to establish a military camp near furia, south of the river rava. a diplomatic delegation from yndaros under a white flag is granted an audience with the crown"
+      },
+      {
+        "page": 23,
+        "snippet": "ynedar day 12 q ueen korinthia establishes a g arrison in t empelwall day 20 the cr own duke makes a deal with c ount arnon melion day 23 the r eformists start muster- ing their arm y near ravenia olandan day 17 the q ueen’s mervidun army e stablishes a camp in furia day 23 the queen’s letter of demands r eaches the crown duke day 29 the queen declar es war "
+      },
+      {
+        "page": 24,
+        "snippet": "invading and waiting out the winter in the town of parfas, which is little more than a large village. the maneuver succeeds, but at great cost in human life. ofe liya between brief moments of thaw, ambria remains in istaros’ grip throughout ofeliya month. the war comes to a halt and no significant troop movements are possible. agani the final days of ofeliya"
+      },
+      {
+        "page": 25,
+        "snippet": "the loyalists set their aim on the capital of kaldel county, convinced that the local populace and aristocracy are still loyal to the crown. and sure enough: the small garrison left behind by the reformists is easily overpowered, largely thanks to loyalist sympathizers on the inside. verion the ground is thawing, vegetation slowly sprouts from the ground, an"
+      },
+      {
+        "page": 26,
+        "snippet": "ordo magica and the war officially, ordo magica is neutral in the conflict between the queen and the crown duke, and most of its members choose not to get involved in the war. but there are of course many individual wizards and scholars who ac- tively take sides, aiding one faction or the other with both advice and direct action – which, according to current"
+      },
+      {
+        "page": 27,
+        "snippet": "the haunted waste? or maybe you believe the violent confrontation between the kingdom’s main factions is too important to be left in the background. in the latter case there are different alternatives to consider. one is of course the possibility to play a war-related one-shot or two before the haunted waste begins; another is to let one or more incidents su"
+      },
+      {
+        "page": 28,
+        "snippet": "adventure introduction many wer e c ertain that crown duke ynedar’s rebellion was destined to fail, that queen korinthia’s armed forces would make short work of the traitor’s little army. but after the battle of oralak’s winter dunes, even the most stubborn pundits begin to worry that the civil war is serious – that it could be long and bloody, and open woun"
+      }
+    ],
+    "docs\\Hoja personaje editable.pdf": [
+      {
+        "page": 1,
+        "snippet": "jugador arma armadura armadura arma arma arma daño cualidad cualidad proteccion proteccion daño daño daño atributo atributo atributo atributo cualidad cualidad cualidad cualidad sombra nombre raza ocupacion cita experiencia por gastar agil habilidades, rasgos, poderes y rituales fuertediestro persuasivo defensa defensa atento inteligentediscreto tenaz corrup"
+      },
+      {
+        "page": 2,
+        "snippet": "equipoedad nombre dinero otro s recursos raza ocupacion jugador altura peso apariencia trasfondo objetivo personal nombre del grupo objetivo del grupo nombre nombre raza raza ocupacion ocupacion jugador jugador nombre poderes corrupcion nombre poderes corrupcion namn poderes corrupcion nombre poderes corrupcion nombre raza ocupacion jugador nombre raza ocupa"
+      }
+    ],
+    "docs\\Libro Basico.pdf": [
+      {
+        "page": 2,
+        "snippet": "«en las ruinas de symbaroum un sueño revelo un pozo, un caldero, un tunel. de sus profundidades se arrastro una criatura de la plaga, podredumbre forjada en carne, crueldad tallada en hueso, una decoccion del espinazo de la serpiente madre. y la bestia putrida me miro con deleite, hambrienta, y en sus ojos llameantes vi la muerte de toda vida»."
+      },
+      {
+        "page": 3,
+        "snippet": "järnringen lanzo su primer juego de rol durante las navidades de 2001. el juego, mutant: undergångens arvtagare, se convirtio en un salto para todo el equipo: pasamos de nuestros trabajos en sanidad, periodismo, empresa o investigacion a una carrera como escritores, artistas, productores y gestores de negocio. de los ocho miembros del equipo, solo cinco acab"
+      },
+      {
+        "page": 4,
+        "snippet": "järnringen: martin grip, mattias johnsson, mattias lilja pruebas de j uego : anders agdahl, einar axelsson, arvid axelsson, jonas bengtsson, daniel björk, jörgen björklund, calle bromark, christer edling, max ehrenström, tinah ekwall, simon engqvist, viktor eriksson, alexander fahlander, christoffer fahlgren, claes florvik, niklas fällman, karl gustafsson, t"
+      },
+      {
+        "page": 5,
+        "snippet": "2 b ienvenido a s y m bar ou m 13 el retorno de la reina.............................................. 14 la tierra prometida................................................. 15 culturas y estilos de vida .........................................16 ma pa: ambria y davokar .....................................17 3 f a cc iones 22 las casas nobles ............"
+      },
+      {
+        "page": 6,
+        "snippet": "guia del director de juego la tierra prometida 18 in t rodu cc io n 164 antes de la partida .................................................164 du rante la partida .................................................166 d espues de la partida ............................................. 167 19 reg l as de l di re ct or de j ueg o 169 retos ..................."
+      },
+      {
+        "page": 7,
+        "snippet": "symbaroum aguarda… ¡… adentraos en s u m u ndo! el libro que tienes entre las manos es mas que simple papel y tinta. es la puerta de entrada a otro mundo, un lugar donde explorar el inmenso bosque de davokar en busca de tesoros, conocimientos y fama; donde visitar los once clanes barbaros para comerciar o saquear sus tesoros; donde establecer la base de tu p"
+      },
+      {
+        "page": 8,
+        "snippet": "el man u al basico de sy mbaroum consiste en tres secciones principales que incluyen todo lo necesario para adentrarse en el juego: el mundo de juego, la guia del jugador y la guia del director de juego. la primera seccion ofrece una descripcion introductoria del reino de ambria y el bosque de davokar. entre otros temas, trata sobre la historia, geografia y "
+      },
+      {
+        "page": 9,
+        "snippet": "¿juegos de rol? p odr ia decirse que u n juego de rol consiste en dos elementos basicos: por un lado, un mundo de fantasia lleno de lugares que visitar y criaturas que conocer; por otro, reglas que determinan lo que se puede hacer en ese mundo y el resultado de esas acciones. los juegos de rol se juegan en grupo, con ami- gos, pero sin competir entre ellos; "
+      },
+      {
+        "page": 10,
+        "snippet": "dados de symbaroum cuatro caras (d4) seis caras (d6) ocho caras (d8) diez caras (d10) doce caras (d12) veinte caras (d20) jugadores d u rante u na p art ida de ro l , ca da participante (excepto el director de juego) tiene su propio personaje jugador, a traves del que experimenta e interactua con el mundo de juego. el jugador decide lo que su pj dice o hace "
+      },
+      {
+        "page": 11,
+        "snippet": "traveso olas de oscuridad y terror, como un barco recubierto de acero en una tormenta de truenos. yo estuve alli, puedo dar fe; soy uno de los pocos que presencio asombrado la luz del amanecer atrapada en su armadura, la transformacion de nuestra joven reina en un astro solar montado a caballo, espada en mano: korinthia hiendenoche, nuestra soberana, la dest"
+      },
+      {
+        "page": 14,
+        "snippet": "¡bienvenido a symbaroum! o, para ser precisos , bienvenido a la region que en tiempos remotos estaba gobernada por la civilizacion de symbaroum; un imperio que, segun todas las cronicas, contaba con grandes avances en arquitectura, espiritualidad, arte y enseñanza de la magia; una cultura que indudablemente sufrio una caida tan veloz como brutal. e st a se c"
+      },
+      {
+        "page": 15,
+        "snippet": "el retorno de la reina la g ra n gu erra : las hambrientas hordas de los señores oscuros, una pesadilla que duro dos decadas y que acabo con casi todo el coraje de quien finalmente pudo despertar de ella. lo unico que les quedo fueron razones para el desconsuelo: decenas de miles de muer- tos, incontables tullidos y almas rotas, la tierra asolada por magia d"
+      },
+      {
+        "page": 16,
+        "snippet": "de fuerte espina. la construccion debia financiarse en gran medida con la recompensa que lasifor recibio por una brazada de espina crepuscular, una extraña hierba que se supone era lo suficientemente pode- rosa para ayudar a la madre de la reina korinthia, abesina, quien se encontraba gravemente enferma. desde entonces, el asentamiento amurallado del alcalde"
+      },
+      {
+        "page": 17,
+        "snippet": "los ambrios aun no han establecido ningun asen - tamiento importante en las montañas. en lugar de ello se han convertido en un refugio para bandidos, librepensadores y barbaros rebeldes. en cuanto al reino enano de küam zamok, sus habitantes parecen mostrar una indiferencia absoluta hacia los huma- nos, excepto por unas pocas familias que por razones descono"
+      },
+      {
+        "page": 18,
+        "snippet": "17 2 bienvenido a symbaroum el tunel de jerak c i e n a g a d e b r e a n e g r a l o s m a r j a l e s m a l g o m o r v o l g o m a e b e l karvosti d a v o k a r jakaar sevona torres de tierra de la grieta las columnas la ciudad en ruinas de odaban küam zamok de haganor de la sanguijuela negra e a n o r fuerte espina templorrecio redina agrella kurun kast"
+      },
+      {
+        "page": 19,
+        "snippet": "todos los ambrios provienen del extinto reino de alberetor, al sur de los titanes. la gran guerra los hizo mas fuertes, pero tambien les obligo a convertirse en un pueblo disciplinado y organizado en temas militares y burocraticos, asi como en el comercio y la division del trabajo. en pocas palabras: la guerra ha civilizado al pueblo ambrio, aunque puede que"
+      },
+      {
+        "page": 20,
+        "snippet": "las hordas de la oscuridad a pesar de que han pasado mas de dos decadas desde la victoria, los señores oscuros y la gran guerra siguen muy pre- sentes en la vida de los ambrios. por lo g ener al la gente solo habla de las victorias, sobre las heroicas hazañas de los iluminarios o de como los ejercitos de korinthia masacraron hordas de cria - turas muertas vi"
+      },
+      {
+        "page": 21,
+        "snippet": "guia de las brujas todos los barbaros tienen cuidado en mostrar gratitud al bosque que les alimenta y les enseña a ser humildes. los cuentacuentos juegan un papel vital en el proceso, especialmente cuando se trata de difundir las historias de advertencia sobre lo que puede ocurrir cuando alguien viola los tabues impuestos por la huldra. la tradicion oral amb"
+      },
+      {
+        "page": 22,
+        "snippet": "historias mas populares, incluyendo los antiguos poe- mas atribuidos a la legendaria huldra aroaleta. al margen de que los ambrios empleen mas tipos de narracion, hay otra diferencia significativa entre los grupos: mientras que casi todos los barbaros toman parte en los ritos de las brujas y escuchan las historias alrededor del fuego, el pueblo ambrio esta d"
+      },
+      {
+        "page": 23,
+        "snippet": "facciones est e capitulo ofr e c e u na breve introduccion a las facciones mas poderosas de ambria, junto con un vistazo similar a los clanes barbaros y al pacto de hierro. en terminos generales, no son grupos que puedan describirse como armoniosos; por lo general las luchas por el poder son tan frecuentes dentro de estas facciones como entre ellas mismas, y"
+      },
+      {
+        "page": 24,
+        "snippet": "la reina korinthia la reina korinthia carga con la esperanza y el dolor de su pueblo, llevando la cabeza erguida y con plena seguridad en si misma. no tenia mas de doce años cuando el rey ynedar murio en batalla, pero no dudo en continuar el combate donde el lo dejo: heredo su montura, el legendario mäster, hizo que volvieran a forjar su lanza rota y dirigio"
+      },
+      {
+        "page": 25,
+        "snippet": "un incompetente que roza la ineptitud, o que las demas casas suspiran por una oportunidad para derrocar a los kohinoor, cualquiera puede ver que korinthia tuvo que sopesar la situacion cuidadosamente antes de nombrar a los duques de la tierra prometida. por otro lado, no hay que creerse todo lo que se cuenta. a menos que las apariencias sean tremen- damente "
+      },
+      {
+        "page": 26,
+        "snippet": "los clanes barbaros cuando los ambrios llegaron al sur de davokar habria trece clanes barbaros viviendo en la region. desde entonces el numero ha caido a once: el clan kadiz fue sometido y absorbido por la civilizacion ambria, mientras que el clan jezora cayo aniquilado por el acero sureño. en los ultimos tiempos corre el rumor de la existencia de un duodeci"
+      },
+      {
+        "page": 27,
+        "snippet": "y e d e sa comparados con sus vecinos del norte, los yedesos tienen mejores razones para sentirse orgullosos. de los ultimos diez grandes jefes, seis han salido del clan yedesa, incluyendo al actual. la razon de ello es que el clan abandono hace mucho tiempo el estilo de vida nomada en favor de asentamientos mas permanentes. desde la aniquilacion del clan je"
+      },
+      {
+        "page": 28,
+        "snippet": "expreso del duque alesaro para mantenerse en el lado ambrio de la frontera durante gran parte del año. ademas, se dice que el duque esta tratando de acabar con la vendetta abierta entre el jefe de los varakko, didramon, y el de los zarek, monovar. la iglesia de prios la igl e sia d e l dios sol prios gobierna su pro - pio dominio en ambria: un territorio tan"
+      }
+    ],
+    "docs\\Rule books\\Códice de monstruos.pdf": [
+      {
+        "page": 2,
+        "snippet": "«al final, en el amanecer futuro, las abominaciones enjambraban, y los humanos corrian o morian. en el abismo, en la negrura nocturna: progenitores y vastagos, luchaban hasta el amanecer, una matanza para acabar con todos. pero el final eclosionaria un principio, que aqui creamos con valentia, un mundo que, de nuevo, caera destruido y en silencio»."
+      },
+      {
+        "page": 5,
+        "snippet": "codice de monstruos autores: mattias lilja mattias johnsson contribuciones: paul baldowski niklas lundmark isak ström järnringen : martin grip, mattias johnsson, mattias lilja version: 1.0.0 isbn: 000-00-00000-00-0 copyright: nya järnringen ab 2018 ilustraciones: martin grip diseño grafico: johan nohr edicion y correccion: brandon bowling niklas lundmark un "
+      },
+      {
+        "page": 6,
+        "snippet": "4 ¡bestias, demonios y abominaciones! hara unos quince años, el equipo järnringen pu- blico el bestiario para nuestra version del juego de rol mutant, llamado zonernas zoologi (la zoologia de las zonas). cuando miramos atras todo lo que hemos escrito e ilustrado, este magnifico libro siem- pre aparece en la discusion sobre que producto nos llena de orgullo y"
+      },
+      {
+        "page": 7,
+        "snippet": "5 adversarios y monstruos introduccion 120 adversarios 122 campeones de prios ..................................................... 122 ordo magica .................................................................... 125 señores de ambria ........................................................ 128 pueblo de davokar .........................................."
+      },
+      {
+        "page": 8,
+        "snippet": "6 bienvenido... … al codice de monstruos de symbaroum, un libro que presenta una colec- cion de criaturas asombrosas y fenomenos increibles que es posible encontrar en el vasto bosque de davokar y sus alrededores. entre sus portadas, descubriras adversarios y monstruos desconocidos hasta la fecha, o al menos todavia no des- critos, de lo mas ansiosos por pon"
+      },
+      {
+        "page": 9,
+        "snippet": "7 por ultimo, cada parte presenta una idea de aventura. el director de juego puede elegir entre utilizarlo tal cual y desarrollarlo en un esce- nario jugable, o como inspiracion y ejemplo de como introducir las diversas criaturas. seccion 2: adversarios y monstruos la segunda seccion de este li- bro tiene como objetivo la can- tidad y no la profundidad. sin "
+      },
+      {
+        "page": 10,
+        "snippet": "s probable que poca gente, si es que hay, sepa tanto sobre los enemigos del portador de la luz como yo. los conozco a todos, desde la abominacion mas grande hasta la centella mas pequeña, desde el architroll mas anciano hasta la cria de abomi- nacion mas joven. he escuchado las leyendas, estudiado los rela- tos y examinado tanto cadaveres como especimenes vi"
+      },
+      {
+        "page": 12,
+        "snippet": "10 araks la transformacion el proceso por el que un ser civilizado se transforma en un arak implica una ceremonia, celebrada en dos fases. en un principio, se hila un capu- llo en forma de huevo de hilos de seda. a traves del poder y el estruendo del ritual recibe un brillo dorado. este huevo puede esperar hasta un año para la fase dos, cuando se introduce d"
+      },
+      {
+        "page": 13,
+        "snippet": "11 1hordas de la noche eterna querida hermana, te escribo desde el interior de un huevo de hilos dorados, con una vela moribunda como unica fuente de luz. las letras se extienden sobre el pergamino mientras el veneno recorre mis venas. mi asesina yace a mi lado, su cuerpo atravesado por mi estoque de confianza; la muerte ha capturado las numerosas articulaci"
+      },
+      {
+        "page": 14,
+        "snippet": "12 asi hablo aroaleta «… y alli, en el es -truendoso y sibilante enjambre enemigo, lucharon contra el retoño de angathal, erguidos y orgullosos. con lanza y hacha, con fauces chorreantes, arak-an y arak-zanz atacaron la fortaleza de serembar…»."
+      },
+      {
+        "page": 15,
+        "snippet": "13 1hordas de la noche eterna t l hilo hilado tiene un principio y un final, pero nunca deja de ser. el hilo que termina permanece, siempre atado a la existencia: esencial, intacto, inalterable. al juntar los cabos, el prin- cipio es vacio, el final es vacio, y lo que termino se eterniza. asi sucedera, un dia, a angathal taar, nuestro soberano y señor del mu"
+      },
+      {
+        "page": 16,
+        "snippet": "14 cos eran de la misma raza, en ocasiones aladas, otras no, a veces altas y recias, otras diminutas y aparentemente inofensivas. la forma natural de un bestiaal –con la que despiertan todas las mañanas, y la que asumen en el momento de la muerte– es humanoide con rasgos animales- cos, pelaje ralo y una cola sin pelo. debido a su habilidad para cambiar de fo"
+      },
+      {
+        "page": 17,
+        "snippet": "15 1hordas de la noche eterna paloma mensajera procedente de los cuervos. rodeado por los cuervos, muy al norte. encontramos su pueblo, en un valle boscoso. darean y sagal estaban alli, el ensartado en una estaca, ella atada. las bestias nos descubrieron, y corrimos hasta aqui. el silencio revela que se acercan. puede prios guiar esta paloma hasta ti con mi "
+      },
+      {
+        "page": 18,
+        "snippet": "16 d espues de la caida de symbaroum, los cambiaformas se retiraron al ais- lamiento de los cuervos. hace poco, han reaparecido regiones ocupadas por hu- manos, primero en vajvod, y luego extendien- dose al oeste y al sur. sus planes, si es que tie- nen alguno en comun, son desconocidos. los individuos encontrados en davokar la lumi- nosa y en los asentamien"
+      },
+      {
+        "page": 19,
+        "snippet": "17 1hordas de la noche eterna nueva regla: jugar con un bestiaal es muy posible, aunque tambien un reto, interpretar a un personaje de la raza bes- tiaal. es todo un desafio en dos aspectos: en primer lugar, en que los bestiaals no tienen un papel determinado en ambria, lo que hace que sean dificiles de representar; en segundo lugar, puede resultar dificil d"
+      },
+      {
+        "page": 20,
+        "snippet": "18 centella como medio para satisfacer sus propios fines y apetitos. el objetivo principal de una centella es encontrar mas anfitriones adecuados; si es posible, muchos en el mismo lugar. esto ulti- mo explica por que a veces tantas centellas y huespedes centellares se encuentran lejos de las partes mas oscuras de davokar. l as secreciones de la centella po-"
+      },
+      {
+        "page": 21,
+        "snippet": "19 1hordas de la noche eterna la transformacion cuando alguien encuentra a un centellar, en comba- te o en las calles de un asentamiento fronterizo de ambria, es posible notar que la criatura tiene algo extraño. si el sol ya ha salido, puede que sea el cuello deformado lo que despierta sospechas; si ha caido la noche, el parasito resplandeciente colorea de r"
+      },
+      {
+        "page": 22,
+        "snippet": "20 centella conducta zumbido profundoraza criaturas aladas (bestia)desafio complicadorasgos alado (ii), arma natural (ii), capa- razon (ii), duro (ii), infestacion (ii) agil 11 (-1), atento 7 (+3), diestro 15 (-5), discreto 10 (0), fuerte 13 (-3), inteligente 9 (+1), persuasivo 5 (+5), t enaz 10 (0)habilidades ningunaarmas diestro mordisco 4 armadura caparaz"
+      },
+      {
+        "page": 23,
+        "snippet": "21 1hordas de la noche eterna u na criatura infestada por una centella recibe los rasgos de monstruo recio y veloz, y si ya los tiene, su nivel en estos rasgos aumenta en +1 (aunque nunca puede su- perar el nivel iii). todos los seres con una boca lo bastante grande como para que la centella pue- da entrar pueden resultar infestados, aunque las criaturas con"
+      },
+      {
+        "page": 24,
+        "snippet": "22 colosseo bien, desde luego, sera mejor que creas que he visto un colosseo de cerca, aterradoramente cerca. fue uno de esos dias en los que preferirias quedarte en la tienda: una lluvia torrencial caia sobre las copas de los arboles, las gotas se estrellaban en una niebla humeda o se fundian en las hojas para caer en pesadas cortinas que martilleaban la ca"
+      },
+      {
+        "page": 26,
+        "snippet": "24 colosseo conducta furia estoica raza depredador (bestia) desafio dificil rasgos arma natural (iii), demoledor (iii), descomunal (ii), recio (ii), robusto (iii) agil 13 (-3), atento 10 (0), diestro 7 (+3),discreto 5 (+5), fuerte 15 (-5), inteligente 10 (0),persuasivo 9 (+1), t enaz 11 (-1) habilidades combate sin armas (adepto), golpe de hierro (adepto) ar"
+      },
+      {
+        "page": 27,
+        "snippet": "25 1hordas de la noche eterna crear eliend, ceremonia la ceremonia mistica que transforma a una bruja en un colosseo requiere un minimo de cuatro participantes, de los cuales uno actua como celebrante. se tarda un dia entero en completarla y los participantes sufren en conjunto 5d6 puntos de corrup- cion temporal, dividida en partes iguales entre ellos, y si"
+      },
+      {
+        "page": 28,
+        "snippet": "26 destello p arecia que seria una pelea facil. habiamos cazado a los refugiados hacia el este, hasta las estribaciones de los cuervos. alli, se refu- giaron en los restos de un castillo en ruinas, seguramente cansados y con suministros limitados. ya sabiamos que estaban preparados para luchar y asi lograr entrar en la tierra prometida, por lo que nos acerca"
+      },
+      {
+        "page": 30,
+        "snippet": "28 c omo tantas otras tribus barbaras, la vajvod cuenta historias a sus ene- migos que se alargan hasta la noche, lo suficiente para ver como el fuego queda reducido a humo y brasas. a pesar del mie- do y el respeto transmitido en estas historias de duras batallas, algunos enemigos se han cobrado tantas vidas que su mencion es un tabu. admitir tales perdidas"
+      },
+      {
+        "page": 31,
+        "snippet": "29 1hordas de la noche eterna idea de aventura c omo sugerencia, el destello suele utilizarse como una complicacion, y no como el enemigo principal de una aventura. no importa si los personajes luchan contra rivales y/o bestia mientras buscan un tesoro, si persiguen cultis- tas en algun nido o comunidad libre, o si se encuentran en una caza de mons- truos, l"
+      }
+    ],
+    "docs\\Rule books\\Guía Avanzada del jugador.pdf": [
+      {
+        "page": 3,
+        "snippet": "copyright: nya järnringen ab 2016 copyright © nosolorol ediciones, 2021 järnringen: martin grip, mattias johnsson, mattias lilja dire c c i on: mattias lilja contribu c i ones: mattias johnsson anders lekberg ilu stra c i ones: martin grip diseño grafi c o : johan nohr corre cc i on: brandon bowling guia avanzada del jugador agra d e c i miento muy espe c i "
+      },
+      {
+        "page": 4,
+        "snippet": "el acto de creacion 1 a rquetipos 10 cazador ........................................................................10 guerrero ......................................................................16 mistico .........................................................................22 maleante ................................................................."
+      },
+      {
+        "page": 5,
+        "snippet": "5 h abilid a d es 60 6 t ra d ic iones mistic as 74 simbolismo ..................................................................74 magia de la orden del baculo ...................................... 76 canto troll ....................................................................77 7 p o d eres y rituales 78 rituales ......................................"
+      },
+      {
+        "page": 6,
+        "snippet": "este primer capitulo presenta dichas alternati - vas a grandes rasgos, mientras que el resto del libro esta dividido en tres secciones llamadas el personaje, habilidades y tradiciones y herramientas. las dos primeras describen en detalle multitud de nuevas opciones: razas, rasgos, habilidades, poderes e ideas con las que poder expandir las opciones del jugad"
+      },
+      {
+        "page": 7,
+        "snippet": "a distancia, mientras que los segundos prefieren el cuerpo a cuerpo. ademas, mientras que los cazadores se espe- cializan en acechar a su presa y derribar oponentes que huyen, los maleantes estan mas orientados a la simple supervivencia y busqueda de riquezas. la otra novedad es que todos los arquetipos han sido provistos de una habilidad exclusiva, una cara"
+      },
+      {
+        "page": 8,
+        "snippet": "en su lugar. su destino constituye una combinacion pintoresca de pelear por la causa elfica en davokar y sentirse vinculados al mundo de los humanos. todos los tomados suelen saber mucho sobre el mundo y sus principales conflictos, al menos desde la optica del pacto de hierro. los muertos vivientes que aparecen en esta guia como raza jugable son un fenomeno "
+      },
+      {
+        "page": 9,
+        "snippet": "una profesion. el grupo de juego puede considerar las habilidades arquetipicas de la misma manera: pueden estar disponibles para todos (en esencia, desconectarlas de los arquetipos) o solo como habilidades accesibles para los personajes que pertenecen a un arquetipo especifico. en resumen, sugerimos que tanto los jugadores como el director del juego se sient"
+      },
+      {
+        "page": 10,
+        "snippet": "l grupo se acurruco en una mesa de la parte trasera de la taberna llena de humo. a pesar de la siniestra atmosfera, jela sintio ganas de reirse de la escena. kasimer casi termino en el regazo de arron y era dificil saber cual de los dos estaba mas incomodo, si el enano o el tomado. demasiado grande para la mesa, el troll gormyx se sento en el suelo, pero inc"
+      },
+      {
+        "page": 12,
+        "snippet": "cazador el duro trabajo del cazador hace que sea una figura de gran importancia tanto en la sociedad ambria como entre los clanes del bosque. a ojos de la plebe ambria, puede que los cazadores no sean muy diferentes a los vulgares maleantes, pero para muchos otros (especial- mente aquellos que viven cerca de davokar) estan a la par con las grandes leyendas. "
+      },
+      {
+        "page": 13,
+        "snippet": "ocupaciones de cazador de entre las ocupaciones del libro basico, cazamons- truos y explorador estan catalogadas como clase cazadora y no como clase maleante, lo que debe tener- se en cuenta con respecto a las habilidades arquetipicas. en otras palabras, los perso- najes que son cazamons- truos o explorador pueden aprender la habilidad arque- tipica instinto"
+      },
+      {
+        "page": 14,
+        "snippet": "j uram entado d e h ierro (profesion) «¡nunca mas!» el trabajo del pacto de hierro nunca se acaba, lo que impone grandes demandas a sus agentes, los juramentados de hierro. el pacto fue creado por el pueblo elfico durante la caida de symbaroum. despues de estar un largo tiempo en las sombras, sus miembros han vuelto a la actividad en un intento de detener la"
+      },
+      {
+        "page": 15,
+        "snippet": "cazarrec omp ensas «¿escoria, yo? claro, pero escoria que necesitas, por lo que parece» durante la gran guerra hubo muchos que dudaban que fuera posible derrotar a los señores oscuros, por lo que las deserciones no eran algo extraño. para resolver este problema, el rey ynedar, el padre de la reina korinthia, ofrecio una recompensa permanente por la cabeza de"
+      },
+      {
+        "page": 17,
+        "snippet": "caza horror es «dejame resolver tu… problema» cuantos mas y mas ambrios se establezcan a la sombra de davokar, mas comun se vuelve que estos asenta - mientos sean atacados por horrores hambrientos y vengativos del bosque. a la luz de esta creciente amenaza (y del considerable incentivo monetario, por supuesto) se ha desarrollado toda una serie de tecnicas y "
+      },
+      {
+        "page": 18,
+        "snippet": "guerrero c ualquiera pu ede alzars e en armas para luchar contra el orden establecido, para combatir la pobreza o para proteger fielmente a su señor. las constantes gue- rras han dado lugar a la aparicion de ordenes y grupos militares que se distinguen por utilizar unas habilidades de combate y llevar unos estilos de vida que reflejan su manera de entender e"
+      },
+      {
+        "page": 20,
+        "snippet": "gue rre ro tatuado «la ira arde en mi cuerpo. ¡acercate, siente el calor!» la mayoria de combatientes de los clanes barbaros tienen sus cuerpos cubiertos de tatuajes, pero los guerreros de vajvod se diferencian del resto porque han sido tatuados por simbolistas, misticos con una comprension especial del poder de los simbolos. los guerreros mas destacados per"
+      },
+      {
+        "page": 21,
+        "snippet": "h erre ro runi c o «el latir del mundo resuena en el ritmo de mi martillo» entre la raza troll hay combatientes que han hecho un juramento sagrado para luchar solo con armas de su propia fabricacion, ataviados con armaduras creadas por sus manos. estos herreros runicos se cuentan entre los artesanos mas habiles del inframundo y son combatientes feroces. pare"
+      },
+      {
+        "page": 22,
+        "snippet": "m a estro d e armas «tu quieres vivir. yo quiero morir y ser recor- dado con admiracion» entre los guerreros de ambria y davokar hay quienes se han comprometido a convertirse en verdaderos maestros de un arma especifica. a traves de un arduo entrenamiento se vuelven muy habiles con el arma de su eleccion, y a menudo se adhieren a una filosofia sobre el confl"
+      },
+      {
+        "page": 23,
+        "snippet": "guardia d e la f uria (profesion) «yo sangro, tu mueres» el gran jefe de karvosti esta protegido por un numero selecto de guerreros de la guardia de la furia dormida. cualquiera que se haya encontrado con guardias de la furia en combate sabe que no hay nada «dormido» en ellos. al contrario, su sangre hierve de espiritu combativo que la huldra les enseña a us"
+      },
+      {
+        "page": 24,
+        "snippet": "mistico el mundo d e symbaroum es vasto y maravilloso, y muchas son las tradiciones misticas que han ido y venido a lo largo de la historia. ademas de las tradiciones mas extendidas, hay otras mas oscuras arraigadas en el bosque: los simbolistas, que ocupan el lugar de las brujas dentro del clan vajvod; los asce- ticos magos del baculo, en el interior de dav"
+      },
+      {
+        "page": 25,
+        "snippet": "a rt esano d e art efa c tos (profesion) «mi alma es una con mis artefactos» la fabricacion de artefactos es una forma de arte muy demandada que estuvo perdida mucho tiempo para elfos y humanos. sin embargo, entre los trolls logro mantenerse viva como una practica casi sagrada. ultimamente, el conocimiento ha ido resurgiendo entre humanos y elfos, en ambos c"
+      },
+      {
+        "page": 26,
+        "snippet": "m ag o d e del b a c ulo (profesion) «mi baculo es mi alma y mi arma» los misticos llamados magos del baculo reciben su nombre del baculo cubierto de runas que siempre portan consigo. el baculo runico es una expresion de la fuerza del mago, asi como un arma poderosa, algo que ha llevado a algunos magos de la ordo magica a llamarlos con nombres degradantes co"
+      },
+      {
+        "page": 27,
+        "snippet": "simbolista «yo dibujo y el mundo obedece» todo el mundo sabe que los simbolos y signos tienen poder y que se utilizan en la mayoria de las tradiciones misticas, especialmente en los rituales. el simbolismo puro es una tradicion que basa su poder en el empleo de simbolos y signos. llego a davokar gracias a los misticos del este que, despues de haber huido a t"
+      },
+      {
+        "page": 28,
+        "snippet": "26 otros mundos y el origen de los seres humanos el folklore esta lleno de cuentos sobre otros mundos, paralelos al mundo fisico, y hogar de los seres vivos. algunos de estos mitos hablan del origen de la humanidad, siempre con un patron preocupante, segun el cual los seres humanos provendrian de otro lugar. esta leyenda se apoya en los enormes barcos de pie"
+      },
+      {
+        "page": 29,
+        "snippet": "b ardo troll «mi voz resuena con la armonia de la creacion» el canto como fuente de poder se expresa de forma mas evidente entre los escaldos troll, cuyas voces son capaces de desvelar misterios y ganar batallas. la poesia y el canto existen en todas las culturas, pero son mas poderosos entre elfos, enanos, trolls y, posiblemente, ogros. en todas estas cultu"
+      },
+      {
+        "page": 30,
+        "snippet": "espiritista (profesion) – el c amino blan c o de las brujas «los muertos saben y hablan con quienes se atreven a escuchar» las brujas que solamente caminan por el camino espiritista son poco comunes y a menudo estan mar - cadas por sus viajes a traves de la nada, donde soplan vientos frios y los seres muertos lloran. a menudo son palidas tanto de piel como d"
+      }
+    ],
+    "docs\\Rule books\\Guía del jugador.pdf": [
+      {
+        "page": 2,
+        "snippet": "introduccion tal y como el nombre sugiere, esta parte del libro va dirigida a los jugadores de symbaroum. el director de juego tambien debe estar familiarizado con las reglas, pero el contenido de esta seccion se centra en como crear los personajes y en las reglas que los jugadores van a usar durante la partida. este primer capitulo comienza con una seccion "
+      },
+      {
+        "page": 4,
+        "snippet": "el objetivo (u objetivos) puede cambiar a medida que el personaje evoluciona, pero siempre deberias tener una meta clara como minimo, algo que ayude a que la partida siga avanzando. a modo de guia, se puede decir que hay objetivos poco apropiados para los personajes y grupos de juego, como aquellos que sucederan de forma inevita- ble y que, por tanto, carece"
+      },
+      {
+        "page": 5,
+        "snippet": "sin embargo, no hay nada que te impida crear tu personaje partiendo de cero y elegir la combi - nacion de atributos y poderes que mas te interese. los arquetipos y ocupaciones que te proponemos simplemente estan pensados como inspiracion y para ofrecerte una manera facil y rapida de meterte en el juego y la ambientacion. arquetipos (pagina 80) los tres trasf"
+      },
+      {
+        "page": 7,
+        "snippet": "razas (pagina 100) aunque hay una gran diversidad de razas en ambria y davokar, los jugadores solo pueden elegir entre trocalengos, humanos, ogros y trasgos. dentro de los humanos hay dos grupos: los barbaros y los ambrios. ejemplo: a mirka le gustan los ogros, criaturas enormes y solitarias de origen desconocido. por otro lado, no le importa que en principi"
+      },
+      {
+        "page": 8,
+        "snippet": "barbaras emplean una magia mucho mas antigua y primigenia, despreciada por los sureños pero muy respetada entre los barbaros y sus jefes (la habilidad de brujeria). por ultimo, los hechiceros (habilidad de hechiceria) son individuos desesperados y hambrientos de poder que en vez de evitar la corrupcion, se abrazan al poder que ofrece para sus propios fines m"
+      },
+      {
+        "page": 9,
+        "snippet": "un personaje empieza con el arma o armas relacio- nadas con una habilidad especifica, mas una daga. si no tuviera habilidades o poderes basados en armas, puede elegir cualquiera de las siguientes combinaciones: ◆ una daga y una vara de madera recia ◆ una daga y un arma de una mano ◆ una daga y un arma a distancia ademas, cada personaje empieza con una armadu"
+      },
+      {
+        "page": 10,
+        "snippet": "creacion de personajes 1 2 3 4 5 elige una ocupacion pagina 80 elige una de las ocupaciones sugeridas para cada arquetipo o crea una nueva. atributos pagina 98 asigna un valor a cada uno de los ocho atributos y calcula el valor de los atributos secundarios basandote en los principales. elige una raza pagina 100 elige una raza para tu personaje rasgos, habili"
+      },
+      {
+        "page": 11,
+        "snippet": "6 10 9 8 7 dinero y equipo pagina 146 los personajes suelen comenzar con 5 taleros y algo de equipo basico, asi como armas y armaduras relacionadas con ciert as habilidades. dibuja a tu personaje aqui puedes dibujar a tu personaje, si te apetece. artefactos anota aqui cualquier artefacto o tesoro mistico que encuentres. amigos y compañeros aqui puedes llevar"
+      },
+      {
+        "page": 12,
+        "snippet": "guerrero «veamos: tenemos a trasgos con dos cuchillos, barbaros versados en la danza del hacha, pugiles ogros y caballeros de noble cuna y armadura completa. ¿quien prefieres que te de tu primera paliza?» agna azote de t rolls, maestra espadera de fuerte espina. los clanes barbaros de davokar y el reino de ambria cuentan con una larga tradicion belica y de c"
+      },
+      {
+        "page": 13,
+        "snippet": "h ab il idades para gu errer os los guerreros suelen ser tipos brutos y duros de pelar, aunque algunos tienen una mente tactica y hay muchos que son grandes lideres. la elegancia no suele ser el rasgo distintivo de un guerrero, pero tambien los hay que no solo se enorgullecen de sus victorias, sino de como las alcanzan. estas son las habilidades que pueden h"
+      },
+      {
+        "page": 14,
+        "snippet": "82 caballero «podras arrebatarme la vida, pero no el honor» eres un caballero que lucha por el honor de ser el primero en romper las lineas enemigas o por defen- der un puesto en solitario. estas protegido por una recia armadura, pero tu interior alberga un profundo sentido del deber: luchas por el favor de tu señor, por las vidas de tus aliados o por tu pro"
+      },
+      {
+        "page": 15,
+        "snippet": "ca pit an «la victoria es segura, ¡seguidme!» tu carrera militar esta basada en tus dotes naturales para el liderazgo. el manejo de la espada es solo una forma de mantenerte con vida y, quizas, ganarte el respeto de tus hombres. sabes sacar lo mejor de tus aliados, guiandolos y protegiendolos al mismo tiempo que alcanzas tus objetivos militares. asi es como "
+      },
+      {
+        "page": 16,
+        "snippet": "84 du el ist a «por favor, intenta que tu sangre no me salpique al atravesarte» el honor y la gloria lo es todo para un guerrero, pero es incluso mejor si uno puede defender su nombre con algo de elegancia. esa es la filosofia que guia tu vida; el que sigas vivo es testimonio innegable de tu talento. ◆ atr ibutos importantes: diestro 13+, agil o discrecion 1"
+      },
+      {
+        "page": 17,
+        "snippet": "85 9 arquetipos es pada de al qui ler «mi vida y mi espada a cambio de tu oro» el combate es una forma de vida y de ganarte el sueldo. los señores de ambria suelen usar espadas de alquiler en sus campañas contra los barbaros de davokar, al igual que los jefes de clan de davokar usan sus ser - vicios en su lucha contra los invasores (sin olvidarse de que merc"
+      },
+      {
+        "page": 18,
+        "snippet": "mistico «cada vez que enciendes una vela, tambien creas una sombra» seldonio, gran maestre de la ordo magica h a y m u c h as f u en t es d e poder mistico en el mundo, accesibles para aquel que comprenda las leyes ocultas de la naturaleza o forje alianzas con la luz celestial, los espiritus del bosque o las tinieblas de la corrupcion. hay misticos que se co"
+      },
+      {
+        "page": 20,
+        "snippet": "88 hec hi cero «hay otro camino, mas sencillo…» arrastrado por la desesperacion o la sed de poder, tu viaje por el camino de la hechiceria no tardo en llevarte hacia la corrupcion. ahora te persiguen los cazamonstruos. ¿ves tu debilidad como una prueba de que necesitas mas poder? ¿o estas sinceramente arrepentido y buscas un camino de vuelta hacia el perdon "
+      },
+      {
+        "page": 21,
+        "snippet": "89 9 arquetipos m a g o «¡extraordinario! debemos llevarlo de vuelta y estudiarlo con mas atencion» te han instruido en los secretos de la vieja magia de la ordo, una sabiduria proveniente del reino del sur y refinada por mil años de estudio e investigacion. para ti, los poderes misticos son una prolongacion de las leyes fundamentales del mundo, leyes que ha"
+      },
+      {
+        "page": 22,
+        "snippet": "90 mis tico a ut ar qui co «decian que no me tomaba mis poderes con seriedad. les mostrare lo mucho que se equivocan» eres un mistico autarquico, apartado de las tradiciones, ya sea porque nunca se te admitio o porque nunca te interesaste en su limitada vision del mundo. sin embargo, la libertad tiene un precio: la corrupcion acecha tras cada esquina y los c"
+      },
+      {
+        "page": 23,
+        "snippet": "91 9 arquetipos teur g o «nadie escapa de la mirada de prios, ¡hereje!» eres un teurgo, un sacerdote con poderes misticos. tu fe en el portador de la luz es inquebrantable: prios es el sol y la luz del alma, el que salvo a la humanidad de la esclavitud de los dioses antiguos, el creador del mundo y el protector de toda vida. es de su inmaculada fuente de don"
+      },
+      {
+        "page": 24,
+        "snippet": "maleante «cazatesoros, exploradores, matones, diplomaticos, timadores, posaderos, espias… ¡son todos una panda de maleantes!» radomel dalg, capitan de la guardia de yndaros. e n a mbr ia, la palabra «maleante» se usa de forma generica para referirse a todo el que «roba» algo de otra persona, ya sean sus secretos, confianza, dinero o vida. la unica excepcion "
+      },
+      {
+        "page": 26,
+        "snippet": "94 c a z amons t r u os «prefiero que un inocente muerda el polvo a que una abominacion camine sobre este» has dedicado tu vida a luchar contra las bestias de la plaga, quizas como consecuencia de que tu vida fuera destruida por su infecciosa y creciente oscuridad: una granja quemada hasta los cimientos, la tumba de tu familia, la terrorifica transformacion "
+      },
+      {
+        "page": 27,
+        "snippet": "95 9 arquetipos ca z a t esoros «ese altar… me pregunto que pasaria si lo empujo lateralmente…» te ganas el pan encontrando, recuperando y trayendo de vuelta a la civilizacion los muchos tesoros escondi- dos en las profundidades de davokar. sueñas con rui- nas legendarias y fantaseas con templos sumergidos. a diferencia de otros aventureros, has demostrado q"
+      },
+      {
+        "page": 28,
+        "snippet": "96 e x p lorador «todo ser vivo deja un rastro. y todo lo vivo puede morir…» tu hogar es el bosque profundo o los valles mon - tañosos. alli cazas animales por su carne o su piel, o proteges a los viajeros y locales de todo mal. has aprendido a mantenerte lejos del alcance de tus enemigos al mismo tiempo que tus flechas alcanzan su blanco. ◆ atr ibutos impor"
+      },
+      {
+        "page": 29,
+        "snippet": "97 9 arquetipos ma to n «la bolsa o la vida, tu eliges» al igual que davokar, los barrios orientales de yndaros son salvajes, peligrosos y estan llenos de tesoros a la espera de ser reclamados. tu creciste en esas calles y aprendiste de sus bandas el arte de sacar provecho del trabajo de los demas bajo las mismas barbas de la guardia. hay otros matones que p"
+      },
+      {
+        "page": 30,
+        "snippet": "atributos los atributos son la columna vertebral de un personaje y la base del sistema de juego. en pocas palabras: cuando un personaje intenta realizar una accion que afecte de forma relevante a la historia, el jugador debe hacer una tirada; la accion tiene exito si el resultado es igual o menor al atributo del personaje. este capitulo describe los ocho atr"
+      }
+    ],
+    "docs\\Rule books\\Guía DM.pdf": [
+      {
+        "page": 2,
+        "snippet": "introduccion bienvenido a la gu ia del director de juego . el director de juego es, en pocas palabras, la persona que crea la partida, presenta el mundo de symbaroum a los jugadores y plantea todo tipo de peligros y desafios para sus personajes. el director de juego tambien deberia familiarizarse en profundidad con la guia del jugador, ya que se espera que o"
+      },
+      {
+        "page": 4,
+        "snippet": "cuando se trate de una aventura oficial, piensa en ella como una coleccion de ideas y sucesos entre los que elegir; trabaja con el material y personalizalo a tu gusto y al de tus jugadores. re p asa la u lti m a p arti da reflexiona sobre lo que paso en la ultima partida y piensa que consecuencias pudo tener, especial - mente de cara a la siguiente sesion. p"
+      },
+      {
+        "page": 5,
+        "snippet": "los personajes no deberian ser capaces de prede - cir, calcular o evitar todos los peligros que van a encontrarse. e l m undo de juego describe el mundo de juego a traves de los sentidos de los personajes: lo que ven, como huele, lo que escuchan… señala los rasgos mas caracteristicos de symbaroum usando contrastes; resulta mas facil transmitir «esto» cuando "
+      },
+      {
+        "page": 7,
+        "snippet": "reglas del director de juego el dir e ctor d e j uego controla el funcionamiento general de las reglas, decide que acciones requieren una tirada y mantiene informados a los jugadores. aunque este capitulo describe las responsabilidades especificas que tienes como director de juego, recuerda que tambien debes aprenderte las reglas de la guia del jugador. est "
+      },
+      {
+        "page": 8,
+        "snippet": "r e tos con g rado d e ex ito los personajes con habilidades de tipo mas tactico, social o academicas reciben ventajas a la hora de superar retos con grado de exito. es posible que el personaje deba poseer habilidades como alquimista, medicus o versado en criaturas para acceder a toda la informacion disponible. asi mismo, las habilidades de dominacion y lide"
+      },
+      {
+        "page": 9,
+        "snippet": "combate para principiantes a la hora de crear un combate equilibrado para personajes principiantes, fijate en el tamaño del grupo. un grupo de cuatro personajes jugadores nuevos puede enfrentarse a: cuatro enemigos sencillos un enemigo normal y dos sencillos dos enemig os normales un enemigo complicado combate e n e l combat e , corresponde al director de ju"
+      },
+      {
+        "page": 10,
+        "snippet": "jugador el atacante, el daño se calcula con valores fijos: dos puntos de daño durante dos turnos. mas tarde, arisca no logra defenderse de una estocada enemiga y es golpeada. el director de juego le comunica que el daño es de 4 (8 dividido entre 2) y mirka tira por su armadura (delantal de cuero 1d4) y su rasgo robusta (1d4). saca un 3 en total (1+2), por lo"
+      },
+      {
+        "page": 12,
+        "snippet": "la naturaleza a su antojo. a lo largo del libro podras encontrar este principio reflejado en el concepto de sombra y en algunas criaturas, como las abomina- ciones y los muertos vivientes. un personaje empieza con cero puntos de corrupcion, cantidad que ira aumentando segun se manche. tecnicamente, un personaje se transforma en abominacion cuando su nivel de"
+      },
+      {
+        "page": 13,
+        "snippet": "superior al valor de corrupcion, la sombra base es la mas fuerte y brillante de las dos; de lo contrario, se impone la sombra de corrupcion. si la corrupcion total de una criatura alcanza o supera su atributo de tenaz, se corrompe por completo y se transforma en una abominacion. e sti g mas un personaje marcado por la corrupcion debe elegir un estigma. en ci"
+      },
+      {
+        "page": 14,
+        "snippet": "los golpes que recibe. no te preocupes mucho por controlarlo de forma activa; el director de juego debe centrar toda su atencion en la escena actual y la aventura en general. de todas formas, la opcion 1 puede resultar muy emocionante si se trata de una escena importante. reglas opcionales a continuaci o n tienes una lista de reglas opcionales que vuestro gr"
+      },
+      {
+        "page": 15,
+        "snippet": "resultado (el numero inferior). los efectos del daño critico duran hasta que la criatura recupera o se cura al menos 1 punto de resistencia. fijate que los muertos vivientes, al no tener umbral de dolor, son inmunes al daño critico. por tanto, esta regla los convierte en monstruos mas poderosos, ya que hace mas vulnerables a todos los demas. ras g os d e mon"
+      },
+      {
+        "page": 16,
+        "snippet": "obje tivos vital e s los personajes jugadores pueden cambiar (o desarrollar) sus objetivos personales por objetivos vitales: la suma de sus valores, principios y codigo moral, es decir, lo que el personaje considera que le da significado a la vida y la muerte. si los objetivos son lo que un personaje quiere lograr, los objetivos vitales son un reflejo de la "
+      },
+      {
+        "page": 17,
+        "snippet": "la antorcha del conocimiento un poco mas alla de las tinieblas: esa es la obra de una vida significativa. el poder de una promesa: la valia de una persona se mide por el valor de su palabra y de las promesas que realiza. la confianza es lo unico que importa. cuando yazcas en tu fria tumba, ¿que se dira de ti? ¿que fuiste alguien noble en quien confiar? ¿o qu"
+      },
+      {
+        "page": 18,
+        "snippet": "reglas de campaña las reglas de campaña de este capitulo te proporcionan las herramientas necesarias para gestionar algunas peculiaridades de davokar: la manera de viajar por el mundo, su sistema monetario y los antiguos artefactos que los personajes jugadores pueden encontrar en las ruinas de symbaroum. 180"
+      },
+      {
+        "page": 19,
+        "snippet": "viajes y encuentros si viajar por ambria supone larg os desplazamientos por monotonos campos de cultivo, davokar ofrece mas emociones de las que la mayoria podria resistir (a menos que se tenga la suficiente experiencia y reflejos para detectar a tiempo las señales de peligro). este capitulo ofrece una descripcion minuciosa de los tres tipos de terrenos que "
+      },
+      {
+        "page": 20,
+        "snippet": "davo k ar la l u min osa las tierras de los clanes barbaros estan habitadas por depredadores salvajes y monstruos hambrientos que merodean por sus ruinas y tuneles. tambien hay elfos que dificultan la vida de los viajeros y que, ocasional- mente, lanzan ataques contra puestos fronterizos que consideran ofensivos a su vista. sin embargo, la principal causa de"
+      },
+      {
+        "page": 21,
+        "snippet": "tabla 27: sobornos riesgo servi c io cu a n t ia del sobor n o bajo hacer el trabajo propio con mas rapidez la decima parte de un dia de salario. si el total es inferior a un orteg, el unto se realiza con comida o algo similar. moderado romper una regla un dia de salario. alto romper la ley de diez a cien dias de salario, asi como una buena posibilidad de qu"
+      },
+      {
+        "page": 22,
+        "snippet": "artefactos la pr ac ti c a de vincular espiritus y poderes a los llamados artefactos es algo que los misticos llevan haciendo desde tiempos inmemoriales. cada artefacto es la expresion de la voluntad de un poder vinculado, y no hay voluntad que no actue sobre aquel que la use. en otras palabras, todos los artefactos llevan un riesgo asociado, especialmente p"
+      },
+      {
+        "page": 23,
+        "snippet": "aguas de penumbra espontaneas se dice que las aguas de penumbra pueden aparecer de forma espontanea, pero solo en situaciones especialmente sagradas; ade - mas, las gotas asi producidas solo conservan su poder durante poco tiempo. por ejemplo, se dice que prios ha bendecido las aguas de un pequeño riachuelo en uno de los rincones de descanso de los titanes, "
+      },
+      {
+        "page": 24,
+        "snippet": "aventuras las aventuras son la base o el cimiento de una partida de rol. en este capitulo ofrecemos orientacion y consejos que el director de juego puede usar como punto de partida para crear sus propias aventuras o adaptar otras ya publicadas a su grupo de juego. hay muchas maneras de ver y presentar las aventuras, pero nosotros hemos elegido solo dos: la a"
+      },
+      {
+        "page": 26,
+        "snippet": "la m isio n una forma facil de empezar la aventura es que alguien entre en contacto con los personajes jugadores y les encargue una mision. la tarea deberia incluir una o dos recompensas bien definidas y que ayuden a los personajes a alcanzar sus propios objetivos. puedes reforzar aun mas el incentivo para los jugadores haciendo que la aventura comience in m"
+      },
+      {
+        "page": 27,
+        "snippet": "predecible, las abiertas van creciendo de mano de las ideas e iniciativas de los personajes jugadores. sin embargo, cuando se desvanezca la polvareda levantada por los personajes jugadores, lo mas normal es que hayan pasado por las siguientes escenas clave (razon por la que un director de juego inteligente siempre se prepara para estas eventualidades). el co"
+      },
+      {
+        "page": 28,
+        "snippet": "el p unto de inflexi o n los personajes descubren una manera de romper el domi- nio del enemigo o, como minimo, una forma de atacar donde mas duele, ya sea contra sus lideres o su cuartel general. quizas atrapen a un mensajero con documentos secretos o visiten una biblioteca polvorienta en busca de un ritual perdido que les permita debilitar lo suficiente a "
+      },
+      {
+        "page": 29,
+        "snippet": "combate pasen a ser propiedad de los personajes jugadores, siempre que les interesen y tengan los medios para su transporte. merece mas la pena usar el botin antes que venderlo, ya que su precio de reventa suele ser la mitad del normal. reco mp ensas sociales las recompensas sociales consisten en todo lo que los jugadores y el director de juego se dan entre "
+      },
+      {
+        "page": 30,
+        "snippet": "ya que entonces no hay tantas cosas que necesiten comprarse. un personaje pertrechado con un equipo de calidad excepcional y una mochila llena de los mas exquisitos brebajes alquimicos es un personaje que no necesita dinero, a menos que tenga necesidades a mayor escala, como construir un bastion, encargarse de mantener una milicia o tener deudas acumuladas. "
+      }
+    ],
+    "docs\\Rule books\\Mundo de symbaroum.pdf": [
+      {
+        "page": 3,
+        "snippet": "¡bienvenido a symbaroum! o, para ser precisos , bienvenido a la region que en tiempos remotos estaba gobernada por la civilizacion de symbaroum; un imperio que, segun todas las cronicas, contaba con grandes avances en arquitectura, espiritualidad, arte y enseñanza de la magia; una cultura que indudablemente sufrio una caida tan veloz como brutal. e st a se c"
+      },
+      {
+        "page": 4,
+        "snippet": "el retorno de la reina la g ra n gu erra : las hambrientas hordas de los señores oscuros, una pesadilla que duro dos decadas y que acabo con casi todo el coraje de quien finalmente pudo despertar de ella. lo unico que les quedo fueron razones para el desconsuelo: decenas de miles de muer- tos, incontables tullidos y almas rotas, la tierra asolada por magia d"
+      },
+      {
+        "page": 5,
+        "snippet": "de fuerte espina. la construccion debia financiarse en gran medida con la recompensa que lasifor recibio por una brazada de espina crepuscular, una extraña hierba que se supone era lo suficientemente pode- rosa para ayudar a la madre de la reina korinthia, abesina, quien se encontraba gravemente enferma. desde entonces, el asentamiento amurallado del alcalde"
+      },
+      {
+        "page": 6,
+        "snippet": "los ambrios aun no han establecido ningun asen - tamiento importante en las montañas. en lugar de ello se han convertido en un refugio para bandidos, librepensadores y barbaros rebeldes. en cuanto al reino enano de küam zamok, sus habitantes parecen mostrar una indiferencia absoluta hacia los huma- nos, excepto por unas pocas familias que por razones descono"
+      },
+      {
+        "page": 7,
+        "snippet": "17 2 bienvenido a symbaroum el tunel de jerak c i e n a g a d e b r e a n e g r a l o s m a r j a l e s m a l g o m o r v o l g o m a e b e l karvosti d a v o k a r jakaar sevona torres de tierra de la grieta las columnas la ciudad en ruinas de odaban küam zamok de haganor de la sanguijuela negra e a n o r fuerte espina templorrecio redina agrella kurun kast"
+      },
+      {
+        "page": 8,
+        "snippet": "todos los ambrios provienen del extinto reino de alberetor, al sur de los titanes. la gran guerra los hizo mas fuertes, pero tambien les obligo a convertirse en un pueblo disciplinado y organizado en temas militares y burocraticos, asi como en el comercio y la division del trabajo. en pocas palabras: la guerra ha civilizado al pueblo ambrio, aunque puede que"
+      },
+      {
+        "page": 9,
+        "snippet": "las hordas de la oscuridad a pesar de que han pasado mas de dos decadas desde la victoria, los señores oscuros y la gran guerra siguen muy pre- sentes en la vida de los ambrios. por lo g ener al la gente solo habla de las victorias, sobre las heroicas hazañas de los iluminarios o de como los ejercitos de korinthia masacraron hordas de cria - turas muertas vi"
+      },
+      {
+        "page": 10,
+        "snippet": "guia de las brujas todos los barbaros tienen cuidado en mostrar gratitud al bosque que les alimenta y les enseña a ser humildes. los cuentacuentos juegan un papel vital en el proceso, especialmente cuando se trata de difundir las historias de advertencia sobre lo que puede ocurrir cuando alguien viola los tabues impuestos por la huldra. la tradicion oral amb"
+      },
+      {
+        "page": 11,
+        "snippet": "historias mas populares, incluyendo los antiguos poe- mas atribuidos a la legendaria huldra aroaleta. al margen de que los ambrios empleen mas tipos de narracion, hay otra diferencia significativa entre los grupos: mientras que casi todos los barbaros toman parte en los ritos de las brujas y escuchan las historias alrededor del fuego, el pueblo ambrio esta d"
+      },
+      {
+        "page": 12,
+        "snippet": "facciones est e capitulo ofr e c e u na breve introduccion a las facciones mas poderosas de ambria, junto con un vistazo similar a los clanes barbaros y al pacto de hierro. en terminos generales, no son grupos que puedan describirse como armoniosos; por lo general las luchas por el poder son tan frecuentes dentro de estas facciones como entre ellas mismas, y"
+      },
+      {
+        "page": 13,
+        "snippet": "la reina korinthia la reina korinthia carga con la esperanza y el dolor de su pueblo, llevando la cabeza erguida y con plena seguridad en si misma. no tenia mas de doce años cuando el rey ynedar murio en batalla, pero no dudo en continuar el combate donde el lo dejo: heredo su montura, el legendario mäster, hizo que volvieran a forjar su lanza rota y dirigio"
+      },
+      {
+        "page": 14,
+        "snippet": "un incompetente que roza la ineptitud, o que las demas casas suspiran por una oportunidad para derrocar a los kohinoor, cualquiera puede ver que korinthia tuvo que sopesar la situacion cuidadosamente antes de nombrar a los duques de la tierra prometida. por otro lado, no hay que creerse todo lo que se cuenta. a menos que las apariencias sean tremen- damente "
+      },
+      {
+        "page": 15,
+        "snippet": "los clanes barbaros cuando los ambrios llegaron al sur de davokar habria trece clanes barbaros viviendo en la region. desde entonces el numero ha caido a once: el clan kadiz fue sometido y absorbido por la civilizacion ambria, mientras que el clan jezora cayo aniquilado por el acero sureño. en los ultimos tiempos corre el rumor de la existencia de un duodeci"
+      },
+      {
+        "page": 16,
+        "snippet": "y e d e sa comparados con sus vecinos del norte, los yedesos tienen mejores razones para sentirse orgullosos. de los ultimos diez grandes jefes, seis han salido del clan yedesa, incluyendo al actual. la razon de ello es que el clan abandono hace mucho tiempo el estilo de vida nomada en favor de asentamientos mas permanentes. desde la aniquilacion del clan je"
+      },
+      {
+        "page": 17,
+        "snippet": "expreso del duque alesaro para mantenerse en el lado ambrio de la frontera durante gran parte del año. ademas, se dice que el duque esta tratando de acabar con la vendetta abierta entre el jefe de los varakko, didramon, y el de los zarek, monovar. la iglesia de prios la igl e sia d e l dios sol prios gobierna su pro - pio dominio en ambria: un territorio tan"
+      },
+      {
+        "page": 18,
+        "snippet": "el ejercito de la reina la r e ina k orinthia es la comandante en jef e de ambria, pero la mayor parte del trabajo del dia a dia esta dirigido por el anciano capitan general beremo herengol. el ejercito esta dividido en seis divisiones, pagadas y mantenidas por los ducados, mas una septima que pertenece al gran ducado de yndarien y que esta bajo el control d"
+      },
+      {
+        "page": 19,
+        "snippet": "el embajador elori desde la llegada de la reina korinthia, la tarea de negociar con ella ha recaido sobre un elfo tan adusto como alto llamado elori. los am - brios no habian tenido contacto con la raza de los elfos antes de emigrar, pero la reti - cencia del pueblo de los bosques a dejarles explorar davokar ha hecho que los humanos detesten a los «orejas pu"
+      },
+      {
+        "page": 21,
+        "snippet": "davokar resulta complicado describir el bosque de davokar en pocas palabras; en parte por su variada y cambiante personalidad, en parte porque aun queda mucho territorio por cartografiar. durante siglos, los barbaros se han mantenido en la zona externa del bosque, desde su linde hasta unos cuatro dias de marcha hacia el interior. se dice que hay dos motivos "
+      },
+      {
+        "page": 22,
+        "snippet": "32 licencia de explorador desde el otoño del año 15, cualquier persona de ori - gen ambrio que desee aventurarse en davokar debe obtener una licencia de explorador, formalmente conocida como «licencia para viajes y exploraciones por el bosque de davokar». la licencia puede com- prarse en el cuartel de la guardia urbana de yndaros o en el consulado de la rein"
+      },
+      {
+        "page": 23,
+        "snippet": "detractores arguyen que ideo esa clasificacion en estrecha colaboracion con el padre peonio, el primer teurgo de la catedral de los martires, en la capital. mallianos no se equivoca mucho al describir las afueras como un lugar de extraordinaria riqueza y belleza impactante. durante el verano, los rayos de sol relucen en un aire fresco lleno de polen e insec-"
+      },
+      {
+        "page": 24,
+        "snippet": "evidentemente, lo que empuja a los exploradores ambrios a desafiar el peligro es la esperanza de encon- trar tesoros de la epoca de symbaroum. mallianos no se esfuerza en ocultar que cuanto mas te adentres en davokar, mayor es la oportunidad de encontrar ruinas bien conservadas y llenas de riquezas. pero a continuacion añade que, primero, las ruinas de la os"
+      },
+      {
+        "page": 25,
+        "snippet": "symbar se dice que todos los barbaros de la region provienen de la misma civi - lizacion, el imperio de symbaroum, cuya capital se supone que ocupa el centro de lo que ho y es davokar. hay muchas leyendas sobre la caida de symbaroum, aunque la mayoria son versiones sobre la misma historia: la que cuenta como el ultimo emperador enfurecio a un ser supremo y p"
+      },
+      {
+        "page": 26,
+        "snippet": "fuerte espina deberia haber si do u na expedicion de rutina, pero el viaje a las ruinas de odaban acabo en desastre. ya al amanecer del cuarto dia nos encontramos un troll saqueador herido por mas de una docena de flechas elficas y ansioso por arrastrar a alguien consigo a su viaje al mas alla. se llevo a dos de mis compañeros y otros dos mas al dia siguient"
+      },
+      {
+        "page": 28,
+        "snippet": "la puerta oriental, durante el breve mo- mento de tranquilidad que hay cada noche , justo antes del ama- necer. trasfondo cuando corrio la noticia de que la madre de la reina habia enfermado y que la casa de kohinoor ofrecia una considerable recompensa a cualquiera que encontrase una cura, lasifor camponegro supo que habia llegado su momento. junto con su am"
+      },
+      {
+        "page": 29,
+        "snippet": "asi hablo aroaleta «… y las profundidades del mundo fueron mancilladas, porque su coraza resulta apropiada para la fuerza de su interior; darle poder al poder sin reforzar la piel es tan imperdonable como desconsiderado. porque cuando la coraza se resquebraja, el resenti- miento y la vergüenza multiplican la fuerza liberada por mil». aquel que quebrante la p"
+      }
+    ],
+    "docs\\Rule books\\Symbaroum_Errata_v1.14.pdf": [
+      {
+        "page": 1,
+        "snippet": "despite our best efforts and valuable aid from play testers, there are some ambiguous phrasings and a few strict errors in the print edition of the symbaroum core rule book. big thanks go out to all you who have helped us to pin-point the weak spots or even made suggestions on corrections and clarifications. page 51 corre c tion: raw 4 in table 3 was correct"
+      },
+      {
+        "page": 2,
+        "snippet": "page 199 clarifi c ation: a victim of the monstrous trait enthrall loses both its upcoming actions during one turn. page 200 corre c tion: the following sentence has been removed from the description of natural weapon: the natural weapon can be used to perform backstab-attacks, which cannot be done with ordinary unarmed attacks . corre c tion: poison spit is"
+      },
+      {
+        "page": 3,
+        "snippet": "page 91 corre c tion: the theurg has suggested attribute persuasive 11+, instead of vigilant. page 114 corre c tion: acrobatics at both novice and master level is a reaction. page 116 clarific ation: on the ability feint, one sentence has been moved from the general description to the novice level. now, the novice level reads as follows: “the character can c"
+      },
+      {
+        "page": 4,
+        "snippet": "page 117 clarific ation: the description of loremaster novice and adept has been updated to clarify how the ability works in relation to mystical artifacts. page 137 clarific ation: the adept level of prios’ burning glass has been updated, and now reads: “with a successful resolute test, the mystic can let the holy light pass over all enemies in sight.” page"
+      }
+    ]
+  }
+}

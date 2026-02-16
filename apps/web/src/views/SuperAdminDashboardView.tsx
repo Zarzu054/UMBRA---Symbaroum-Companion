@@ -14,30 +14,30 @@ export function SuperAdminDashboardView({ user, ensureAccessToken, onLogout }: P
     <main className="page">
       <header className="top-bar">
         <div>
-          <h1>Superadmin Dashboard</h1>
+          <h1>Panel de Superadministracion</h1>
           <p>{user.email}</p>
         </div>
-        <button onClick={() => void onLogout()}>Logout</button>
+        <button onClick={() => void onLogout()}>Salir</button>
       </header>
 
       <section className="panel">
         <div className="row-actions">
-          <h2>Users</h2>
-          <button onClick={() => void controller.refresh()}>Refresh</button>
+          <h2>Usuarios</h2>
+          <button onClick={() => void controller.refresh()}>Actualizar</button>
         </div>
 
-        {controller.isLoading ? <p>Loading users...</p> : null}
+        {controller.isLoading ? <p>Cargando usuarios...</p> : null}
         {controller.error ? <p className="error">{controller.error}</p> : null}
 
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Created</th>
-                <th>Active sessions</th>
-                <th>Actions</th>
+                <th>Correo</th>
+                <th>Rol</th>
+                <th>Creado</th>
+                <th>Sesiones activas</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -48,7 +48,7 @@ export function SuperAdminDashboardView({ user, ensureAccessToken, onLogout }: P
                   <td>{new Date(u.createdAt).toLocaleString()}</td>
                   <td>{u.activeRefreshTokens}</td>
                   <td>
-                    <button onClick={() => void controller.revokeSessions(u.id)}>Revoke sessions</button>
+                    <button onClick={() => void controller.revokeSessions(u.id)}>Revocar sesiones</button>
                   </td>
                 </tr>
               ))}

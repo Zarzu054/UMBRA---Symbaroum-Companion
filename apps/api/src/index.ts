@@ -24,7 +24,7 @@ async function bootstrap(): Promise<void> {
 
     reply.code(500).send({
       error: "INTERNAL_SERVER_ERROR",
-      message: "Unexpected error"
+      message: "Error inesperado"
     });
   });
 

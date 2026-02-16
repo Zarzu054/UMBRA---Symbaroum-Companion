@@ -53,7 +53,7 @@ export function useAuthController() {
       const session = await registerUser(input);
       setAndPersist(session);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setError(err instanceof Error ? err.message : "Registro fallido");
     } finally {
       setIsSubmitting(false);
     }
@@ -66,14 +66,14 @@ export function useAuthController() {
       const session = await loginUser(input);
       setAndPersist(session);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : "Inicio de sesion fallido");
     } finally {
       setIsSubmitting(false);
     }
   }
 
   async function ensureAccessToken(): Promise<string> {
-    if (!auth) throw new Error("Not authenticated");
+    if (!auth) throw new Error("No autenticado");
 
     const expiresInSeconds = getTokenRemainingSeconds(auth.accessToken);
     if (expiresInSeconds > 30) return auth.accessToken;

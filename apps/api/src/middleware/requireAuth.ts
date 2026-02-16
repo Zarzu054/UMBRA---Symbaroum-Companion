@@ -5,7 +5,7 @@ import { env } from "../config/env.js";
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const authHeader = request.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
-    reply.code(401).send({ error: "Missing bearer token" });
+    reply.code(401).send({ error: "Falta token Bearer" });
     return;
   }
 
@@ -20,7 +20,7 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply):
       typeof payload.email !== "string" ||
       (payload.role !== "player" && payload.role !== "gm" && payload.role !== "superadmin")
     ) {
-      reply.code(401).send({ error: "Invalid access token" });
+      reply.code(401).send({ error: "Token de acceso invalido" });
       return;
     }
 
@@ -30,6 +30,6 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply):
       role: payload.role
     };
   } catch {
-    reply.code(401).send({ error: "Invalid access token" });
+    reply.code(401).send({ error: "Token de acceso invalido" });
   }
 }

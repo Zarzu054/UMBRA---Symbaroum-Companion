@@ -20,7 +20,7 @@ export function useSuperAdminController(ensureAccessToken: () => Promise<string>
       const result = await fetchSupportUsers(token);
       setUsers(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load users");
+      setError(err instanceof Error ? err.message : "No se pudieron cargar los usuarios");
     } finally {
       setIsLoading(false);
     }
@@ -34,7 +34,7 @@ export function useSuperAdminController(ensureAccessToken: () => Promise<string>
       await revokeUserSessions(token, userId);
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to revoke sessions");
+      setError(err instanceof Error ? err.message : "No se pudieron revocar las sesiones");
     }
   }
 
