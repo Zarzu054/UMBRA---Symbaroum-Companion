@@ -4,7 +4,7 @@ type Props = {
   item: CharacterCardViewModel;
 };
 
-export function CharacterCard({ item }: Props): JSX.Element {
+export function CharacterCard({ item }: Props) {
   return (
     <article className="card">
       <h3>{item.title}</h3>

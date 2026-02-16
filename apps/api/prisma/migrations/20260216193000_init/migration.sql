@@ -3,7 +3,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- CreateEnum
 DO $$ BEGIN
-  CREATE TYPE "UserRole" AS ENUM ('player', 'gm', 'admin');
+  CREATE TYPE "UserRole" AS ENUM ('player', 'gm', 'superadmin');
 EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;

@@ -1,15 +1,25 @@
+import type { AuthUser } from "@umbra/shared";
 import { CharacterCard } from "../components/CharacterCard";
 import { useCharacterController } from "../controllers/characterController";
 import { toCharacterCardViewModel } from "../models/characterModel";
 
-export function CharacterDashboardView(): JSX.Element {
-  const controller = useCharacterController();
+type Props = {
+  user: AuthUser;
+  ensureAccessToken: () => Promise<string>;
+  onLogout: () => Promise<void>;
+};
+
+export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Props) {
+  const controller = useCharacterController(ensureAccessToken);
 
   return (
     <main className="page">
-      <header>
-        <h1>UMBRA</h1>
-        <p>Symbaroum character manager skeleton</p>
+      <header className="top-bar">
+        <div>
+          <h1>UMBRA</h1>
+          <p>{user.email} ({user.role})</p>
+        </div>
+        <button onClick={() => void onLogout()}>Logout</button>
       </header>
 
       <section className="panel">

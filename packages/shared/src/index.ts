@@ -1,7 +1,10 @@
 import { z } from "zod";
 
-export const userRoleSchema = z.enum(["player", "gm", "admin"]);
+export const userRoleSchema = z.enum(["player", "gm", "superadmin"]);
+export const registerRoleSchema = z.enum(["player", "gm"]);
+
 export type UserRole = z.infer<typeof userRoleSchema>;
+export type RegisterRole = z.infer<typeof registerRoleSchema>;
 
 export const createCharacterSchema = z.object({
   name: z.string().min(2).max(80),
@@ -24,7 +27,7 @@ export type Character = {
 export const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(128),
-  role: userRoleSchema.default("player")
+  role: registerRoleSchema.default("player")
 });
 
 export const loginSchema = z.object({
@@ -54,4 +57,12 @@ export type AuthTokens = {
 export type AuthSession = {
   user: AuthUser;
   tokens: AuthTokens;
+};
+
+export type SupportUser = {
+  id: string;
+  email: string;
+  role: UserRole;
+  createdAt: string;
+  activeRefreshTokens: number;
 };

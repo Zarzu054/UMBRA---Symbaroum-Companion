@@ -18,7 +18,7 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply):
       payload.type !== "access" ||
       typeof payload.sub !== "string" ||
       typeof payload.email !== "string" ||
-      (payload.role !== "player" && payload.role !== "gm" && payload.role !== "admin")
+      (payload.role !== "player" && payload.role !== "gm" && payload.role !== "superadmin")
     ) {
       reply.code(401).send({ error: "Invalid access token" });
       return;

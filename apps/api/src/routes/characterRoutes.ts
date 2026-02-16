@@ -10,5 +10,9 @@ export async function characterRoutes(app: FastifyInstance): Promise<void> {
   const controller = new CharacterController(service);
 
   app.get("/characters", { preHandler: [requireAuth] }, controller.list.bind(controller));
-  app.post("/characters", { preHandler: [requireAuth] }, controller.create.bind(controller));
+  app.post<{ Body: { name: string; archetype: string; race: string; level: number } }>(
+    "/characters",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.create(request, reply)
+  );
 }

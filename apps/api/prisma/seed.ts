@@ -3,22 +3,30 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-async function main(): Promise<void> {
-  const email = "dev-player@umbra.local";
-  const passwordHash = await argon2.hash("ChangeMe123!");
+async function upsertUser(email: string, password: string, role: "player" | "gm" | "superadmin"): Promise<void> {
+  const passwordHash = await argon2.hash(password);
 
   await prisma.user.upsert({
     where: { email },
     update: {
       passwordHash,
-      role: "player"
+      role
     },
     create: {
       email,
       passwordHash,
-      role: "player"
+      role
     }
   });
+}
+
+async function main(): Promise<void> {
+  await upsertUser("dev-player@umbra.local", "ChangeMe123!", "player");
+
+  const superadminEmail = process.env.SUPERADMIN_EMAIL ?? "superadmin@umbra.local";
+  const superadminPassword = process.env.SUPERADMIN_PASSWORD ?? "SuperAdmin123!";
+
+  await upsertUser(superadminEmail, superadminPassword, "superadmin");
 }
 
 main()

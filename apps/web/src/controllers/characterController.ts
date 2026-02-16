@@ -11,7 +11,7 @@ const defaultForm: CharacterFormState = {
   level: 1
 };
 
-export function useCharacterController() {
+export function useCharacterController(ensureAccessToken: () => Promise<string>) {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,10 +25,11 @@ export function useCharacterController() {
     setIsLoading(true);
     setError(null);
     try {
-      const list = await fetchCharacters();
+      const token = await ensureAccessToken();
+      const list = await fetchCharacters(token);
       setCharacters(list);
-    } catch {
-      setError("Could not load character list");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load character list");
     } finally {
       setIsLoading(false);
     }
@@ -41,11 +42,12 @@ export function useCharacterController() {
   async function submit(): Promise<void> {
     setError(null);
     try {
-      await createCharacter(form);
+      const token = await ensureAccessToken();
+      await createCharacter(form, token);
       setForm(defaultForm);
       await refresh();
-    } catch {
-      setError("Could not create character");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create character");
     }
   }
 

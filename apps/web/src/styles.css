@@ -27,6 +27,13 @@ body {
   border: 1px solid #d9c7ad;
 }
 
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -34,7 +41,8 @@ body {
   margin-bottom: 12px;
 }
 
-input {
+input,
+select {
   width: 100%;
   padding: 8px;
   border: 1px solid #c9b8a0;
@@ -48,6 +56,11 @@ button {
   background: #2f5f52;
   color: #f7f7f7;
   cursor: pointer;
+}
+
+button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .cards {
@@ -65,4 +78,46 @@ button {
 
 .error {
   color: #b52323;
+}
+
+.auth-panel {
+  max-width: 480px;
+  margin: 48px auto 0;
+}
+
+.auth-switch {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.auth-switch button {
+  flex: 1;
+}
+
+.auth-switch .active {
+  background: #1f3f36;
+}
+
+.row-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  border-bottom: 1px solid #d5c6ae;
+  padding: 10px 8px;
 }

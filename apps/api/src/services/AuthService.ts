@@ -2,6 +2,7 @@ import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
 import { type AuthSession, type AuthUser, loginSchema, refreshSchema, registerSchema } from "@umbra/shared";
+import type { UserRole as DbUserRole } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { env } from "../config/env.js";
 import { AppError } from "../utils/AppError.js";
@@ -9,7 +10,7 @@ import { AppError } from "../utils/AppError.js";
 type AccessTokenPayload = {
   sub: string;
   email: string;
-  role: "player" | "gm" | "admin";
+  role: "player" | "gm" | "superadmin";
   type: "access";
 };
 
@@ -39,7 +40,7 @@ export class AuthService {
       }
     });
 
-    return this.issueSession({ id: user.id, email: user.email, role: user.role });
+    return this.issueSession({ id: user.id, email: user.email, role: toAppRole(user.role) });
   }
 
   async login(input: unknown): Promise<AuthSession> {
@@ -56,7 +57,7 @@ export class AuthService {
       throw new AppError("INVALID_CREDENTIALS", "Invalid credentials", 401);
     }
 
-    return this.issueSession({ id: user.id, email: user.email, role: user.role });
+    return this.issueSession({ id: user.id, email: user.email, role: toAppRole(user.role) });
   }
 
   async refresh(input: unknown): Promise<AuthSession> {
@@ -83,7 +84,7 @@ export class AuthService {
       data: { revokedAt: new Date() }
     });
 
-    return this.issueSession({ id: stored.user.id, email: stored.user.email, role: stored.user.role });
+    return this.issueSession({ id: stored.user.id, email: stored.user.email, role: toAppRole(stored.user.role) });
   }
 
   async logout(input: unknown): Promise<void> {
@@ -113,7 +114,7 @@ export class AuthService {
       throw new AppError("USER_NOT_FOUND", "User not found", 404);
     }
 
-    return user;
+    return { ...user, role: toAppRole(user.role) };
   }
 
   private async issueSession(user: AuthUser): Promise<AuthSession> {
@@ -127,7 +128,7 @@ export class AuthService {
         type: "access"
       } satisfies AccessTokenPayload,
       env.JWT_ACCESS_SECRET,
-      { expiresIn: env.ACCESS_TOKEN_TTL }
+      { expiresIn: env.ACCESS_TOKEN_TTL as jwt.SignOptions["expiresIn"] }
     );
 
     const refreshToken = jwt.sign(
@@ -137,7 +138,7 @@ export class AuthService {
         type: "refresh"
       } satisfies RefreshTokenPayload,
       env.JWT_REFRESH_SECRET,
-      { expiresIn: `${env.REFRESH_TOKEN_TTL_DAYS}d` }
+      { expiresIn: `${env.REFRESH_TOKEN_TTL_DAYS}d` as jwt.SignOptions["expiresIn"] }
     );
 
     await prisma.refreshToken.create({
@@ -175,4 +176,9 @@ export class AuthService {
       throw new AppError("INVALID_REFRESH_TOKEN", "Invalid refresh token", 401);
     }
   }
+}
+
+function toAppRole(role: DbUserRole): "player" | "gm" | "superadmin" {
+  if (role === "player" || role === "gm") return role;
+  return "superadmin";
 }

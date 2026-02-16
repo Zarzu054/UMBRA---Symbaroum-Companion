@@ -12,11 +12,11 @@ Monorepo skeleton for a TypeScript full-stack app with MVC-oriented structure on
 
 ## Project structure
 
-- `apps/api`: Backend API with MVC folders (`models`, `services`, `controllers`, `routes`)
+- `apps/api`: backend API with MVC folders (`models`, `services`, `controllers`, `routes`)
 - `apps/api/prisma`: Prisma schema, migrations and seed
 - `apps/web`: React app with MVC-like folders (`models`, `services`, `controllers`, `views`)
-- `packages/shared`: Shared contracts and schemas
-- `docker-compose.umbra.dev.yml`: Local development orchestration
+- `packages/shared`: shared contracts and schemas
+- `docker-compose.umbra.dev.yml`: local development orchestration
 
 ## Quick start with Docker
 
@@ -34,15 +34,23 @@ The API container automatically runs Prisma generate, migrations deploy and seed
 ## Quick start without Docker
 
 1. Install dependencies:
-   - `npm install`
+   - `npm install --prefix packages/shared`
+   - `npm install --prefix apps/api`
+   - `npm install --prefix apps/web`
 2. Generate Prisma client and apply migrations:
-   - `npm run prisma:generate -w @umbra/api`
-   - `npm run prisma:migrate:deploy -w @umbra/api`
-   - `npm run prisma:seed -w @umbra/api`
+   - `npm run prisma:generate --prefix apps/api`
+   - `npm run prisma:migrate:deploy --prefix apps/api`
+   - `npm run prisma:seed --prefix apps/api`
 3. Start API:
-   - `npm run dev:api`
+   - `npm run dev --prefix apps/api`
 4. Start Web:
-   - `npm run dev:web`
+   - `npm run dev --prefix apps/web`
+
+## Auth and roles
+
+- Public registration is limited to: `player`, `gm`
+- `superadmin` accounts are seeded only and not self-registrable
+- Frontend includes login/register UI and persistent sessions with token refresh
 
 ## Current API endpoints
 
@@ -54,13 +62,19 @@ The API container automatically runs Prisma generate, migrations deploy and seed
 - `GET /auth/me`
 - `GET /api/characters` (protected)
 - `POST /api/characters` (protected)
+- `GET /admin/users` (superadmin)
+- `POST /admin/users/:userId/revoke-sessions` (superadmin)
 
-## Dev seed user
+## Seed users
 
-- email: `dev-player@umbra.local`
-- password: `ChangeMe123!`
+- Player
+  - email: `dev-player@umbra.local`
+  - password: `ChangeMe123!`
+- Superadmin
+  - email: `superadmin@umbra.local` (or `.env` `SUPERADMIN_EMAIL`)
+  - password: `SuperAdmin123!` (or `.env` `SUPERADMIN_PASSWORD`)
 
 ## Notes
 
-- Access tokens are short lived and refresh tokens rotate on `/auth/refresh`.
-- Character endpoints now resolve owner from the authenticated JWT.
+- Superadmin dashboard is available in the frontend when logged in as a superadmin.
+- Revoke sessions action invalidates all refresh tokens for the target user.
