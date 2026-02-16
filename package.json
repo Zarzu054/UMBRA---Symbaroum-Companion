@@ -1,0 +1,16 @@
+{
+  "name": "umbra-symbaroum-companion",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @umbra/api & npm run dev -w @umbra/web",
+    "dev:api": "npm run dev -w @umbra/api",
+    "dev:web": "npm run dev -w @umbra/web",
+    "build": "npm run build -w @umbra/shared && npm run build -w @umbra/api && npm run build -w @umbra/web",
+    "typecheck": "npm run typecheck -w @umbra/shared && npm run typecheck -w @umbra/api && npm run typecheck -w @umbra/web"
+  }
+}
