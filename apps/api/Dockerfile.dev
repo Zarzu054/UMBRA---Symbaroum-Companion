@@ -2,4 +2,4 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-CMD ["sh", "-c", "npm install && npm run dev -w @umbra/api"]
+CMD ["sh", "-c", "npm install --prefix packages/shared && npm install --prefix apps/api && npm run dev --prefix apps/api"]
