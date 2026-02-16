@@ -7,14 +7,15 @@ Monorepo skeleton for a TypeScript full-stack app with MVC-oriented structure on
 - Backend: Node.js, Fastify, TypeScript, PostgreSQL
 - Frontend: React, Vite, TypeScript
 - Shared package: `packages/shared` for types and validation schemas
+- ORM and migrations: Prisma
 - Containerized dev runtime: Docker Compose
 
 ## Project structure
 
 - `apps/api`: Backend API with MVC folders (`models`, `services`, `controllers`, `routes`)
+- `apps/api/prisma`: Prisma schema, migrations and seed
 - `apps/web`: React app with MVC-like folders (`models`, `services`, `controllers`, `views`)
 - `packages/shared`: Shared contracts and schemas
-- `infra/postgres`: PostgreSQL init scripts
 - `docker-compose.umbra.dev.yml`: Local development orchestration
 
 ## Quick start with Docker
@@ -28,22 +29,38 @@ Monorepo skeleton for a TypeScript full-stack app with MVC-oriented structure on
 4. API health check:
    - `http://localhost:4000/health`
 
+The API container automatically runs Prisma generate, migrations deploy and seed before starting dev mode.
+
 ## Quick start without Docker
 
 1. Install dependencies:
    - `npm install`
-2. Start API:
+2. Generate Prisma client and apply migrations:
+   - `npm run prisma:generate -w @umbra/api`
+   - `npm run prisma:migrate:deploy -w @umbra/api`
+   - `npm run prisma:seed -w @umbra/api`
+3. Start API:
    - `npm run dev:api`
-3. Start Web:
+4. Start Web:
    - `npm run dev:web`
 
 ## Current API endpoints
 
 - `GET /health`
-- `GET /api/characters`
-- `POST /api/characters`
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+- `GET /auth/me`
+- `GET /api/characters` (protected)
+- `POST /api/characters` (protected)
+
+## Dev seed user
+
+- email: `dev-player@umbra.local`
+- password: `ChangeMe123!`
 
 ## Notes
 
-- Auth is intentionally stubbed for now with a fixed dev owner id.
-- The next step is implementing your custom auth module and replacing the dev owner logic.
+- Access tokens are short lived and refresh tokens rotate on `/auth/refresh`.
+- Character endpoints now resolve owner from the authenticated JWT.
