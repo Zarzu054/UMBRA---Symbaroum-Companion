@@ -30,6 +30,7 @@ Monorepo skeleton for a TypeScript full-stack app with MVC-oriented structure on
    - `http://localhost:4000/health`
 
 The API container automatically runs Prisma generate, migrations deploy and seed before starting dev mode.
+API hot-reload is handled by `nodemon` in Docker (`apps/api/nodemon.json`).
 
 ## Quick start without Docker
 
