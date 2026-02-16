@@ -1,4 +1,5 @@
 import { z } from "zod";
+export * from "./symbaroumCompendium.js";
 
 export const userRoleSchema = z.enum(["player", "gm", "superadmin"]);
 export const registerRoleSchema = z.enum(["player", "gm"]);

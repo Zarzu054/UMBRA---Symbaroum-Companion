@@ -2,13 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ATTRIBUTE_KEYS,
   ATTRIBUTE_LABELS,
+  SYMBAROUM_ABILITIES,
   SYMBAROUM_ARCHETYPES,
+  SYMBAROUM_MYSTIC_POWERS,
+  SYMBAROUM_RITUALS,
   SYMBAROUM_CULTURES,
   SYMBAROUM_RACES,
   createEmptyCharacterSheet,
   parseCharacterSheet,
   type Character,
   type CharacterSheet,
+  type SymbaroumCapability,
   type CreateCharacterInput
 } from "@umbra/shared";
 import { createCharacter, fetchCharacters, updateCharacter } from "../services/characterService";
@@ -39,6 +43,11 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     habilidades: "",
     poderes: "",
     rituales: ""
+  });
+  const [catalogSelection, setCatalogSelection] = useState({
+    habilidadId: SYMBAROUM_ABILITIES[0]?.id ?? "",
+    poderId: SYMBAROUM_MYSTIC_POWERS[0]?.id ?? "",
+    ritualId: SYMBAROUM_RITUALS[0]?.id ?? ""
   });
 
   useEffect(() => {
@@ -108,6 +117,27 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     setListInput((prev) => ({ ...prev, [sourceInput]: "" }));
   }
 
+  function addCatalogRatedItem(
+    section: "habilidades" | "poderesMisticos" | "rituales",
+    entry: SymbaroumCapability | undefined
+  ): void {
+    if (!entry) return;
+    setForm((prev) => {
+      const next = structuredClone(prev);
+      next.sheet[section] = [
+        ...next.sheet[section],
+        {
+          nombre: entry.nombre,
+          nivel: "novato",
+          fuente: entry.libro,
+          pagina: entry.pagina,
+          notas: entry.efectoResumen
+        }
+      ];
+      return { ...next, sheet: parseCharacterSheet(next.sheet) };
+    });
+  }
+
   function removeRatedItem(section: "habilidades" | "poderesMisticos" | "rituales", index: number): void {
     setForm((prev) => {
       const next = structuredClone(prev);
@@ -119,8 +149,8 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
   function updateRatedItem(
     section: "habilidades" | "poderesMisticos" | "rituales",
     index: number,
-    field: "nombre" | "nivel" | "fuente" | "notas",
-    value: string
+    field: "nombre" | "nivel" | "fuente" | "notas" | "pagina",
+    value: string | number
   ): void {
     setForm((prev) => {
       const next = structuredClone(prev);
@@ -194,10 +224,16 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       error,
       form,
       listInput,
+      catalogSelection,
       selectedCharacterId,
       races: SYMBAROUM_RACES,
       cultures: SYMBAROUM_CULTURES,
       archetypes: SYMBAROUM_ARCHETYPES,
+      catalog: {
+        habilidades: SYMBAROUM_ABILITIES,
+        poderes: SYMBAROUM_MYSTIC_POWERS,
+        rituales: SYMBAROUM_RITUALS
+      },
       attributeKeys: ATTRIBUTE_KEYS,
       attributeLabels: ATTRIBUTE_LABELS,
       availableXp,
@@ -209,13 +245,15 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       updateTopLevel,
       updateSheet,
       setListInput,
+      setCatalogSelection,
       addSimpleItem,
       removeSimpleItem,
       addRatedItem,
+      addCatalogRatedItem,
       removeRatedItem,
       updateRatedItem
     }),
-    [characters, isLoading, isSaving, isEditing, error, form, listInput, selectedCharacterId, availableXp, corruptionTotal]
+    [characters, isLoading, isSaving, isEditing, error, form, listInput, catalogSelection, selectedCharacterId, availableXp, corruptionTotal]
   );
 }
 

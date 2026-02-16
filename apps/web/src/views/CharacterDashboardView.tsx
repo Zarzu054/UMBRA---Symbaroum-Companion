@@ -240,8 +240,30 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
 
         <div className="section-title">Habilidades</div>
         <div className="inline-row">
+          <select
+            value={controller.catalogSelection.habilidadId}
+            onChange={(event) => controller.setCatalogSelection((prev) => ({ ...prev, habilidadId: event.target.value }))}
+          >
+            {controller.catalog.habilidades.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.nombre} ({item.libro} p.{item.pagina})
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() =>
+              controller.addCatalogRatedItem(
+                "habilidades",
+                controller.catalog.habilidades.find((item) => item.id === controller.catalogSelection.habilidadId)
+              )
+            }
+          >
+            Agregar del compendio
+          </button>
+        </div>
+        <div className="inline-row">
           <input
-            placeholder="Nueva habilidad"
+            placeholder="Nueva habilidad manual"
             value={controller.listInput.habilidades}
             onChange={(event) => controller.setListInput((prev) => ({ ...prev, habilidades: event.target.value }))}
           />
@@ -267,6 +289,13 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                 value={item.fuente}
                 onChange={(event) => controller.updateRatedItem("habilidades", index, "fuente", event.target.value)}
               />
+              <input
+                placeholder="Pagina"
+                value={item.pagina ?? ""}
+                onChange={(event) =>
+                  controller.updateRatedItem("habilidades", index, "pagina", Number(event.target.value || 0))
+                }
+              />
               <button onClick={() => controller.removeRatedItem("habilidades", index)}>Quitar</button>
             </article>
           ))}
@@ -274,8 +303,30 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
 
         <div className="section-title">Poderes misticos y rituales</div>
         <div className="inline-row">
+          <select
+            value={controller.catalogSelection.poderId}
+            onChange={(event) => controller.setCatalogSelection((prev) => ({ ...prev, poderId: event.target.value }))}
+          >
+            {controller.catalog.poderes.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.nombre} ({item.libro} p.{item.pagina})
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() =>
+              controller.addCatalogRatedItem(
+                "poderesMisticos",
+                controller.catalog.poderes.find((item) => item.id === controller.catalogSelection.poderId)
+              )
+            }
+          >
+            Agregar del compendio
+          </button>
+        </div>
+        <div className="inline-row">
           <input
-            placeholder="Nuevo poder mistico"
+            placeholder="Nuevo poder mistico manual"
             value={controller.listInput.poderes}
             onChange={(event) => controller.setListInput((prev) => ({ ...prev, poderes: event.target.value }))}
           />
@@ -301,14 +352,43 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                 value={item.fuente}
                 onChange={(event) => controller.updateRatedItem("poderesMisticos", index, "fuente", event.target.value)}
               />
+              <input
+                placeholder="Pagina"
+                value={item.pagina ?? ""}
+                onChange={(event) =>
+                  controller.updateRatedItem("poderesMisticos", index, "pagina", Number(event.target.value || 0))
+                }
+              />
               <button onClick={() => controller.removeRatedItem("poderesMisticos", index)}>Quitar</button>
             </article>
           ))}
         </div>
 
         <div className="inline-row">
+          <select
+            value={controller.catalogSelection.ritualId}
+            onChange={(event) => controller.setCatalogSelection((prev) => ({ ...prev, ritualId: event.target.value }))}
+          >
+            {controller.catalog.rituales.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.nombre} ({item.libro} p.{item.pagina})
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() =>
+              controller.addCatalogRatedItem(
+                "rituales",
+                controller.catalog.rituales.find((item) => item.id === controller.catalogSelection.ritualId)
+              )
+            }
+          >
+            Agregar del compendio
+          </button>
+        </div>
+        <div className="inline-row">
           <input
-            placeholder="Nuevo ritual"
+            placeholder="Nuevo ritual manual"
             value={controller.listInput.rituales}
             onChange={(event) => controller.setListInput((prev) => ({ ...prev, rituales: event.target.value }))}
           />
@@ -333,6 +413,13 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                 placeholder="Fuente"
                 value={item.fuente}
                 onChange={(event) => controller.updateRatedItem("rituales", index, "fuente", event.target.value)}
+              />
+              <input
+                placeholder="Pagina"
+                value={item.pagina ?? ""}
+                onChange={(event) =>
+                  controller.updateRatedItem("rituales", index, "pagina", Number(event.target.value || 0))
+                }
               />
               <button onClick={() => controller.removeRatedItem("rituales", index)}>Quitar</button>
             </article>
