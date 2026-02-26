@@ -25,4 +25,16 @@ export class CharacterController {
     const updated = await this.service.updateCharacter(ownerId, request.params.characterId, request.body);
     reply.send({ data: updated });
   }
+
+  async duplicate(request: FastifyRequest<{ Params: { characterId: string } }>, reply: FastifyReply): Promise<void> {
+    const ownerId = request.authUser!.id;
+    const duplicated = await this.service.duplicateCharacter(ownerId, request.params.characterId);
+    reply.code(201).send({ data: duplicated });
+  }
+
+  async remove(request: FastifyRequest<{ Params: { characterId: string } }>, reply: FastifyReply): Promise<void> {
+    const ownerId = request.authUser!.id;
+    await this.service.deleteCharacter(ownerId, request.params.characterId);
+    reply.code(204).send();
+  }
 }

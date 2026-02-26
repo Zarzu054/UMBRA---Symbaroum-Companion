@@ -51,3 +51,23 @@ export async function updateCharacter(
   const payload = (await response.json()) as CharacterSingleResponse;
   return payload.data;
 }
+
+export async function duplicateCharacter(characterId: string, accessToken: string): Promise<Character> {
+  const response = await fetch(`/api/characters/${characterId}/duplicate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+
+  if (!response.ok) throw new Error(await parseError(response));
+  const payload = (await response.json()) as CharacterSingleResponse;
+  return payload.data;
+}
+
+export async function deleteCharacter(characterId: string, accessToken: string): Promise<void> {
+  const response = await fetch(`/api/characters/${characterId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+
+  if (!response.ok) throw new Error(await parseError(response));
+}

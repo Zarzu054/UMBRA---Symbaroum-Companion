@@ -19,4 +19,14 @@ export async function characterRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [requireAuth] },
     async (request, reply) => controller.update(request, reply)
   );
+  app.post<{ Params: { characterId: string } }>(
+    "/characters/:characterId/duplicate",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.duplicate(request, reply)
+  );
+  app.delete<{ Params: { characterId: string } }>(
+    "/characters/:characterId",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.remove(request, reply)
+  );
 }

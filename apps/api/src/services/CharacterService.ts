@@ -48,4 +48,30 @@ export class CharacterService {
 
     return updated;
   }
+
+  async duplicateCharacter(ownerId: string, characterId: string): Promise<Character> {
+    const source = await this.model.findById(ownerId, characterId);
+    if (!source) {
+      throw new AppError("CHARACTER_NOT_FOUND", "Personaje no encontrado", 404);
+    }
+
+    const duplicatedName = source.name.trim() ? `${source.name} (Copia)` : "Personaje sin nombre (Copia)";
+
+    return this.model.create(ownerId, {
+      name: duplicatedName,
+      archetype: source.archetype,
+      race: source.race,
+      culture: source.culture,
+      profession: source.profession,
+      level: source.level,
+      sheet: parseCharacterSheet(source.sheet)
+    });
+  }
+
+  async deleteCharacter(ownerId: string, characterId: string): Promise<void> {
+    const deleted = await this.model.delete(ownerId, characterId);
+    if (!deleted) {
+      throw new AppError("CHARACTER_NOT_FOUND", "Personaje no encontrado", 404);
+    }
+  }
 }

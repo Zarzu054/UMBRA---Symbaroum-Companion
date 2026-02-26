@@ -73,6 +73,8 @@ const attributeBlockSchema = z.object({
 
 const ratedEntrySchema = z.object({
   nombre: z.string().min(1).max(120),
+  tipo: z.string().max(120).default(""),
+  efecto: z.string().max(1200).default(""),
   nivel: skillLevelSchema,
   fuente: z.string().max(120).default(""),
   pagina: z.number().int().min(1).max(2000).optional(),
@@ -92,6 +94,8 @@ export const characterSheetSchema = z.object({
     cultura: z.enum(SYMBAROUM_CULTURES).or(z.string().min(1).max(80)).default("Ambriano"),
     arquetipo: z.enum(SYMBAROUM_ARCHETYPES).or(z.string().min(1).max(80)).default("Guerrero"),
     profesion: z.string().max(120).default(""),
+    sombra: z.string().max(240).default(""),
+    cita: z.string().max(240).default(""),
     edad: z.string().max(40).default(""),
     apariencia: z.string().max(240).default(""),
     trasfondo: z.string().max(4000).default("")
@@ -105,10 +109,16 @@ export const characterSheetSchema = z.object({
   combate: z.object({
     robustezMax: z.number().int().min(1).max(999).default(10),
     robustezActual: z.number().int().min(0).max(999).default(10),
+    umbralDolor: z.number().int().min(0).max(999).default(5),
     defensaMod: z.number().int().min(-20).max(20).default(0),
+    defensaBase: z.string().max(40).default(""),
     iniciativaMod: z.number().int().min(-20).max(20).default(0),
     armadura: z.string().max(160).default(""),
+    armaduraProteccion: z.string().max(80).default(""),
+    armaduraCualidad: z.string().max(120).default(""),
     armaPrincipal: z.string().max(160).default(""),
+    armaPrincipalCualidad: z.string().max(120).default(""),
+    armaPrincipalAtributo: z.string().max(80).default(""),
     armaSecundaria: z.string().max(160).default(""),
     danioPrincipal: z.string().max(80).default(""),
     danioSecundaria: z.string().max(80).default("")
@@ -139,6 +149,8 @@ export function createEmptyCharacterSheet(): CharacterSheet {
       cultura: "Ambriano",
       arquetipo: "Guerrero",
       profesion: "",
+      sombra: "",
+      cita: "",
       edad: "",
       apariencia: "",
       trasfondo: ""
@@ -161,10 +173,16 @@ export function createEmptyCharacterSheet(): CharacterSheet {
     combate: {
       robustezMax: 10,
       robustezActual: 10,
+      umbralDolor: 5,
       defensaMod: 0,
+      defensaBase: "",
       iniciativaMod: 0,
       armadura: "",
+      armaduraProteccion: "",
+      armaduraCualidad: "",
       armaPrincipal: "",
+      armaPrincipalCualidad: "",
+      armaPrincipalAtributo: "",
       armaSecundaria: "",
       danioPrincipal: "",
       danioSecundaria: ""

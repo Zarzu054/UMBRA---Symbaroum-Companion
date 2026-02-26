@@ -6,6 +6,12 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5173,
+    watch: {
+      // Docker Desktop on Windows frequently drops FS events on bind mounts.
+      // Polling makes HMR deterministic in this setup.
+      usePolling: process.env.CHOKIDAR_USEPOLLING === "true",
+      interval: 300
+    },
     proxy: {
       "/auth": {
         target: process.env.VITE_API_PROXY ?? "http://api:4000",

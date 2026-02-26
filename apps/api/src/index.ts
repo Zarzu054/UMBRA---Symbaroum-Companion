@@ -45,9 +45,10 @@ async function bootstrap(): Promise<void> {
     if (typeof (error as { statusCode?: unknown }).statusCode === "number") {
       const statusCode = (error as { statusCode: number }).statusCode;
       if (statusCode >= 400 && statusCode < 500) {
+        const message = error instanceof Error ? error.message : "Solicitud invalida";
         reply.code(statusCode).send({
           error: "REQUEST_ERROR",
-          message: error.message || "Solicitud invalida"
+          message
         });
         return;
       }

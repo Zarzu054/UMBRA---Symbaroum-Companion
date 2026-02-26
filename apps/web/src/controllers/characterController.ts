@@ -15,7 +15,7 @@ import {
   type SymbaroumCapability,
   type CreateCharacterInput
 } from "@umbra/shared";
-import { createCharacter, fetchCharacters, updateCharacter } from "../services/characterService";
+import { createCharacter, deleteCharacter, duplicateCharacter, fetchCharacters, updateCharacter } from "../services/characterService";
 
 export type CharacterFormState = CreateCharacterInput;
 
@@ -33,6 +33,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
   const [characters, setCharacters] = useState<Character[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<CharacterFormState>(defaultForm);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
@@ -74,6 +75,14 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  function safeSheetForEditing(sheet: unknown): CharacterSheet {
+    try {
+      return parseCharacterSheet(sheet);
+    } catch {
+      return sheet as CharacterSheet;
+    }
+  }
+
   function updateSheet(path: string, value: string | number): void {
     setForm((prev) => {
       const next = structuredClone(prev);
@@ -83,7 +92,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
         cursor = cursor[parts[i]] as Record<string, unknown>;
       }
       cursor[parts[parts.length - 1]] = value;
-      return { ...next, sheet: parseCharacterSheet(next.sheet) };
+      return { ...next, sheet: safeSheetForEditing(next.sheet) };
     });
   }
 
@@ -111,8 +120,8 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     if (!text) return;
     setForm((prev) => {
       const next = structuredClone(prev);
-      next.sheet[section] = [...next.sheet[section], { nombre: text, nivel: "novato", fuente: "", notas: "" }];
-      return { ...next, sheet: parseCharacterSheet(next.sheet) };
+      next.sheet[section] = [...next.sheet[section], { nombre: text, tipo: "", efecto: "", nivel: "novato", fuente: "", notas: "" }];
+      return { ...next, sheet: safeSheetForEditing(next.sheet) };
     });
     setListInput((prev) => ({ ...prev, [sourceInput]: "" }));
   }
@@ -128,13 +137,15 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
         ...next.sheet[section],
         {
           nombre: entry.nombre,
+          tipo: section === "habilidades" ? "Habilidad" : section === "poderesMisticos" ? "Poder místico" : "Ritual",
+          efecto: entry.efectoResumen,
           nivel: "novato",
           fuente: entry.libro,
           pagina: entry.pagina,
           notas: entry.efectoResumen
         }
       ];
-      return { ...next, sheet: parseCharacterSheet(next.sheet) };
+      return { ...next, sheet: safeSheetForEditing(next.sheet) };
     });
   }
 
@@ -149,13 +160,13 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
   function updateRatedItem(
     section: "habilidades" | "poderesMisticos" | "rituales",
     index: number,
-    field: "nombre" | "nivel" | "fuente" | "notas" | "pagina",
+    field: "nombre" | "tipo" | "efecto" | "nivel" | "fuente" | "notas" | "pagina",
     value: string | number
   ): void {
     setForm((prev) => {
       const next = structuredClone(prev);
       next.sheet[section][index][field] = value as never;
-      return { ...next, sheet: parseCharacterSheet(next.sheet) };
+      return { ...next, sheet: safeSheetForEditing(next.sheet) };
     });
   }
 
@@ -180,6 +191,20 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     setForm(structuredClone(defaultForm));
   }
 
+  function openCreateModal(): void {
+    newCharacter();
+    setIsFormModalOpen(true);
+  }
+
+  function openEditModal(characterId: string): void {
+    selectCharacter(characterId);
+    setIsFormModalOpen(true);
+  }
+
+  function closeFormModal(): void {
+    setIsFormModalOpen(false);
+  }
+
   async function submit(): Promise<void> {
     setError(null);
     setIsSaving(true);
@@ -202,11 +227,57 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       }
 
       await refresh();
-      if (!selectedCharacterId) {
-        newCharacter();
-      }
+      closeFormModal();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar el personaje");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function duplicateSelected(characterId?: string): Promise<void> {
+    const targetId = characterId ?? selectedCharacterId;
+    if (!targetId) return;
+
+    setError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      const duplicated = await duplicateCharacter(targetId, token);
+      setSelectedCharacterId(duplicated.id);
+      setForm({
+        name: duplicated.name,
+        archetype: duplicated.archetype,
+        race: duplicated.race,
+        culture: duplicated.culture,
+        profession: duplicated.profession,
+        level: duplicated.level,
+        sheet: parseCharacterSheet(duplicated.sheet)
+      });
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo duplicar el personaje");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function deleteSelected(characterId?: string): Promise<void> {
+    const targetId = characterId ?? selectedCharacterId;
+    if (!targetId) return;
+
+    setError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      await deleteCharacter(targetId, token);
+      if (targetId === selectedCharacterId) {
+        newCharacter();
+        closeFormModal();
+      }
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo eliminar el personaje");
     } finally {
       setIsSaving(false);
     }
@@ -220,6 +291,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       characters,
       isLoading,
       isSaving,
+      isFormModalOpen,
       isEditing,
       error,
       form,
@@ -240,7 +312,12 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       corruptionTotal,
       refresh,
       submit,
+      duplicateSelected,
+      deleteSelected,
       newCharacter,
+      openCreateModal,
+      openEditModal,
+      closeFormModal,
       selectCharacter,
       updateTopLevel,
       updateSheet,
@@ -253,7 +330,20 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       removeRatedItem,
       updateRatedItem
     }),
-    [characters, isLoading, isSaving, isEditing, error, form, listInput, catalogSelection, selectedCharacterId, availableXp, corruptionTotal]
+    [
+      characters,
+      isLoading,
+      isSaving,
+      isFormModalOpen,
+      isEditing,
+      error,
+      form,
+      listInput,
+      catalogSelection,
+      selectedCharacterId,
+      availableXp,
+      corruptionTotal
+    ]
   );
 }
 

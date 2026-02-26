@@ -64,6 +64,14 @@ export class CharacterModel {
     return mapRow(row);
   }
 
+  async findById(ownerId: string, characterId: string): Promise<Character | null> {
+    const row = await prisma.character.findFirst({
+      where: { id: characterId, ownerId }
+    });
+
+    return row ? mapRow(row) : null;
+  }
+
   async update(ownerId: string, characterId: string, payload: UpdateCharacterInput): Promise<Character | null> {
     const current = await prisma.character.findFirst({
       where: { id: characterId, ownerId }
@@ -94,6 +102,13 @@ export class CharacterModel {
     });
 
     return mapRow(row);
+  }
+
+  async delete(ownerId: string, characterId: string): Promise<boolean> {
+    const deleted = await prisma.character.deleteMany({
+      where: { id: characterId, ownerId }
+    });
+    return deleted.count > 0;
   }
 }
 
