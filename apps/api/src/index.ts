@@ -33,11 +33,15 @@ async function bootstrap(): Promise<void> {
         Array.isArray((error as { issues?: unknown }).issues));
 
     if (zodLikeError) {
-      const issues = (error as { issues: Array<{ message?: string }> }).issues;
+      const issues = (error as { issues: Array<{ message?: string; path?: Array<string | number> }> }).issues;
       const first = issues[0];
       reply.code(400).send({
         error: "VALIDATION_ERROR",
-        message: first?.message ?? "Datos de entrada invalidos"
+        message: first?.message ?? "Datos de entrada invalidos",
+        details: issues.map((issue) => ({
+          path: (issue.path ?? []).join("."),
+          message: issue.message ?? "Valor invalido"
+        }))
       });
       return;
     }

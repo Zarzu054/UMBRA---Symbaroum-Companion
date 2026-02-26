@@ -7,7 +7,21 @@ const JSON_HEADERS = { "Content-Type": "application/json" };
 
 async function parseError(response: Response): Promise<string> {
   try {
-    const payload = (await response.json()) as { message?: string; error?: string };
+    const payload = (await response.json()) as {
+      message?: string;
+      error?: string;
+      details?: Array<{ path?: string; message?: string }>;
+    };
+    const details = Array.isArray(payload.details)
+      ? payload.details
+          .map((item) => (item.path ? `${item.path}: ${item.message ?? "Valor invalido"}` : item.message ?? "Valor invalido"))
+          .filter(Boolean)
+      : [];
+
+    if (details.length > 0) {
+      return `${payload.message ?? payload.error ?? "Validacion fallida"}\n${details.join("\n")}`;
+    }
+
     return payload.message ?? payload.error ?? `Fallo de solicitud (${response.status})`;
   } catch {
     return `Fallo de solicitud (${response.status})`;

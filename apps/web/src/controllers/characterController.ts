@@ -8,6 +8,7 @@ import {
   SYMBAROUM_RITUALS,
   SYMBAROUM_CULTURES,
   SYMBAROUM_RACES,
+  createCharacterSchema,
   createEmptyCharacterSheet,
   parseCharacterSheet,
   type Character,
@@ -16,6 +17,8 @@ import {
   type CreateCharacterInput
 } from "@umbra/shared";
 import { createCharacter, deleteCharacter, duplicateCharacter, fetchCharacters, updateCharacter } from "../services/characterService";
+import { computeDerivedStats } from "../models/rulesEngine";
+import { generateRandomCharacter } from "../models/randomCharacterGenerator";
 
 export type CharacterFormState = CreateCharacterInput;
 
@@ -35,6 +38,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
   const [isSaving, setIsSaving] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [form, setForm] = useState<CharacterFormState>(defaultForm);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [listInput, setListInput] = useState({
@@ -50,6 +54,13 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     poderId: SYMBAROUM_MYSTIC_POWERS[0]?.id ?? "",
     ritualId: SYMBAROUM_RITUALS[0]?.id ?? ""
   });
+  const [rollState, setRollState] = useState({
+    mode: "defensa" as "defensa" | "iniciativa" | "atributo",
+    attribute: "agil" as (typeof ATTRIBUTE_KEYS)[number],
+    situationalMod: 0,
+    history: [] as string[]
+  });
+  const [simulationCharacterId, setSimulationCharacterId] = useState<string | null>(null);
 
   useEffect(() => {
     void refresh();
@@ -72,6 +83,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
   }
 
   function updateTopLevel<K extends keyof CharacterFormState>(field: K, value: CharacterFormState[K]): void {
+    setValidationErrors([]);
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -84,6 +96,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
   }
 
   function updateSheet(path: string, value: string | number): void {
+    setValidationErrors([]);
     setForm((prev) => {
       const next = structuredClone(prev);
       const parts = path.split(".");
@@ -173,6 +186,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
   function selectCharacter(characterId: string): void {
     const character = characters.find((c) => c.id === characterId);
     if (!character) return;
+    const parsedSheet = parseCharacterSheet(character.sheet);
 
     setSelectedCharacterId(character.id);
     setForm({
@@ -181,8 +195,14 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       race: character.race,
       culture: character.culture,
       profession: character.profession,
-      level: character.level,
-      sheet: parseCharacterSheet(character.sheet)
+      level: 1,
+      sheet: {
+        ...parsedSheet,
+        progreso: {
+          ...parsedSheet.progreso,
+          nivel: 1
+        }
+      }
     });
   }
 
@@ -207,18 +227,38 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
 
   async function submit(): Promise<void> {
     setError(null);
+    setValidationErrors([]);
     setIsSaving(true);
     try {
-      const token = await ensureAccessToken();
       const payload: CreateCharacterInput = {
         ...form,
-        level: form.sheet.progreso.nivel,
+        level: 1,
         name: form.name.trim(),
         archetype: form.sheet.identidad.arquetipo,
         race: form.sheet.identidad.raza,
         culture: form.sheet.identidad.cultura,
-        profession: form.sheet.identidad.profesion
+        profession: form.sheet.identidad.profesion,
+        sheet: {
+          ...form.sheet,
+          progreso: {
+            ...form.sheet.progreso,
+            nivel: 1
+          }
+        }
       };
+
+      const validation = createCharacterSchema.safeParse(payload);
+      if (!validation.success) {
+        setValidationErrors(
+          validation.error.issues.map((issue) =>
+            issue.path.length > 0 ? `${issue.path.join(".")}: ${issue.message}` : issue.message
+          )
+        );
+        setError("Hay errores de validacion en la ficha");
+        return;
+      }
+
+      const token = await ensureAccessToken();
 
       if (selectedCharacterId) {
         await updateCharacter(selectedCharacterId, payload, token);
@@ -235,6 +275,20 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     }
   }
 
+  async function createRandomCharacter(): Promise<void> {
+    setError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      await createCharacter(generateRandomCharacter(), token);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo generar personaje aleatorio");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function duplicateSelected(characterId?: string): Promise<void> {
     const targetId = characterId ?? selectedCharacterId;
     if (!targetId) return;
@@ -244,6 +298,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     try {
       const token = await ensureAccessToken();
       const duplicated = await duplicateCharacter(targetId, token);
+      const parsedSheet = parseCharacterSheet(duplicated.sheet);
       setSelectedCharacterId(duplicated.id);
       setForm({
         name: duplicated.name,
@@ -251,8 +306,14 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
         race: duplicated.race,
         culture: duplicated.culture,
         profession: duplicated.profession,
-        level: duplicated.level,
-        sheet: parseCharacterSheet(duplicated.sheet)
+        level: 1,
+        sheet: {
+          ...parsedSheet,
+          progreso: {
+            ...parsedSheet.progreso,
+            nivel: 1
+          }
+        }
       });
       await refresh();
     } catch (err) {
@@ -275,6 +336,10 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
         newCharacter();
         closeFormModal();
       }
+      if (targetId === simulationCharacterId) {
+        setSimulationCharacterId(null);
+        clearRollHistory();
+      }
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo eliminar el personaje");
@@ -283,8 +348,48 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     }
   }
 
-  const availableXp = Math.max(0, form.sheet.progreso.experienciaTotal - form.sheet.progreso.experienciaGastada);
-  const corruptionTotal = form.sheet.corrupcion.temporal + form.sheet.corrupcion.permanente;
+  const derived = computeDerivedStats(form.sheet);
+  const simulationCharacter = simulationCharacterId ? characters.find((entry) => entry.id === simulationCharacterId) ?? null : null;
+  const simulationSheet = simulationCharacter ? parseCharacterSheet(simulationCharacter.sheet) : null;
+  const simulationDerived = simulationSheet ? computeDerivedStats(simulationSheet) : null;
+
+  function selectCharacterForSimulation(characterId: string): void {
+    setSimulationCharacterId(characterId);
+    clearRollHistory();
+  }
+
+  function runTestRoll(): void {
+    const d20 = Math.floor(Math.random() * 20) + 1;
+    const situational = Number(rollState.situationalMod || 0);
+    const time = new Date().toLocaleTimeString();
+
+    let label = "";
+    let target = 0;
+
+    if (!simulationSheet || !simulationDerived) return;
+
+    if (rollState.mode === "defensa") {
+      label = "Defensa";
+      target = simulationDerived.defensaTotal + situational;
+    } else if (rollState.mode === "iniciativa") {
+      label = "Iniciativa";
+      target = simulationDerived.iniciativaTotal + situational;
+    } else {
+      label = `Atributo (${ATTRIBUTE_LABELS[rollState.attribute]})`;
+      target = simulationSheet.atributos[rollState.attribute] + situational;
+    }
+
+    const success = d20 <= target;
+    const log = `${time} | ${label}: d20=${d20} vs ${target} ${success ? "✅ éxito" : "❌ fallo"}`;
+    setRollState((prev) => ({
+      ...prev,
+      history: [log, ...prev.history].slice(0, 12)
+    }));
+  }
+
+  function clearRollHistory(): void {
+    setRollState((prev) => ({ ...prev, history: [] }));
+  }
 
   return useMemo(
     () => ({
@@ -294,9 +399,14 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       isFormModalOpen,
       isEditing,
       error,
+      validationErrors,
       form,
       listInput,
       catalogSelection,
+      rollState,
+      simulationCharacterId,
+      simulationCharacter,
+      simulationDerived,
       selectedCharacterId,
       races: SYMBAROUM_RACES,
       cultures: SYMBAROUM_CULTURES,
@@ -308,10 +418,10 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       },
       attributeKeys: ATTRIBUTE_KEYS,
       attributeLabels: ATTRIBUTE_LABELS,
-      availableXp,
-      corruptionTotal,
+      derived,
       refresh,
       submit,
+      createRandomCharacter,
       duplicateSelected,
       deleteSelected,
       newCharacter,
@@ -323,6 +433,10 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       updateSheet,
       setListInput,
       setCatalogSelection,
+      setRollState,
+      selectCharacterForSimulation,
+      runTestRoll,
+      clearRollHistory,
       addSimpleItem,
       removeSimpleItem,
       addRatedItem,
@@ -337,12 +451,14 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       isFormModalOpen,
       isEditing,
       error,
+      validationErrors,
       form,
       listInput,
       catalogSelection,
+      rollState,
+      simulationCharacterId,
       selectedCharacterId,
-      availableXp,
-      corruptionTotal
+      derived
     ]
   );
 }

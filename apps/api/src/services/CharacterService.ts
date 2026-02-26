@@ -18,6 +18,14 @@ export class CharacterService {
   }
 
   async createCharacter(ownerId: string, input: CreateCharacterInput): Promise<Character> {
+    const normalizedSheet = {
+      ...(input.sheet ?? createEmptyCharacterSheet()),
+      progreso: {
+        ...(input.sheet?.progreso ?? createEmptyCharacterSheet().progreso),
+        nivel: 1 as const
+      }
+    };
+
     const normalized = {
       ...input,
       name: input.name?.trim() || "Personaje sin nombre",
@@ -25,7 +33,8 @@ export class CharacterService {
       race: input.race?.trim() || input.sheet?.identidad?.raza || "Humano",
       culture: input.culture?.trim() || input.sheet?.identidad?.cultura || "Ambriano",
       profession: input.profession?.trim() || input.sheet?.identidad?.profesion || "",
-      level: input.level || input.sheet?.progreso?.nivel || 1
+      level: 1 as const,
+      sheet: normalizedSheet
     };
 
     const payload = createCharacterSchema.parse(normalized);
@@ -36,7 +45,22 @@ export class CharacterService {
   }
 
   async updateCharacter(ownerId: string, characterId: string, input: UpdateCharacterInput): Promise<Character> {
-    const payload = updateCharacterSchema.parse(input);
+    const normalizedInput = {
+      ...input,
+      level: input.level === undefined ? undefined : (1 as const),
+      sheet:
+        input.sheet === undefined
+          ? undefined
+          : {
+              ...input.sheet,
+              progreso: {
+                ...input.sheet.progreso,
+                nivel: 1 as const
+              }
+            }
+    };
+
+    const payload = updateCharacterSchema.parse(normalizedInput);
     const updated = await this.model.update(ownerId, characterId, {
       ...payload,
       sheet: parseCharacterSheet(payload.sheet ?? createEmptyCharacterSheet())

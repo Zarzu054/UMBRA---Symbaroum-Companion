@@ -4,7 +4,6 @@ export type CharacterCardViewModel = {
   id: string;
   title: string;
   subtitle: string;
-  levelLabel: string;
   meta: string;
   createdLabel: string;
 };
@@ -16,9 +15,8 @@ export function toCharacterCardViewModel(character: Character): CharacterCardVie
   return {
     id: character.id,
     title: character.name,
-    subtitle: `${character.archetype} · ${character.race}`,
-    levelLabel: `Nivel ${character.level}`,
-    meta: `Hab: ${totalHabilidades} · Poderes: ${totalPoderes} · Corr: ${character.sheet.corrupcion.temporal}/${character.sheet.corrupcion.permanente}`,
+    subtitle: `${character.archetype} - ${character.race}`,
+    meta: `Hab: ${totalHabilidades} - Poderes: ${totalPoderes} - Corr: ${character.sheet.corrupcion.temporal}/${character.sheet.corrupcion.permanente}`,
     createdLabel: new Date(character.updatedAt).toLocaleString()
   };
 }

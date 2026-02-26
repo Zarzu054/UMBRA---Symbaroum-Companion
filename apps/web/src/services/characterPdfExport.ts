@@ -1,4 +1,4 @@
-import { PDFDocument } from "pdf-lib";
+﻿import { PDFDocument, StandardFonts } from "pdf-lib";
 import type { Character, SkillLevel } from "@umbra/shared";
 
 const TEMPLATE_PATH = "/templates/symbaroum-sheet.pdf";
@@ -14,70 +14,76 @@ export async function exportCharacterSheetPdf(character: Character): Promise<voi
   const bytes = await fetchTemplate();
   const pdf = await PDFDocument.load(bytes);
   const form = pdf.getForm();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  let writtenFields = 0;
 
   const availableXp = Math.max(0, character.sheet.progreso.experienciaTotal - character.sheet.progreso.experienciaGastada);
   const corruptionTotal = character.sheet.corrupcion.temporal + character.sheet.corrupcion.permanente;
 
-  setText(form, ".Jugador", character.sheet.identidad.nombreJugador);
-  setText(form, ".Nombre", character.name);
-  setText(form, ".Raza", character.race);
-  setText(form, ".Ocupacion", character.profession || character.archetype);
-  setText(form, ".Sombra", character.sheet.identidad.sombra);
-  setText(form, ".Cita", character.sheet.identidad.cita);
-  setText(form, ".Experiencia", String(character.sheet.progreso.experienciaTotal));
-  setText(form, ".PorGastar", String(availableXp));
-  setText(form, ".UmbralDolor", String(character.sheet.combate.umbralDolor));
-  setText(form, ".Resistencia", String(character.sheet.combate.robustezActual));
-  setText(form, ".Maximo", String(character.sheet.combate.robustezMax));
-  setText(form, ".Corrupcion", String(corruptionTotal));
-  setText(form, ".Permanente", String(character.sheet.corrupcion.permanente));
-  setText(form, ".UmbralCorrupcion", String(character.sheet.corrupcion.umbral));
+  writtenFields += setText(form, ".Jugador", character.sheet.identidad.nombreJugador);
+  writtenFields += setText(form, ".Nombre", character.name);
+  writtenFields += setText(form, ".Raza", character.race);
+  writtenFields += setText(form, ".Ocupacion", character.profession || character.archetype);
+  writtenFields += setText(form, ".Sombra", character.sheet.identidad.sombra);
+  writtenFields += setText(form, ".Cita", character.sheet.identidad.cita);
+  writtenFields += setText(form, ".Experiencia", String(character.sheet.progreso.experienciaTotal));
+  writtenFields += setText(form, ".PorGastar", String(availableXp));
+  writtenFields += setText(form, ".UmbralDolor", String(character.sheet.combate.umbralDolor));
+  writtenFields += setText(form, ".Resistencia", String(character.sheet.combate.robustezActual));
+  writtenFields += setText(form, ".Maximo", String(character.sheet.combate.robustezMax));
+  writtenFields += setText(form, ".Corrupcion", String(corruptionTotal));
+  writtenFields += setText(form, ".Permanente", String(character.sheet.corrupcion.permanente));
+  writtenFields += setText(form, ".UmbralCorrupcion", String(character.sheet.corrupcion.umbral));
 
-  setText(form, ".Agil", String(character.sheet.atributos.agil));
-  setText(form, ".Atento", String(character.sheet.atributos.atento));
-  setText(form, ".Discreto", String(character.sheet.atributos.discreto));
-  setText(form, ".Diestro", String(character.sheet.atributos.diestro));
-  setText(form, ".Fuerte", String(character.sheet.atributos.fuerte));
-  setText(form, ".Inteligente", String(character.sheet.atributos.inteligente));
-  setText(form, ".Persuasivo", String(character.sheet.atributos.persuasivo));
-  setText(form, ".Tenaz", String(character.sheet.atributos.tenaz));
+  writtenFields += setText(form, ".Agil", String(character.sheet.atributos.agil));
+  writtenFields += setText(form, ".Atento", String(character.sheet.atributos.atento));
+  writtenFields += setText(form, ".Discreto", String(character.sheet.atributos.discreto));
+  writtenFields += setText(form, ".Diestro", String(character.sheet.atributos.diestro));
+  writtenFields += setText(form, ".Fuerte", String(character.sheet.atributos.fuerte));
+  writtenFields += setText(form, ".Inteligente", String(character.sheet.atributos.inteligente));
+  writtenFields += setText(form, ".Persuasivo", String(character.sheet.atributos.persuasivo));
+  writtenFields += setText(form, ".Tenaz", String(character.sheet.atributos.tenaz));
 
-  setText(form, ".Defensa1", character.sheet.combate.defensaBase);
-  setText(form, ".Defensa2", String(character.sheet.combate.defensaMod));
+  writtenFields += setText(form, ".Defensa1", character.sheet.combate.defensaBase);
+  writtenFields += setText(form, ".Defensa2", String(character.sheet.combate.defensaMod));
 
-  setText(form, ".Arma1", character.sheet.combate.armaPrincipal);
-  setText(form, ".Daño1", character.sheet.combate.danioPrincipal);
-  setText(form, "Cualidad1", character.sheet.combate.armaPrincipalCualidad);
-  setText(form, ".Atributo1", character.sheet.combate.armaPrincipalAtributo);
-  setText(form, ".Arma2", character.sheet.combate.armaSecundaria);
-  setText(form, ".Daño2", character.sheet.combate.danioSecundaria);
+  writtenFields += setText(form, ".Arma1", character.sheet.combate.armaPrincipal);
+  writtenFields += setText(form, ".Daño1", character.sheet.combate.danioPrincipal);
+  writtenFields += setText(form, "Cualidad1", character.sheet.combate.armaPrincipalCualidad);
+  writtenFields += setText(form, ".Atributo1", character.sheet.combate.armaPrincipalAtributo);
+  writtenFields += setText(form, ".Arma2", character.sheet.combate.armaSecundaria);
+  writtenFields += setText(form, ".Daño2", character.sheet.combate.danioSecundaria);
 
-  setText(form, ".Armadura1", character.sheet.combate.armadura);
-  setText(form, ".Proteccion1", character.sheet.combate.armaduraProteccion);
-  setText(form, "Cualidad2", character.sheet.combate.armaduraCualidad);
+  writtenFields += setText(form, ".Armadura1", character.sheet.combate.armadura);
+  writtenFields += setText(form, ".Proteccion1", character.sheet.combate.armaduraProteccion);
+  writtenFields += setText(form, "Cualidad2", character.sheet.combate.armaduraCualidad);
 
-  setText(form, "Edad", character.sheet.identidad.edad);
-  setText(form, ".Apariencia", character.sheet.identidad.apariencia);
-  setText(form, ".Trasfondo", character.sheet.identidad.trasfondo);
-  setText(form, "Texto2", character.sheet.notas);
+  writtenFields += setText(form, "Edad", character.sheet.identidad.edad);
+  writtenFields += setText(form, ".Apariencia", character.sheet.identidad.apariencia);
+  writtenFields += setText(form, ".Trasfondo", character.sheet.identidad.trasfondo);
+  writtenFields += setText(form, "Texto2", character.sheet.notas);
 
   const capabilities = buildCapabilities(character).slice(0, 12);
   capabilities.forEach((item, idx) => {
     const row = Math.floor(idx / 3) + 1;
     const col = (idx % 3) + 1;
     const slot = `${row}${col}`;
-    setText(form, `.Nombre${slot}`, item.nombre);
-    setText(form, `.Tipo${slot}`, item.tipo);
-    setText(form, `.Efecto${slot}`, item.efecto);
-    checkLevel(form, row, col, item.nivel);
+    writtenFields += setText(form, `.Nombre${slot}`, item.nombre);
+    writtenFields += setText(form, `.Tipo${slot}`, item.tipo);
+    writtenFields += setText(form, `.Efecto${slot}`, item.efecto);
+    writtenFields += checkLevel(form, row, col, item.nivel);
   });
 
   const equipment = character.sheet.equipo.slice(0, 21);
   equipment.forEach((entry, idx) => {
-    setText(form, `.Equipo${idx + 1}`, entry);
+    writtenFields += setText(form, `.Equipo${idx + 1}`, entry);
   });
 
-  form.flatten();
+  if (writtenFields === 0) {
+    throw new Error("No se pudo mapear ningun campo del PDF de plantilla");
+  }
+
+  form.updateFieldAppearances(font);
   const output = await pdf.save();
   downloadBytes(output, `${sanitizeFileName(character.name || "personaje")}-symbaroum.pdf`);
 }
@@ -99,7 +105,7 @@ function buildCapabilities(character: Character): CapabilityItem[] {
   }));
   const fromPowers = character.sheet.poderesMisticos.map((item) => ({
     nombre: item.nombre,
-    tipo: item.tipo || "Poder místico",
+    tipo: item.tipo || "Poder mistico",
     efecto: item.efecto || item.notas || "",
     nivel: item.nivel
   }));
@@ -112,21 +118,23 @@ function buildCapabilities(character: Character): CapabilityItem[] {
   return [...fromHabilidades, ...fromPowers, ...fromRituals];
 }
 
-function checkLevel(form: ReturnType<PDFDocument["getForm"]>, row: number, col: number, level: SkillLevel): void {
+function checkLevel(form: ReturnType<PDFDocument["getForm"]>, row: number, col: number, level: SkillLevel): number {
   const suffix = level === "novato" ? "1" : level === "adepto" ? "2" : "3";
   const checkboxName = `.P${row}${col}${suffix}`;
   try {
     form.getCheckBox(checkboxName).check();
+    return 1;
   } catch {
-    // Ignore missing checkbox in template variants.
+    return 0;
   }
 }
 
-function setText(form: ReturnType<PDFDocument["getForm"]>, fieldName: string, value: string): void {
+function setText(form: ReturnType<PDFDocument["getForm"]>, fieldName: string, value: string): number {
   try {
     form.getTextField(fieldName).setText(value ?? "");
+    return 1;
   } catch {
-    // Ignore missing fields in template variants.
+    return 0;
   }
 }
 
@@ -145,11 +153,13 @@ function downloadBytes(bytes: Uint8Array, fileName: string): void {
 }
 
 function sanitizeFileName(input: string): string {
-  return input
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9-_]+/g, "-")
-    .replace(/^-+|-+$/g, "") || "personaje";
+  return (
+    input
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9-_]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "personaje"
+  );
 }

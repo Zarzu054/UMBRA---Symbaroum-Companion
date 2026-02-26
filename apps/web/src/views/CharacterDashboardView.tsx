@@ -22,6 +22,9 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         </div>
         <div className="toolbar">
           <button onClick={controller.openCreateModal}>Nuevo personaje</button>
+          <button disabled={controller.isSaving} onClick={() => void controller.createRandomCharacter()}>
+            Generar aleatorio
+          </button>
           <button onClick={() => void onLogout()}>Salir</button>
         </div>
       </header>
@@ -76,6 +79,13 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         </div>
 
         {controller.error ? <p className="error">{controller.error}</p> : null}
+        {controller.validationErrors.length > 0 ? (
+          <div className="error-list">
+            {controller.validationErrors.map((message) => (
+              <p key={message}>{message}</p>
+            ))}
+          </div>
+        ) : null}
 
         <details className="field-guide">
           <summary>Guía rápida de campos</summary>
@@ -85,7 +95,6 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             <p><strong>Raza / Cultura / Arquetipo:</strong> Base narrativa y mecánica del personaje.</p>
             <p><strong>Profesión:</strong> Rol específico (ej. Templario, Cazatesoros, Bruja).</p>
             <p><strong>Atributos:</strong> Valores principales de Symbaroum (5-15).</p>
-            <p><strong>Nivel:</strong> Progreso general del personaje.</p>
             <p><strong>PX total / gastada:</strong> Experiencia acumulada y usada en mejoras.</p>
             <p><strong>Robustez:</strong> Salud/aguante actual y máximo.</p>
             <p><strong>Mod. defensa / iniciativa:</strong> Ajustes por equipo, poderes o efectos.</p>
@@ -212,20 +221,6 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         <p className="section-help">Control de avance: nivel, experiencia ganada y experiencia invertida.</p>
         <div className="form-grid">
           <label className="field">
-            <span>Nivel</span>
-            <input
-              type="number"
-              min={1}
-              max={200}
-              value={controller.form.sheet.progreso.nivel}
-              onChange={(event) => {
-                const level = Number(event.target.value || 1);
-                controller.updateSheet("progreso.nivel", level);
-                controller.updateTopLevel("level", level);
-              }}
-            />
-          </label>
-          <label className="field">
             <span>PX total</span>
             <input
               type="number"
@@ -243,8 +238,29 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               onChange={(event) => controller.updateSheet("progreso.experienciaGastada", Number(event.target.value || 0))}
             />
           </label>
-          <div className="info-box">PX disponible: {controller.availableXp}</div>
+          <div className="info-box">PX disponible: {controller.derived.xpDisponible}</div>
         </div>
+
+        <div className="section-title">Cálculos automáticos (MVP)</div>
+        <p className="section-help">
+          Puedes añadir modificadores automáticos en efectos/notas usando tokens como: <code>DEF+1</code>, <code>INI+1</code>,
+          <code>ROBMAX+2</code>, <code>UMBCORR+1</code>.
+        </p>
+        <div className="form-grid">
+          <div className="info-box">Defensa total: {controller.derived.defensaTotal}</div>
+          <div className="info-box">Iniciativa total: {controller.derived.iniciativaTotal}</div>
+          <div className="info-box">Robustez máx. total: {controller.derived.robustezMaximaTotal}</div>
+          <div className="info-box">Robustez actual total: {controller.derived.robustezActualTotal}</div>
+          <div className="info-box">Umbral de dolor total: {controller.derived.umbralDolorTotal}</div>
+          <div className="info-box">Umbral de corrupción total: {controller.derived.umbralCorrupcionTotal}</div>
+        </div>
+        {controller.derived.warnings.length > 0 ? (
+          <div className="warning-block">
+            {controller.derived.warnings.map((warning) => (
+              <p key={warning}>{warning}</p>
+            ))}
+          </div>
+        ) : null}
 
         <div className="section-title">Combate y corrupcion</div>
         <p className="section-help">Estado actual en combate y seguimiento de corrupción temporal/permanente.</p>
@@ -386,7 +402,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               onChange={(event) => controller.updateSheet("corrupcion.umbral", Number(event.target.value || 0))}
             />
           </label>
-          <div className="info-box">Corrupcion total: {controller.corruptionTotal}</div>
+          <div className="info-box">Corrupcion total: {controller.derived.corrupcionTotal}</div>
         </div>
 
         <div className="section-title">Habilidades</div>
@@ -757,6 +773,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               item={toCharacterCardViewModel(character)}
               selected={controller.selectedCharacterId === character.id}
               onSelect={() => controller.openEditModal(character.id)}
+              onSimulate={() => controller.selectCharacterForSimulation(character.id)}
               onExportPdf={() => void exportCharacterSheetPdf(character)}
               onDuplicate={() => void controller.duplicateSelected(character.id)}
               onDelete={() => {
@@ -768,6 +785,89 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           ))}
         </div>
       </section>
+
+      <section className="panel">
+        <h2>Simulador de tiradas</h2>
+        <p className="section-help">Disponible solo para personajes ya creados. Pulsa "Simular tiradas" en una tarjeta.</p>
+        {controller.simulationCharacter ? (
+          <>
+            <p className="meta-text">
+              Personaje activo: <strong>{controller.simulationCharacter.name}</strong>
+            </p>
+            <div className="form-grid">
+              <label className="field">
+                <span>Tipo de tirada</span>
+                <select
+                  value={controller.rollState.mode}
+                  onChange={(event) =>
+                    controller.setRollState((prev) => ({
+                      ...prev,
+                      mode: event.target.value as "defensa" | "iniciativa" | "atributo"
+                    }))
+                  }
+                >
+                  <option value="defensa">Defensa (usa cálculo total)</option>
+                  <option value="iniciativa">Iniciativa (usa cálculo total)</option>
+                  <option value="atributo">Atributo</option>
+                </select>
+              </label>
+              {controller.rollState.mode === "atributo" ? (
+                <label className="field">
+                  <span>Atributo</span>
+                  <select
+                    value={controller.rollState.attribute}
+                    onChange={(event) =>
+                      controller.setRollState((prev) => ({
+                        ...prev,
+                        attribute: event.target.value as (typeof controller.attributeKeys)[number]
+                      }))
+                    }
+                  >
+                    {controller.attributeKeys.map((attribute) => (
+                      <option key={attribute} value={attribute}>
+                        {controller.attributeLabels[attribute]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              <label className="field">
+                <span>Modificador situacional</span>
+                <input
+                  type="number"
+                  value={controller.rollState.situationalMod}
+                  onChange={(event) =>
+                    controller.setRollState((prev) => ({ ...prev, situationalMod: Number(event.target.value || 0) }))
+                  }
+                />
+              </label>
+              <div className="toolbar">
+                <button onClick={controller.runTestRoll}>Tirar d20</button>
+                <button onClick={controller.clearRollHistory}>Limpiar historial</button>
+              </div>
+            </div>
+            {controller.simulationDerived ? (
+              <div className="form-grid">
+                <div className="info-box">Defensa total: {controller.simulationDerived.defensaTotal}</div>
+                <div className="info-box">Iniciativa total: {controller.simulationDerived.iniciativaTotal}</div>
+                <div className="info-box">Corrupción total: {controller.simulationDerived.corrupcionTotal}</div>
+              </div>
+            ) : null}
+            {controller.rollState.history.length > 0 ? (
+              <div className="roll-log">
+                {controller.rollState.history.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </div>
+            ) : (
+              <p className="section-help">Aún no hay tiradas de prueba.</p>
+            )}
+          </>
+        ) : (
+          <p className="section-help">Elige un personaje para habilitar el simulador.</p>
+        )}
+      </section>
     </main>
   );
 }
+

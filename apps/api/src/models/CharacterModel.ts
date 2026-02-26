@@ -125,7 +125,7 @@ function normalizeSheet(
     base.identidad.arquetipo = context.archetype;
     base.identidad.cultura = context.culture || base.identidad.cultura;
     base.identidad.profesion = context.profession || "";
-    base.progreso.nivel = context.level;
+    base.progreso.nivel = 1;
     return base;
   }
 }

@@ -60,6 +60,12 @@ export const ATTRIBUTE_LABELS: Record<AttributeKey, string> = {
   tenaz: "Tenaz"
 };
 
+const STARTING_ABILITY_PATTERNS = new Set(["5novato", "2novato_1adepto"]);
+const MYSTIC_ABILITY_NAMES = ["Poder místico", "Poder mÃ­stico", "Magia", "Teúrgia", "TeÃºrgia", "Brujería", "BrujerÃ­a", "Hechicería", "HechicerÃ­a"];
+const RITUAL_ABILITY_NAMES = ["Rituales"];
+const NORMALIZED_MYSTIC_ABILITY_NAMES = MYSTIC_ABILITY_NAMES.map(normalizeName);
+const NORMALIZED_RITUAL_ABILITY_NAMES = RITUAL_ABILITY_NAMES.map(normalizeName);
+
 const attributeBlockSchema = z.object({
   agil: z.number().int().min(5).max(15),
   atento: z.number().int().min(5).max(15),
@@ -87,8 +93,9 @@ const sourceRefSchema = z.object({
   nota: z.string().max(400).default("")
 });
 
-export const characterSheetSchema = z.object({
-  identidad: z.object({
+export const characterSheetSchema = z
+  .object({
+    identidad: z.object({
     nombreJugador: z.string().max(120).default(""),
     raza: z.enum(SYMBAROUM_RACES).or(z.string().min(1).max(80)),
     cultura: z.enum(SYMBAROUM_CULTURES).or(z.string().min(1).max(80)).default("Ambriano"),
@@ -102,7 +109,7 @@ export const characterSheetSchema = z.object({
   }),
   atributos: attributeBlockSchema,
   progreso: z.object({
-    nivel: z.number().int().min(1).max(200).default(1),
+    nivel: z.literal(1).default(1),
     experienciaTotal: z.number().int().min(0).max(100000).default(0),
     experienciaGastada: z.number().int().min(0).max(100000).default(0)
   }),
@@ -136,8 +143,94 @@ export const characterSheetSchema = z.object({
   equipo: z.array(z.string().min(1).max(180)).max(200).default([]),
   contactos: z.array(z.string().min(1).max(180)).max(80).default([]),
   referencias: z.array(sourceRefSchema).max(300).default([]),
-  notas: z.string().max(8000).default("")
-});
+    notas: z.string().max(8000).default("")
+  })
+  .superRefine((sheet, ctx) => {
+    if (sheet.progreso.experienciaGastada > sheet.progreso.experienciaTotal) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["progreso", "experienciaGastada"],
+        message: "La experiencia gastada no puede ser mayor que la experiencia total"
+      });
+    }
+
+    if (sheet.combate.robustezActual > sheet.combate.robustezMax) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["combate", "robustezActual"],
+        message: "La robustez actual no puede superar la robustez máxima"
+      });
+    }
+
+    const attributeValues = Object.values(sheet.atributos);
+    const totalAttributes = attributeValues.reduce((sum, value) => sum + value, 0);
+    if (totalAttributes !== 80) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["atributos"],
+        message: "La suma total de atributos debe ser 80 en creación de personaje"
+      });
+    }
+
+    const countFifteen = attributeValues.filter((value) => value === 15).length;
+    if (countFifteen > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["atributos"],
+        message: "Solo un atributo puede tener valor 15"
+      });
+    }
+
+    const canonicalAbilityNames = sheet.habilidades.map((entry) => normalizeName(entry.nombre));
+    const hasMysticAbility = canonicalAbilityNames.some((name) => NORMALIZED_MYSTIC_ABILITY_NAMES.includes(name));
+    const hasRitualAbility = canonicalAbilityNames.some((name) => NORMALIZED_RITUAL_ABILITY_NAMES.includes(name));
+
+    if (sheet.poderesMisticos.length > 0 && !hasMysticAbility) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["poderesMisticos"],
+        message: "Para registrar poderes misticos debes incluir una habilidad mistica base (Poder místico, Magia, Teúrgia, Brujería o Hechicería)"
+      });
+    }
+
+    if (sheet.rituales.length > 0 && !hasRitualAbility) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["rituales"],
+        message: "Para registrar rituales debes incluir la habilidad Rituales"
+      });
+    }
+
+    const novice = sheet.habilidades.filter((entry) => entry.nivel === "novato").length;
+    const adept = sheet.habilidades.filter((entry) => entry.nivel === "adepto").length;
+    const master = sheet.habilidades.filter((entry) => entry.nivel === "maestro").length;
+    const patternKey = `${novice}novato_${adept}adepto`;
+    const normalizedPattern = novice === 5 && adept === 0 ? "5novato" : patternKey;
+
+    if (!STARTING_ABILITY_PATTERNS.has(normalizedPattern)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["habilidades"],
+        message: "Las habilidades iniciales deben ser 5 novato o 2 novato + 1 adepto"
+      });
+    }
+
+    if (master > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["habilidades"],
+        message: "No se permiten habilidades en nivel maestro durante creación"
+      });
+    }
+  });
+
+function normalizeName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
 
 export type CharacterSheet = z.infer<typeof characterSheetSchema>;
 
@@ -214,7 +307,7 @@ export const createCharacterSchema = z.object({
   race: z.string().min(2).max(80),
   culture: z.string().max(80).default(""),
   profession: z.string().max(120).default(""),
-  level: z.number().int().min(1).max(200),
+  level: z.literal(1),
   sheet: characterSheetSchema
 });
 
