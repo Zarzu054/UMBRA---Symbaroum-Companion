@@ -93,6 +93,29 @@ const sourceRefSchema = z.object({
   nota: z.string().max(400).default("")
 });
 
+const resourceBlockSchema = z.object({
+  dinero: z.string().max(120).default(""),
+  otros: z.string().max(240).default("")
+});
+
+const groupBlockSchema = z.object({
+  nombre: z.string().max(120).default(""),
+  objetivo: z.string().max(400).default("")
+});
+
+const contactCardSchema = z.object({
+  nombre: z.string().max(120).default(""),
+  raza: z.string().max(80).default(""),
+  ocupacion: z.string().max(120).default(""),
+  jugador: z.string().max(120).default("")
+});
+
+const artifactCardSchema = z.object({
+  nombre: z.string().max(120).default(""),
+  poderes: z.string().max(400).default(""),
+  corrupcion: z.string().max(120).default("")
+});
+
 export const characterSheetSchema = z
   .object({
     identidad: z.object({
@@ -104,7 +127,10 @@ export const characterSheetSchema = z
     sombra: z.string().max(240).default(""),
     cita: z.string().max(240).default(""),
     edad: z.string().max(40).default(""),
+    altura: z.string().max(40).default(""),
+    peso: z.string().max(40).default(""),
     apariencia: z.string().max(240).default(""),
+    objetivoPersonal: z.string().max(400).default(""),
     trasfondo: z.string().max(4000).default("")
   }),
   atributos: attributeBlockSchema,
@@ -123,12 +149,23 @@ export const characterSheetSchema = z
     armadura: z.string().max(160).default(""),
     armaduraProteccion: z.string().max(80).default(""),
     armaduraCualidad: z.string().max(120).default(""),
+    armaduraSecundaria: z.string().max(160).default(""),
+    armaduraSecundariaProteccion: z.string().max(80).default(""),
     armaPrincipal: z.string().max(160).default(""),
     armaPrincipalCualidad: z.string().max(120).default(""),
     armaPrincipalAtributo: z.string().max(80).default(""),
     armaSecundaria: z.string().max(160).default(""),
+    armaSecundariaAtributo: z.string().max(80).default(""),
+    armaTerciaria: z.string().max(160).default(""),
+    armaTerciariaCualidad: z.string().max(120).default(""),
+    armaTerciariaAtributo: z.string().max(80).default(""),
+    armaCuaternaria: z.string().max(160).default(""),
+    armaCuaternariaCualidad: z.string().max(120).default(""),
+    armaCuaternariaAtributo: z.string().max(80).default(""),
     danioPrincipal: z.string().max(80).default(""),
-    danioSecundaria: z.string().max(80).default("")
+    danioSecundaria: z.string().max(80).default(""),
+    danioTerciaria: z.string().max(80).default(""),
+    danioCuaternaria: z.string().max(80).default("")
   }),
   corrupcion: z.object({
     temporal: z.number().int().min(0).max(999).default(0),
@@ -142,6 +179,27 @@ export const characterSheetSchema = z
   rituales: z.array(ratedEntrySchema).max(120).default([]),
   equipo: z.array(z.string().min(1).max(180)).max(200).default([]),
   contactos: z.array(z.string().min(1).max(180)).max(80).default([]),
+  recursos: resourceBlockSchema.default({
+    dinero: "",
+    otros: ""
+  }),
+  grupo: groupBlockSchema.default({
+    nombre: "",
+    objetivo: ""
+  }),
+  contactosHoja: z.array(contactCardSchema).length(5).default([
+    { nombre: "", raza: "", ocupacion: "", jugador: "" },
+    { nombre: "", raza: "", ocupacion: "", jugador: "" },
+    { nombre: "", raza: "", ocupacion: "", jugador: "" },
+    { nombre: "", raza: "", ocupacion: "", jugador: "" },
+    { nombre: "", raza: "", ocupacion: "", jugador: "" }
+  ]),
+  artefactos: z.array(artifactCardSchema).length(4).default([
+    { nombre: "", poderes: "", corrupcion: "" },
+    { nombre: "", poderes: "", corrupcion: "" },
+    { nombre: "", poderes: "", corrupcion: "" },
+    { nombre: "", poderes: "", corrupcion: "" }
+  ]),
   referencias: z.array(sourceRefSchema).max(300).default([]),
     notas: z.string().max(8000).default("")
   })
@@ -245,7 +303,10 @@ export function createEmptyCharacterSheet(): CharacterSheet {
       sombra: "",
       cita: "",
       edad: "",
+      altura: "",
+      peso: "",
       apariencia: "",
+      objetivoPersonal: "",
       trasfondo: ""
     },
     atributos: {
@@ -273,12 +334,23 @@ export function createEmptyCharacterSheet(): CharacterSheet {
       armadura: "",
       armaduraProteccion: "",
       armaduraCualidad: "",
+      armaduraSecundaria: "",
+      armaduraSecundariaProteccion: "",
       armaPrincipal: "",
       armaPrincipalCualidad: "",
       armaPrincipalAtributo: "",
       armaSecundaria: "",
+      armaSecundariaAtributo: "",
+      armaTerciaria: "",
+      armaTerciariaCualidad: "",
+      armaTerciariaAtributo: "",
+      armaCuaternaria: "",
+      armaCuaternariaCualidad: "",
+      armaCuaternariaAtributo: "",
       danioPrincipal: "",
-      danioSecundaria: ""
+      danioSecundaria: "",
+      danioTerciaria: "",
+      danioCuaternaria: ""
     },
     corrupcion: {
       temporal: 0,
@@ -292,6 +364,25 @@ export function createEmptyCharacterSheet(): CharacterSheet {
     rituales: [],
     equipo: [],
     contactos: [],
+    recursos: {
+      dinero: "",
+      otros: ""
+    },
+    grupo: {
+      nombre: "",
+      objetivo: ""
+    },
+    contactosHoja: Array.from({ length: 5 }, () => ({
+      nombre: "",
+      raza: "",
+      ocupacion: "",
+      jugador: ""
+    })),
+    artefactos: Array.from({ length: 4 }, () => ({
+      nombre: "",
+      poderes: "",
+      corrupcion: ""
+    })),
     referencias: [],
     notas: ""
   };

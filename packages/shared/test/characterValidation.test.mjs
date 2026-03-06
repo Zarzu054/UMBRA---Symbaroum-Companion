@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createCharacterSchema, createEmptyCharacterSheet } from "../dist/index.js";
+import { createCharacterSchema, createEmptyCharacterSheet, parseCharacterSheet } from "../dist/index.js";
 
 function buildPayload() {
   const sheet = createEmptyCharacterSheet();
@@ -148,4 +148,61 @@ test("rechaza robustez actual mayor que robustez maxima", () => {
   payload.sheet.combate.robustezMax = 10;
   payload.sheet.combate.robustezActual = 11;
   expectIssue(payload, "robustez actual");
+});
+
+test("completa con defaults los nuevos campos del PDF al parsear hojas antiguas", () => {
+  const parsed = parseCharacterSheet({
+    identidad: {
+      raza: "Humano"
+    },
+    atributos: {
+      agil: 10,
+      atento: 10,
+      discreto: 10,
+      diestro: 10,
+      fuerte: 10,
+      inteligente: 10,
+      persuasivo: 10,
+      tenaz: 10
+    },
+    progreso: {
+      nivel: 1,
+      experienciaTotal: 0,
+      experienciaGastada: 0
+    },
+    combate: {
+      robustezMax: 10,
+      robustezActual: 10,
+      umbralDolor: 5,
+      defensaMod: 0,
+      defensaBase: "",
+      iniciativaMod: 0
+    },
+    corrupcion: {
+      temporal: 0,
+      permanente: 0,
+      umbral: 5
+    },
+    rasgos: [],
+    habilidades: makeAbilities([
+      ["Acróbata", "novato"],
+      ["Alquimista", "novato"],
+      ["Armas a dos manos", "novato"],
+      ["Combate con escudo", "novato"],
+      ["Táctico", "novato"]
+    ]),
+    poderesMisticos: [],
+    rituales: [],
+    equipo: [],
+    contactos: [],
+    referencias: [],
+    notas: ""
+  });
+
+  assert.equal(parsed.identidad.altura, "");
+  assert.equal(parsed.recursos.dinero, "");
+  assert.equal(parsed.grupo.nombre, "");
+  assert.equal(parsed.contactosHoja.length, 5);
+  assert.equal(parsed.artefactos.length, 4);
+  assert.equal(parsed.combate.armaTerciaria, "");
 });

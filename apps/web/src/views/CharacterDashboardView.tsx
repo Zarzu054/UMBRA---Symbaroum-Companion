@@ -192,6 +192,20 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             <input value={controller.form.sheet.identidad.edad} onChange={(event) => controller.updateSheet("identidad.edad", event.target.value)} />
           </label>
           <label className="field">
+            <span>Altura</span>
+            <input
+              value={controller.form.sheet.identidad.altura}
+              onChange={(event) => controller.updateSheet("identidad.altura", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Peso</span>
+            <input
+              value={controller.form.sheet.identidad.peso}
+              onChange={(event) => controller.updateSheet("identidad.peso", event.target.value)}
+            />
+          </label>
+          <label className="field">
             <span>Apariencia</span>
             <input
               value={controller.form.sheet.identidad.apariencia}
@@ -373,6 +387,83 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             <input
               value={controller.form.sheet.combate.danioSecundaria}
               onChange={(event) => controller.updateSheet("combate.danioSecundaria", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Atributo de arma secundaria</span>
+            <input
+              value={controller.form.sheet.combate.armaSecundariaAtributo}
+              onChange={(event) => controller.updateSheet("combate.armaSecundariaAtributo", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Arma terciaria</span>
+            <input
+              value={controller.form.sheet.combate.armaTerciaria}
+              onChange={(event) => controller.updateSheet("combate.armaTerciaria", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Cualidad de arma terciaria</span>
+            <input
+              value={controller.form.sheet.combate.armaTerciariaCualidad}
+              onChange={(event) => controller.updateSheet("combate.armaTerciariaCualidad", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Atributo de arma terciaria</span>
+            <input
+              value={controller.form.sheet.combate.armaTerciariaAtributo}
+              onChange={(event) => controller.updateSheet("combate.armaTerciariaAtributo", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Daño terciario</span>
+            <input
+              value={controller.form.sheet.combate.danioTerciaria}
+              onChange={(event) => controller.updateSheet("combate.danioTerciaria", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Arma cuaternaria</span>
+            <input
+              value={controller.form.sheet.combate.armaCuaternaria}
+              onChange={(event) => controller.updateSheet("combate.armaCuaternaria", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Cualidad de arma cuaternaria</span>
+            <input
+              value={controller.form.sheet.combate.armaCuaternariaCualidad}
+              onChange={(event) => controller.updateSheet("combate.armaCuaternariaCualidad", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Atributo de arma cuaternaria</span>
+            <input
+              value={controller.form.sheet.combate.armaCuaternariaAtributo}
+              onChange={(event) => controller.updateSheet("combate.armaCuaternariaAtributo", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Daño cuaternario</span>
+            <input
+              value={controller.form.sheet.combate.danioCuaternaria}
+              onChange={(event) => controller.updateSheet("combate.danioCuaternaria", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Armadura secundaria</span>
+            <input
+              value={controller.form.sheet.combate.armaduraSecundaria}
+              onChange={(event) => controller.updateSheet("combate.armaduraSecundaria", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Proteccion secundaria</span>
+            <input
+              value={controller.form.sheet.combate.armaduraSecundariaProteccion}
+              onChange={(event) => controller.updateSheet("combate.armaduraSecundariaProteccion", event.target.value)}
             />
           </label>
           <label className="field">
@@ -743,6 +834,45 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
 
         <div className="section-title">Trasfondo y notas</div>
         <p className="section-help">Resumen de historia, objetivos y aclaraciones de reglas aplicadas a este PJ.</p>
+        <div className="form-grid">
+          <label className="field">
+            <span>Objetivo personal</span>
+            <textarea
+              rows={2}
+              value={controller.form.sheet.identidad.objetivoPersonal}
+              onChange={(event) => controller.updateSheet("identidad.objetivoPersonal", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Dinero</span>
+            <input
+              value={controller.form.sheet.recursos.dinero}
+              onChange={(event) => controller.updateSheet("recursos.dinero", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Otros recursos</span>
+            <input
+              value={controller.form.sheet.recursos.otros}
+              onChange={(event) => controller.updateSheet("recursos.otros", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Nombre del grupo</span>
+            <input
+              value={controller.form.sheet.grupo.nombre}
+              onChange={(event) => controller.updateSheet("grupo.nombre", event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Objetivo del grupo</span>
+            <textarea
+              rows={2}
+              value={controller.form.sheet.grupo.objetivo}
+              onChange={(event) => controller.updateSheet("grupo.objetivo", event.target.value)}
+            />
+          </label>
+        </div>
         <label className="field">
           <span>Trasfondo del personaje</span>
           <textarea
@@ -759,6 +889,74 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             onChange={(event) => controller.updateSheet("notas", event.target.value)}
           />
         </label>
+
+        <div className="section-title">Contactos de Hoja</div>
+        <p className="section-help">Cinco contactos estructurados para la segunda pagina del PDF oficial.</p>
+        <div className="list-grid">
+          {controller.form.sheet.contactosHoja.map((item, index) => (
+            <article key={`contacto-hoja-${index}`} className="entry-row">
+              <label className="field">
+                <span>Nombre</span>
+                <input
+                  value={item.nombre}
+                  onChange={(event) => controller.updateSheet(`contactosHoja.${index}.nombre`, event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Raza</span>
+                <input
+                  value={item.raza}
+                  onChange={(event) => controller.updateSheet(`contactosHoja.${index}.raza`, event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Ocupacion</span>
+                <input
+                  value={item.ocupacion}
+                  onChange={(event) => controller.updateSheet(`contactosHoja.${index}.ocupacion`, event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Jugador</span>
+                <input
+                  value={item.jugador}
+                  onChange={(event) => controller.updateSheet(`contactosHoja.${index}.jugador`, event.target.value)}
+                />
+              </label>
+            </article>
+          ))}
+        </div>
+
+        <div className="section-title">Artefactos</div>
+        <p className="section-help">Cuatro ranuras de artefactos segun la hoja oficial.</p>
+        <div className="list-grid">
+          {controller.form.sheet.artefactos.map((item, index) => (
+            <article key={`artefacto-${index}`} className="entry-row">
+              <label className="field">
+                <span>Nombre</span>
+                <input
+                  value={item.nombre}
+                  onChange={(event) => controller.updateSheet(`artefactos.${index}.nombre`, event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Poderes</span>
+                <textarea
+                  rows={2}
+                  value={item.poderes}
+                  onChange={(event) => controller.updateSheet(`artefactos.${index}.poderes`, event.target.value)}
+                />
+              </label>
+              <label className="field">
+                <span>Corrupcion</span>
+                <input
+                  value={item.corrupcion}
+                  onChange={(event) => controller.updateSheet(`artefactos.${index}.corrupcion`, event.target.value)}
+                />
+              </label>
+            </article>
+          ))}
+        </div>
           </div>
         </section>
       ) : null}

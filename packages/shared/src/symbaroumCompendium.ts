@@ -19,6 +19,18 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+import { ABILITY_SUMMARIES } from "./abilitySummaries.generated.js";
+import { MYSTIC_POWER_SUMMARIES } from "./mysticPowerSummaries.generated.js";
+
+function normalizeSummaryMap(summaries: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(summaries).map(([name, summary]) => [slugify(name), summary])
+  );
+}
+
+const NORMALIZED_ABILITY_SUMMARIES = normalizeSummaryMap(ABILITY_SUMMARIES);
+const NORMALIZED_MYSTIC_POWER_SUMMARIES = normalizeSummaryMap(MYSTIC_POWER_SUMMARIES);
+
 function makeCapability(
   tipo: SymbaroumCapabilityType,
   nombre: string,
@@ -27,6 +39,14 @@ function makeCapability(
   tradiciones: string[] = [],
   efectoResumen?: string
 ): SymbaroumCapability {
+  const normalizedName = slugify(nombre);
+  const generatedSummary =
+    tipo === "habilidad" && NORMALIZED_ABILITY_SUMMARIES[normalizedName]
+      ? `${NORMALIZED_ABILITY_SUMMARIES[normalizedName]} Ref: ${libro}, p.${pagina}.`
+      : tipo === "poder_mistico" && NORMALIZED_MYSTIC_POWER_SUMMARIES[normalizedName]
+        ? `${NORMALIZED_MYSTIC_POWER_SUMMARIES[normalizedName]} Ref: ${libro}, p.${pagina}.`
+      : undefined;
+
   return {
     id: `${tipo}-${slugify(nombre)}`,
     nombre,
@@ -35,7 +55,7 @@ function makeCapability(
     libro,
     pagina,
     efectoResumen:
-      efectoResumen ?? `Consulta ${libro}, p.${pagina} para el efecto completo por niveles (novato/adepto/maestro).`
+      efectoResumen ?? generatedSummary ?? `Consulta ${libro}, p.${pagina} para el efecto completo por niveles (novato/adepto/maestro).`
   };
 }
 
