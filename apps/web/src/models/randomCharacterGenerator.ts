@@ -28,19 +28,17 @@ const NAMES = [
 ];
 
 const PROFESSIONS_BY_ARCHETYPE: Record<(typeof SYMBAROUM_ARCHETYPES)[number], string[]> = {
-  Guerrero: ["Caballero", "Capitán", "Espada de alquiler", "Duelista"],
+  Guerrero: ["Caballero", "Capitan", "Espada de alquiler", "Duelista"],
   Cazador: ["Cazatesoros", "Explorador", "Arquero", "Rastreador"],
-  Místico: ["Teúrgo", "Bruja", "Hechicero", "Aspirante de la Ordo"],
-  Pícaro: ["Ladrón", "Charlatán", "Espía", "Contrabandista"],
-  Erudito: ["Cronista", "Estudioso", "Médico", "Herborista"]
+  "Místico": ["Teurgo", "Bruja", "Hechicero", "Aspirante de la Ordo"],
+  Maleante: ["Ladron", "Charlatan", "Espia", "Contrabandista"]
 };
 
 const ABILITIES_BY_ARCHETYPE: Record<(typeof SYMBAROUM_ARCHETYPES)[number], string[]> = {
   Guerrero: ["Armas a dos manos", "Golpe de hierro", "Combate con escudo", "Combate con armadura", "Guardaespaldas", "Berserker"],
   Cazador: ["Tirador", "Sexto sentido", "Viento de acero", "Mano veloz", "Jinete", "Versado en criaturas"],
-  Místico: ["Poder místico", "Rituales", "Brujería", "Teúrgia", "Magia", "Ojo místico"],
-  Pícaro: ["Ataque traicionero", "Finta", "Estrangulador", "Acróbata", "Dominación", "Venenos"],
-  Erudito: ["Estudioso", "Táctico", "Medicus", "Alquimista", "Dominación", "Versado en criaturas"]
+  "Místico": ["Poder místico", "Rituales", "Brujería", "Teúrgia", "Magia", "Ojo místico"],
+  Maleante: ["Ataque traicionero", "Finta", "Estrangulador", "Acrobata", "Dominacion", "Venenos"]
 };
 
 export function generateRandomCharacter(): CreateCharacterInput {

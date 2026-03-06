@@ -13,31 +13,41 @@ enum UserRole {
   superadmin
 }
 
+enum CampaignMemberRole {
+  gm
+  player
+}
+
 model User {
-  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email        String         @unique
-  passwordHash String         @map("password_hash")
-  role         UserRole       @default(player)
-  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  characters   Character[]
-  refreshTokens RefreshToken[]
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email               String             @unique
+  passwordHash        String             @map("password_hash")
+  role                UserRole           @default(player)
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  characters          Character[]
+  refreshTokens       RefreshToken[]
+  gmCampaigns         Campaign[]         @relation("CampaignGm")
+  campaignMemberships CampaignMember[]
+  campaignXpGrants    CampaignXpLog[]    @relation("CampaignXpGrantUser")
 
   @@map("users")
 }
 
 model Character {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ownerId    String   @map("owner_id") @db.Uuid
-  name       String
-  archetype  String
-  race       String
-  culture    String   @default("")
-  profession String   @default("")
-  level      Int
-  sheet      Json     @default("{}")
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId           String              @map("owner_id") @db.Uuid
+  name              String
+  archetype         String
+  race              String
+  culture           String              @default("")
+  profession        String              @default("")
+  level             Int
+  sheet             Json                @default("{}")
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner             User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  campaignLinks     CampaignCharacter[]
+  campaignXpEntries CampaignXpLog[]
 
   @@map("characters")
 }
@@ -53,4 +63,88 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+model Campaign {
+  id           String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gmId         String              @map("gm_id") @db.Uuid
+  name         String
+  summary      String              @default("")
+  setting      String              @default("")
+  notes        String              @default("")
+  createdAt    DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  gm           User                @relation("CampaignGm", fields: [gmId], references: [id], onDelete: Cascade)
+  members      CampaignMember[]
+  characters   CampaignCharacter[]
+  npcs         CampaignNpc[]
+  experienceLog CampaignXpLog[]
+
+  @@index([gmId])
+  @@map("campaigns")
+}
+
+model CampaignMember {
+  id         String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId String             @map("campaign_id") @db.Uuid
+  userId     String             @map("user_id") @db.Uuid
+  role       CampaignMemberRole @default(player)
+  joinedAt   DateTime           @default(now()) @map("joined_at") @db.Timestamptz(6)
+  campaign   Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, userId])
+  @@index([userId])
+  @@map("campaign_members")
+}
+
+model CampaignCharacter {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId  String    @map("campaign_id") @db.Uuid
+  characterId String    @map("character_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, characterId])
+  @@index([characterId])
+  @@map("campaign_characters")
+}
+
+model CampaignNpc {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId String   @map("campaign_id") @db.Uuid
+  name       String
+  race       String   @default("")
+  archetype  String   @default("")
+  occupation String   @default("")
+  threat     String   @default("")
+  summary    String   @default("")
+  notes      String   @default("")
+  statBlock  String   @default("") @map("stat_block")
+  isGenerated Boolean @default(false) @map("is_generated")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("campaign_npcs")
+}
+
+model CampaignXpLog {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId  String    @map("campaign_id") @db.Uuid
+  characterId String    @map("character_id") @db.Uuid
+  grantedById String    @map("granted_by_id") @db.Uuid
+  amount      Int
+  reason      String
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  grantedBy   User      @relation("CampaignXpGrantUser", fields: [grantedById], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([characterId])
+  @@index([grantedById])
+  @@map("campaign_xp_log")
 }

@@ -1,8 +1,12 @@
+﻿import { useEffect, useState } from "react";
 import type { AuthUser } from "@umbra/shared";
 import { CharacterCard } from "../components/CharacterCard";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
+import { findCompendiumCapabilityEntryId } from "../models/compendiumEntries";
 import { toCharacterCardViewModel } from "../models/characterModel";
 import { exportCharacterSheetPdf } from "../services/characterPdfExport";
+import { CampaignDashboardView } from "./CampaignDashboardView";
+import { CompendiumView } from "./CompendiumView";
 
 type Props = {
   user: AuthUser;
@@ -10,25 +14,169 @@ type Props = {
   onLogout: () => Promise<void>;
 };
 
+type AppModule = "characters" | "compendium" | "campaigns";
+
+type CompendiumFocus = {
+  entryId: string | null;
+  query: string;
+  source: string;
+  token: number;
+};
+
+function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"> } {
+  const rawHash = window.location.hash.replace(/^#/, "");
+  if (rawHash.startsWith("campaigns")) {
+    return { module: "campaigns" };
+  }
+
+  if (!rawHash.startsWith("compendium")) {
+    return { module: "characters" };
+  }
+
+  const [, search = ""] = rawHash.split("?");
+  const params = new URLSearchParams(search);
+  return {
+    module: "compendium",
+    focus: {
+      entryId: params.get("id"),
+      query: params.get("q") ?? "",
+      source: params.get("source") ?? "all"
+    }
+  };
+}
+
 export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Props) {
   const controller = useCharacterController(ensureAccessToken);
+  const [activeModule, setActiveModule] = useState<AppModule>("characters");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [compendiumFocus, setCompendiumFocus] = useState<CompendiumFocus>({
+    entryId: null,
+    query: "",
+    source: "all",
+    token: 0
+  });
+
+  useEffect(() => {
+    function syncWithHash(): void {
+      const parsed = parseHash();
+      if (parsed.module === "compendium") {
+        setActiveModule("compendium");
+        setCompendiumFocus((prev) => ({
+          entryId: parsed.focus?.entryId ?? null,
+          query: parsed.focus?.query ?? "",
+          source: parsed.focus?.source ?? "all",
+          token: prev.token + 1
+        }));
+        return;
+      }
+
+      setActiveModule("characters");
+    }
+
+    syncWithHash();
+    window.addEventListener("hashchange", syncWithHash);
+    return () => window.removeEventListener("hashchange", syncWithHash);
+  }, []);
+
+  function openCompendiumCapability(tipo: "habilidad" | "poder_mistico" | "ritual", nombre: string): void {
+    const entryId = findCompendiumCapabilityEntryId(tipo, nombre);
+    setCompendiumFocus((prev) => ({
+      entryId,
+      query: nombre,
+      source: "all",
+      token: prev.token + 1
+    }));
+    setActiveModule("compendium");
+  }
+
+  function openCharactersModule(): void {
+    setActiveModule("characters");
+    window.location.hash = "characters";
+  }
+
+  function openCompendiumModule(): void {
+    setActiveModule("compendium");
+    if (!window.location.hash.startsWith("#compendium")) {
+      window.location.hash = "compendium";
+    }
+  }
+
+  function openCampaignsModule(): void {
+    setActiveModule("campaigns");
+    if (!window.location.hash.startsWith("#campaigns")) {
+      window.location.hash = "campaigns";
+    }
+  }
 
   return (
     <main className="page">
-      <header className="top-bar">
-        <div>
-          <h1>UMBRA</h1>
-          <p>{user.email} ({getRoleLabel(user.role)})</p>
-        </div>
+      <div className={`app-shell${isSidebarOpen ? "" : " is-sidebar-collapsed"}`}>
+        <aside className={`app-sidebar${isSidebarOpen ? "" : " is-collapsed"}`}>
+          <div className="app-sidebar-inner">
+            <div className="app-sidebar-head">
+              <div>
+                <h1>UMBRA</h1>
+                <p>{user.email}</p>
+                <p>{getRoleLabel(user.role)}</p>
+              </div>
+              <button
+                className="sidebar-toggle"
+                aria-label={isSidebarOpen ? "Ocultar barra lateral" : "Mostrar barra lateral"}
+                onClick={() => setIsSidebarOpen((current) => !current)}
+              >
+                {isSidebarOpen ? "◀" : "▶"}
+              </button>
+            </div>
+            <nav className="sidebar-nav">
+              <button className={activeModule === "characters" ? "active-toggle" : ""} onClick={openCharactersModule}>
+                Personajes
+              </button>
+              <button className={activeModule === "campaigns" ? "active-toggle" : ""} onClick={openCampaignsModule}>
+                Campañas
+              </button>
+              <button className={activeModule === "compendium" ? "active-toggle" : ""} onClick={openCompendiumModule}>
+                Compendio
+              </button>
+            </nav>
+            <div className="sidebar-session">
+              <button onClick={() => void onLogout()}>Salir</button>
+            </div>
+          </div>
+        </aside>
+
+        <section className="app-content">
+          {!isSidebarOpen ? (
+            <div className="content-topbar">
+              <button
+                className="sidebar-toggle"
+                aria-label="Mostrar barra lateral"
+                onClick={() => setIsSidebarOpen(true)}
+              >
+                ▶
+              </button>
+            </div>
+          ) : null}
+
+          {activeModule === "compendium" ? (
+            <CompendiumView
+              onBackToCharacters={openCharactersModule}
+              initialEntryId={compendiumFocus.entryId}
+              initialQuery={compendiumFocus.query}
+              initialSourceFilter={compendiumFocus.source}
+              focusToken={compendiumFocus.token}
+            />
+          ) : activeModule === "campaigns" ? (
+            <CampaignDashboardView user={user} ensureAccessToken={ensureAccessToken} />
+          ) : (
+            <>
+      <section className="panel content-toolbar-panel">
         <div className="toolbar">
           <button onClick={controller.openCreateModal}>Nuevo personaje</button>
           <button disabled={controller.isSaving} onClick={() => void controller.createRandomCharacter()}>
             Generar aleatorio
           </button>
-          <button onClick={() => void onLogout()}>Salir</button>
         </div>
-      </header>
-
+      </section>
       <section className="panel lore-panel">
         <h2>Ficha de Personaje de Symbaroum</h2>
         <p>
@@ -63,7 +211,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                 className="danger"
                 disabled={controller.isSaving}
                 onClick={() => {
-                  if (window.confirm("Esta acción eliminará el personaje. ¿Deseas continuar?")) {
+                  if (window.confirm("Esta acciÃ³n eliminarÃ¡ el personaje. Â¿Deseas continuar?")) {
                     void controller.deleteSelected();
                   }
                 }}
@@ -582,6 +730,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   }
                 />
               </label>
+              <button className="subtle-button" onClick={() => openCompendiumCapability("habilidad", item.nombre)}>Ver en compendio</button>
               <button onClick={() => controller.removeRatedItem("habilidades", index)}>Quitar</button>
             </article>
           ))}
@@ -673,6 +822,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   }
                 />
               </label>
+              <button className="subtle-button" onClick={() => openCompendiumCapability("poder_mistico", item.nombre)}>Ver en compendio</button>
               <button onClick={() => controller.removeRatedItem("poderesMisticos", index)}>Quitar</button>
             </article>
           ))}
@@ -762,6 +912,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   }
                 />
               </label>
+              <button className="subtle-button" onClick={() => openCompendiumCapability("ritual", item.nombre)}>Ver en compendio</button>
               <button onClick={() => controller.removeRatedItem("rituales", index)}>Quitar</button>
             </article>
           ))}
@@ -1065,6 +1216,10 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           <p className="section-help">Elige un personaje para habilitar el simulador.</p>
         )}
       </section>
+            </>
+          )}
+        </section>
+      </div>
     </main>
   );
 }

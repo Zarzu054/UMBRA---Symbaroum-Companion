@@ -11,29 +11,30 @@ export type SkillLevel = z.infer<typeof skillLevelSchema>;
 
 export const SYMBAROUM_RACES = [
   "Humano",
-  "Goblin",
+  "Trocalengo",
+  "Trasgo",
   "Ogro",
-  "Cambiante",
   "Elfo",
   "Enano",
-  "Orco"
+  "Troll",
+  "Humano tomado",
+  "Muerto viviente"
 ] as const;
 
 export const SYMBAROUM_CULTURES = [
   "Ambriano",
-  "Bárbaro",
+  "B\u00e1rbaro",
   "Clan goblin",
   "Pueblo libre",
-  "Ordo Magica",
+  "Ordo M\u00e1gica",
   "Templo de Prios"
 ] as const;
 
 export const SYMBAROUM_ARCHETYPES = [
   "Guerrero",
   "Cazador",
-  "Místico",
-  "Pícaro",
-  "Erudito"
+  "M\u00edstico",
+  "Maleante"
 ] as const;
 
 export const ATTRIBUTE_KEYS = [
@@ -437,9 +438,56 @@ export const refreshSchema = z.object({
   refreshToken: z.string().min(20)
 });
 
+export const campaignMemberRoleSchema = z.enum(["gm", "player"]);
+
+export const createCampaignSchema = z.object({
+  name: z.string().min(3).max(120),
+  summary: z.string().max(400).default(""),
+  setting: z.string().max(200).default(""),
+  notes: z.string().max(4000).default("")
+});
+
+export const updateCampaignSchema = createCampaignSchema.partial();
+
+export const addCampaignMemberSchema = z.object({
+  email: z.string().email()
+});
+
+export const linkCampaignCharacterSchema = z.object({
+  characterId: z.string().uuid()
+});
+
+export const createCampaignNpcSchema = z.object({
+  name: z.string().min(2).max(120),
+  race: z.string().max(80).default(""),
+  archetype: z.string().max(80).default(""),
+  occupation: z.string().max(120).default(""),
+  threat: z.string().max(80).default(""),
+  summary: z.string().max(500).default(""),
+  notes: z.string().max(3000).default(""),
+  statBlock: z.string().max(1200).default(""),
+  isGenerated: z.boolean().default(false)
+});
+
+export const updateCampaignNpcSchema = createCampaignNpcSchema.partial();
+
+export const grantCampaignExperienceSchema = z.object({
+  characterId: z.string().uuid(),
+  amount: z.number().int().min(1).max(1000),
+  reason: z.string().min(2).max(300)
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
+export type CampaignMemberRole = z.infer<typeof campaignMemberRoleSchema>;
+export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
+export type UpdateCampaignInput = z.infer<typeof updateCampaignSchema>;
+export type AddCampaignMemberInput = z.infer<typeof addCampaignMemberSchema>;
+export type LinkCampaignCharacterInput = z.infer<typeof linkCampaignCharacterSchema>;
+export type CreateCampaignNpcInput = z.infer<typeof createCampaignNpcSchema>;
+export type UpdateCampaignNpcInput = z.infer<typeof updateCampaignNpcSchema>;
+export type GrantCampaignExperienceInput = z.infer<typeof grantCampaignExperienceSchema>;
 
 export type AuthUser = {
   id: string;
@@ -463,4 +511,76 @@ export type SupportUser = {
   role: UserRole;
   createdAt: string;
   activeRefreshTokens: number;
+};
+
+export type CampaignMember = {
+  id: string;
+  userId: string;
+  email: string;
+  role: CampaignMemberRole;
+  joinedAt: string;
+};
+
+export type CampaignCharacter = {
+  id: string;
+  characterId: string;
+  name: string;
+  ownerId: string;
+  ownerEmail: string;
+  experienceTotal: number;
+  experienceSpent: number;
+  updatedAt: string;
+};
+
+export type CampaignAvailableCharacter = {
+  characterId: string;
+  name: string;
+  ownerId: string;
+  ownerEmail: string;
+  experienceTotal: number;
+  experienceSpent: number;
+  linked: boolean;
+};
+
+export type CampaignNpc = {
+  id: string;
+  name: string;
+  race: string;
+  archetype: string;
+  occupation: string;
+  threat: string;
+  summary: string;
+  notes: string;
+  statBlock: string;
+  isGenerated: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CampaignExperienceLog = {
+  id: string;
+  characterId: string;
+  characterName: string;
+  grantedById: string;
+  grantedByEmail: string;
+  amount: number;
+  reason: string;
+  createdAt: string;
+};
+
+export type Campaign = {
+  id: string;
+  name: string;
+  summary: string;
+  setting: string;
+  notes: string;
+  gmId: string;
+  gmEmail: string;
+  createdAt: string;
+  updatedAt: string;
+  members: CampaignMember[];
+  characters: CampaignCharacter[];
+  availableCharacters: CampaignAvailableCharacter[];
+  npcs: CampaignNpc[];
+  experienceLog: CampaignExperienceLog[];
 };
