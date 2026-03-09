@@ -240,7 +240,7 @@ export class CampaignService {
     const payload = assignCampaignSessionExperienceSchema.parse(input);
     const campaign = await this.getCampaign(userId, userRole, session.campaignId);
     const linkedCharacterIds = new Set(campaign.characters.map((entry: Campaign["characters"][number]) => entry.characterId));
-    const invalid = payload.awards.find((award) => !linkedCharacterIds.has(award.characterId));
+    const invalid = payload.awards.find((award: AssignCampaignSessionExperienceInput["awards"][number]) => !linkedCharacterIds.has(award.characterId));
     if (invalid) {
       throw new AppError("CAMPAIGN_CHARACTER_NOT_LINKED", "Todos los personajes deben estar vinculados a la campana", 400);
     }
