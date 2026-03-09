@@ -262,7 +262,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const token = await ensureAccessToken();
       setCampaigns(await fetchCampaigns(token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron cargar las campanas");
+      setError(err instanceof Error ? err.message : "No se pudieron cargar las campañas");
     } finally {
       setIsLoading(false);
     }
@@ -286,7 +286,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       upsertCampaign(created);
       setCampaignForm(emptyCampaignForm);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear la campana");
+      setError(err instanceof Error ? err.message : "No se pudo crear la campaña");
     } finally {
       setIsSaving(false);
     }
@@ -303,7 +303,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const token = await ensureAccessToken();
       upsertCampaign(await updateCampaign(selectedCampaign.id, draft, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar la campana");
+      setError(err instanceof Error ? err.message : "No se pudo guardar la campaña");
     } finally {
       setIsSaving(false);
     }
@@ -473,7 +473,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       upsertCampaign(updated);
       setSelectedSessionId(getMatchingSessionId(updated, parsed));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear la sesion");
+      setError(err instanceof Error ? err.message : "No se pudo crear la sesión");
     } finally {
       setIsSaving(false);
     }
@@ -490,7 +490,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const token = await ensureAccessToken();
       upsertCampaign(await updateCampaignSession(selectedSession.id, { ...sessionForm } as UpdateCampaignSessionInput, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar la sesion");
+      setError(err instanceof Error ? err.message : "No se pudo guardar la sesión");
     } finally {
       setIsSaving(false);
     }
@@ -520,7 +520,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       upsertCampaign(updated);
       setSessionXpDraft(Object.fromEntries(updated.characters.map((entry) => [entry.characterId, 0])));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo asignar PX de sesion");
+      setError(err instanceof Error ? err.message : "No se pudo asignar PX de sesión");
     } finally {
       setIsSaving(false);
     }
@@ -529,7 +529,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   return (
     <section className="campaigns-module">
       <section className="panel campaign-hero">
-        <h2>Gestor de Campanas</h2>
+        <h2>Gestor de Campañas</h2>
         <p>Centraliza miembros, personajes vinculados, sesiones del DJ, PNJs y reparto de experiencia.</p>
       </section>
 
@@ -542,13 +542,13 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       <div className="campaign-layout">
         <section className="panel campaign-sidebar-panel">
           <div className="row-actions">
-            <h3>Campanas</h3>
+            <h3>Campañas</h3>
             <button disabled={isLoading} onClick={() => void refresh()}>
               Recargar
             </button>
           </div>
 
-          {isLoading ? <p>Cargando campanas...</p> : null}
+          {isLoading ? <p>Cargando campañas...</p> : null}
 
           <div className="campaign-list">
             {campaigns.map((campaign) => (
@@ -558,24 +558,24 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 onClick={() => setSelectedCampaignId(campaign.id)}
               >
                 <strong>{campaign.name}</strong>
-                <span>{campaign.setting || "Sin ambientacion"}</span>
+                <span>{campaign.setting || "Sin ambientación"}</span>
                 <span>{campaign.members.length} miembros</span>
                 <span>{campaign.sessions.length} sesiones</span>
               </button>
             ))}
             {!isLoading && campaigns.length === 0 ? (
-              <p className="section-help">Aun no hay campanas accesibles.</p>
+              <p className="section-help">Aún no hay campañas accesibles.</p>
             ) : null}
           </div>
           {isDirector ? (
             <div className="campaign-create-form">
-              <div className="section-title">Nueva campana</div>
+              <div className="section-title">Nueva campaña</div>
               <label className="field">
                 <span>Nombre</span>
                 <input value={campaignForm.name} onChange={(event) => setCampaignForm((prev) => ({ ...prev, name: event.target.value }))} />
               </label>
               <label className="field">
-                <span>Ambientacion</span>
+                <span>Ambientación</span>
                 <input
                   value={campaignForm.setting}
                   onChange={(event) => setCampaignForm((prev) => ({ ...prev, setting: event.target.value }))}
@@ -590,7 +590,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 />
               </label>
               <button disabled={isSaving} onClick={() => void handleCreateCampaign()}>
-                Crear campana
+                Crear campaña
               </button>
             </div>
           ) : null}
@@ -619,7 +619,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     <input value={draft.name} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))} />
                   </label>
                   <label className="field">
-                    <span>Ambientacion</span>
+                    <span>Ambientación</span>
                     <input
                       value={draft.setting}
                       disabled={!isDirector}
@@ -679,7 +679,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                         setSessionForm(makeDefaultSessionForm());
                       }}
                     >
-                      Nueva sesion
+                      Nueva sesión
                     </button>
                   ) : null}
                 </div>
@@ -697,7 +697,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                       </button>
                     ))}
                     {selectedCampaign.sessions.length === 0 ? (
-                      <p className="section-help">Aun no hay sesiones programadas.</p>
+                      <p className="section-help">Aún no hay sesiones programadas.</p>
                     ) : null}
                   </div>
 
@@ -705,9 +705,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     {isDirector ? (
                       <>
                         <div className="row-actions">
-                          <h3>{selectedSession ? "Detalle de sesion" : "Crear sesion"}</h3>
+                          <h3>{selectedSession ? "Detalle de sesión" : "Crear sesión"}</h3>
                           <button disabled={isSaving} onClick={() => void (selectedSession ? handleSaveSession() : handleCreateSession())}>
-                            {selectedSession ? "Guardar sesion" : "Programar sesion"}
+                            {selectedSession ? "Guardar sesión" : "Programar sesión"}
                           </button>
                         </div>
                         <div className="form-grid">
@@ -759,14 +759,14 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
                         {selectedSession ? (
                           <>
-                            <div className="section-title">PX al cerrar sesion</div>
+                            <div className="section-title">PX al cerrar sesión</div>
                             <div className="cards">
                               {selectedCampaign.characters.map((entry) => (
                                 <article key={entry.characterId} className="card">
                                   <strong>{entry.name}</strong>
                                   <span>{entry.ownerEmail}</span>
                                   <label className="field">
-                                    <span>PX de esta sesion</span>
+                                    <span>PX de esta sesión</span>
                                     <input
                                       type="number"
                                       min={0}
@@ -783,7 +783,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                               ))}
                             </div>
                             <button disabled={isSaving} onClick={() => void handleAssignSessionXp()}>
-                              Asignar PX de sesion
+                              Asignar PX de sesión
                             </button>
                           </>
                         ) : null}
@@ -799,7 +799,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               </section>
               <section className="panel">
                 <div className="row-actions">
-                  <h3>Personajes de la campana</h3>
+                  <h3>Personajes de la campaña</h3>
                   {isDirector ? (
                     <div className="inline-row campaign-inline-form">
                       <label className="field">
@@ -834,7 +834,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     </article>
                   ))}
                   {selectedCampaign.characters.length === 0 ? (
-                    <p className="section-help">Todavia no hay personajes vinculados.</p>
+                    <p className="section-help">Todavía no hay personajes vinculados.</p>
                   ) : null}
                 </div>
 
@@ -937,7 +937,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     />
                   ))}
                   {selectedCampaign.npcs.length === 0 ? (
-                    <p className="section-help">Todavia no hay PNJs registrados.</p>
+                    <p className="section-help">Todavía no hay PNJs registrados.</p>
                   ) : null}
                 </div>
               </section>
@@ -953,15 +953,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     </article>
                   ))}
                   {selectedCampaign.experienceLog.length === 0 ? (
-                    <p className="section-help">Aun no hay concesiones de experiencia registradas.</p>
+                    <p className="section-help">Aún no hay concesiones de experiencia registradas.</p>
                   ) : null}
                 </div>
               </section>
             </>
           ) : (
             <section className="panel">
-              <h2>Sin campana seleccionada</h2>
-              <p>Elige una campana en la columna lateral o crea una nueva si eres director.</p>
+              <h2>Sin campaña seleccionada</h2>
+              <p>Elige una campaña en la columna lateral o crea una nueva si eres director.</p>
             </section>
           )}
         </section>
