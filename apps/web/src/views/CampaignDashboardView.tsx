@@ -182,7 +182,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     const fallbackCampaignId =
       hashState.campaignId && campaigns.some((campaign) => campaign.id === hashState.campaignId)
         ? hashState.campaignId
-        : campaigns[0].id;
+        : null;
     setSelectedCampaignId(fallbackCampaignId);
   }, [campaigns, selectedCampaignId]);
 
@@ -262,7 +262,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const token = await ensureAccessToken();
       setCampaigns(await fetchCampaigns(token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron cargar las campañas");
+      setError(err instanceof Error ? err.message : "No se pudieron cargar las campaÃ±as");
     } finally {
       setIsLoading(false);
     }
@@ -286,7 +286,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       upsertCampaign(created);
       setCampaignForm(emptyCampaignForm);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear la campaña");
+      setError(err instanceof Error ? err.message : "No se pudo crear la campaÃ±a");
     } finally {
       setIsSaving(false);
     }
@@ -303,7 +303,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const token = await ensureAccessToken();
       upsertCampaign(await updateCampaign(selectedCampaign.id, draft, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar la campaña");
+      setError(err instanceof Error ? err.message : "No se pudo guardar la campaÃ±a");
     } finally {
       setIsSaving(false);
     }
@@ -473,7 +473,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       upsertCampaign(updated);
       setSelectedSessionId(getMatchingSessionId(updated, parsed));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear la sesión");
+      setError(err instanceof Error ? err.message : "No se pudo crear la sesiÃ³n");
     } finally {
       setIsSaving(false);
     }
@@ -490,7 +490,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const token = await ensureAccessToken();
       upsertCampaign(await updateCampaignSession(selectedSession.id, { ...sessionForm } as UpdateCampaignSessionInput, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar la sesión");
+      setError(err instanceof Error ? err.message : "No se pudo guardar la sesiÃ³n");
     } finally {
       setIsSaving(false);
     }
@@ -520,7 +520,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       upsertCampaign(updated);
       setSessionXpDraft(Object.fromEntries(updated.characters.map((entry) => [entry.characterId, 0])));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo asignar PX de sesión");
+      setError(err instanceof Error ? err.message : "No se pudo asignar PX de sesiÃ³n");
     } finally {
       setIsSaving(false);
     }
@@ -539,8 +539,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         </section>
       ) : null}
 
-      <div className="campaign-layout">
-        <section className="panel campaign-sidebar-panel">
+      {!selectedCampaign ? (
+        <section className="panel campaign-list-page">
           <div className="row-actions">
             <h3>Campañas</h3>
             <button disabled={isLoading} onClick={() => void refresh()}>
@@ -552,11 +552,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
           <div className="campaign-list">
             {campaigns.map((campaign) => (
-              <button
-                key={campaign.id}
-                className={`campaign-list-item${selectedCampaignId === campaign.id ? " is-active" : ""}`}
-                onClick={() => setSelectedCampaignId(campaign.id)}
-              >
+              <button key={campaign.id} className="campaign-list-item" onClick={() => setSelectedCampaignId(campaign.id)}>
                 <strong>{campaign.name}</strong>
                 <span>{campaign.setting || "Sin ambientación"}</span>
                 <span>{campaign.members.length} miembros</span>
@@ -567,6 +563,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               <p className="section-help">Aún no hay campañas accesibles.</p>
             ) : null}
           </div>
+
           {isDirector ? (
             <div className="campaign-create-form">
               <div className="section-title">Nueva campaña</div>
@@ -595,381 +592,381 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             </div>
           ) : null}
         </section>
-
+      ) : (
         <section className="campaign-main">
-          {selectedCampaign ? (
-            <>
-              <section className="panel">
-                <div className="row-actions">
-                  <div>
-                    <h2>{selectedCampaign.name}</h2>
-                    <p className="meta-text">
-                      DJ: <strong>{selectedCampaign.gmEmail}</strong>
-                    </p>
-                  </div>
-                  {isDirector ? (
-                    <button disabled={isSaving} onClick={() => void handleSaveCampaign()}>
-                      Guardar detalle
+          <section className="panel">
+            <div className="row-actions">
+              <div>
+                <button
+                  className="subtle-button"
+                  onClick={() => {
+                    setSelectedCampaignId(null);
+                    setSelectedSessionId(null);
+                  }}
+                >
+                  Volver a campañas
+                </button>
+                <h2>{selectedCampaign.name}</h2>
+                <p className="meta-text">
+                  DJ: <strong>{selectedCampaign.gmEmail}</strong>
+                </p>
+              </div>
+              {isDirector ? (
+                <button disabled={isSaving} onClick={() => void handleSaveCampaign()}>
+                  Guardar detalle
+                </button>
+              ) : null}
+            </div>
+            <div className="form-grid">
+              <label className="field">
+                <span>Nombre</span>
+                <input value={draft.name} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))} />
+              </label>
+              <label className="field">
+                <span>Ambientación</span>
+                <input
+                  value={draft.setting}
+                  disabled={!isDirector}
+                  onChange={(event) => setDraft((prev) => ({ ...prev, setting: event.target.value }))}
+                />
+              </label>
+            </div>
+            <label className="field">
+              <span>Resumen</span>
+              <textarea rows={3} value={draft.summary} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, summary: event.target.value }))} />
+            </label>
+            <label className="field">
+              <span>Notas del director</span>
+              <textarea rows={5} value={draft.notes} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))} />
+            </label>
+          </section>
+
+          <section className="panel">
+            <div className="row-actions">
+              <h3>Miembros</h3>
+              {isDirector ? (
+                <div className="inline-row campaign-inline-form">
+                  <label className="field">
+                    <span>Email del jugador</span>
+                    <input value={memberEmail} onChange={(event) => setMemberEmail(event.target.value)} />
+                  </label>
+                  <button disabled={isSaving} onClick={() => void handleAddMember()}>
+                    Agregar
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <div className="cards">
+              {selectedCampaign.members.map((member) => (
+                <article key={member.id} className="card">
+                  <strong>{member.email}</strong>
+                  <span>{member.role === "gm" ? "Director" : "Jugador"}</span>
+                  <span>Alta: {new Date(member.joinedAt).toLocaleDateString()}</span>
+                  {isDirector && member.role !== "gm" ? (
+                    <button disabled={isSaving} onClick={() => void handleRemoveMember(member.id)}>
+                      Quitar
                     </button>
                   ) : null}
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="row-actions">
+              <h3>Sesiones</h3>
+              {isDirector ? (
+                <button
+                  disabled={isSaving}
+                  onClick={() => {
+                    setSelectedSessionId(null);
+                    setSessionForm(makeDefaultSessionForm());
+                  }}
+                >
+                  Nueva sesión
+                </button>
+              ) : null}
+            </div>
+            <div className="campaign-session-layout">
+              <div className="campaign-session-list">
+                {selectedCampaign.sessions.map((session) => (
+                  <button
+                    key={session.id}
+                    className={`campaign-list-item${selectedSessionId === session.id ? " is-active" : ""}`}
+                    onClick={() => setSelectedSessionId(session.id)}
+                  >
+                    <strong>{session.title}</strong>
+                    <span>{new Date(session.scheduledFor).toLocaleString()}</span>
+                    <span>{session.status}</span>
+                  </button>
+                ))}
+                {selectedCampaign.sessions.length === 0 ? (
+                  <p className="section-help">Aún no hay sesiones programadas.</p>
+                ) : null}
+              </div>
+
+              <div className="campaign-session-detail">
+                {isDirector ? (
+                  <>
+                    <div className="row-actions">
+                      <h3>{selectedSession ? "Detalle de sesión" : "Crear sesión"}</h3>
+                      <button disabled={isSaving} onClick={() => void (selectedSession ? handleSaveSession() : handleCreateSession())}>
+                        {selectedSession ? "Guardar sesión" : "Programar sesión"}
+                      </button>
+                    </div>
+                    <div className="form-grid">
+                      <label className="field">
+                        <span>Título</span>
+                        <input value={sessionForm.title} onChange={(event) => setSessionForm((prev) => ({ ...prev, title: event.target.value }))} />
+                      </label>
+                      <label className="field">
+                        <span>Fecha y hora</span>
+                        <input
+                          type="datetime-local"
+                          value={toLocalDateTimeValue(sessionForm.scheduledFor)}
+                          onChange={(event) => setSessionForm((prev) => ({ ...prev, scheduledFor: fromLocalDateTimeValue(event.target.value) }))}
+                        />
+                      </label>
+                      <label className="field">
+                        <span>Ubicación</span>
+                        <input value={sessionForm.location} onChange={(event) => setSessionForm((prev) => ({ ...prev, location: event.target.value }))} />
+                      </label>
+                      <label className="field">
+                        <span>Estado</span>
+                        <select
+                          value={sessionForm.status}
+                          onChange={(event) =>
+                            setSessionForm((prev) => ({
+                              ...prev,
+                              status: event.target.value as CreateCampaignSessionInput["status"]
+                            }))
+                          }
+                        >
+                          <option value="planned">Planificada</option>
+                          <option value="completed">Completada</option>
+                          <option value="cancelled">Cancelada</option>
+                        </select>
+                      </label>
+                    </div>
+                    <label className="field">
+                      <span>Resumen para la mesa</span>
+                      <textarea rows={2} value={sessionForm.summary} onChange={(event) => setSessionForm((prev) => ({ ...prev, summary: event.target.value }))} />
+                    </label>
+                    <label className="field">
+                      <span>Notas visibles para la mesa</span>
+                      <textarea rows={4} value={sessionForm.publicNotes} onChange={(event) => setSessionForm((prev) => ({ ...prev, publicNotes: event.target.value }))} />
+                    </label>
+                    <label className="field">
+                      <span>Notas secretas del DJ</span>
+                      <textarea rows={4} value={sessionForm.dmNotes} onChange={(event) => setSessionForm((prev) => ({ ...prev, dmNotes: event.target.value }))} />
+                    </label>
+
+                    {selectedSession ? (
+                      <>
+                        <div className="section-title">PX al cerrar sesión</div>
+                        <div className="cards">
+                          {selectedCampaign.characters.map((entry) => (
+                            <article key={entry.characterId} className="card">
+                              <strong>{entry.name}</strong>
+                              <span>{entry.ownerEmail}</span>
+                              <label className="field">
+                                <span>PX de esta sesión</span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={sessionXpDraft[entry.characterId] ?? 0}
+                                  onChange={(event) =>
+                                    setSessionXpDraft((prev) => ({
+                                      ...prev,
+                                      [entry.characterId]: Number(event.target.value || 0)
+                                    }))
+                                  }
+                                />
+                              </label>
+                            </article>
+                          ))}
+                        </div>
+                        <button disabled={isSaving} onClick={() => void handleAssignSessionXp()}>
+                          Asignar PX de sesión
+                        </button>
+                      </>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <h3>{selectedSession?.title ?? "Sesiones"}</h3>
+                    <p className="section-help">Las sesiones son una herramienta interna del DJ en el MVP actual.</p>
+                  </>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="panel">
+            <div className="row-actions">
+              <h3>Personajes de la campaña</h3>
+              {isDirector ? (
+                <div className="inline-row campaign-inline-form">
+                  <label className="field">
+                    <span>Personaje disponible</span>
+                    <select value={selectedAvailableCharacterId} onChange={(event) => setSelectedAvailableCharacterId(event.target.value)}>
+                      {availableUnlinkedCharacters.length === 0 ? <option value="">Sin personajes disponibles</option> : null}
+                      {availableUnlinkedCharacters.map((entry) => (
+                        <option key={entry.characterId} value={entry.characterId}>
+                          {entry.name} - {entry.ownerEmail}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button disabled={isSaving || !selectedAvailableCharacterId} onClick={() => void handleLinkCharacter()}>
+                    Vincular
+                  </button>
                 </div>
+              ) : null}
+            </div>
+            <div className="cards">
+              {selectedCampaign.characters.map((entry) => (
+                <article key={entry.id} className="card">
+                  <strong>{entry.name}</strong>
+                  <span>{entry.ownerEmail}</span>
+                  <span>PX total: {entry.experienceTotal}</span>
+                  <span>PX gastada: {entry.experienceSpent}</span>
+                  {isDirector ? (
+                    <button disabled={isSaving} onClick={() => void handleUnlinkCharacter(entry.id)}>
+                      Desvincular
+                    </button>
+                  ) : null}
+                </article>
+              ))}
+              {selectedCampaign.characters.length === 0 ? (
+                <p className="section-help">Todavía no hay personajes vinculados.</p>
+              ) : null}
+            </div>
+
+            {isDirector && selectedCampaign.characters.length > 0 ? (
+              <div className="campaign-xp-panel">
+                <div className="section-title">Otorgar experiencia manual</div>
+                <div className="form-grid">
+                  <label className="field">
+                    <span>Personaje</span>
+                    <select value={xpForm.characterId} onChange={(event) => setXpForm((prev) => ({ ...prev, characterId: event.target.value }))}>
+                      {selectedCampaign.characters.map((entry) => (
+                        <option key={entry.characterId} value={entry.characterId}>
+                          {entry.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>PX</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={xpForm.amount}
+                      onChange={(event) => setXpForm((prev) => ({ ...prev, amount: Number(event.target.value || 1) }))}
+                    />
+                  </label>
+                  <label className="field campaign-xp-reason">
+                    <span>Motivo</span>
+                    <input value={xpForm.reason} onChange={(event) => setXpForm((prev) => ({ ...prev, reason: event.target.value }))} />
+                  </label>
+                  <button disabled={isSaving} onClick={() => void handleGrantXp()}>
+                    Conceder PX
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </section>
+
+          <section className="panel">
+            <div className="row-actions">
+              <h3>PNJs</h3>
+              {isDirector ? (
+                <button disabled={isSaving} onClick={() => void handleGenerateNpc()}>
+                  Generar PNJ
+                </button>
+              ) : null}
+            </div>
+
+            {isDirector ? (
+              <div className="campaign-npc-form">
                 <div className="form-grid">
                   <label className="field">
                     <span>Nombre</span>
-                    <input value={draft.name} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))} />
+                    <input value={npcForm.name} onChange={(event) => setNpcForm((prev) => ({ ...prev, name: event.target.value }))} />
                   </label>
                   <label className="field">
-                    <span>Ambientación</span>
-                    <input
-                      value={draft.setting}
-                      disabled={!isDirector}
-                      onChange={(event) => setDraft((prev) => ({ ...prev, setting: event.target.value }))}
-                    />
+                    <span>Raza</span>
+                    <input value={npcForm.race} onChange={(event) => setNpcForm((prev) => ({ ...prev, race: event.target.value }))} />
+                  </label>
+                  <label className="field">
+                    <span>Arquetipo</span>
+                    <input value={npcForm.archetype} onChange={(event) => setNpcForm((prev) => ({ ...prev, archetype: event.target.value }))} />
+                  </label>
+                  <label className="field">
+                    <span>Ocupación</span>
+                    <input value={npcForm.occupation} onChange={(event) => setNpcForm((prev) => ({ ...prev, occupation: event.target.value }))} />
+                  </label>
+                  <label className="field">
+                    <span>Amenaza</span>
+                    <input value={npcForm.threat} onChange={(event) => setNpcForm((prev) => ({ ...prev, threat: event.target.value }))} />
                   </label>
                 </div>
                 <label className="field">
                   <span>Resumen</span>
-                  <textarea rows={3} value={draft.summary} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, summary: event.target.value }))} />
+                  <textarea rows={2} value={npcForm.summary} onChange={(event) => setNpcForm((prev) => ({ ...prev, summary: event.target.value }))} />
                 </label>
                 <label className="field">
-                  <span>Notas del director</span>
-                  <textarea rows={5} value={draft.notes} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))} />
+                  <span>Bloque rápido</span>
+                  <textarea rows={2} value={npcForm.statBlock} onChange={(event) => setNpcForm((prev) => ({ ...prev, statBlock: event.target.value }))} />
                 </label>
-              </section>
+                <label className="field">
+                  <span>Notas</span>
+                  <textarea rows={3} value={npcForm.notes} onChange={(event) => setNpcForm((prev) => ({ ...prev, notes: event.target.value }))} />
+                </label>
+                <button disabled={isSaving} onClick={() => void handleCreateNpc()}>
+                  Crear PNJ manual
+                </button>
+              </div>
+            ) : null}
 
-              <section className="panel">
-                <div className="row-actions">
-                  <h3>Miembros</h3>
-                  {isDirector ? (
-                    <div className="inline-row campaign-inline-form">
-                      <label className="field">
-                        <span>Email del jugador</span>
-                        <input value={memberEmail} onChange={(event) => setMemberEmail(event.target.value)} />
-                      </label>
-                      <button disabled={isSaving} onClick={() => void handleAddMember()}>
-                        Agregar
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-                <div className="cards">
-                  {selectedCampaign.members.map((member) => (
-                    <article key={member.id} className="card">
-                      <strong>{member.email}</strong>
-                      <span>{member.role === "gm" ? "Director" : "Jugador"}</span>
-                      <span>Alta: {new Date(member.joinedAt).toLocaleDateString()}</span>
-                      {isDirector && member.role !== "gm" ? (
-                        <button disabled={isSaving} onClick={() => void handleRemoveMember(member.id)}>
-                          Quitar
-                        </button>
-                      ) : null}
-                    </article>
-                  ))}
-                </div>
-              </section>
+            <div className="campaign-npc-list">
+              {selectedCampaign.npcs.map((npc) => (
+                <CampaignNpcEditor
+                  key={npc.id}
+                  npc={npc}
+                  editable={isDirector}
+                  busy={isSaving}
+                  onSave={handleUpdateNpc}
+                  onDelete={handleDeleteNpc}
+                />
+              ))}
+              {selectedCampaign.npcs.length === 0 ? (
+                <p className="section-help">Todavía no hay PNJs registrados.</p>
+              ) : null}
+            </div>
+          </section>
 
-              <section className="panel">
-                <div className="row-actions">
-                  <h3>Sesiones</h3>
-                  {isDirector ? (
-                    <button
-                      disabled={isSaving}
-                      onClick={() => {
-                        setSelectedSessionId(null);
-                        setSessionForm(makeDefaultSessionForm());
-                      }}
-                    >
-                      Nueva sesión
-                    </button>
-                  ) : null}
-                </div>
-                <div className="campaign-session-layout">
-                  <div className="campaign-session-list">
-                    {selectedCampaign.sessions.map((session) => (
-                      <button
-                        key={session.id}
-                        className={`campaign-list-item${selectedSessionId === session.id ? " is-active" : ""}`}
-                        onClick={() => setSelectedSessionId(session.id)}
-                      >
-                        <strong>{session.title}</strong>
-                        <span>{new Date(session.scheduledFor).toLocaleString()}</span>
-                        <span>{session.status}</span>
-                      </button>
-                    ))}
-                    {selectedCampaign.sessions.length === 0 ? (
-                      <p className="section-help">Aún no hay sesiones programadas.</p>
-                    ) : null}
-                  </div>
-
-                  <div className="campaign-session-detail">
-                    {isDirector ? (
-                      <>
-                        <div className="row-actions">
-                          <h3>{selectedSession ? "Detalle de sesión" : "Crear sesión"}</h3>
-                          <button disabled={isSaving} onClick={() => void (selectedSession ? handleSaveSession() : handleCreateSession())}>
-                            {selectedSession ? "Guardar sesión" : "Programar sesión"}
-                          </button>
-                        </div>
-                        <div className="form-grid">
-                          <label className="field">
-                            <span>Titulo</span>
-                            <input value={sessionForm.title} onChange={(event) => setSessionForm((prev) => ({ ...prev, title: event.target.value }))} />
-                          </label>
-                          <label className="field">
-                            <span>Fecha y hora</span>
-                            <input
-                              type="datetime-local"
-                              value={toLocalDateTimeValue(sessionForm.scheduledFor)}
-                              onChange={(event) => setSessionForm((prev) => ({ ...prev, scheduledFor: fromLocalDateTimeValue(event.target.value) }))}
-                            />
-                          </label>
-                          <label className="field">
-                            <span>Ubicacion</span>
-                            <input value={sessionForm.location} onChange={(event) => setSessionForm((prev) => ({ ...prev, location: event.target.value }))} />
-                          </label>
-                          <label className="field">
-                            <span>Estado</span>
-                            <select
-                              value={sessionForm.status}
-                              onChange={(event) =>
-                                setSessionForm((prev) => ({
-                                  ...prev,
-                                  status: event.target.value as CreateCampaignSessionInput["status"]
-                                }))
-                              }
-                            >
-                              <option value="planned">Planificada</option>
-                              <option value="completed">Completada</option>
-                              <option value="cancelled">Cancelada</option>
-                            </select>
-                          </label>
-                        </div>
-                        <label className="field">
-                          <span>Resumen para la mesa</span>
-                          <textarea rows={2} value={sessionForm.summary} onChange={(event) => setSessionForm((prev) => ({ ...prev, summary: event.target.value }))} />
-                        </label>
-                        <label className="field">
-                          <span>Notas visibles para la mesa</span>
-                          <textarea rows={4} value={sessionForm.publicNotes} onChange={(event) => setSessionForm((prev) => ({ ...prev, publicNotes: event.target.value }))} />
-                        </label>
-                        <label className="field">
-                          <span>Notas secretas del DJ</span>
-                          <textarea rows={4} value={sessionForm.dmNotes} onChange={(event) => setSessionForm((prev) => ({ ...prev, dmNotes: event.target.value }))} />
-                        </label>
-
-                        {selectedSession ? (
-                          <>
-                            <div className="section-title">PX al cerrar sesión</div>
-                            <div className="cards">
-                              {selectedCampaign.characters.map((entry) => (
-                                <article key={entry.characterId} className="card">
-                                  <strong>{entry.name}</strong>
-                                  <span>{entry.ownerEmail}</span>
-                                  <label className="field">
-                                    <span>PX de esta sesión</span>
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      value={sessionXpDraft[entry.characterId] ?? 0}
-                                      onChange={(event) =>
-                                        setSessionXpDraft((prev) => ({
-                                          ...prev,
-                                          [entry.characterId]: Number(event.target.value || 0)
-                                        }))
-                                      }
-                                    />
-                                  </label>
-                                </article>
-                              ))}
-                            </div>
-                            <button disabled={isSaving} onClick={() => void handleAssignSessionXp()}>
-                              Asignar PX de sesión
-                            </button>
-                          </>
-                        ) : null}
-                      </>
-                    ) : (
-                      <>
-                        <h3>{selectedSession?.title ?? "Sesiones"}</h3>
-                        <p className="section-help">Las sesiones son una herramienta interna del DJ en el MVP actual.</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </section>
-              <section className="panel">
-                <div className="row-actions">
-                  <h3>Personajes de la campaña</h3>
-                  {isDirector ? (
-                    <div className="inline-row campaign-inline-form">
-                      <label className="field">
-                        <span>Personaje disponible</span>
-                        <select value={selectedAvailableCharacterId} onChange={(event) => setSelectedAvailableCharacterId(event.target.value)}>
-                          {availableUnlinkedCharacters.length === 0 ? <option value="">Sin personajes disponibles</option> : null}
-                          {availableUnlinkedCharacters.map((entry) => (
-                            <option key={entry.characterId} value={entry.characterId}>
-                              {entry.name} - {entry.ownerEmail}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <button disabled={isSaving || !selectedAvailableCharacterId} onClick={() => void handleLinkCharacter()}>
-                        Vincular
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-                <div className="cards">
-                  {selectedCampaign.characters.map((entry) => (
-                    <article key={entry.id} className="card">
-                      <strong>{entry.name}</strong>
-                      <span>{entry.ownerEmail}</span>
-                      <span>PX total: {entry.experienceTotal}</span>
-                      <span>PX gastada: {entry.experienceSpent}</span>
-                      {isDirector ? (
-                        <button disabled={isSaving} onClick={() => void handleUnlinkCharacter(entry.id)}>
-                          Desvincular
-                        </button>
-                      ) : null}
-                    </article>
-                  ))}
-                  {selectedCampaign.characters.length === 0 ? (
-                    <p className="section-help">Todavía no hay personajes vinculados.</p>
-                  ) : null}
-                </div>
-
-                {isDirector && selectedCampaign.characters.length > 0 ? (
-                  <div className="campaign-xp-panel">
-                    <div className="section-title">Otorgar experiencia manual</div>
-                    <div className="form-grid">
-                      <label className="field">
-                        <span>Personaje</span>
-                        <select value={xpForm.characterId} onChange={(event) => setXpForm((prev) => ({ ...prev, characterId: event.target.value }))}>
-                          {selectedCampaign.characters.map((entry) => (
-                            <option key={entry.characterId} value={entry.characterId}>
-                              {entry.name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="field">
-                        <span>PX</span>
-                        <input
-                          type="number"
-                          min={1}
-                          value={xpForm.amount}
-                          onChange={(event) => setXpForm((prev) => ({ ...prev, amount: Number(event.target.value || 1) }))}
-                        />
-                      </label>
-                      <label className="field campaign-xp-reason">
-                        <span>Motivo</span>
-                        <input value={xpForm.reason} onChange={(event) => setXpForm((prev) => ({ ...prev, reason: event.target.value }))} />
-                      </label>
-                      <button disabled={isSaving} onClick={() => void handleGrantXp()}>
-                        Conceder PX
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-              </section>
-
-              <section className="panel">
-                <div className="row-actions">
-                  <h3>PNJs</h3>
-                  {isDirector ? (
-                    <button disabled={isSaving} onClick={() => void handleGenerateNpc()}>
-                      Generar PNJ
-                    </button>
-                  ) : null}
-                </div>
-
-                {isDirector ? (
-                  <div className="campaign-npc-form">
-                    <div className="form-grid">
-                      <label className="field">
-                        <span>Nombre</span>
-                        <input value={npcForm.name} onChange={(event) => setNpcForm((prev) => ({ ...prev, name: event.target.value }))} />
-                      </label>
-                      <label className="field">
-                        <span>Raza</span>
-                        <input value={npcForm.race} onChange={(event) => setNpcForm((prev) => ({ ...prev, race: event.target.value }))} />
-                      </label>
-                      <label className="field">
-                        <span>Arquetipo</span>
-                        <input value={npcForm.archetype} onChange={(event) => setNpcForm((prev) => ({ ...prev, archetype: event.target.value }))} />
-                      </label>
-                      <label className="field">
-                        <span>Ocupacion</span>
-                        <input value={npcForm.occupation} onChange={(event) => setNpcForm((prev) => ({ ...prev, occupation: event.target.value }))} />
-                      </label>
-                      <label className="field">
-                        <span>Amenaza</span>
-                        <input value={npcForm.threat} onChange={(event) => setNpcForm((prev) => ({ ...prev, threat: event.target.value }))} />
-                      </label>
-                    </div>
-                    <label className="field">
-                      <span>Resumen</span>
-                      <textarea rows={2} value={npcForm.summary} onChange={(event) => setNpcForm((prev) => ({ ...prev, summary: event.target.value }))} />
-                    </label>
-                    <label className="field">
-                      <span>Bloque rapido</span>
-                      <textarea rows={2} value={npcForm.statBlock} onChange={(event) => setNpcForm((prev) => ({ ...prev, statBlock: event.target.value }))} />
-                    </label>
-                    <label className="field">
-                      <span>Notas</span>
-                      <textarea rows={3} value={npcForm.notes} onChange={(event) => setNpcForm((prev) => ({ ...prev, notes: event.target.value }))} />
-                    </label>
-                    <button disabled={isSaving} onClick={() => void handleCreateNpc()}>
-                      Crear PNJ manual
-                    </button>
-                  </div>
-                ) : null}
-
-                <div className="campaign-npc-list">
-                  {selectedCampaign.npcs.map((npc) => (
-                    <CampaignNpcEditor
-                      key={npc.id}
-                      npc={npc}
-                      editable={isDirector}
-                      busy={isSaving}
-                      onSave={handleUpdateNpc}
-                      onDelete={handleDeleteNpc}
-                    />
-                  ))}
-                  {selectedCampaign.npcs.length === 0 ? (
-                    <p className="section-help">Todavía no hay PNJs registrados.</p>
-                  ) : null}
-                </div>
-              </section>
-
-              <section className="panel">
-                <h3>Historial de experiencia</h3>
-                <div className="campaign-log-list">
-                  {selectedCampaign.experienceLog.map((entry) => (
-                    <article key={entry.id} className="card">
-                      <strong>+{entry.amount} PX para {entry.characterName}</strong>
-                      <span>{entry.reason}</span>
-                      <span>{entry.grantedByEmail} · {new Date(entry.createdAt).toLocaleString()}</span>
-                    </article>
-                  ))}
-                  {selectedCampaign.experienceLog.length === 0 ? (
-                    <p className="section-help">Aún no hay concesiones de experiencia registradas.</p>
-                  ) : null}
-                </div>
-              </section>
-            </>
-          ) : (
-            <section className="panel">
-              <h2>Sin campaña seleccionada</h2>
-              <p>Elige una campaña en la columna lateral o crea una nueva si eres director.</p>
-            </section>
-          )}
+          <section className="panel">
+            <h3>Historial de experiencia</h3>
+            <div className="campaign-log-list">
+              {selectedCampaign.experienceLog.map((entry) => (
+                <article key={entry.id} className="card">
+                  <strong>+{entry.amount} PX para {entry.characterName}</strong>
+                  <span>{entry.reason}</span>
+                  <span>{entry.grantedByEmail} · {new Date(entry.createdAt).toLocaleString()}</span>
+                </article>
+              ))}
+              {selectedCampaign.experienceLog.length === 0 ? (
+                <p className="section-help">Aún no hay concesiones de experiencia registradas.</p>
+              ) : null}
+            </div>
+          </section>
         </section>
-      </div>
+      )}
     </section>
   );
 }
-
 type CampaignNpcEditorProps = {
   npc: Campaign["npcs"][number];
   editable: boolean;
