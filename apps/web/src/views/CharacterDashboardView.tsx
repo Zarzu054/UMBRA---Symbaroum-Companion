@@ -126,8 +126,6 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             <div className="app-sidebar-head">
               <div>
                 <h1>UMBRA</h1>
-                <p>{user.email}</p>
-                <p>{getRoleLabel(user.role)}</p>
               </div>
               <button
                 className="sidebar-toggle"
@@ -149,6 +147,10 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               </button>
             </nav>
             <div className="sidebar-session">
+              <div className="sidebar-session-meta">
+                <p>{user.email}</p>
+                <p>{getRoleLabel(user.role)}</p>
+              </div>
               <button onClick={() => void onLogout()}>Salir</button>
             </div>
           </div>
