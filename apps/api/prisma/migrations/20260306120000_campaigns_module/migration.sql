@@ -1,4 +1,4 @@
-﻿-- CreateEnum
+-- CreateEnum
 DO $$ BEGIN
   CREATE TYPE "CampaignMemberRole" AS ENUM ('gm', 'player');
 EXCEPTION

@@ -2,35 +2,32 @@
   addCampaignMemberSchema,
   createCampaignNpcSchema,
   createCampaignSchema,
+  createCampaignSessionSchema,
+  assignCampaignSessionExperienceSchema,
   grantCampaignExperienceSchema,
   linkCampaignCharacterSchema,
   SYMBAROUM_ARCHETYPES,
   SYMBAROUM_RACES,
   updateCampaignNpcSchema,
   updateCampaignSchema,
+  updateCampaignSessionSchema,
   type AddCampaignMemberInput,
+  type AssignCampaignSessionExperienceInput,
   type Campaign,
   type CreateCampaignInput,
   type CreateCampaignNpcInput,
+  type CreateCampaignSessionInput,
   type GrantCampaignExperienceInput,
   type UpdateCampaignInput,
   type UpdateCampaignNpcInput,
+  type UpdateCampaignSessionInput,
   type UserRole
 } from "@umbra/shared";
 import { CampaignModel } from "../models/CampaignModel.js";
 import { AppError } from "../utils/AppError.js";
 
 const NPC_THREATS = ["Bajo", "Medio", "Alto", "Elite"] as const;
-const NPC_OCCUPATIONS = [
-  "Guardia",
-  "Explorador",
-  "Mercader",
-  "Cultista",
-  "Cazador",
-  "Bruja",
-  "Erudito",
-  "Bandido"
-] as const;
+const NPC_OCCUPATIONS = ["Guardia", "Explorador", "Mercader", "Cultista", "Cazador", "Bruja", "Erudito", "Bandido"] as const;
 const NPC_NAME_PREFIXES = ["Ar", "Bel", "Cor", "Dar", "El", "Fen", "Gal", "Mor", "Syl", "Tor"] as const;
 const NPC_NAME_SUFFIXES = ["an", "or", "ia", "eth", "rik", "a", "os", "en", "ar", "is"] as const;
 
@@ -64,6 +61,13 @@ function generateNpcPayload(): CreateCampaignNpcInput {
   };
 }
 
+function toSessionPayload(input: CreateCampaignSessionInput | UpdateCampaignSessionInput) {
+  return {
+    ...input,
+    scheduledFor: input.scheduledFor ? new Date(input.scheduledFor) : undefined
+  };
+}
+
 export class CampaignService {
   constructor(private readonly model: CampaignModel) {}
 
@@ -83,14 +87,14 @@ export class CampaignService {
   async createCampaign(userId: string, userRole: UserRole, input: CreateCampaignInput): Promise<Campaign> {
     requireDirectorRole(userRole);
     const payload = createCampaignSchema.parse(input);
-    return this.model.create(userId, payload);
+    return this.model.create(userId, payload, userRole);
   }
 
   async updateCampaign(userId: string, userRole: UserRole, campaignId: string, input: UpdateCampaignInput): Promise<Campaign> {
     requireDirectorRole(userRole);
     await this.assertCampaignManagedBy(userId, userRole, campaignId);
     const payload = updateCampaignSchema.parse(input);
-    return this.model.update(campaignId, payload);
+    return this.model.update(campaignId, payload, userId, userRole);
   }
 
   async addMember(userId: string, userRole: UserRole, campaignId: string, input: AddCampaignMemberInput): Promise<Campaign> {
@@ -174,12 +178,7 @@ export class CampaignService {
     return this.getCampaign(userId, userRole, campaignId);
   }
 
-  async updateNpc(
-    userId: string,
-    userRole: UserRole,
-    npcId: string,
-    input: UpdateCampaignNpcInput
-  ): Promise<Campaign> {
+  async updateNpc(userId: string, userRole: UserRole, npcId: string, input: UpdateCampaignNpcInput): Promise<Campaign> {
     requireDirectorRole(userRole);
     const npc = await this.model.findNpcById(npcId);
     if (!npc) {
@@ -202,6 +201,51 @@ export class CampaignService {
     await this.assertCampaignManagedBy(userId, userRole, npc.campaignId);
     await this.model.deleteNpc(npcId);
     return this.getCampaign(userId, userRole, npc.campaignId);
+  }
+
+  async createSession(userId: string, userRole: UserRole, campaignId: string, input: CreateCampaignSessionInput): Promise<Campaign> {
+    requireDirectorRole(userRole);
+    await this.assertCampaignManagedBy(userId, userRole, campaignId);
+    const payload = createCampaignSessionSchema.parse(input);
+    await this.model.createSession(campaignId, toSessionPayload(payload) as ReturnType<typeof toSessionPayload> & { scheduledFor: Date });
+    return this.getCampaign(userId, userRole, campaignId);
+  }
+
+  async updateSession(userId: string, userRole: UserRole, sessionId: string, input: UpdateCampaignSessionInput): Promise<Campaign> {
+    requireDirectorRole(userRole);
+    const session = await this.model.findSessionById(sessionId);
+    if (!session) {
+      throw new AppError("CAMPAIGN_SESSION_NOT_FOUND", "Sesion no encontrada", 404);
+    }
+
+    await this.assertCampaignManagedBy(userId, userRole, session.campaignId);
+    const payload = updateCampaignSessionSchema.parse(input);
+    await this.model.updateSession(sessionId, toSessionPayload(payload));
+    return this.getCampaign(userId, userRole, session.campaignId);
+  }
+
+  async assignSessionExperience(
+    userId: string,
+    userRole: UserRole,
+    sessionId: string,
+    input: AssignCampaignSessionExperienceInput
+  ): Promise<Campaign> {
+    requireDirectorRole(userRole);
+    const session = await this.model.findSessionById(sessionId);
+    if (!session) {
+      throw new AppError("CAMPAIGN_SESSION_NOT_FOUND", "Sesion no encontrada", 404);
+    }
+
+    await this.assertCampaignManagedBy(userId, userRole, session.campaignId);
+    const payload = assignCampaignSessionExperienceSchema.parse(input);
+    const campaign = await this.getCampaign(userId, userRole, session.campaignId);
+    const linkedCharacterIds = new Set(campaign.characters.map((entry: Campaign["characters"][number]) => entry.characterId));
+    const invalid = payload.awards.find((award) => !linkedCharacterIds.has(award.characterId));
+    if (invalid) {
+      throw new AppError("CAMPAIGN_CHARACTER_NOT_LINKED", "Todos los personajes deben estar vinculados a la campana", 400);
+    }
+    await this.model.assignSessionExperience(session.campaignId, sessionId, session.title, userId, payload.awards);
+    return this.getCampaign(userId, userRole, session.campaignId);
   }
 
   async grantExperience(

@@ -1,5 +1,5 @@
-import type { Prisma } from "@prisma/client";
-import { parseCharacterSheet, type Campaign, type CampaignAvailableCharacter } from "@umbra/shared";
+﻿import type { Prisma } from "@prisma/client";
+import { parseCharacterSheet, type Campaign, type CampaignAvailableCharacter, type UserRole } from "@umbra/shared";
 import { prisma } from "../config/prisma.js";
 
 const campaignInclude = {
@@ -36,6 +36,11 @@ const campaignInclude = {
     },
     orderBy: {
       createdAt: "desc"
+    }
+  },
+  sessions: {
+    orderBy: {
+      scheduledFor: "desc"
     }
   }
 } satisfies Prisma.CampaignInclude;
@@ -79,15 +84,22 @@ function mapAvailableCharacter(row: CharacterAvailabilityRow, linkedIds: Set<str
   };
 }
 
-function mapCampaign(row: CampaignRow, availableRows: CharacterAvailabilityRow[] = []): Campaign {
+function mapCampaign(
+  row: CampaignRow,
+  viewerId: string,
+  viewerRole: UserRole,
+  availableRows: CharacterAvailabilityRow[] = []
+): Campaign {
   const linkedIds = new Set(row.characters.map((entry) => entry.characterId));
+  const isDirector = viewerRole === "superadmin" || row.gmId === viewerId;
+  const visibleSessions = row.sessions;
 
   return {
     id: row.id,
     name: row.name,
     summary: row.summary,
     setting: row.setting,
-    notes: row.notes,
+    notes: isDirector ? row.notes : "",
     gmId: row.gmId,
     gmEmail: row.gm.email,
     createdAt: row.createdAt.toISOString(),
@@ -122,7 +134,7 @@ function mapCampaign(row: CampaignRow, availableRows: CharacterAvailabilityRow[]
         updatedAt: entry.character.updatedAt.toISOString()
       };
     }),
-    availableCharacters: availableRows.map((row) => mapAvailableCharacter(row, linkedIds)),
+    availableCharacters: availableRows.map((availableRow) => mapAvailableCharacter(availableRow, linkedIds)),
     npcs: row.npcs.map((npc) => ({
       id: npc.id,
       name: npc.name,
@@ -139,6 +151,7 @@ function mapCampaign(row: CampaignRow, availableRows: CharacterAvailabilityRow[]
     })),
     experienceLog: row.experienceLog.map((entry) => ({
       id: entry.id,
+      sessionId: entry.sessionId,
       characterId: entry.characterId,
       characterName: entry.character.name,
       grantedById: entry.grantedById,
@@ -146,12 +159,24 @@ function mapCampaign(row: CampaignRow, availableRows: CharacterAvailabilityRow[]
       amount: entry.amount,
       reason: entry.reason,
       createdAt: entry.createdAt.toISOString()
+    })),
+    sessions: visibleSessions.map((session) => ({
+      id: session.id,
+      title: session.title,
+      scheduledFor: session.scheduledFor.toISOString(),
+      location: session.location,
+      summary: session.summary,
+      publicNotes: session.publicNotes,
+      dmNotes: isDirector ? session.dmNotes : "",
+      status: session.status,
+      createdAt: session.createdAt.toISOString(),
+      updatedAt: session.updatedAt.toISOString()
     }))
   };
 }
 
 export class CampaignModel {
-  async listAccessible(userId: string, userRole: string): Promise<Campaign[]> {
+  async listAccessible(userId: string, userRole: UserRole): Promise<Campaign[]> {
     const rows = await prisma.campaign.findMany({
       where:
         userRole === "superadmin"
@@ -166,10 +191,10 @@ export class CampaignModel {
     });
 
     const availableByCampaign = await this.getAvailableCharactersForCampaignRows(rows);
-    return rows.map((row) => mapCampaign(row, availableByCampaign.get(row.id) ?? []));
+    return rows.map((row) => mapCampaign(row, userId, userRole, availableByCampaign.get(row.id) ?? []));
   }
 
-  async findAccessibleById(userId: string, userRole: string, campaignId: string): Promise<Campaign | null> {
+  async findAccessibleById(userId: string, userRole: UserRole, campaignId: string): Promise<Campaign | null> {
     const row = await prisma.campaign.findFirst({
       where:
         userRole === "superadmin"
@@ -183,10 +208,10 @@ export class CampaignModel {
 
     if (!row) return null;
     const availableRows = (await this.getAvailableCharactersForCampaignRows([row])).get(row.id) ?? [];
-    return mapCampaign(row, availableRows);
+    return mapCampaign(row, userId, userRole, availableRows);
   }
 
-  async create(gmId: string, payload: { name: string; summary: string; setting: string; notes: string }): Promise<Campaign> {
+  async create(gmId: string, payload: { name: string; summary: string; setting: string; notes: string }, userRole: UserRole): Promise<Campaign> {
     const row = await prisma.campaign.create({
       data: {
         gmId,
@@ -204,10 +229,15 @@ export class CampaignModel {
       include: campaignInclude
     });
 
-    return mapCampaign(row);
+    return mapCampaign(row, gmId, userRole);
   }
 
-  async update(campaignId: string, payload: Partial<{ name: string; summary: string; setting: string; notes: string }>): Promise<Campaign> {
+  async update(
+    campaignId: string,
+    payload: Partial<{ name: string; summary: string; setting: string; notes: string }>,
+    viewerId: string,
+    viewerRole: UserRole
+  ): Promise<Campaign> {
     const row = await prisma.campaign.update({
       where: { id: campaignId },
       data: payload,
@@ -215,7 +245,7 @@ export class CampaignModel {
     });
 
     const availableRows = (await this.getAvailableCharactersForCampaignRows([row])).get(row.id) ?? [];
-    return mapCampaign(row, availableRows);
+    return mapCampaign(row, viewerId, viewerRole, availableRows);
   }
 
   async addMember(campaignId: string, userId: string): Promise<void> {
@@ -311,6 +341,58 @@ export class CampaignModel {
     });
   }
 
+  async createSession(
+    campaignId: string,
+    payload: {
+      title: string;
+      scheduledFor: Date;
+      location: string;
+      summary: string;
+      publicNotes: string;
+      dmNotes: string;
+      status: "planned" | "completed" | "cancelled";
+    }
+  ): Promise<void> {
+    await prisma.campaignSession.create({
+      data: {
+        campaignId,
+        title: payload.title,
+        scheduledFor: payload.scheduledFor,
+        location: payload.location,
+        summary: payload.summary,
+        publicNotes: payload.publicNotes,
+        dmNotes: payload.dmNotes,
+        status: payload.status
+      }
+    });
+  }
+
+  async updateSession(
+    sessionId: string,
+    payload: Partial<{
+      title: string;
+      scheduledFor: Date;
+      location: string;
+      summary: string;
+      publicNotes: string;
+      dmNotes: string;
+      status: "planned" | "completed" | "cancelled";
+    }>
+  ): Promise<void> {
+    await prisma.campaignSession.update({
+      where: { id: sessionId },
+      data: {
+        title: payload.title,
+        scheduledFor: payload.scheduledFor,
+        location: payload.location,
+        summary: payload.summary,
+        publicNotes: payload.publicNotes,
+        dmNotes: payload.dmNotes,
+        status: payload.status
+      }
+    });
+  }
+
   async findMemberByEmail(email: string): Promise<{ id: string; email: string; role: string } | null> {
     return prisma.user.findUnique({
       where: { email },
@@ -358,6 +440,13 @@ export class CampaignModel {
     });
   }
 
+  async findSessionById(sessionId: string): Promise<{ id: string; campaignId: string; title: string } | null> {
+    return prisma.campaignSession.findUnique({
+      where: { id: sessionId },
+      select: { id: true, campaignId: true, title: true }
+    });
+  }
+
   async grantExperience(campaignId: string, characterId: string, grantedById: string, amount: number, reason: string): Promise<void> {
     const character = await prisma.character.findUnique({
       where: { id: characterId },
@@ -390,6 +479,53 @@ export class CampaignModel {
         }
       })
     ]);
+  }
+
+  async assignSessionExperience(
+    campaignId: string,
+    sessionId: string,
+    sessionTitle: string,
+    grantedById: string,
+    awards: Array<{ characterId: string; amount: number }>
+  ): Promise<void> {
+    const validAwards = awards.filter((award) => award.amount > 0);
+    if (validAwards.length === 0) return;
+
+    await prisma.$transaction(async (tx) => {
+      for (const award of validAwards) {
+        const character = await tx.character.findUnique({
+          where: { id: award.characterId },
+          select: { sheet: true }
+        });
+
+        if (!character) continue;
+
+        const sheet = parseCharacterSheet(character.sheet);
+        await tx.character.update({
+          where: { id: award.characterId },
+          data: {
+            sheet: {
+              ...sheet,
+              progreso: {
+                ...sheet.progreso,
+                experienciaTotal: sheet.progreso.experienciaTotal + award.amount
+              }
+            }
+          }
+        });
+
+        await tx.campaignXpLog.create({
+          data: {
+            campaignId,
+            sessionId,
+            characterId: award.characterId,
+            grantedById,
+            amount: award.amount,
+            reason: `Sesion: ${sessionTitle}`
+          }
+        });
+      }
+    });
   }
 
   private async getAvailableCharactersForCampaignRows(rows: CampaignRow[]): Promise<Map<string, CharacterAvailabilityRow[]>> {
@@ -425,3 +561,4 @@ export class CampaignModel {
     return map;
   }
 }
+

@@ -1,11 +1,14 @@
-import type { FastifyReply, FastifyRequest } from "fastify";
+﻿import type { FastifyReply, FastifyRequest } from "fastify";
 import type {
   AddCampaignMemberInput,
+  AssignCampaignSessionExperienceInput,
   CreateCampaignInput,
   CreateCampaignNpcInput,
+  CreateCampaignSessionInput,
   GrantCampaignExperienceInput,
   UpdateCampaignInput,
-  UpdateCampaignNpcInput
+  UpdateCampaignNpcInput,
+  UpdateCampaignSessionInput
 } from "@umbra/shared";
 import { CampaignService } from "../services/CampaignService.js";
 
@@ -48,10 +51,7 @@ export class CampaignController {
     reply.send({ data: campaign });
   }
 
-  async removeMember(
-    request: FastifyRequest<{ Params: { memberId: string } }>,
-    reply: FastifyReply
-  ): Promise<void> {
+  async removeMember(request: FastifyRequest<{ Params: { memberId: string } }>, reply: FastifyReply): Promise<void> {
     const user = request.authUser!;
     const campaign = await this.service.removeMember(user.id, user.role, request.params.memberId);
     reply.send({ data: campaign });
@@ -66,10 +66,7 @@ export class CampaignController {
     reply.send({ data: campaign });
   }
 
-  async unlinkCharacter(
-    request: FastifyRequest<{ Params: { linkId: string } }>,
-    reply: FastifyReply
-  ): Promise<void> {
+  async unlinkCharacter(request: FastifyRequest<{ Params: { linkId: string } }>, reply: FastifyReply): Promise<void> {
     const user = request.authUser!;
     const campaign = await this.service.unlinkCharacter(user.id, user.role, request.params.linkId);
     reply.send({ data: campaign });
@@ -84,10 +81,7 @@ export class CampaignController {
     reply.send({ data: campaign });
   }
 
-  async generateNpc(
-    request: FastifyRequest<{ Params: { campaignId: string } }>,
-    reply: FastifyReply
-  ): Promise<void> {
+  async generateNpc(request: FastifyRequest<{ Params: { campaignId: string } }>, reply: FastifyReply): Promise<void> {
     const user = request.authUser!;
     const campaign = await this.service.generateNpc(user.id, user.role, request.params.campaignId);
     reply.code(201).send({ data: campaign });
@@ -102,12 +96,36 @@ export class CampaignController {
     reply.send({ data: campaign });
   }
 
-  async deleteNpc(
-    request: FastifyRequest<{ Params: { npcId: string } }>,
+  async deleteNpc(request: FastifyRequest<{ Params: { npcId: string } }>, reply: FastifyReply): Promise<void> {
+    const user = request.authUser!;
+    const campaign = await this.service.deleteNpc(user.id, user.role, request.params.npcId);
+    reply.send({ data: campaign });
+  }
+
+  async createSession(
+    request: FastifyRequest<{ Params: { campaignId: string }; Body: CreateCampaignSessionInput }>,
     reply: FastifyReply
   ): Promise<void> {
     const user = request.authUser!;
-    const campaign = await this.service.deleteNpc(user.id, user.role, request.params.npcId);
+    const campaign = await this.service.createSession(user.id, user.role, request.params.campaignId, request.body);
+    reply.code(201).send({ data: campaign });
+  }
+
+  async updateSession(
+    request: FastifyRequest<{ Params: { sessionId: string }; Body: UpdateCampaignSessionInput }>,
+    reply: FastifyReply
+  ): Promise<void> {
+    const user = request.authUser!;
+    const campaign = await this.service.updateSession(user.id, user.role, request.params.sessionId, request.body);
+    reply.send({ data: campaign });
+  }
+
+  async assignSessionExperience(
+    request: FastifyRequest<{ Params: { sessionId: string }; Body: AssignCampaignSessionExperienceInput }>,
+    reply: FastifyReply
+  ): Promise<void> {
+    const user = request.authUser!;
+    const campaign = await this.service.assignSessionExperience(user.id, user.role, request.params.sessionId, request.body);
     reply.send({ data: campaign });
   }
 

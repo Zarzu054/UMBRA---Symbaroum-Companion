@@ -1,11 +1,14 @@
-import type { FastifyInstance } from "fastify";
+﻿import type { FastifyInstance } from "fastify";
 import type {
   AddCampaignMemberInput,
+  AssignCampaignSessionExperienceInput,
   CreateCampaignInput,
   CreateCampaignNpcInput,
+  CreateCampaignSessionInput,
   GrantCampaignExperienceInput,
   UpdateCampaignInput,
-  UpdateCampaignNpcInput
+  UpdateCampaignNpcInput,
+  UpdateCampaignSessionInput
 } from "@umbra/shared";
 import { CampaignController } from "../controllers/CampaignController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
@@ -18,10 +21,8 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   const controller = new CampaignController(service);
 
   app.get("/campaigns", { preHandler: [requireAuth] }, controller.list.bind(controller));
-  app.get<{ Params: { campaignId: string } }>(
-    "/campaigns/:campaignId",
-    { preHandler: [requireAuth] },
-    async (request, reply) => controller.get(request, reply)
+  app.get<{ Params: { campaignId: string } }>("/campaigns/:campaignId", { preHandler: [requireAuth] }, async (request, reply) =>
+    controller.get(request, reply)
   );
   app.post<{ Body: CreateCampaignInput }>("/campaigns", { preHandler: [requireAuth] }, async (request, reply) =>
     controller.create(request, reply)
@@ -36,10 +37,8 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [requireAuth] },
     async (request, reply) => controller.addMember(request, reply)
   );
-  app.delete<{ Params: { memberId: string } }>(
-    "/campaign-members/:memberId",
-    { preHandler: [requireAuth] },
-    async (request, reply) => controller.removeMember(request, reply)
+  app.delete<{ Params: { memberId: string } }>("/campaign-members/:memberId", { preHandler: [requireAuth] }, async (request, reply) =>
+    controller.removeMember(request, reply)
   );
   app.post<{ Params: { campaignId: string }; Body: { characterId: string } }>(
     "/campaigns/:campaignId/characters",
@@ -66,10 +65,23 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [requireAuth] },
     async (request, reply) => controller.updateNpc(request, reply)
   );
-  app.delete<{ Params: { npcId: string } }>(
-    "/campaign-npcs/:npcId",
+  app.delete<{ Params: { npcId: string } }>("/campaign-npcs/:npcId", { preHandler: [requireAuth] }, async (request, reply) =>
+    controller.deleteNpc(request, reply)
+  );
+  app.post<{ Params: { campaignId: string }; Body: CreateCampaignSessionInput }>(
+    "/campaigns/:campaignId/sessions",
     { preHandler: [requireAuth] },
-    async (request, reply) => controller.deleteNpc(request, reply)
+    async (request, reply) => controller.createSession(request, reply)
+  );
+  app.put<{ Params: { sessionId: string }; Body: UpdateCampaignSessionInput }>(
+    "/campaign-sessions/:sessionId",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.updateSession(request, reply)
+  );
+  app.post<{ Params: { sessionId: string }; Body: AssignCampaignSessionExperienceInput }>(
+    "/campaign-sessions/:sessionId/xp-awards",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.assignSessionExperience(request, reply)
   );
   app.post<{ Params: { campaignId: string }; Body: GrantCampaignExperienceInput }>(
     "/campaigns/:campaignId/xp-grants",

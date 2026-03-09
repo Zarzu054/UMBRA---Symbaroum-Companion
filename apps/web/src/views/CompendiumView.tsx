@@ -138,7 +138,6 @@ export function CompendiumView({
   const [linkCopied, setLinkCopied] = useState(false);
   const [historyStack, setHistoryStack] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const detailRef = useRef<HTMLDivElement | null>(null);
   const suppressHistoryRef = useRef(false);
 
   const sources = useMemo(
@@ -219,14 +218,6 @@ export function CompendiumView({
       return next;
     });
   }, [historyIndex, selectedEntry?.id]);
-
-  useEffect(() => {
-    if (!selectedEntry || !detailRef.current || focusToken === 0) {
-      return;
-    }
-
-    detailRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [focusToken, selectedEntry]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -360,7 +351,7 @@ export function CompendiumView({
           </div>
         </div>
 
-        <div ref={detailRef} className="panel compendium-detail">
+        <div className="panel compendium-detail">
           {selectedEntry ? (
             <>
               <div className="row-actions">

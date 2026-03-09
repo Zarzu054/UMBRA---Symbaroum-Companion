@@ -439,6 +439,7 @@ export const refreshSchema = z.object({
 });
 
 export const campaignMemberRoleSchema = z.enum(["gm", "player"]);
+export const campaignSessionStatusSchema = z.enum(["planned", "completed", "cancelled"]);
 
 export const createCampaignSchema = z.object({
   name: z.string().min(3).max(120),
@@ -477,10 +478,34 @@ export const grantCampaignExperienceSchema = z.object({
   reason: z.string().min(2).max(300)
 });
 
+export const createCampaignSessionSchema = z.object({
+  title: z.string().min(3).max(160),
+  scheduledFor: z.string().datetime(),
+  location: z.string().max(160).default(""),
+  summary: z.string().max(500).default(""),
+  publicNotes: z.string().max(4000).default(""),
+  dmNotes: z.string().max(4000).default(""),
+  status: campaignSessionStatusSchema.default("planned")
+});
+
+export const updateCampaignSessionSchema = createCampaignSessionSchema.partial();
+
+export const assignCampaignSessionExperienceSchema = z.object({
+  awards: z
+    .array(
+      z.object({
+        characterId: z.string().uuid(),
+        amount: z.number().int().min(0).max(1000)
+      })
+    )
+    .max(128)
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
 export type CampaignMemberRole = z.infer<typeof campaignMemberRoleSchema>;
+export type CampaignSessionStatus = z.infer<typeof campaignSessionStatusSchema>;
 export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
 export type UpdateCampaignInput = z.infer<typeof updateCampaignSchema>;
 export type AddCampaignMemberInput = z.infer<typeof addCampaignMemberSchema>;
@@ -488,6 +513,9 @@ export type LinkCampaignCharacterInput = z.infer<typeof linkCampaignCharacterSch
 export type CreateCampaignNpcInput = z.infer<typeof createCampaignNpcSchema>;
 export type UpdateCampaignNpcInput = z.infer<typeof updateCampaignNpcSchema>;
 export type GrantCampaignExperienceInput = z.infer<typeof grantCampaignExperienceSchema>;
+export type CreateCampaignSessionInput = z.infer<typeof createCampaignSessionSchema>;
+export type UpdateCampaignSessionInput = z.infer<typeof updateCampaignSessionSchema>;
+export type AssignCampaignSessionExperienceInput = z.infer<typeof assignCampaignSessionExperienceSchema>;
 
 export type AuthUser = {
   id: string;
@@ -559,6 +587,7 @@ export type CampaignNpc = {
 
 export type CampaignExperienceLog = {
   id: string;
+  sessionId: string | null;
   characterId: string;
   characterName: string;
   grantedById: string;
@@ -566,6 +595,19 @@ export type CampaignExperienceLog = {
   amount: number;
   reason: string;
   createdAt: string;
+};
+
+export type CampaignSession = {
+  id: string;
+  title: string;
+  scheduledFor: string;
+  location: string;
+  summary: string;
+  publicNotes: string;
+  dmNotes: string;
+  status: CampaignSessionStatus;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Campaign = {
@@ -583,4 +625,5 @@ export type Campaign = {
   availableCharacters: CampaignAvailableCharacter[];
   npcs: CampaignNpc[];
   experienceLog: CampaignExperienceLog[];
+  sessions: CampaignSession[];
 };

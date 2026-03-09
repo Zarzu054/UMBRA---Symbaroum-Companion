@@ -723,6 +723,19 @@ button.subtle-button {
   gap: 18px;
 }
 
+.campaign-session-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.7fr) minmax(0, 1.3fr);
+  gap: 14px;
+}
+
+.campaign-session-list,
+.campaign-session-detail,
+.campaign-session-meta-list {
+  display: grid;
+  gap: 10px;
+}
+
 .campaign-list,
 .campaign-log-list,
 .campaign-npc-list {
@@ -757,6 +770,22 @@ button.subtle-button {
 .campaign-inline-form .field,
 .campaign-xp-reason {
   min-width: 0;
+}
+
+.campaign-invite-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.campaign-invite-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(139, 109, 77, 0.28);
+  border-radius: 12px;
+  background: rgba(255, 252, 245, 0.34);
 }
 
 .campaign-npc-card {
@@ -809,6 +838,7 @@ td {
   .compendium-filters,
   .compendium-layout,
   .campaign-layout,
+  .campaign-session-layout,
   .inline-row,
   .triple-columns,
   .entry-row {

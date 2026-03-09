@@ -29,6 +29,10 @@ function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"
     return { module: "campaigns" };
   }
 
+  if (rawHash.startsWith("characters")) {
+    return { module: "characters" };
+  }
+
   if (!rawHash.startsWith("compendium")) {
     return { module: "characters" };
   }
@@ -59,18 +63,24 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   useEffect(() => {
     function syncWithHash(): void {
       const parsed = parseHash();
-      if (parsed.module === "compendium") {
-        setActiveModule("compendium");
-        setCompendiumFocus((prev) => ({
-          entryId: parsed.focus?.entryId ?? null,
-          query: parsed.focus?.query ?? "",
-          source: parsed.focus?.source ?? "all",
-          token: prev.token + 1
-        }));
-        return;
+      switch (parsed.module) {
+        case "compendium":
+          setActiveModule("compendium");
+          setCompendiumFocus((prev) => ({
+            entryId: parsed.focus?.entryId ?? null,
+            query: parsed.focus?.query ?? "",
+            source: parsed.focus?.source ?? "all",
+            token: prev.token + 1
+          }));
+          return;
+        case "campaigns":
+          setActiveModule("campaigns");
+          return;
+        case "characters":
+        default:
+          setActiveModule("characters");
+          return;
       }
-
-      setActiveModule("characters");
     }
 
     syncWithHash();
@@ -80,13 +90,13 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
 
   function openCompendiumCapability(tipo: "habilidad" | "poder_mistico" | "ritual", nombre: string): void {
     const entryId = findCompendiumCapabilityEntryId(tipo, nombre);
-    setCompendiumFocus((prev) => ({
-      entryId,
-      query: nombre,
-      source: "all",
-      token: prev.token + 1
-    }));
-    setActiveModule("compendium");
+    const params = new URLSearchParams();
+    params.set("q", nombre);
+    params.set("source", "all");
+    if (entryId) {
+      params.set("id", entryId);
+    }
+    window.location.hash = `compendium?${params.toString()}`;
   }
 
   function openCharactersModule(): void {
