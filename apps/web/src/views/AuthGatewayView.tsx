@@ -25,7 +25,7 @@ export function AuthGatewayView({ mode, isSubmitting, error, onModeChange, onLog
   }
 
   return (
-    <main className="page">
+    <main className="page auth-page">
       <section className="panel auth-panel">
         <h1>UMBRA</h1>
         <p>Companion de Symbaroum</p>
@@ -35,7 +35,7 @@ export function AuthGatewayView({ mode, isSubmitting, error, onModeChange, onLog
           <button className={mode === "register" ? "active" : ""} onClick={() => onModeChange("register")}>Registro</button>
         </div>
 
-        <div className="form-grid">
+        <div className="form-grid auth-form-grid">
           <input placeholder="Correo" value={email} onChange={(event) => setEmail(event.target.value)} />
           <input
             type="password"
@@ -53,7 +53,7 @@ export function AuthGatewayView({ mode, isSubmitting, error, onModeChange, onLog
 
         {error ? <p className="error">{error}</p> : null}
 
-        <button disabled={isSubmitting} onClick={() => void submit()}>
+        <button className="auth-submit" disabled={isSubmitting} onClick={() => void submit()}>
           {isSubmitting ? "Procesando..." : mode === "login" ? "Entrar" : "Crear cuenta"}
         </button>
       </section>
