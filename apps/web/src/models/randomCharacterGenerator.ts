@@ -4,6 +4,7 @@ import {
   SYMBAROUM_ARCHETYPES,
   SYMBAROUM_CULTURES,
   SYMBAROUM_RACES,
+  createCharacterSchema,
   createEmptyCharacterSheet,
   type CreateCharacterInput,
   type SkillLevel
@@ -13,6 +14,7 @@ const TOTAL_ATTRIBUTE_POINTS = 80;
 const ATTRIBUTE_MIN = 5;
 const ATTRIBUTE_MAX = 15;
 const SECONDARY_ATTRIBUTE_MAX = 14;
+const MAX_GENERATION_ATTEMPTS = 24;
 
 const NAMES = [
   "Arisca",
@@ -25,23 +27,36 @@ const NAMES = [
   "Valdar",
   "Edrik",
   "Kael"
-];
+] as const;
+
+const MYSTIC_ARCHETYPE = "Místico";
 
 const PROFESSIONS_BY_ARCHETYPE: Record<(typeof SYMBAROUM_ARCHETYPES)[number], string[]> = {
   Guerrero: ["Caballero", "Capitan", "Espada de alquiler", "Duelista"],
   Cazador: ["Cazatesoros", "Explorador", "Arquero", "Rastreador"],
-  "Místico": ["Teurgo", "Bruja", "Hechicero", "Aspirante de la Ordo"],
+  [MYSTIC_ARCHETYPE]: ["Teurgo", "Bruja", "Hechicero", "Aspirante de la Ordo"],
   Maleante: ["Ladron", "Charlatan", "Espia", "Contrabandista"]
 };
 
 const ABILITIES_BY_ARCHETYPE: Record<(typeof SYMBAROUM_ARCHETYPES)[number], string[]> = {
   Guerrero: ["Armas a dos manos", "Golpe de hierro", "Combate con escudo", "Combate con armadura", "Guardaespaldas", "Berserker"],
   Cazador: ["Tirador", "Sexto sentido", "Viento de acero", "Mano veloz", "Jinete", "Versado en criaturas"],
-  "Místico": ["Poder místico", "Rituales", "Brujería", "Teúrgia", "Magia", "Ojo místico"],
+  [MYSTIC_ARCHETYPE]: ["Poder místico", "Rituales", "Brujería", "Teúrgia", "Magia", "Ojo místico"],
   Maleante: ["Ataque traicionero", "Finta", "Estrangulador", "Acrobata", "Dominacion", "Venenos"]
 };
 
 export function generateRandomCharacter(): CreateCharacterInput {
+  for (let attempt = 0; attempt < MAX_GENERATION_ATTEMPTS; attempt += 1) {
+    const candidate = buildRandomCharacter();
+    if (createCharacterSchema.safeParse(candidate).success) {
+      return candidate;
+    }
+  }
+
+  throw new Error("No fue posible generar un personaje aleatorio valido.");
+}
+
+function buildRandomCharacter(): CreateCharacterInput {
   const race = pickRandom(SYMBAROUM_RACES);
   const culture = pickRandom(SYMBAROUM_CULTURES);
   const archetype = pickRandom(SYMBAROUM_ARCHETYPES);
@@ -53,7 +68,7 @@ export function generateRandomCharacter(): CreateCharacterInput {
   sheet.identidad.cultura = culture;
   sheet.identidad.arquetipo = archetype;
   sheet.identidad.profesion = profession;
-  sheet.identidad.apariencia = "Generado automáticamente";
+  sheet.identidad.apariencia = "Generado automaticamente";
   sheet.identidad.trasfondo = "Personaje generado para pruebas de juego y balance.";
 
   sheet.atributos = generateAttributeBlock();
@@ -64,9 +79,9 @@ export function generateRandomCharacter(): CreateCharacterInput {
   const startingPattern = Math.random() < 0.5 ? "2novato_1adepto" : "5novato";
   sheet.habilidades = generateStartingAbilities(archetype, startingPattern);
 
-  sheet.equipo = ["Mochila", "Raciones (3 días)", "Antorcha", "Cuchillo"];
+  sheet.equipo = ["Mochila", "Raciones (3 dias)", "Antorcha", "Cuchillo"];
   sheet.contactos = ["Contacto inicial del grupo"];
-  sheet.notas = `Patrón inicial: ${startingPattern}`;
+  sheet.notas = `Patron inicial: ${startingPattern}`;
 
   return {
     name,
@@ -118,7 +133,10 @@ function generateAttributeBlock(): Record<(typeof ATTRIBUTE_KEYS)[number], numbe
   return attributes;
 }
 
-function generateStartingAbilities(archetype: (typeof SYMBAROUM_ARCHETYPES)[number], pattern: "2novato_1adepto" | "5novato") {
+function generateStartingAbilities(
+  archetype: (typeof SYMBAROUM_ARCHETYPES)[number],
+  pattern: "2novato_1adepto" | "5novato"
+) {
   const pool = ABILITIES_BY_ARCHETYPE[archetype];
   const picked = pickUnique(pool, pattern === "2novato_1adepto" ? 3 : 5);
   const catalogByName = new Map(SYMBAROUM_ABILITIES.map((entry) => [entry.nombre, entry]));
