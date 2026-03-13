@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   assignCampaignSessionExperienceSchema,
+  createCampaignReferenceSchema,
   createCampaignSessionSchema,
   grantCampaignExperienceSchema
 } from "../dist/index.js";
@@ -50,4 +51,19 @@ test("assignCampaignSessionExperienceSchema rechaza cantidades negativas", () =>
       awards: [{ characterId: "11111111-1111-1111-1111-111111111111", amount: -1 }]
     });
   });
+});
+
+test("createCampaignReferenceSchema acepta referencias publicas con alias", () => {
+  const parsed = createCampaignReferenceSchema.parse({
+    name: "Yndaros",
+    label: "Ciudad",
+    aliases: ["La Capital", "Ciudad de la Reina"],
+    summary: "Centro de poder de Ambria",
+    content: "Los personajes oyen rumores sobre Yndaros en casi toda la campaña.",
+    isPublic: true
+  });
+
+  assert.equal(parsed.name, "Yndaros");
+  assert.equal(parsed.aliases.length, 2);
+  assert.equal(parsed.isPublic, true);
 });

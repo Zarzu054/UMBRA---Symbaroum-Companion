@@ -501,6 +501,17 @@ export const assignCampaignSessionExperienceSchema = z.object({
     .max(128)
 });
 
+export const createCampaignReferenceSchema = z.object({
+  name: z.string().min(2).max(120),
+  label: z.string().min(2).max(80),
+  aliases: z.array(z.string().min(1).max(120)).max(20).default([]),
+  summary: z.string().max(300).default(""),
+  content: z.string().max(6000).default(""),
+  isPublic: z.boolean().default(false)
+});
+
+export const updateCampaignReferenceSchema = createCampaignReferenceSchema.partial();
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
@@ -516,6 +527,8 @@ export type GrantCampaignExperienceInput = z.infer<typeof grantCampaignExperienc
 export type CreateCampaignSessionInput = z.infer<typeof createCampaignSessionSchema>;
 export type UpdateCampaignSessionInput = z.infer<typeof updateCampaignSessionSchema>;
 export type AssignCampaignSessionExperienceInput = z.infer<typeof assignCampaignSessionExperienceSchema>;
+export type CreateCampaignReferenceInput = z.infer<typeof createCampaignReferenceSchema>;
+export type UpdateCampaignReferenceInput = z.infer<typeof updateCampaignReferenceSchema>;
 
 export type AuthUser = {
   id: string;
@@ -610,6 +623,18 @@ export type CampaignSession = {
   updatedAt: string;
 };
 
+export type CampaignReference = {
+  id: string;
+  name: string;
+  label: string;
+  aliases: string[];
+  summary: string;
+  content: string;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Campaign = {
   id: string;
   name: string;
@@ -626,4 +651,5 @@ export type Campaign = {
   npcs: CampaignNpc[];
   experienceLog: CampaignExperienceLog[];
   sessions: CampaignSession[];
+  references: CampaignReference[];
 };

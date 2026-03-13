@@ -1,14 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   createCampaignNpcSchema,
+  createCampaignReferenceSchema,
   createCampaignSchema,
   createCampaignSessionSchema,
   type AuthUser,
   type Campaign,
+  type CampaignReference,
   type CreateCampaignInput,
   type CreateCampaignNpcInput,
+  type CreateCampaignReferenceInput,
   type CreateCampaignSessionInput,
   type UpdateCampaignNpcInput,
+  type UpdateCampaignReferenceInput,
   type UpdateCampaignSessionInput
 } from "@umbra/shared";
 import {
@@ -16,8 +20,10 @@ import {
   assignCampaignSessionExperience,
   createCampaign,
   createCampaignNpc,
+  createCampaignReference,
   createCampaignSession,
   deleteCampaignNpc,
+  deleteCampaignReference,
   fetchCampaigns,
   generateCampaignNpc,
   grantCampaignExperience,
@@ -26,6 +32,7 @@ import {
   unlinkCampaignCharacter,
   updateCampaign,
   updateCampaignNpc,
+  updateCampaignReference,
   updateCampaignSession
 } from "../services/campaignService";
 
@@ -59,6 +66,14 @@ const emptySessionForm: CreateCampaignSessionInput = {
   publicNotes: "",
   dmNotes: "",
   status: "planned"
+};
+const emptyReferenceForm: CreateCampaignReferenceInput = {
+  name: "",
+  label: "",
+  aliases: [],
+  summary: "",
+  content: "",
+  isPublic: false
 };
 
 function toLocalDateTimeValue(value: string): string {
@@ -123,6 +138,101 @@ function getMatchingSessionId(campaign: Campaign, draft: CreateCampaignSessionIn
   return matches[0]?.id ?? campaign.sessions[0]?.id ?? null;
 }
 
+function aliasesToInput(value: string): string[] {
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function aliasesToText(value: string[]): string {
+  return value.join(", ");
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getReferenceTerms(references: CampaignReference[]): Array<{ referenceId: string; term: string }> {
+  const seen = new Set<string>();
+  const terms: Array<{ referenceId: string; term: string }> = [];
+
+  for (const reference of references) {
+    for (const rawTerm of [reference.name, ...reference.aliases]) {
+      const term = rawTerm.trim();
+      const key = term.toLocaleLowerCase();
+      if (!term || seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      terms.push({ referenceId: reference.id, term });
+    }
+  }
+
+  return terms.sort((left, right) => right.term.length - left.term.length);
+}
+
+function renderLinkedText(
+  text: string,
+  references: CampaignReference[],
+  onOpenReference: (referenceId: string) => void
+): ReactNode {
+  if (!text.trim() || references.length === 0) {
+    return text;
+  }
+
+  const terms = getReferenceTerms(references);
+  if (terms.length === 0) {
+    return text;
+  }
+
+  const pattern = terms.map((entry) => escapeRegExp(entry.term)).join("|");
+  if (!pattern) {
+    return text;
+  }
+
+  const regex = new RegExp(`(?<![\\p{L}\\p{N}])(${pattern})(?![\\p{L}\\p{N}])`, "giu");
+  const lookup = new Map(terms.map((entry) => [entry.term.toLocaleLowerCase(), entry.referenceId]));
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+  let match = regex.exec(text);
+
+  while (match) {
+    const start = match.index;
+    const end = start + match[0].length;
+    const referenceId = lookup.get(match[0].toLocaleLowerCase());
+
+    if (start > lastIndex) {
+      nodes.push(text.slice(lastIndex, start));
+    }
+
+    if (referenceId) {
+      nodes.push(
+        <button
+          key={`${referenceId}-${start}`}
+          type="button"
+          className="campaign-reference-link"
+          onClick={() => onOpenReference(referenceId)}
+        >
+          {match[0]}
+        </button>
+      );
+    } else {
+      nodes.push(match[0]);
+    }
+
+    lastIndex = end;
+    match = regex.exec(text);
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes.length > 0 ? nodes.map((node, index) => <Fragment key={index}>{node}</Fragment>) : text;
+}
+
 export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const isDirector = user.role === "gm" || user.role === "superadmin";
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -139,6 +249,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [xpForm, setXpForm] = useState({ characterId: "", amount: 1, reason: "" });
   const [sessionForm, setSessionForm] = useState<CreateCampaignSessionInput>(makeDefaultSessionForm());
   const [sessionXpDraft, setSessionXpDraft] = useState<Record<string, number>>({});
+  const [referenceForm, setReferenceForm] = useState<CreateCampaignReferenceInput>(emptyReferenceForm);
+  const [referenceAliasesText, setReferenceAliasesText] = useState("");
+  const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(null);
 
   const selectedCampaign = useMemo(
     () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
@@ -147,6 +260,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const selectedSession = useMemo(
     () => selectedCampaign?.sessions.find((session) => session.id === selectedSessionId) ?? null,
     [selectedCampaign, selectedSessionId]
+  );
+  const selectedReference = useMemo(
+    () => selectedCampaign?.references.find((reference) => reference.id === selectedReferenceId) ?? null,
+    [selectedCampaign, selectedReferenceId]
   );
   const availableUnlinkedCharacters = selectedCampaign?.availableCharacters.filter((entry) => !entry.linked) ?? [];
 
@@ -217,6 +334,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setXpForm({ characterId: "", amount: 1, reason: "" });
       setSessionForm(makeDefaultSessionForm());
       setSessionXpDraft({});
+      setReferenceForm(emptyReferenceForm);
+      setReferenceAliasesText("");
+      setSelectedReferenceId(null);
       return;
     }
 
@@ -234,6 +354,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       amount: prev.amount,
       reason: prev.reason
     }));
+    setSelectedReferenceId((current) =>
+      current && selectedCampaign.references.some((reference) => reference.id === current)
+        ? current
+        : (selectedCampaign.references[0]?.id ?? null)
+    );
   }, [availableUnlinkedCharacters, selectedCampaign]);
 
   useEffect(() => {
@@ -254,6 +379,24 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     });
     setSessionXpDraft(Object.fromEntries(selectedCampaign.characters.map((entry) => [entry.characterId, 0])));
   }, [selectedCampaign, selectedSession]);
+
+  useEffect(() => {
+    if (!selectedReference) {
+      setReferenceForm(emptyReferenceForm);
+      setReferenceAliasesText("");
+      return;
+    }
+
+    setReferenceForm({
+      name: selectedReference.name,
+      label: selectedReference.label,
+      aliases: selectedReference.aliases,
+      summary: selectedReference.summary,
+      content: selectedReference.content,
+      isPublic: selectedReference.isPublic
+    });
+    setReferenceAliasesText(aliasesToText(selectedReference.aliases));
+  }, [selectedReference]);
 
   async function refresh(): Promise<void> {
     setIsLoading(true);
@@ -277,6 +420,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     });
     setSelectedCampaignId(updated.id);
   }
+
+  function openReference(referenceId: string): void {
+    setSelectedReferenceId(referenceId);
+  }
+
   async function handleCreateCampaign(): Promise<void> {
     setError(null);
     setIsSaving(true);
@@ -526,6 +674,74 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     }
   }
 
+  async function handleCreateReference(): Promise<void> {
+    if (!selectedCampaign) {
+      return;
+    }
+
+    setError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      const parsed = createCampaignReferenceSchema.parse({
+        ...referenceForm,
+        aliases: aliasesToInput(referenceAliasesText)
+      });
+      const updated = await createCampaignReference(selectedCampaign.id, parsed, token);
+      upsertCampaign(updated);
+      setReferenceForm(emptyReferenceForm);
+      setReferenceAliasesText("");
+      setSelectedReferenceId(updated.references[0]?.id ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo crear la referencia");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleSaveReference(): Promise<void> {
+    if (!selectedReference) {
+      return;
+    }
+
+    setError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      const parsed = {
+        ...referenceForm,
+        aliases: aliasesToInput(referenceAliasesText)
+      } as UpdateCampaignReferenceInput;
+      const updated = await updateCampaignReference(selectedReference.id, parsed, token);
+      upsertCampaign(updated);
+      setSelectedReferenceId(selectedReference.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo guardar la referencia");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDeleteReference(): Promise<void> {
+    if (!selectedReference) {
+      return;
+    }
+
+    setError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      const deletedId = selectedReference.id;
+      const updated = await deleteCampaignReference(deletedId, token);
+      upsertCampaign(updated);
+      setSelectedReferenceId(updated.references.find((reference) => reference.id !== deletedId)?.id ?? updated.references[0]?.id ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo eliminar la referencia");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <section className="campaigns-module">
       <section className="panel campaign-hero">
@@ -635,10 +851,115 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               <span>Resumen</span>
               <textarea rows={3} value={draft.summary} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, summary: event.target.value }))} />
             </label>
+            <CampaignLinkedTextBlock
+              title="Vista enlazada del resumen"
+              text={draft.summary}
+              references={selectedCampaign.references}
+              onOpenReference={openReference}
+            />
             <label className="field">
               <span>Notas del director</span>
               <textarea rows={5} value={draft.notes} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))} />
             </label>
+            {draft.notes ? (
+              <CampaignLinkedTextBlock
+                title="Vista enlazada de notas"
+                text={draft.notes}
+                references={selectedCampaign.references}
+                onOpenReference={openReference}
+              />
+            ) : null}
+          </section>
+
+          <section className="panel">
+            <div className="row-actions">
+              <h3>Wiki de campaña</h3>
+              {isDirector ? (
+                <button
+                  disabled={isSaving}
+                  onClick={() => {
+                    setSelectedReferenceId(null);
+                    setReferenceForm(emptyReferenceForm);
+                    setReferenceAliasesText("");
+                  }}
+                >
+                  Nueva referencia
+                </button>
+              ) : null}
+            </div>
+            <div className="campaign-reference-layout">
+              <div className="campaign-reference-list">
+                {selectedCampaign.references.map((reference) => (
+                  <button
+                    key={reference.id}
+                    className={`campaign-list-item${selectedReferenceId === reference.id ? " is-active" : ""}`}
+                    onClick={() => openReference(reference.id)}
+                  >
+                    <strong>{reference.name}</strong>
+                    <span>{reference.label}</span>
+                    <span>{reference.isPublic ? "Visible para jugadores" : "Solo DJ"}</span>
+                  </button>
+                ))}
+                {selectedCampaign.references.length === 0 ? (
+                  <p className="section-help">Aun no hay referencias creadas para esta campaña.</p>
+                ) : null}
+              </div>
+
+              <div className="campaign-reference-detail">
+                {isDirector ? (
+                  <>
+                    <div className="row-actions">
+                      <h3>{selectedReference ? "Editar referencia" : "Crear referencia"}</h3>
+                      <div className="toolbar">
+                        <button disabled={isSaving} onClick={() => void (selectedReference ? handleSaveReference() : handleCreateReference())}>
+                          {selectedReference ? "Guardar referencia" : "Crear referencia"}
+                        </button>
+                        {selectedReference ? (
+                          <button className="danger" disabled={isSaving} onClick={() => void handleDeleteReference()}>
+                            Eliminar referencia
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="form-grid">
+                      <label className="field">
+                        <span>Nombre</span>
+                        <input value={referenceForm.name} onChange={(event) => setReferenceForm((prev) => ({ ...prev, name: event.target.value }))} />
+                      </label>
+                      <label className="field">
+                        <span>Etiqueta</span>
+                        <input value={referenceForm.label} onChange={(event) => setReferenceForm((prev) => ({ ...prev, label: event.target.value }))} />
+                      </label>
+                      <label className="field">
+                        <span>Alias</span>
+                        <input value={referenceAliasesText} onChange={(event) => setReferenceAliasesText(event.target.value)} placeholder="Bosque oscuro, Davokar oscuro" />
+                      </label>
+                      <label className="field checkbox-field">
+                        <span>Visible para jugadores</span>
+                        <input
+                          type="checkbox"
+                          checked={referenceForm.isPublic}
+                          onChange={(event) => setReferenceForm((prev) => ({ ...prev, isPublic: event.target.checked }))}
+                        />
+                      </label>
+                    </div>
+                    <label className="field">
+                      <span>Resumen corto</span>
+                      <textarea rows={2} value={referenceForm.summary} onChange={(event) => setReferenceForm((prev) => ({ ...prev, summary: event.target.value }))} />
+                    </label>
+                    <label className="field">
+                      <span>Contenido</span>
+                      <textarea rows={8} value={referenceForm.content} onChange={(event) => setReferenceForm((prev) => ({ ...prev, content: event.target.value }))} />
+                    </label>
+                    <CampaignReferencePreview reference={{ ...referenceForm, id: selectedReference?.id ?? "draft", aliases: aliasesToInput(referenceAliasesText), createdAt: "", updatedAt: "" }} />
+                  </>
+                ) : selectedReference ? (
+                  <CampaignReferencePreview reference={selectedReference} />
+                ) : (
+                  <p className="section-help">Selecciona una referencia resaltada o una entrada de la lista.</p>
+                )}
+              </div>
+            </div>
           </section>
 
           <section className="panel">
@@ -752,14 +1073,32 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                       <span>Resumen para la mesa</span>
                       <textarea rows={2} value={sessionForm.summary} onChange={(event) => setSessionForm((prev) => ({ ...prev, summary: event.target.value }))} />
                     </label>
+                    <CampaignLinkedTextBlock
+                      title="Vista enlazada del resumen de sesión"
+                      text={sessionForm.summary}
+                      references={selectedCampaign.references}
+                      onOpenReference={openReference}
+                    />
                     <label className="field">
                       <span>Notas visibles para la mesa</span>
                       <textarea rows={4} value={sessionForm.publicNotes} onChange={(event) => setSessionForm((prev) => ({ ...prev, publicNotes: event.target.value }))} />
                     </label>
+                    <CampaignLinkedTextBlock
+                      title="Vista enlazada de notas públicas"
+                      text={sessionForm.publicNotes}
+                      references={selectedCampaign.references}
+                      onOpenReference={openReference}
+                    />
                     <label className="field">
                       <span>Notas secretas del DJ</span>
                       <textarea rows={4} value={sessionForm.dmNotes} onChange={(event) => setSessionForm((prev) => ({ ...prev, dmNotes: event.target.value }))} />
                     </label>
+                    <CampaignLinkedTextBlock
+                      title="Vista enlazada de notas secretas"
+                      text={sessionForm.dmNotes}
+                      references={selectedCampaign.references}
+                      onOpenReference={openReference}
+                    />
 
                     {selectedSession ? (
                       <>
@@ -796,6 +1135,22 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   <>
                     <h3>{selectedSession?.title ?? "Sesiones"}</h3>
                     <p className="section-help">Las sesiones son una herramienta interna del DJ en el MVP actual.</p>
+                    {selectedSession ? (
+                      <>
+                        <CampaignLinkedTextBlock
+                          title="Resumen"
+                          text={selectedSession.summary}
+                          references={selectedCampaign.references}
+                          onOpenReference={openReference}
+                        />
+                        <CampaignLinkedTextBlock
+                          title="Notas visibles"
+                          text={selectedSession.publicNotes}
+                          references={selectedCampaign.references}
+                          onOpenReference={openReference}
+                        />
+                      </>
+                    ) : null}
                   </>
                 )}
               </div>
@@ -937,6 +1292,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   npc={npc}
                   editable={isDirector}
                   busy={isSaving}
+                  references={selectedCampaign.references}
+                  onOpenReference={openReference}
                   onSave={handleUpdateNpc}
                   onDelete={handleDeleteNpc}
                 />
@@ -971,11 +1328,13 @@ type CampaignNpcEditorProps = {
   npc: Campaign["npcs"][number];
   editable: boolean;
   busy: boolean;
+  references: CampaignReference[];
+  onOpenReference: (referenceId: string) => void;
   onSave: (npcId: string, payload: UpdateCampaignNpcInput) => Promise<void>;
   onDelete: (npcId: string) => Promise<void>;
 };
 
-function CampaignNpcEditor({ npc, editable, busy, onSave, onDelete }: CampaignNpcEditorProps) {
+function CampaignNpcEditor({ npc, editable, busy, references, onOpenReference, onSave, onDelete }: CampaignNpcEditorProps) {
   const [draft, setDraft] = useState<UpdateCampaignNpcInput>(npc);
 
   useEffect(() => {
@@ -1010,6 +1369,7 @@ function CampaignNpcEditor({ npc, editable, busy, onSave, onDelete }: CampaignNp
         <span>Resumen</span>
         <textarea rows={2} value={draft.summary ?? ""} disabled={!editable} onChange={(event) => setDraft((prev) => ({ ...prev, summary: event.target.value }))} />
       </label>
+      <CampaignLinkedTextBlock title="Vista enlazada del resumen" text={draft.summary ?? ""} references={references} onOpenReference={onOpenReference} />
       <label className="field">
         <span>Bloque rapido</span>
         <textarea rows={2} value={draft.statBlock ?? ""} disabled={!editable} onChange={(event) => setDraft((prev) => ({ ...prev, statBlock: event.target.value }))} />
@@ -1018,6 +1378,7 @@ function CampaignNpcEditor({ npc, editable, busy, onSave, onDelete }: CampaignNp
         <span>Notas</span>
         <textarea rows={3} value={draft.notes ?? ""} disabled={!editable} onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))} />
       </label>
+      <CampaignLinkedTextBlock title="Vista enlazada de notas" text={draft.notes ?? ""} references={references} onOpenReference={onOpenReference} />
       <div className="card-actions">
         <span>{npc.isGenerated ? "Generado" : "Manual"}</span>
         {editable ? (
@@ -1032,5 +1393,47 @@ function CampaignNpcEditor({ npc, editable, busy, onSave, onDelete }: CampaignNp
         ) : null}
       </div>
     </article>
+  );
+}
+
+type CampaignLinkedTextBlockProps = {
+  title: string;
+  text: string;
+  references: CampaignReference[];
+  onOpenReference: (referenceId: string) => void;
+};
+
+function CampaignLinkedTextBlock({ title, text, references, onOpenReference }: CampaignLinkedTextBlockProps) {
+  if (!text.trim()) {
+    return null;
+  }
+
+  return (
+    <div className="campaign-linked-text">
+      <strong>{title}</strong>
+      <p>{renderLinkedText(text, references, onOpenReference)}</p>
+    </div>
+  );
+}
+
+function CampaignReferencePreview({ reference }: { reference: CampaignReference }) {
+  return (
+    <div className="campaign-reference-preview">
+      <div className="row-actions">
+        <div>
+          <h3>{reference.name || "Referencia sin nombre"}</h3>
+          <p className="meta-text">
+            {reference.label || "Sin etiqueta"} · {reference.isPublic ? "Visible para jugadores" : "Solo DJ"}
+          </p>
+        </div>
+      </div>
+      {reference.aliases.length > 0 ? (
+        <p className="meta-text">
+          Alias: {reference.aliases.join(", ")}
+        </p>
+      ) : null}
+      {reference.summary ? <p>{reference.summary}</p> : null}
+      {reference.content ? <p>{reference.content}</p> : <p className="section-help">Sin contenido detallado todavía.</p>}
+    </div>
   );
 }

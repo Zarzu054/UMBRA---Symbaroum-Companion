@@ -799,6 +799,20 @@ button.subtle-button {
   gap: 10px;
 }
 
+.campaign-reference-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.7fr) minmax(0, 1.3fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.campaign-reference-list,
+.campaign-reference-detail,
+.campaign-reference-preview {
+  display: grid;
+  gap: 10px;
+}
+
 .campaign-list-item {
   width: 100%;
   text-align: left;
@@ -848,6 +862,57 @@ button.subtle-button {
   gap: 10px;
 }
 
+.campaign-linked-text {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid rgba(139, 109, 77, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 252, 245, 0.36);
+}
+
+.campaign-linked-text p,
+.campaign-reference-preview p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.campaign-reference-link {
+  display: inline;
+  width: auto;
+  padding: 0 3px;
+  margin: 0;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(156, 74, 46, 0.18);
+  color: var(--rubric-strong);
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.campaign-reference-link:hover {
+  background: rgba(156, 74, 46, 0.28);
+}
+
+.campaign-reference-preview {
+  padding: 14px 16px;
+  border: 1px solid rgba(139, 109, 77, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 252, 245, 0.34);
+}
+
+.checkbox-field {
+  align-content: center;
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  justify-self: start;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -895,6 +960,7 @@ td {
   .compendium-layout,
   .campaign-layout,
   .campaign-session-layout,
+  .campaign-reference-layout,
   .inline-row,
   .triple-columns,
   .entry-row {

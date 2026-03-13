@@ -4,10 +4,12 @@ import type {
   Campaign,
   CreateCampaignInput,
   CreateCampaignNpcInput,
+  CreateCampaignReferenceInput,
   CreateCampaignSessionInput,
   GrantCampaignExperienceInput,
   UpdateCampaignInput,
   UpdateCampaignNpcInput,
+  UpdateCampaignReferenceInput,
   UpdateCampaignSessionInput
 } from "@umbra/shared";
 
@@ -45,6 +47,9 @@ export async function generateCampaignNpc(campaignId: string, accessToken: strin
 export async function updateCampaignNpc(npcId: string, input: UpdateCampaignNpcInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-npcs/${npcId}`, accessToken, { method: "PUT", body: JSON.stringify(input) })).data; }
 export async function deleteCampaignNpc(npcId: string, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-npcs/${npcId}`, accessToken, { method: "DELETE" })).data; }
 export async function createCampaignSession(campaignId: string, input: CreateCampaignSessionInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaigns/${campaignId}/sessions`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
+export async function createCampaignReference(campaignId: string, input: CreateCampaignReferenceInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaigns/${campaignId}/references`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
 export async function updateCampaignSession(sessionId: string, input: UpdateCampaignSessionInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-sessions/${sessionId}`, accessToken, { method: "PUT", body: JSON.stringify(input) })).data; }
+export async function updateCampaignReference(referenceId: string, input: UpdateCampaignReferenceInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-references/${referenceId}`, accessToken, { method: "PUT", body: JSON.stringify(input) })).data; }
+export async function deleteCampaignReference(referenceId: string, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-references/${referenceId}`, accessToken, { method: "DELETE" })).data; }
 export async function assignCampaignSessionExperience(sessionId: string, input: AssignCampaignSessionExperienceInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-sessions/${sessionId}/xp-awards`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
 export async function grantCampaignExperience(campaignId: string, input: GrantCampaignExperienceInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaigns/${campaignId}/xp-grants`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }

@@ -86,6 +86,7 @@ model Campaign {
   npcs         CampaignNpc[]
   experienceLog CampaignXpLog[]
   sessions     CampaignSession[]
+  references   CampaignReference[]
 
   @@index([gmId])
   @@map("campaigns")
@@ -177,4 +178,22 @@ model CampaignSession {
   @@index([campaignId])
   @@index([scheduledFor])
   @@map("campaign_sessions")
+}
+
+model CampaignReference {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId String   @map("campaign_id") @db.Uuid
+  name       String
+  label      String
+  aliases    Json     @default("[]")
+  summary    String   @default("")
+  content    String   @default("")
+  isPublic   Boolean  @default(false) @map("is_public")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([name])
+  @@map("campaign_references")
 }

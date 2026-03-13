@@ -4,10 +4,12 @@ import type {
   AssignCampaignSessionExperienceInput,
   CreateCampaignInput,
   CreateCampaignNpcInput,
+  CreateCampaignReferenceInput,
   CreateCampaignSessionInput,
   GrantCampaignExperienceInput,
   UpdateCampaignInput,
   UpdateCampaignNpcInput,
+  UpdateCampaignReferenceInput,
   UpdateCampaignSessionInput
 } from "@umbra/shared";
 import { CampaignService } from "../services/CampaignService.js";
@@ -111,12 +113,36 @@ export class CampaignController {
     reply.code(201).send({ data: campaign });
   }
 
+  async createReference(
+    request: FastifyRequest<{ Params: { campaignId: string }; Body: CreateCampaignReferenceInput }>,
+    reply: FastifyReply
+  ): Promise<void> {
+    const user = request.authUser!;
+    const campaign = await this.service.createReference(user.id, user.role, request.params.campaignId, request.body);
+    reply.code(201).send({ data: campaign });
+  }
+
   async updateSession(
     request: FastifyRequest<{ Params: { sessionId: string }; Body: UpdateCampaignSessionInput }>,
     reply: FastifyReply
   ): Promise<void> {
     const user = request.authUser!;
     const campaign = await this.service.updateSession(user.id, user.role, request.params.sessionId, request.body);
+    reply.send({ data: campaign });
+  }
+
+  async updateReference(
+    request: FastifyRequest<{ Params: { referenceId: string }; Body: UpdateCampaignReferenceInput }>,
+    reply: FastifyReply
+  ): Promise<void> {
+    const user = request.authUser!;
+    const campaign = await this.service.updateReference(user.id, user.role, request.params.referenceId, request.body);
+    reply.send({ data: campaign });
+  }
+
+  async deleteReference(request: FastifyRequest<{ Params: { referenceId: string } }>, reply: FastifyReply): Promise<void> {
+    const user = request.authUser!;
+    const campaign = await this.service.deleteReference(user.id, user.role, request.params.referenceId);
     reply.send({ data: campaign });
   }
 

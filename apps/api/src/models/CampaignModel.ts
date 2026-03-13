@@ -42,6 +42,11 @@ const campaignInclude = {
     orderBy: {
       scheduledFor: "desc"
     }
+  },
+  references: {
+    orderBy: {
+      updatedAt: "desc"
+    }
   }
 } satisfies Prisma.CampaignInclude;
 
@@ -93,6 +98,7 @@ function mapCampaign(
   const linkedIds = new Set(row.characters.map((entry) => entry.characterId));
   const isDirector = viewerRole === "superadmin" || row.gmId === viewerId;
   const visibleSessions = row.sessions;
+  const visibleReferences = row.references.filter((reference) => isDirector || reference.isPublic);
 
   return {
     id: row.id,
@@ -171,6 +177,17 @@ function mapCampaign(
       status: session.status,
       createdAt: session.createdAt.toISOString(),
       updatedAt: session.updatedAt.toISOString()
+    })),
+    references: visibleReferences.map((reference) => ({
+      id: reference.id,
+      name: reference.name,
+      label: reference.label,
+      aliases: Array.isArray(reference.aliases) ? reference.aliases.filter((entry): entry is string => typeof entry === "string") : [],
+      summary: reference.summary,
+      content: reference.content,
+      isPublic: reference.isPublic,
+      createdAt: reference.createdAt.toISOString(),
+      updatedAt: reference.updatedAt.toISOString()
     }))
   };
 }
@@ -393,6 +410,60 @@ export class CampaignModel {
     });
   }
 
+  async createReference(
+    campaignId: string,
+    payload: {
+      name: string;
+      label: string;
+      aliases: string[];
+      summary: string;
+      content: string;
+      isPublic: boolean;
+    }
+  ): Promise<void> {
+    await prisma.campaignReference.create({
+      data: {
+        campaignId,
+        name: payload.name,
+        label: payload.label,
+        aliases: payload.aliases,
+        summary: payload.summary,
+        content: payload.content,
+        isPublic: payload.isPublic
+      }
+    });
+  }
+
+  async updateReference(
+    referenceId: string,
+    payload: Partial<{
+      name: string;
+      label: string;
+      aliases: string[];
+      summary: string;
+      content: string;
+      isPublic: boolean;
+    }>
+  ): Promise<void> {
+    await prisma.campaignReference.update({
+      where: { id: referenceId },
+      data: {
+        name: payload.name,
+        label: payload.label,
+        aliases: payload.aliases,
+        summary: payload.summary,
+        content: payload.content,
+        isPublic: payload.isPublic
+      }
+    });
+  }
+
+  async deleteReference(referenceId: string): Promise<void> {
+    await prisma.campaignReference.delete({
+      where: { id: referenceId }
+    });
+  }
+
   async findMemberByEmail(email: string): Promise<{ id: string; email: string; role: string } | null> {
     return prisma.user.findUnique({
       where: { email },
@@ -444,6 +515,13 @@ export class CampaignModel {
     return prisma.campaignSession.findUnique({
       where: { id: sessionId },
       select: { id: true, campaignId: true, title: true }
+    });
+  }
+
+  async findReferenceById(referenceId: string): Promise<{ id: string; campaignId: string } | null> {
+    return prisma.campaignReference.findUnique({
+      where: { id: referenceId },
+      select: { id: true, campaignId: true }
     });
   }
 

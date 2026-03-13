@@ -4,10 +4,12 @@ import type {
   AssignCampaignSessionExperienceInput,
   CreateCampaignInput,
   CreateCampaignNpcInput,
+  CreateCampaignReferenceInput,
   CreateCampaignSessionInput,
   GrantCampaignExperienceInput,
   UpdateCampaignInput,
   UpdateCampaignNpcInput,
+  UpdateCampaignReferenceInput,
   UpdateCampaignSessionInput
 } from "@umbra/shared";
 import { CampaignController } from "../controllers/CampaignController.js";
@@ -73,10 +75,25 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [requireAuth] },
     async (request, reply) => controller.createSession(request, reply)
   );
+  app.post<{ Params: { campaignId: string }; Body: CreateCampaignReferenceInput }>(
+    "/campaigns/:campaignId/references",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.createReference(request, reply)
+  );
   app.put<{ Params: { sessionId: string }; Body: UpdateCampaignSessionInput }>(
     "/campaign-sessions/:sessionId",
     { preHandler: [requireAuth] },
     async (request, reply) => controller.updateSession(request, reply)
+  );
+  app.put<{ Params: { referenceId: string }; Body: UpdateCampaignReferenceInput }>(
+    "/campaign-references/:referenceId",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.updateReference(request, reply)
+  );
+  app.delete<{ Params: { referenceId: string } }>(
+    "/campaign-references/:referenceId",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.deleteReference(request, reply)
   );
   app.post<{ Params: { sessionId: string }; Body: AssignCampaignSessionExperienceInput }>(
     "/campaign-sessions/:sessionId/xp-awards",

@@ -1,6 +1,7 @@
 ﻿import {
   addCampaignMemberSchema,
   createCampaignNpcSchema,
+  createCampaignReferenceSchema,
   createCampaignSchema,
   createCampaignSessionSchema,
   assignCampaignSessionExperienceSchema,
@@ -9,6 +10,7 @@
   SYMBAROUM_ARCHETYPES,
   SYMBAROUM_RACES,
   updateCampaignNpcSchema,
+  updateCampaignReferenceSchema,
   updateCampaignSchema,
   updateCampaignSessionSchema,
   type AddCampaignMemberInput,
@@ -16,10 +18,12 @@
   type Campaign,
   type CreateCampaignInput,
   type CreateCampaignNpcInput,
+  type CreateCampaignReferenceInput,
   type CreateCampaignSessionInput,
   type GrantCampaignExperienceInput,
   type UpdateCampaignInput,
   type UpdateCampaignNpcInput,
+  type UpdateCampaignReferenceInput,
   type UpdateCampaignSessionInput,
   type UserRole
 } from "@umbra/shared";
@@ -222,6 +226,55 @@ export class CampaignService {
     const payload = updateCampaignSessionSchema.parse(input);
     await this.model.updateSession(sessionId, toSessionPayload(payload));
     return this.getCampaign(userId, userRole, session.campaignId);
+  }
+
+  async createReference(
+    userId: string,
+    userRole: UserRole,
+    campaignId: string,
+    input: CreateCampaignReferenceInput
+  ): Promise<Campaign> {
+    requireDirectorRole(userRole);
+    await this.assertCampaignManagedBy(userId, userRole, campaignId);
+    const payload = createCampaignReferenceSchema.parse({
+      ...input,
+      aliases: input.aliases.map((alias: string) => alias.trim()).filter(Boolean)
+    });
+    await this.model.createReference(campaignId, payload);
+    return this.getCampaign(userId, userRole, campaignId);
+  }
+
+  async updateReference(
+    userId: string,
+    userRole: UserRole,
+    referenceId: string,
+    input: UpdateCampaignReferenceInput
+  ): Promise<Campaign> {
+    requireDirectorRole(userRole);
+    const reference = await this.model.findReferenceById(referenceId);
+    if (!reference) {
+      throw new AppError("CAMPAIGN_REFERENCE_NOT_FOUND", "Referencia de campaña no encontrada", 404);
+    }
+
+    await this.assertCampaignManagedBy(userId, userRole, reference.campaignId);
+    const payload = updateCampaignReferenceSchema.parse({
+      ...input,
+      aliases: input.aliases?.map((alias: string) => alias.trim()).filter(Boolean)
+    });
+    await this.model.updateReference(referenceId, payload);
+    return this.getCampaign(userId, userRole, reference.campaignId);
+  }
+
+  async deleteReference(userId: string, userRole: UserRole, referenceId: string): Promise<Campaign> {
+    requireDirectorRole(userRole);
+    const reference = await this.model.findReferenceById(referenceId);
+    if (!reference) {
+      throw new AppError("CAMPAIGN_REFERENCE_NOT_FOUND", "Referencia de campaña no encontrada", 404);
+    }
+
+    await this.assertCampaignManagedBy(userId, userRole, reference.campaignId);
+    await this.model.deleteReference(referenceId);
+    return this.getCampaign(userId, userRole, reference.campaignId);
   }
 
   async assignSessionExperience(
