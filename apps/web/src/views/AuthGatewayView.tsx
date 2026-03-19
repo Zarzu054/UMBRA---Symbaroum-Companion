@@ -24,6 +24,11 @@ export function AuthGatewayView({ mode, isSubmitting, error, onModeChange, onLog
     await onRegister({ email, password, role });
   }
 
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    void submit();
+  }
+
   return (
     <main className="page auth-page">
       <section className="panel auth-panel">
@@ -35,27 +40,53 @@ export function AuthGatewayView({ mode, isSubmitting, error, onModeChange, onLog
           <button className={mode === "register" ? "active" : ""} onClick={() => onModeChange("register")}>Registro</button>
         </div>
 
-        <div className="form-grid auth-form-grid">
-          <input placeholder="Correo" value={email} onChange={(event) => setEmail(event.target.value)} />
+        <form className="form-grid auth-form-grid" onSubmit={handleSubmit} autoComplete="on">
           <input
+            id="auth-email"
+            name="email"
+            type="email"
+            inputMode="email"
+            autoComplete={mode === "login" ? "username" : "email"}
+            aria-label="Correo"
+            data-bwignore="true"
+            data-1p-ignore="true"
+            data-lpignore="true"
+            placeholder="Correo"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+          <input
+            id="auth-password"
+            name="password"
             type="password"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            aria-label="Contrasena"
+            data-bwignore="true"
+            data-1p-ignore="true"
+            data-lpignore="true"
             placeholder="Contrasena"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
           {mode === "register" ? (
-            <select value={role} onChange={(event) => setRole(event.target.value as "player" | "gm") }>
+            <select
+              id="auth-role"
+              name="role"
+              autoComplete="off"
+              value={role}
+              onChange={(event) => setRole(event.target.value as "player" | "gm")}
+            >
               <option value="player">Jugador</option>
               <option value="gm">Director de Juego</option>
             </select>
           ) : null}
-        </div>
 
-        {error ? <p className="error">{error}</p> : null}
+          {error ? <p className="error auth-error">{error}</p> : null}
 
-        <button className="auth-submit" disabled={isSubmitting} onClick={() => void submit()}>
-          {isSubmitting ? "Procesando..." : mode === "login" ? "Entrar" : "Crear cuenta"}
-        </button>
+          <button className="auth-submit" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Procesando..." : mode === "login" ? "Entrar" : "Crear cuenta"}
+          </button>
+        </form>
       </section>
     </main>
   );

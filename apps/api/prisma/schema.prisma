@@ -24,6 +24,16 @@ enum CampaignSessionStatus {
   cancelled
 }
 
+enum CampaignChatVisibility {
+  all
+  gm_only
+}
+
+enum CampaignChatMessageType {
+  text
+  action
+}
+
 model User {
   id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email               String             @unique
@@ -35,6 +45,7 @@ model User {
   gmCampaigns         Campaign[]         @relation("CampaignGm")
   campaignMemberships CampaignMember[]
   campaignXpGrants    CampaignXpLog[]    @relation("CampaignXpGrantUser")
+  campaignChatMessages CampaignChatMessage[]
 
   @@map("users")
 }
@@ -54,6 +65,7 @@ model Character {
   owner             User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   campaignLinks     CampaignCharacter[]
   campaignXpEntries CampaignXpLog[]
+  campaignChatEntries CampaignChatMessage[]
 
   @@map("characters")
 }
@@ -87,6 +99,7 @@ model Campaign {
   experienceLog CampaignXpLog[]
   sessions     CampaignSession[]
   references   CampaignReference[]
+  chatMessages CampaignChatMessage[]
 
   @@index([gmId])
   @@map("campaigns")
@@ -130,6 +143,7 @@ model CampaignNpc {
   summary    String   @default("")
   notes      String   @default("")
   statBlock  String   @default("") @map("stat_block")
+  sheet      Json?
   isGenerated Boolean @default(false) @map("is_generated")
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -137,6 +151,30 @@ model CampaignNpc {
 
   @@index([campaignId])
   @@map("campaign_npcs")
+}
+
+model CampaignChatMessage {
+  id           String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId   String                  @map("campaign_id") @db.Uuid
+  userId       String                  @map("user_id") @db.Uuid
+  characterId  String?                 @map("character_id") @db.Uuid
+  visibility   CampaignChatVisibility  @default(all)
+  messageType  CampaignChatMessageType @default(text) @map("message_type")
+  text         String                  @default("")
+  actionId     String?                 @map("action_id")
+  actionLabel  String?                 @map("action_label")
+  actionCost   String?                 @map("action_cost")
+  actionSummary String?                @map("action_summary")
+  rolls        Json                    @default("[]")
+  createdAt    DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  campaign     Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character    Character?              @relation(fields: [characterId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId, createdAt])
+  @@index([userId])
+  @@index([characterId])
+  @@map("campaign_chat_messages")
 }
 
 model CampaignXpLog {

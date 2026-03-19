@@ -2,6 +2,7 @@
 import type {
   AddCampaignMemberInput,
   AssignCampaignSessionExperienceInput,
+  CreateCampaignChatMessageInput,
   CreateCampaignInput,
   CreateCampaignNpcInput,
   CreateCampaignReferenceInput,
@@ -9,7 +10,9 @@ import type {
   GrantCampaignExperienceInput,
   UpdateCampaignInput,
   UpdateCampaignNpcInput,
+  UpdateCampaignNpcSheetInput,
   UpdateCampaignReferenceInput,
+  UpdateCampaignCharacterSheetInput,
   UpdateCampaignSessionInput
 } from "@umbra/shared";
 import { CampaignController } from "../controllers/CampaignController.js";
@@ -26,8 +29,23 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Params: { campaignId: string } }>("/campaigns/:campaignId", { preHandler: [requireAuth] }, async (request, reply) =>
     controller.get(request, reply)
   );
+  app.get<{ Params: { campaignId: string } }>(
+    "/campaigns/:campaignId/chat-messages",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.listChatMessages(request, reply)
+  );
+  app.get<{ Params: { campaignId: string } }>(
+    "/campaigns/:campaignId/chat-stream",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.streamChat(request, reply)
+  );
   app.post<{ Body: CreateCampaignInput }>("/campaigns", { preHandler: [requireAuth] }, async (request, reply) =>
     controller.create(request, reply)
+  );
+  app.post<{ Params: { campaignId: string }; Body: CreateCampaignChatMessageInput }>(
+    "/campaigns/:campaignId/chat-messages",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.createChatMessage(request, reply)
   );
   app.put<{ Params: { campaignId: string }; Body: UpdateCampaignInput }>(
     "/campaigns/:campaignId",
@@ -52,6 +70,11 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [requireAuth] },
     async (request, reply) => controller.unlinkCharacter(request, reply)
   );
+  app.put<{ Params: { linkId: string }; Body: UpdateCampaignCharacterSheetInput }>(
+    "/campaign-characters/:linkId/sheet",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.updateCharacterSheet(request, reply)
+  );
   app.post<{ Params: { campaignId: string }; Body: CreateCampaignNpcInput }>(
     "/campaigns/:campaignId/npcs",
     { preHandler: [requireAuth] },
@@ -69,6 +92,16 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   );
   app.delete<{ Params: { npcId: string } }>("/campaign-npcs/:npcId", { preHandler: [requireAuth] }, async (request, reply) =>
     controller.deleteNpc(request, reply)
+  );
+  app.post<{ Params: { npcId: string } }>(
+    "/campaign-npcs/:npcId/sheet",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.createNpcSheet(request, reply)
+  );
+  app.put<{ Params: { npcId: string }; Body: UpdateCampaignNpcSheetInput }>(
+    "/campaign-npcs/:npcId/sheet",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.updateNpcSheet(request, reply)
   );
   app.post<{ Params: { campaignId: string }; Body: CreateCampaignSessionInput }>(
     "/campaigns/:campaignId/sessions",

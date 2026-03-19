@@ -1,5 +1,5 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { CreateCharacterInput, UpdateCharacterInput } from "@umbra/shared";
+import type { CreateCharacterInput, ImportCharacterInput, UpdateCharacterInput } from "@umbra/shared";
 import { CharacterService } from "../services/CharacterService.js";
 
 export class CharacterController {
@@ -14,6 +14,12 @@ export class CharacterController {
   async create(request: FastifyRequest<{ Body: CreateCharacterInput }>, reply: FastifyReply): Promise<void> {
     const ownerId = request.authUser!.id;
     const created = await this.service.createCharacter(ownerId, request.body);
+    reply.code(201).send({ data: created });
+  }
+
+  async import(request: FastifyRequest<{ Body: ImportCharacterInput }>, reply: FastifyReply): Promise<void> {
+    const ownerId = request.authUser!.id;
+    const created = await this.service.importCharacter(ownerId, request.body);
     reply.code(201).send({ data: created });
   }
 

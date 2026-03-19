@@ -11,14 +11,17 @@ import {
   createCharacterSchema,
   createEmptyCharacterSheet,
   parseCharacterSheet,
+  updateCharacterSchema,
   type Character,
   type CharacterSheet,
   type SymbaroumCapability,
-  type CreateCharacterInput
+  type CreateCharacterInput,
+  type ImportCharacterInput
 } from "@umbra/shared";
-import { createCharacter, deleteCharacter, duplicateCharacter, fetchCharacters, updateCharacter } from "../services/characterService";
+import { createCharacter, deleteCharacter, duplicateCharacter, fetchCharacters, importCharacter, updateCharacter } from "../services/characterService";
 import { computeDerivedStats } from "../models/rulesEngine";
 import { generateRandomCharacter } from "../models/randomCharacterGenerator";
+import { importCharacterSheetPdf } from "../services/characterPdfExport";
 
 export type CharacterFormState = CreateCharacterInput;
 
@@ -133,7 +136,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     if (!text) return;
     setForm((prev) => {
       const next = structuredClone(prev);
-      next.sheet[section] = [...next.sheet[section], { nombre: text, tipo: "", efecto: "", nivel: "novato", fuente: "", notas: "" }];
+      next.sheet[section] = [...next.sheet[section], { nombre: text, tipo: "", efecto: "", nivel: "novato", fuente: "", notas: "", acciones: [] }];
       return { ...next, sheet: safeSheetForEditing(next.sheet) };
     });
     setListInput((prev) => ({ ...prev, [sourceInput]: "" }));
@@ -155,7 +158,8 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
           nivel: "novato",
           fuente: entry.libro,
           pagina: entry.pagina,
-          notas: entry.efectoResumen
+          notas: entry.efectoResumen,
+          acciones: entry.acciones
         }
       ];
       return { ...next, sheet: safeSheetForEditing(next.sheet) };
@@ -247,7 +251,9 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
         }
       };
 
-      const validation = createCharacterSchema.safeParse(payload);
+      const validation = selectedCharacterId
+        ? updateCharacterSchema.safeParse(payload)
+        : createCharacterSchema.safeParse(payload);
       if (!validation.success) {
         setValidationErrors(
           validation.error.issues.map((issue) =>
@@ -284,6 +290,34 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo generar personaje aleatorio");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function importFromPdf(file: File): Promise<void> {
+    setError(null);
+    setValidationErrors([]);
+    setIsSaving(true);
+    try {
+      const imported: ImportCharacterInput = await importCharacterSheetPdf(file);
+      const token = await ensureAccessToken();
+      const created = await importCharacter(imported, token);
+      await refresh();
+      setSelectedCharacterId(created.id);
+      setForm({
+        name: created.name,
+        archetype: created.archetype,
+        race: created.race,
+        culture: created.culture,
+        profession: created.profession,
+        level: 1,
+        sheet: safeSheetForEditing(created.sheet)
+      });
+      setIsFormModalOpen(false);
+    } catch (err) {
+      console.error("PDF import failed", err);
+      setError(err instanceof Error ? err.message : "No se pudo importar la ficha desde PDF");
     } finally {
       setIsSaving(false);
     }
@@ -421,6 +455,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       derived,
       refresh,
       submit,
+      importFromPdf,
       createRandomCharacter,
       duplicateSelected,
       deleteSelected,

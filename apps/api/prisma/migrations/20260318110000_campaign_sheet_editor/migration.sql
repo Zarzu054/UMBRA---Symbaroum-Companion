@@ -1,0 +1,2 @@
+ALTER TABLE "campaign_npcs"
+ADD COLUMN IF NOT EXISTS "sheet" JSONB;

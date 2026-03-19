@@ -1,5 +1,15 @@
-﻿import { PDFDocument, StandardFonts } from "pdf-lib";
-import type { Character, SkillLevel } from "@umbra/shared";
+import { PDFDocument, StandardFonts, type PDFField } from "pdf-lib";
+import {
+  SYMBAROUM_ABILITIES,
+  SYMBAROUM_ARCHETYPES,
+  SYMBAROUM_MYSTIC_POWERS,
+  SYMBAROUM_RITUALS,
+  importCharacterSchema,
+  createEmptyCharacterSheet,
+  type Character,
+  type ImportCharacterInput,
+  type SkillLevel
+} from "@umbra/shared";
 
 const TEMPLATE_PATH = "/templates/symbaroum-sheet.pdf";
 
@@ -22,6 +32,8 @@ type ArtifactCard = {
   poderes: string;
   corrupcion: string;
 };
+
+type PdfFieldMap = Map<string, PDFField>;
 
 export async function exportCharacterSheetPdf(character: Character): Promise<void> {
   const bytes = await fetchTemplate();
@@ -129,12 +141,136 @@ export async function exportCharacterSheetPdf(character: Character): Promise<voi
   });
 
   if (writtenFields === 0) {
-    throw new Error("No se pudo mapear ningun campo del PDF de plantilla");
+    throw new Error("No se pudo mapear ningún campo del PDF de plantilla");
   }
 
   form.updateFieldAppearances(font);
   const output = await pdf.save();
   downloadBytes(output, `${sanitizeFileName(character.name || "personaje")}-symbaroum.pdf`);
+}
+
+export async function importCharacterSheetPdf(file: File): Promise<ImportCharacterInput> {
+  const bytes = await file.arrayBuffer();
+  const pdf = await PDFDocument.load(bytes);
+  const form = pdf.getForm();
+  const fields = new Map(form.getFields().map((field) => [field.getName(), field]));
+
+  if (fields.size === 0) {
+    throw new Error("El PDF no contiene campos editables de la plantilla de Symbaroum.");
+  }
+
+  const sheet = createEmptyCharacterSheet();
+  const name = readText(fields, "Nombre") || "Personaje importado";
+  const race = readText(fields, "Raza") || sheet.identidad.raza;
+  const profession = readText(fields, "Ocupacion");
+
+  sheet.identidad.nombreJugador = readText(fields, "Jugador");
+  sheet.identidad.raza = race;
+  sheet.identidad.profesion = profession;
+  sheet.identidad.sombra = readText(fields, "Sombra");
+  sheet.identidad.cita = readText(fields, "Cita");
+  sheet.identidad.edad = readText(fields, "Edad");
+  sheet.identidad.altura = readText(fields, "Altura");
+  sheet.identidad.peso = readText(fields, "Peso");
+  sheet.identidad.apariencia = readText(fields, "Apariencia");
+  sheet.identidad.objetivoPersonal = readText(fields, "ObjetivoPersonal");
+  sheet.identidad.trasfondo = readText(fields, "Trasfondo");
+
+  const experienciaTotal = readInt(fields, "Experiencia", sheet.progreso.experienciaTotal);
+  const experienciaDisponible = readInt(fields, "PorGastar", Math.max(0, experienciaTotal - sheet.progreso.experienciaGastada));
+  sheet.progreso.experienciaTotal = experienciaTotal;
+  sheet.progreso.experienciaGastada = Math.max(0, experienciaTotal - experienciaDisponible);
+
+  sheet.combate.umbralDolor = readInt(fields, "UmbralDolor", sheet.combate.umbralDolor);
+  sheet.combate.robustezActual = readInt(fields, "Resistencia", sheet.combate.robustezActual);
+  sheet.combate.robustezMax = readInt(fields, "Maximo", sheet.combate.robustezMax);
+  sheet.combate.defensaBase = readText(fields, "Defensa1");
+  sheet.combate.defensaMod = readInt(fields, "Defensa2", sheet.combate.defensaMod);
+
+  sheet.corrupcion.permanente = readInt(fields, "Permanente", sheet.corrupcion.permanente);
+  sheet.corrupcion.umbral = readInt(fields, "UmbralCorrupcion", sheet.corrupcion.umbral);
+  const corruptionTotal = readInt(fields, "Corrupcion", sheet.corrupcion.temporal + sheet.corrupcion.permanente);
+  sheet.corrupcion.temporal = Math.max(0, corruptionTotal - sheet.corrupcion.permanente);
+
+  sheet.atributos.agil = readInt(fields, "Agil", sheet.atributos.agil);
+  sheet.atributos.atento = readInt(fields, "Atento", sheet.atributos.atento);
+  sheet.atributos.discreto = readInt(fields, "Discreto", sheet.atributos.discreto);
+  sheet.atributos.diestro = readInt(fields, "Diestro", sheet.atributos.diestro);
+  sheet.atributos.fuerte = readInt(fields, "Fuerte", sheet.atributos.fuerte);
+  sheet.atributos.inteligente = readInt(fields, "Inteligente", sheet.atributos.inteligente);
+  sheet.atributos.persuasivo = readInt(fields, "Persuasivo", sheet.atributos.persuasivo);
+  sheet.atributos.tenaz = readInt(fields, "Tenaz", sheet.atributos.tenaz);
+
+  sheet.combate.armaPrincipal = readText(fields, "Arma1");
+  sheet.combate.danioPrincipal = readText(fields, "Daño1");
+  sheet.combate.armaPrincipalCualidad = readText(fields, "Cualidad1");
+  sheet.combate.armaPrincipalAtributo = readText(fields, "Atributo1");
+  sheet.combate.armaSecundaria = readText(fields, "Arma2");
+  sheet.combate.danioSecundaria = readText(fields, "Daño2");
+  sheet.combate.armaSecundariaAtributo = readText(fields, "Atributo2");
+  sheet.combate.armaTerciaria = readText(fields, "Arma3");
+  sheet.combate.danioTerciaria = readText(fields, "Daño3");
+  sheet.combate.armaTerciariaCualidad = readText(fields, "Cualidad3");
+  sheet.combate.armaTerciariaAtributo = readText(fields, "Atributo3");
+  sheet.combate.armaCuaternaria = readText(fields, "Arma4");
+  sheet.combate.danioCuaternaria = readText(fields, "Daño4");
+  sheet.combate.armaCuaternariaCualidad = readText(fields, "Cualidad4");
+  sheet.combate.armaCuaternariaAtributo = readText(fields, "Atributo4");
+
+  sheet.combate.armadura = readText(fields, "Armadura1");
+  sheet.combate.armaduraProteccion = readText(fields, "Proteccion1");
+  sheet.combate.armaduraCualidad = readText(fields, "Cualidad2");
+  sheet.combate.armaduraSecundaria = readText(fields, "Armadura2");
+  sheet.combate.armaduraSecundariaProteccion = readText(fields, "Proteccion2");
+
+  sheet.notas = readText(fields, "Texto2");
+  sheet.recursos.dinero = readText(fields, "Dinero");
+  sheet.recursos.otros = readText(fields, "OtrosRecursos");
+  sheet.grupo.nombre = readText(fields, "NombreGrupo");
+  sheet.grupo.objetivo = readText(fields, "ObjetivoGrupo");
+
+  sheet.equipo = Array.from({ length: 21 }, (_, idx) => readText(fields, `Equipo${idx + 1}`)).filter(Boolean);
+  sheet.contactosHoja = Array.from({ length: 5 }, (_, idx) => ({
+    nombre: readText(fields, `NombreAmigo${idx + 1}`),
+    raza: readText(fields, `RazaAmigo${idx + 1}`),
+    ocupacion: readText(fields, `OcupacionAmigo${idx + 1}`),
+    jugador: readText(fields, `JugadorAmigo${idx + 1}`)
+  }));
+  sheet.contactos = sheet.contactosHoja.map((entry) => entry.nombre).filter(Boolean);
+  sheet.artefactos = Array.from({ length: 4 }, (_, idx) => ({
+    nombre: readText(fields, `NombreArtefacto${idx + 1}`),
+    poderes: readText(fields, `PoderesArtefacto${idx + 1}`),
+    corrupcion: readText(fields, `CorrupcionArtefacto${idx + 1}`)
+  }));
+
+  const importedCapabilities = importCapabilities(fields);
+  sheet.habilidades = importedCapabilities.habilidades;
+  sheet.poderesMisticos = importedCapabilities.poderesMisticos;
+  sheet.rituales = importedCapabilities.rituales;
+
+  const inferredArchetype = inferArchetype(sheet, profession);
+  sheet.identidad.arquetipo = inferredArchetype;
+
+  const payload: ImportCharacterInput = {
+    name,
+    archetype: inferredArchetype,
+    race,
+    culture: sheet.identidad.cultura,
+    profession,
+    level: 1,
+    sheet
+  };
+
+  const validation = importCharacterSchema.safeParse(payload);
+  if (!validation.success) {
+    throw new Error(
+      `El PDF se ha leído, pero la ficha importada no es válida: ${validation.error.issues
+        .map((issue) => (issue.path.length > 0 ? `${issue.path.join(".")}: ${issue.message}` : issue.message))
+        .join(" | ")}`
+    );
+  }
+
+  return validation.data;
 }
 
 async function fetchTemplate(): Promise<ArrayBuffer> {
@@ -154,7 +290,7 @@ function buildCapabilities(character: Character): CapabilityItem[] {
   }));
   const fromPowers = character.sheet.poderesMisticos.map((item) => ({
     nombre: item.nombre,
-    tipo: item.tipo || "Poder mistico",
+    tipo: item.tipo || "Poder místico",
     efecto: item.efecto || item.notas || "",
     nivel: item.nivel
   }));
@@ -195,6 +331,133 @@ function buildArtifactCards(character: Character): ArtifactCard[] {
   }));
 }
 
+function importCapabilities(fields: PdfFieldMap): {
+  habilidades: Character["sheet"]["habilidades"];
+  poderesMisticos: Character["sheet"]["poderesMisticos"];
+  rituales: Character["sheet"]["rituales"];
+} {
+  const abilityCatalog = new Map(SYMBAROUM_ABILITIES.map((entry) => [normalizeCapabilityName(entry.nombre), entry]));
+  const powerCatalog = new Map(SYMBAROUM_MYSTIC_POWERS.map((entry) => [normalizeCapabilityName(entry.nombre), entry]));
+  const ritualCatalog = new Map(SYMBAROUM_RITUALS.map((entry) => [normalizeCapabilityName(entry.nombre), entry]));
+
+  const habilidades: Character["sheet"]["habilidades"] = [];
+  const poderesMisticos: Character["sheet"]["poderesMisticos"] = [];
+  const rituales: Character["sheet"]["rituales"] = [];
+
+  for (let row = 1; row <= 4; row += 1) {
+    for (let col = 1; col <= 3; col += 1) {
+      const slot = `${row}${col}`;
+      const nombre = readText(fields, `Nombre${slot}`);
+      if (!nombre) continue;
+
+      const tipo = readText(fields, `Tipo${slot}`);
+      const efecto = readText(fields, `Efecto${slot}`);
+      const nivel = readLevel(fields, row, col);
+      const normalizedName = normalizeCapabilityName(nombre);
+
+      const explicitType = normalizeCapabilityType(tipo);
+      const ability = abilityCatalog.get(normalizedName);
+      const power = powerCatalog.get(normalizedName);
+      const ritual = ritualCatalog.get(normalizedName);
+
+      const resolvedType =
+        explicitType ??
+        (power ? "poder_mistico" : ritual ? "ritual" : "habilidad");
+      const fromCatalog = resolvedType === "poder_mistico" ? power : resolvedType === "ritual" ? ritual : ability;
+
+      const entry = {
+        nombre,
+        tipo: resolvedType === "poder_mistico" ? "Poder místico" : resolvedType === "ritual" ? "Ritual" : "Habilidad",
+        efecto: efecto || fromCatalog?.efectoResumen || "",
+        nivel,
+        fuente: fromCatalog?.libro ?? "",
+        pagina: fromCatalog?.pagina,
+        notas: efecto || fromCatalog?.efectoResumen || "",
+        acciones: fromCatalog?.acciones ?? []
+      };
+
+      if (resolvedType === "poder_mistico") {
+        poderesMisticos.push(entry);
+      } else if (resolvedType === "ritual") {
+        rituales.push(entry);
+      } else {
+        habilidades.push(entry);
+      }
+    }
+  }
+
+  return { habilidades, poderesMisticos, rituales };
+}
+
+function inferArchetype(sheet: ImportCharacterInput["sheet"], profession: string): (typeof SYMBAROUM_ARCHETYPES)[number] {
+  if (sheet.poderesMisticos.length > 0) {
+    return "Místico";
+  }
+
+  const names = new Set(sheet.habilidades.map((entry) => normalizeCapabilityName(entry.nombre)));
+  const normalizedProfession = normalizeCapabilityName(profession);
+
+  if (
+    normalizedProfession.includes("bruja") ||
+    normalizedProfession.includes("teurgo") ||
+    normalizedProfession.includes("hechicero") ||
+    names.has("poder mistico") ||
+    names.has("teurgia") ||
+    names.has("brujeria") ||
+    names.has("hechiceria") ||
+    names.has("magia") ||
+    names.has("ojo mistico")
+  ) {
+    return "Místico";
+  }
+
+  if (
+    normalizedProfession.includes("arquero") ||
+    normalizedProfession.includes("explorador") ||
+    names.has("tirador") ||
+    names.has("jinete") ||
+    names.has("versado en criaturas")
+  ) {
+    return "Cazador";
+  }
+
+  if (
+    normalizedProfession.includes("ladron") ||
+    normalizedProfession.includes("espia") ||
+    names.has("ataque traicionero") ||
+    names.has("finta") ||
+    names.has("estrangulador") ||
+    names.has("venenos")
+  ) {
+    return "Maleante";
+  }
+
+  return "Guerrero";
+}
+
+function readLevel(fields: PdfFieldMap, row: number, col: number): SkillLevel {
+  if (readChecked(fields, `P${row}${col}3`)) return "maestro";
+  if (readChecked(fields, `P${row}${col}2`)) return "adepto";
+  return "novato";
+}
+
+function normalizeCapabilityType(value: string): "habilidad" | "poder_mistico" | "ritual" | null {
+  const normalized = normalizeCapabilityName(value);
+  if (!normalized) return null;
+  if (normalized.includes("ritual")) return "ritual";
+  if (normalized.includes("poder")) return "poder_mistico";
+  if (normalized.includes("habilidad")) return "habilidad";
+  return null;
+}
+
+function normalizeCapabilityName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 function checkLevel(
   form: ReturnType<PDFDocument["getForm"]>,
   fieldNames: Set<string>,
@@ -224,12 +487,37 @@ function setText(form: ReturnType<PDFDocument["getForm"]>, fieldNames: Set<strin
   }
 }
 
+function readText(fields: PdfFieldMap, baseName: string): string {
+  const fieldName = resolveFieldName(new Set(fields.keys()), baseName);
+  if (!fieldName) return "";
+  try {
+    const field = fields.get(fieldName) as { getText?: () => string } | undefined;
+    return field?.getText?.().trim() ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function readChecked(fields: PdfFieldMap, baseName: string): boolean {
+  const fieldName = resolveFieldName(new Set(fields.keys()), baseName);
+  if (!fieldName) return false;
+  try {
+    const field = fields.get(fieldName) as { isChecked?: () => boolean } | undefined;
+    return field?.isChecked?.() ?? false;
+  } catch {
+    return false;
+  }
+}
+
+function readInt(fields: PdfFieldMap, baseName: string, fallback: number): number {
+  const value = readText(fields, baseName).replace(/[^\d-]/g, "");
+  if (!value) return fallback;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 function resolveFieldName(fieldNames: Set<string>, baseName: string): string | null {
-  const candidates = [
-    baseName,
-    `.${baseName}`,
-    `undefined.${baseName}`
-  ];
+  const candidates = [baseName, `.${baseName}`, `undefined.${baseName}`];
 
   for (const candidate of candidates) {
     if (fieldNames.has(candidate)) {

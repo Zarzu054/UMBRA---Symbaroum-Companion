@@ -1,4 +1,4 @@
-import type { Character, CreateCharacterInput, UpdateCharacterInput } from "@umbra/shared";
+import type { Character, CreateCharacterInput, ImportCharacterInput, UpdateCharacterInput } from "@umbra/shared";
 
 type CharacterListResponse = { data: Character[] };
 type CharacterSingleResponse = { data: Character };
@@ -40,6 +40,18 @@ export async function fetchCharacters(accessToken: string): Promise<Character[]>
 
 export async function createCharacter(input: CreateCharacterInput, accessToken: string): Promise<Character> {
   const response = await fetch("/api/characters", {
+    method: "POST",
+    headers: { ...JSON_HEADERS, Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(input)
+  });
+
+  if (!response.ok) throw new Error(await parseError(response));
+  const payload = (await response.json()) as CharacterSingleResponse;
+  return payload.data;
+}
+
+export async function importCharacter(input: ImportCharacterInput, accessToken: string): Promise<Character> {
+  const response = await fetch("/api/characters/import", {
     method: "POST",
     headers: { ...JSON_HEADERS, Authorization: `Bearer ${accessToken}` },
     body: JSON.stringify(input)

@@ -1,9 +1,17 @@
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  deriveCharacterActions,
+  executeCharacterAction,
   createCampaignNpcSchema,
+  createCampaignChatMessageSchema,
   createCampaignReferenceSchema,
   createCampaignSchema,
   createCampaignSessionSchema,
+  type ActionRollResult,
+  type CampaignChatMessage,
+  type CampaignChatVisibility,
+  type CharacterSheet,
+  type CharacterActionDefinition,
   type AuthUser,
   type Campaign,
   type CampaignReference,
@@ -19,11 +27,14 @@ import {
   addCampaignMember,
   assignCampaignSessionExperience,
   createCampaign,
+  createCampaignChatMessage,
   createCampaignNpc,
+  createCampaignNpcSheet,
   createCampaignReference,
   createCampaignSession,
   deleteCampaignNpc,
   deleteCampaignReference,
+  fetchCampaignChatMessages,
   fetchCampaigns,
   generateCampaignNpc,
   grantCampaignExperience,
@@ -31,7 +42,9 @@ import {
   removeCampaignMember,
   unlinkCampaignCharacter,
   updateCampaign,
+  updateCampaignCharacterSheet,
   updateCampaignNpc,
+  updateCampaignNpcSheet,
   updateCampaignReference,
   updateCampaignSession
 } from "../services/campaignService";
@@ -44,7 +57,13 @@ type Props = {
 type CampaignHashState = {
   campaignId: string | null;
   sessionId: string | null;
+  sheetKind: "character" | "npc" | null;
+  sheetId: string | null;
 };
+
+type CampaignSheetTarget =
+  | { kind: "character"; linkId: string }
+  | { kind: "npc"; npcId: string };
 
 const emptyCampaignForm: CreateCampaignInput = { name: "", summary: "", setting: "", notes: "" };
 const emptyNpcForm: CreateCampaignNpcInput = {
@@ -96,24 +115,35 @@ function makeDefaultSessionForm(): CreateCampaignSessionInput {
 function parseCampaignHash(): CampaignHashState {
   const rawHash = window.location.hash.replace(/^#/, "");
   if (!rawHash.startsWith("campaigns")) {
-    return { campaignId: null, sessionId: null };
+    return { campaignId: null, sessionId: null, sheetKind: null, sheetId: null };
   }
 
   const [, search = ""] = rawHash.split("?");
   const params = new URLSearchParams(search);
+  const rawSheetKind = params.get("sheetKind");
+  const sheetKind = rawSheetKind === "character" || rawSheetKind === "npc" ? rawSheetKind : null;
   return {
     campaignId: params.get("id"),
-    sessionId: params.get("session")
+    sessionId: params.get("session"),
+    sheetKind,
+    sheetId: params.get("sheetId")
   };
 }
 
-function replaceCampaignHash(campaignId: string | null, sessionId: string | null): void {
+function replaceCampaignHash(campaignId: string | null, sessionId: string | null, sheetTarget: CampaignSheetTarget | null): void {
   const params = new URLSearchParams();
   if (campaignId) {
     params.set("id", campaignId);
   }
   if (sessionId) {
     params.set("session", sessionId);
+  }
+  if (sheetTarget?.kind === "character") {
+    params.set("sheetKind", "character");
+    params.set("sheetId", sheetTarget.linkId);
+  } else if (sheetTarget?.kind === "npc") {
+    params.set("sheetKind", "npc");
+    params.set("sheetId", sheetTarget.npcId);
   }
 
   const nextHash = params.toString() ? `#campaigns?${params.toString()}` : "#campaigns";
@@ -235,6 +265,7 @@ function renderLinkedText(
 
 export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const isDirector = user.role === "gm" || user.role === "superadmin";
+  const rootRef = useRef<HTMLElement | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -252,6 +283,31 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [referenceForm, setReferenceForm] = useState<CreateCampaignReferenceInput>(emptyReferenceForm);
   const [referenceAliasesText, setReferenceAliasesText] = useState("");
   const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(null);
+  const [selectedSheetTarget, setSelectedSheetTarget] = useState<CampaignSheetTarget | null>(null);
+  const [chatMessages, setChatMessages] = useState<CampaignChatMessage[]>([]);
+  const [chatText, setChatText] = useState("");
+  const [chatVisibility, setChatVisibility] = useState<CampaignChatVisibility>("all");
+  const [chatActorCharacterId, setChatActorCharacterId] = useState<string>("");
+  const [actionNote, setActionNote] = useState("");
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) {
+      return;
+    }
+
+    const fields = root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("input, textarea, select");
+
+    fields.forEach((field) => {
+      field.setAttribute("data-bwignore", "true");
+      field.setAttribute("data-1p-ignore", "true");
+      field.setAttribute("data-lpignore", "true");
+
+      if (!field.getAttribute("autocomplete")) {
+        field.setAttribute("autocomplete", "off");
+      }
+    });
+  });
 
   const selectedCampaign = useMemo(
     () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
@@ -265,7 +321,39 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     () => selectedCampaign?.references.find((reference) => reference.id === selectedReferenceId) ?? null,
     [selectedCampaign, selectedReferenceId]
   );
-  const availableUnlinkedCharacters = selectedCampaign?.availableCharacters.filter((entry) => !entry.linked) ?? [];
+  const selectedCharacterSheetEntry = useMemo(
+    () =>
+      selectedSheetTarget?.kind === "character"
+        ? (selectedCampaign?.characters.find((entry) => entry.id === selectedSheetTarget.linkId) ?? null)
+        : null,
+    [selectedCampaign, selectedSheetTarget]
+  );
+  const selectedNpcSheetEntry = useMemo(
+    () =>
+      selectedSheetTarget?.kind === "npc"
+        ? (selectedCampaign?.npcs.find((entry) => entry.id === selectedSheetTarget.npcId) ?? null)
+        : null,
+    [selectedCampaign, selectedSheetTarget]
+  );
+  const availableUnlinkedCharacters = useMemo(
+    () => selectedCampaign?.availableCharacters.filter((entry) => !entry.linked) ?? [],
+    [selectedCampaign]
+  );
+  const controllableCharacters = useMemo(
+    () =>
+      (selectedCampaign?.characters ?? []).filter(
+        (entry) => entry.sheet && (isDirector || entry.ownerId === user.id)
+      ),
+    [isDirector, selectedCampaign, user.id]
+  );
+  const activeChatCharacter = useMemo(
+    () => controllableCharacters.find((entry) => entry.characterId === chatActorCharacterId) ?? controllableCharacters[0] ?? null,
+    [chatActorCharacterId, controllableCharacters]
+  );
+  const availableActions = useMemo<CharacterActionDefinition[]>(
+    () => (activeChatCharacter?.sheet ? deriveCharacterActions(activeChatCharacter.sheet) : []),
+    [activeChatCharacter]
+  );
 
   useEffect(() => {
     void refresh();
@@ -273,9 +361,16 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
   useEffect(() => {
     function syncSelectionFromHash(): void {
-      const { campaignId, sessionId } = parseCampaignHash();
+      const { campaignId, sessionId, sheetKind, sheetId } = parseCampaignHash();
       setSelectedCampaignId(campaignId);
       setSelectedSessionId(sessionId);
+      setSelectedSheetTarget(
+        sheetKind === "character" && sheetId
+          ? { kind: "character", linkId: sheetId }
+          : sheetKind === "npc" && sheetId
+            ? { kind: "npc", npcId: sheetId }
+            : null
+      );
     }
 
     syncSelectionFromHash();
@@ -324,8 +419,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   }, [selectedCampaign, selectedSessionId]);
 
   useEffect(() => {
-    replaceCampaignHash(selectedCampaignId, selectedSessionId);
-  }, [selectedCampaignId, selectedSessionId]);
+    replaceCampaignHash(selectedCampaignId, selectedSessionId, selectedSheetTarget);
+  }, [selectedCampaignId, selectedSessionId, selectedSheetTarget]);
 
   useEffect(() => {
     if (!selectedCampaign) {
@@ -337,16 +432,32 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setReferenceForm(emptyReferenceForm);
       setReferenceAliasesText("");
       setSelectedReferenceId(null);
+      setSelectedSheetTarget(null);
+      setChatMessages([]);
+      setChatText("");
+      setChatActorCharacterId("");
+      setActionNote("");
       return;
     }
 
-    setDraft({
-      name: selectedCampaign.name,
-      summary: selectedCampaign.summary,
-      setting: selectedCampaign.setting,
-      notes: selectedCampaign.notes
+    setDraft((current) => {
+      const next = {
+        name: selectedCampaign.name,
+        summary: selectedCampaign.summary,
+        setting: selectedCampaign.setting,
+        notes: selectedCampaign.notes
+      };
+      return current.name === next.name &&
+        current.summary === next.summary &&
+        current.setting === next.setting &&
+        current.notes === next.notes
+        ? current
+        : next;
     });
-    setSelectedAvailableCharacterId(availableUnlinkedCharacters[0]?.characterId ?? "");
+    setSelectedAvailableCharacterId((current) => {
+      const next = availableUnlinkedCharacters[0]?.characterId ?? "";
+      return current === next ? current : next;
+    });
     setXpForm((prev) => ({
       characterId: selectedCampaign.characters.some((entry) => entry.characterId === prev.characterId)
         ? prev.characterId
@@ -354,12 +465,35 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       amount: prev.amount,
       reason: prev.reason
     }));
+    setChatMessages((current) => (current === selectedCampaign.chatMessages ? current : selectedCampaign.chatMessages));
+    setChatActorCharacterId((current) =>
+      current && selectedCampaign.characters.some((entry) => entry.characterId === current)
+        ? current
+        : ((selectedCampaign.characters.find((entry) => entry.sheet && (isDirector || entry.ownerId === user.id))?.characterId) ?? "")
+    );
     setSelectedReferenceId((current) =>
       current && selectedCampaign.references.some((reference) => reference.id === current)
         ? current
         : (selectedCampaign.references[0]?.id ?? null)
     );
-  }, [availableUnlinkedCharacters, selectedCampaign]);
+  }, [availableUnlinkedCharacters, isDirector, selectedCampaign, user.id]);
+
+  useEffect(() => {
+    if (!selectedSheetTarget || !selectedCampaign) {
+      return;
+    }
+
+    if (selectedSheetTarget.kind === "character") {
+      if (!selectedCampaign.characters.some((entry) => entry.id === selectedSheetTarget.linkId)) {
+        setSelectedSheetTarget(null);
+      }
+      return;
+    }
+
+    if (!selectedCampaign.npcs.some((entry) => entry.id === selectedSheetTarget.npcId)) {
+      setSelectedSheetTarget(null);
+    }
+  }, [selectedCampaign, selectedSheetTarget]);
 
   useEffect(() => {
     if (!selectedSession || !selectedCampaign) {
@@ -397,6 +531,59 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     });
     setReferenceAliasesText(aliasesToText(selectedReference.aliases));
   }, [selectedReference]);
+
+  useEffect(() => {
+    if (!selectedCampaign) {
+      return;
+    }
+
+    const abortController = new AbortController();
+    const campaignId = selectedCampaign.id;
+
+    async function connectStream(): Promise<void> {
+      try {
+        const token = await ensureAccessToken();
+        const initialMessages = await fetchCampaignChatMessages(campaignId, token);
+        setChatMessages(initialMessages);
+
+        const response = await fetch(`/api/campaigns/${campaignId}/chat-stream`, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
+          signal: abortController.signal
+        });
+
+        if (!response.ok || !response.body) {
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const event = JSON.parse(line) as { type: string; data?: CampaignChatMessage };
+            if (event.type !== "message" || !event.data) continue;
+            setChatMessages((current) =>
+              current.some((entry) => entry.id === event.data!.id) ? current : [...current, event.data!]
+            );
+          }
+        }
+      } catch {
+        // Ignore aborted or transient stream errors in MVP.
+      }
+    }
+
+    void connectStream();
+    return () => abortController.abort();
+  }, [ensureAccessToken, selectedCampaign]);
 
   async function refresh(): Promise<void> {
     setIsLoading(true);
@@ -513,6 +700,19 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       upsertCampaign(await unlinkCampaignCharacter(linkId, token));
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo desvincular el personaje");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleSaveCharacterSheet(linkId: string, sheet: CharacterSheet): Promise<void> {
+    setError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      upsertCampaign(await updateCampaignCharacterSheet(linkId, { sheet }, token));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo guardar la hoja del personaje");
     } finally {
       setIsSaving(false);
     }
@@ -674,6 +874,32 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     }
   }
 
+  async function handleCreateNpcSheet(npcId: string): Promise<void> {
+    setError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      upsertCampaign(await createCampaignNpcSheet(npcId, token));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo crear la hoja del PNJ");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleSaveNpcSheet(npcId: string, sheet: CharacterSheet | null): Promise<void> {
+    setError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      upsertCampaign(await updateCampaignNpcSheet(npcId, { sheet }, token));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo guardar la hoja del PNJ");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function handleCreateReference(): Promise<void> {
     if (!selectedCampaign) {
       return;
@@ -742,8 +968,66 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     }
   }
 
+  async function handleSendChatMessage(): Promise<void> {
+    if (!selectedCampaign || !chatText.trim()) {
+      return;
+    }
+
+    setError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      const message = await createCampaignChatMessage(
+        selectedCampaign.id,
+        createCampaignChatMessageSchema.parse({
+          characterId: chatActorCharacterId || undefined,
+          visibility: chatVisibility,
+          text: chatText.trim()
+        }),
+        token
+      );
+      setChatMessages((current) => (current.some((entry) => entry.id === message.id) ? current : [...current, message]));
+      setChatText("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo enviar el mensaje");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleExecuteAction(action: CharacterActionDefinition): Promise<void> {
+    if (!selectedCampaign || !activeChatCharacter) {
+      return;
+    }
+
+    setError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      const message = await createCampaignChatMessage(
+        selectedCampaign.id,
+        createCampaignChatMessageSchema.parse({
+          visibility: chatVisibility,
+          text: "",
+          actionExecution: {
+            characterId: activeChatCharacter.characterId,
+            actionId: action.id,
+            note: actionNote.trim()
+          }
+        }),
+        token
+      );
+      setChatMessages((current) => (current.some((entry) => entry.id === message.id) ? current : [...current, message]));
+      setActionNote("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo ejecutar la accion");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
-    <section className="campaigns-module">
+    <section className="campaigns-module" ref={rootRef}>
       <section className="panel campaign-hero">
         <h2>Gestor de Campañas</h2>
         <p>Centraliza miembros, personajes vinculados, sesiones del DJ, PNJs y reparto de experiencia.</p>
@@ -1186,6 +1470,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   <span>{entry.ownerEmail}</span>
                   <span>PX total: {entry.experienceTotal}</span>
                   <span>PX gastada: {entry.experienceSpent}</span>
+                  {entry.sheet ? (
+                    <button type="button" onClick={() => setSelectedSheetTarget({ kind: "character", linkId: entry.id })}>
+                      Abrir hoja
+                    </button>
+                  ) : null}
                   {isDirector ? (
                     <button disabled={isSaving} onClick={() => void handleUnlinkCharacter(entry.id)}>
                       Desvincular
@@ -1296,11 +1585,163 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   onOpenReference={openReference}
                   onSave={handleUpdateNpc}
                   onDelete={handleDeleteNpc}
+                  onOpenSheet={() => setSelectedSheetTarget({ kind: "npc", npcId: npc.id })}
+                  onCreateSheet={async (npcId) => {
+                    setSelectedSheetTarget({ kind: "npc", npcId });
+                    await handleCreateNpcSheet(npcId);
+                  }}
                 />
               ))}
               {selectedCampaign.npcs.length === 0 ? (
                 <p className="section-help">Todavía no hay PNJs registrados.</p>
               ) : null}
+            </div>
+          </section>
+
+          {selectedCharacterSheetEntry?.sheet ? (
+            <section className="panel campaign-sheet-shell">
+              <div className="row-actions">
+                <h3>Hoja de personaje</h3>
+                <button type="button" onClick={() => setSelectedSheetTarget(null)}>
+                  Cerrar hoja
+                </button>
+              </div>
+              <CampaignSheetEditor
+                title={selectedCharacterSheetEntry.name}
+                subtitle={`${selectedCharacterSheetEntry.ownerEmail} · Personaje de campaña`}
+                sheet={selectedCharacterSheetEntry.sheet}
+                editable={isDirector || selectedCharacterSheetEntry.ownerId === user.id}
+                busy={isSaving}
+                onSave={async (sheet) => handleSaveCharacterSheet(selectedCharacterSheetEntry.id, sheet)}
+              />
+            </section>
+          ) : null}
+
+          {selectedSheetTarget?.kind === "npc" && selectedNpcSheetEntry ? (
+            <section className="panel campaign-sheet-shell">
+              <div className="row-actions">
+                <h3>Hoja de PNJ</h3>
+                <button type="button" onClick={() => setSelectedSheetTarget(null)}>
+                  Cerrar hoja
+                </button>
+              </div>
+              {selectedNpcSheetEntry.sheet ? (
+                <CampaignSheetEditor
+                  title={selectedNpcSheetEntry.name}
+                  subtitle={`${selectedNpcSheetEntry.race || "PNJ"} · ${selectedNpcSheetEntry.archetype || selectedNpcSheetEntry.occupation || "Sin arquetipo"}`}
+                  sheet={selectedNpcSheetEntry.sheet}
+                  editable={isDirector}
+                  busy={isSaving}
+                  onSave={async (sheet) => handleSaveNpcSheet(selectedNpcSheetEntry.id, sheet)}
+                />
+              ) : (
+                <div className="campaign-empty-sheet">
+                  <p className="section-help">Este PNJ todavía no tiene hoja de personaje. Puedes crearla y usarla para llevar equipo, corrupción, robustez y acciones.</p>
+                  {isDirector ? (
+                    <button disabled={isSaving} onClick={() => void handleCreateNpcSheet(selectedNpcSheetEntry.id)}>
+                      Crear hoja de PNJ
+                    </button>
+                  ) : null}
+                </div>
+              )}
+            </section>
+          ) : null}
+
+          <section className="panel">
+            <div className="row-actions">
+              <h3>Chat de campaña</h3>
+              <span className="meta-text">Tiempo real para mesa y DJ</span>
+            </div>
+            <div className="campaign-chat-layout">
+              <div className="campaign-chat-feed">
+                {chatMessages.map((message) => (
+                  <article key={message.id} className={`card campaign-chat-message${message.visibility === "gm_only" ? " is-private" : ""}`}>
+                    <strong>
+                      {message.characterName ? `${message.characterName} · ` : ""}
+                      {message.userEmail}
+                    </strong>
+                    <span>
+                      {new Date(message.createdAt).toLocaleTimeString()} · {message.visibility === "gm_only" ? "Solo DJ" : "Para todos"}
+                    </span>
+                    {message.actionLabel ? (
+                      <span>
+                        {message.actionLabel}
+                        {message.actionCost ? ` (${message.actionCost})` : ""}
+                      </span>
+                    ) : null}
+                    {message.text ? <p>{message.text}</p> : null}
+                    {message.rolls.length > 0 ? (
+                      <div className="campaign-chat-rolls">
+                        {message.rolls.map((roll, index) => (
+                          <span key={`${message.id}-roll-${index}`}>
+                            {roll.label}: {roll.formula} = {roll.total}
+                            {typeof roll.target === "number" ? ` vs ${roll.target} ${roll.success ? "exito" : "fallo"}` : ""}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+                {chatMessages.length === 0 ? <p className="section-help">Aun no hay mensajes en la campaña.</p> : null}
+              </div>
+
+              <div className="campaign-chat-compose">
+                <div className="form-grid">
+                  <label className="field">
+                    <span>Visibilidad</span>
+                    <select value={chatVisibility} onChange={(event) => setChatVisibility(event.target.value as CampaignChatVisibility)}>
+                      <option value="all">Para todos</option>
+                      <option value="gm_only">Solo DJ</option>
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Actor</span>
+                    <select value={chatActorCharacterId} onChange={(event) => setChatActorCharacterId(event.target.value)}>
+                      <option value="">Sin personaje</option>
+                      {controllableCharacters.map((entry) => (
+                        <option key={entry.characterId} value={entry.characterId}>
+                          {entry.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <label className="field">
+                  <span>Mensaje</span>
+                  <textarea rows={4} value={chatText} onChange={(event) => setChatText(event.target.value)} />
+                </label>
+                <button disabled={isSaving || !chatText.trim()} onClick={() => void handleSendChatMessage()}>
+                  Enviar mensaje
+                </button>
+
+                {activeChatCharacter ? (
+                  <>
+                    <div className="section-title">Acciones de {activeChatCharacter.name}</div>
+                    <label className="field">
+                      <span>Nota de accion</span>
+                      <input value={actionNote} onChange={(event) => setActionNote(event.target.value)} placeholder="Objetivo, contexto o aclaracion" />
+                    </label>
+                    <div className="campaign-action-list">
+                      {availableActions.map((action) => (
+                        <button key={action.id} className="campaign-action-button" disabled={isSaving} onClick={() => void handleExecuteAction(action)}>
+                          <strong>{action.label}</strong>
+                          <span>{action.sourceName}</span>
+                          <span>
+                            {action.cost}
+                            {action.rollAttribute ? ` · ${action.rollAttribute}` : ""}
+                            {action.damageFormula ? ` · ${action.damageFormula}` : ""}
+                          </span>
+                        </button>
+                      ))}
+                      {availableActions.length === 0 ? (
+                        <p className="section-help">No hay acciones ejecutables configuradas para este personaje. Ahora mismo el sistema genera acciones de armas y cualquier accion estructurada en habilidades, poderes o rituales.</p>
+                      ) : null}
+                    </div>
+                  </>
+                ) : (
+                  <p className="section-help">Selecciona uno de tus personajes vinculados para ver acciones ejecutables.</p>
+                )}
+              </div>
             </div>
           </section>
 
@@ -1324,6 +1765,600 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     </section>
   );
 }
+
+function listToText(values: string[]): string {
+  return values.join("\n");
+}
+
+function textToList(value: string): string[] {
+  return value
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+type CampaignSheetEditorProps = {
+  title: string;
+  subtitle: string;
+  sheet: CharacterSheet;
+  editable: boolean;
+  busy: boolean;
+  onSave: (sheet: CharacterSheet) => Promise<void>;
+};
+
+function CampaignSheetEditor({ title, subtitle, sheet, editable, busy, onSave }: CampaignSheetEditorProps) {
+  const [draft, setDraft] = useState<CharacterSheet>(sheet);
+  const [equipmentText, setEquipmentText] = useState(listToText(sheet.equipo));
+  const [contactsText, setContactsText] = useState(listToText(sheet.contactos));
+  const [lastActionResult, setLastActionResult] = useState<{ action: CharacterActionDefinition; rolls: ActionRollResult[] } | null>(null);
+  const actions = useMemo(() => deriveCharacterActions(draft), [draft]);
+
+  useEffect(() => {
+    setDraft(sheet);
+    setEquipmentText(listToText(sheet.equipo));
+    setContactsText(listToText(sheet.contactos));
+    setLastActionResult(null);
+  }, [sheet]);
+
+  function updateDraft(mutator: (current: CharacterSheet) => CharacterSheet): void {
+    setDraft((current) => mutator(current));
+  }
+
+  function handleRunAction(action: CharacterActionDefinition): void {
+    setLastActionResult(executeCharacterAction(draft, action.id));
+  }
+
+  function getActionsForSource(sourceName: string): CharacterActionDefinition[] {
+    return actions.filter((action) => action.sourceName === sourceName);
+  }
+
+  return (
+    <div className="campaign-sheet">
+      <header className="campaign-sheet-header">
+        <div>
+          <div className="campaign-sheet-kicker">Hoja de personaje</div>
+          <h2>{title}</h2>
+          <p>{subtitle}</p>
+        </div>
+        <div className="campaign-sheet-vitals">
+          <label className="field">
+            <span>Robustez actual</span>
+            <input
+              type="number"
+              min={0}
+              disabled={!editable}
+              value={draft.combate.robustezActual}
+              onChange={(event) =>
+                updateDraft((current) => ({
+                  ...current,
+                  combate: { ...current.combate, robustezActual: Number(event.target.value || 0) }
+                }))
+              }
+            />
+          </label>
+          <label className="field">
+            <span>Corrupción temporal</span>
+            <input
+              type="number"
+              min={0}
+              disabled={!editable}
+              value={draft.corrupcion.temporal}
+              onChange={(event) =>
+                updateDraft((current) => ({
+                  ...current,
+                  corrupcion: { ...current.corrupcion, temporal: Number(event.target.value || 0) }
+                }))
+              }
+            />
+          </label>
+          <label className="field">
+            <span>Corrupción permanente</span>
+            <input
+              type="number"
+              min={0}
+              disabled={!editable}
+              value={draft.corrupcion.permanente}
+              onChange={(event) =>
+                updateDraft((current) => ({
+                  ...current,
+                  corrupcion: { ...current.corrupcion, permanente: Number(event.target.value || 0) }
+                }))
+              }
+            />
+          </label>
+        </div>
+      </header>
+
+      <div className="campaign-sheet-grid">
+        <section className="campaign-sheet-card">
+          <h4>Identidad</h4>
+          <div className="campaign-sheet-readonly">
+            <span>Raza: {String(draft.identidad.raza)}</span>
+            <span>Cultura: {String(draft.identidad.cultura)}</span>
+            <span>Arquetipo: {String(draft.identidad.arquetipo)}</span>
+            <span>Profesión: {draft.identidad.profesion || "Sin definir"}</span>
+          </div>
+          <label className="field">
+            <span>Objetivo personal</span>
+            <textarea
+              rows={3}
+              disabled={!editable}
+              value={draft.identidad.objetivoPersonal}
+              onChange={(event) =>
+                updateDraft((current) => ({
+                  ...current,
+                  identidad: { ...current.identidad, objetivoPersonal: event.target.value }
+                }))
+              }
+            />
+          </label>
+          <label className="field">
+            <span>Notas importantes</span>
+            <textarea
+              rows={6}
+              disabled={!editable}
+              value={draft.notas}
+              onChange={(event) => updateDraft((current) => ({ ...current, notas: event.target.value }))}
+            />
+          </label>
+        </section>
+
+        <section className="campaign-sheet-card">
+          <h4>Combate y recursos</h4>
+          <div className="form-grid">
+            <label className="field">
+              <span>Robustez máxima</span>
+              <input
+                type="number"
+                min={1}
+                disabled={!editable}
+                value={draft.combate.robustezMax}
+                onChange={(event) =>
+                  updateDraft((current) => ({
+                    ...current,
+                    combate: { ...current.combate, robustezMax: Number(event.target.value || 1) }
+                  }))
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Umbral de dolor</span>
+              <input
+                type="number"
+                min={0}
+                disabled={!editable}
+                value={draft.combate.umbralDolor}
+                onChange={(event) =>
+                  updateDraft((current) => ({
+                    ...current,
+                    combate: { ...current.combate, umbralDolor: Number(event.target.value || 0) }
+                  }))
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Dinero</span>
+              <input
+                disabled={!editable}
+                value={draft.recursos.dinero}
+                onChange={(event) =>
+                  updateDraft((current) => ({
+                    ...current,
+                    recursos: { ...current.recursos, dinero: event.target.value }
+                  }))
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Otros recursos</span>
+              <input
+                disabled={!editable}
+                value={draft.recursos.otros}
+                onChange={(event) =>
+                  updateDraft((current) => ({
+                    ...current,
+                    recursos: { ...current.recursos, otros: event.target.value }
+                  }))
+                }
+              />
+            </label>
+          </div>
+          <label className="field">
+            <span>Armadura</span>
+            <input
+              disabled={!editable}
+              value={draft.combate.armadura}
+              onChange={(event) =>
+                updateDraft((current) => ({
+                  ...current,
+                  combate: { ...current.combate, armadura: event.target.value }
+                }))
+              }
+            />
+          </label>
+          <label className="field">
+            <span>Protección</span>
+            <input
+              disabled={!editable}
+              value={draft.combate.armaduraProteccion}
+              onChange={(event) =>
+                updateDraft((current) => ({
+                  ...current,
+                  combate: { ...current.combate, armaduraProteccion: event.target.value }
+                }))
+              }
+            />
+          </label>
+          <label className="field">
+            <span>Notas de corrupción</span>
+            <textarea
+              rows={3}
+              disabled={!editable}
+              value={draft.corrupcion.notas}
+              onChange={(event) =>
+                updateDraft((current) => ({
+                  ...current,
+                  corrupcion: { ...current.corrupcion, notas: event.target.value }
+                }))
+              }
+            />
+          </label>
+        </section>
+
+        <section className="campaign-sheet-card">
+          <h4>Equipo y contactos</h4>
+          <label className="field">
+            <span>Equipo</span>
+            <textarea
+              rows={8}
+              disabled={!editable}
+              value={equipmentText}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setEquipmentText(nextValue);
+                updateDraft((current) => ({ ...current, equipo: textToList(nextValue) }));
+              }}
+            />
+          </label>
+          <label className="field">
+            <span>Contactos</span>
+            <textarea
+              rows={6}
+              disabled={!editable}
+              value={contactsText}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setContactsText(nextValue);
+                updateDraft((current) => ({ ...current, contactos: textToList(nextValue) }));
+              }}
+            />
+          </label>
+        </section>
+
+        <section className="campaign-sheet-card">
+          <h4>Atributos</h4>
+          <div className="campaign-sheet-attributes">
+            {Object.entries(draft.atributos).map(([key, value]) => (
+              <div key={key} className="campaign-sheet-attribute">
+                <span>{key}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="campaign-sheet-card">
+          <h4>Armas preparadas</h4>
+          <div className="form-grid">
+            <label className="field">
+              <span>Arma principal</span>
+              <input
+                disabled={!editable}
+                value={draft.combate.armaPrincipal}
+                onChange={(event) =>
+                  updateDraft((current) => ({
+                    ...current,
+                    combate: { ...current.combate, armaPrincipal: event.target.value }
+                  }))
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Atributo</span>
+              <input
+                disabled={!editable}
+                value={draft.combate.armaPrincipalAtributo}
+                onChange={(event) =>
+                  updateDraft((current) => ({
+                    ...current,
+                    combate: { ...current.combate, armaPrincipalAtributo: event.target.value }
+                  }))
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Daño</span>
+              <input
+                disabled={!editable}
+                value={draft.combate.danioPrincipal}
+                onChange={(event) =>
+                  updateDraft((current) => ({
+                    ...current,
+                    combate: { ...current.combate, danioPrincipal: event.target.value }
+                  }))
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Arma secundaria</span>
+              <input
+                disabled={!editable}
+                value={draft.combate.armaSecundaria}
+                onChange={(event) =>
+                  updateDraft((current) => ({
+                    ...current,
+                    combate: { ...current.combate, armaSecundaria: event.target.value }
+                  }))
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Atributo</span>
+              <input
+                disabled={!editable}
+                value={draft.combate.armaSecundariaAtributo}
+                onChange={(event) =>
+                  updateDraft((current) => ({
+                    ...current,
+                    combate: { ...current.combate, armaSecundariaAtributo: event.target.value }
+                  }))
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Daño</span>
+              <input
+                disabled={!editable}
+                value={draft.combate.danioSecundaria}
+                onChange={(event) =>
+                  updateDraft((current) => ({
+                    ...current,
+                    combate: { ...current.combate, danioSecundaria: event.target.value }
+                  }))
+                }
+              />
+            </label>
+          </div>
+        </section>
+      </div>
+
+      <section className="campaign-sheet-card">
+        <h4>Capacidades y acciones</h4>
+        <div className="campaign-sheet-capability-columns">
+          <CapabilityColumn title="Habilidades" entries={draft.habilidades} getActionsForSource={getActionsForSource} onRunAction={handleRunAction} />
+          <CapabilityColumn title="Poderes místicos" entries={draft.poderesMisticos} getActionsForSource={getActionsForSource} onRunAction={handleRunAction} />
+          <CapabilityColumn title="Rituales" entries={draft.rituales} getActionsForSource={getActionsForSource} onRunAction={handleRunAction} />
+        </div>
+      </section>
+
+      <div className="campaign-sheet-grid">
+        <section className="campaign-sheet-card">
+          <h4>Grupo y contactos de hoja</h4>
+          <label className="field">
+            <span>Nombre del grupo</span>
+            <input
+              disabled={!editable}
+              value={draft.grupo.nombre}
+              onChange={(event) =>
+                updateDraft((current) => ({
+                  ...current,
+                  grupo: { ...current.grupo, nombre: event.target.value }
+                }))
+              }
+            />
+          </label>
+          <label className="field">
+            <span>Objetivo del grupo</span>
+            <textarea
+              rows={3}
+              disabled={!editable}
+              value={draft.grupo.objetivo}
+              onChange={(event) =>
+                updateDraft((current) => ({
+                  ...current,
+                  grupo: { ...current.grupo, objetivo: event.target.value }
+                }))
+              }
+            />
+          </label>
+          <div className="campaign-sheet-structured-list">
+            {draft.contactosHoja.map((contacto, index) => (
+              <article key={`contacto-${index}`} className="campaign-structured-card">
+                <strong>Contacto {index + 1}</strong>
+                <input
+                  disabled={!editable}
+                  placeholder="Nombre"
+                  value={contacto.nombre}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      contactosHoja: current.contactosHoja.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, nombre: event.target.value } : item
+                      )
+                    }))
+                  }
+                />
+                <input
+                  disabled={!editable}
+                  placeholder="Raza"
+                  value={contacto.raza}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      contactosHoja: current.contactosHoja.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, raza: event.target.value } : item
+                      )
+                    }))
+                  }
+                />
+                <input
+                  disabled={!editable}
+                  placeholder="Ocupación"
+                  value={contacto.ocupacion}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      contactosHoja: current.contactosHoja.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, ocupacion: event.target.value } : item
+                      )
+                    }))
+                  }
+                />
+                <input
+                  disabled={!editable}
+                  placeholder="Jugador"
+                  value={contacto.jugador}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      contactosHoja: current.contactosHoja.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, jugador: event.target.value } : item
+                      )
+                    }))
+                  }
+                />
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="campaign-sheet-card">
+          <h4>Artefactos</h4>
+          <div className="campaign-sheet-structured-list">
+            {draft.artefactos.map((artefacto, index) => (
+              <article key={`artefacto-${index}`} className="campaign-structured-card">
+                <strong>Artefacto {index + 1}</strong>
+                <input
+                  disabled={!editable}
+                  placeholder="Nombre"
+                  value={artefacto.nombre}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      artefactos: current.artefactos.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, nombre: event.target.value } : item
+                      )
+                    }))
+                  }
+                />
+                <textarea
+                  rows={3}
+                  disabled={!editable}
+                  placeholder="Poderes"
+                  value={artefacto.poderes}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      artefactos: current.artefactos.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, poderes: event.target.value } : item
+                      )
+                    }))
+                  }
+                />
+                <input
+                  disabled={!editable}
+                  placeholder="Corrupción"
+                  value={artefacto.corrupcion}
+                  onChange={(event) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      artefactos: current.artefactos.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, corrupcion: event.target.value } : item
+                      )
+                    }))
+                  }
+                />
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <section className="campaign-sheet-card">
+        <div className="row-actions">
+          <h4>Acciones disponibles</h4>
+          {editable ? (
+            <button type="button" disabled={busy} onClick={() => void onSave(draft)}>
+              Guardar hoja
+            </button>
+          ) : null}
+        </div>
+        <div className="campaign-sheet-actions">
+          {actions.map((action) => (
+            <button key={action.id} type="button" className="campaign-action-button" onClick={() => handleRunAction(action)}>
+              <strong>{action.label}</strong>
+              <span>{action.sourceName}</span>
+              <span>
+                {action.cost}
+                {action.rollAttribute ? ` · ${action.rollAttribute}` : ""}
+                {action.damageFormula ? ` · ${action.damageFormula}` : ""}
+              </span>
+            </button>
+          ))}
+          {actions.length === 0 ? <p className="section-help">No hay acciones ejecutables con la configuración actual de la hoja.</p> : null}
+        </div>
+        {lastActionResult ? (
+          <div className="campaign-sheet-roll-result">
+            <strong>{lastActionResult.action.label}</strong>
+            {lastActionResult.rolls.map((roll, index) => (
+              <span key={`${lastActionResult.action.id}-${index}`}>
+                {roll.label}: {roll.formula} = {roll.total}
+                {typeof roll.target === "number" ? ` vs ${roll.target} ${roll.success ? "éxito" : "fallo"}` : ""}
+              </span>
+            ))}
+            <p>{lastActionResult.action.effectSummary}</p>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+type CapabilityColumnProps = {
+  title: string;
+  entries: Array<{ nombre: string; nivel: string; efecto: string }>;
+  getActionsForSource: (sourceName: string) => CharacterActionDefinition[];
+  onRunAction: (action: CharacterActionDefinition) => void;
+};
+
+function CapabilityColumn({ title, entries, getActionsForSource, onRunAction }: CapabilityColumnProps) {
+  return (
+    <div className="campaign-capability-column">
+      <h5>{title}</h5>
+      {entries.map((entry) => {
+        const entryActions = getActionsForSource(entry.nombre);
+        return (
+          <article key={`${title}-${entry.nombre}-${entry.nivel}`} className="campaign-capability-entry">
+            <strong>{entry.nombre}</strong>
+            <span>{entry.nivel}</span>
+            {entry.efecto ? <p>{entry.efecto}</p> : null}
+            {entryActions.length > 0 ? (
+              <div className="campaign-capability-actions">
+                {entryActions.map((action) => (
+                  <button key={action.id} type="button" className="subtle-button" onClick={() => onRunAction(action)}>
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </article>
+        );
+      })}
+      {entries.length === 0 ? <p className="section-help">Sin entradas.</p> : null}
+    </div>
+  );
+}
+
 type CampaignNpcEditorProps = {
   npc: Campaign["npcs"][number];
   editable: boolean;
@@ -1332,9 +2367,11 @@ type CampaignNpcEditorProps = {
   onOpenReference: (referenceId: string) => void;
   onSave: (npcId: string, payload: UpdateCampaignNpcInput) => Promise<void>;
   onDelete: (npcId: string) => Promise<void>;
+  onOpenSheet: () => void;
+  onCreateSheet: (npcId: string) => Promise<void>;
 };
 
-function CampaignNpcEditor({ npc, editable, busy, references, onOpenReference, onSave, onDelete }: CampaignNpcEditorProps) {
+function CampaignNpcEditor({ npc, editable, busy, references, onOpenReference, onSave, onDelete, onOpenSheet, onCreateSheet }: CampaignNpcEditorProps) {
   const [draft, setDraft] = useState<UpdateCampaignNpcInput>(npc);
 
   useEffect(() => {
@@ -1381,6 +2418,19 @@ function CampaignNpcEditor({ npc, editable, busy, references, onOpenReference, o
       <CampaignLinkedTextBlock title="Vista enlazada de notas" text={draft.notes ?? ""} references={references} onOpenReference={onOpenReference} />
       <div className="card-actions">
         <span>{npc.isGenerated ? "Generado" : "Manual"}</span>
+        <button
+          type="button"
+          disabled={!npc.sheet && !editable}
+          onClick={() => {
+            if (npc.sheet) {
+              onOpenSheet();
+              return;
+            }
+            void onCreateSheet(npc.id);
+          }}
+        >
+          {npc.sheet ? "Abrir hoja" : "Crear hoja"}
+        </button>
         {editable ? (
           <>
             <button disabled={busy} onClick={() => void onSave(npc.id, draft)}>
@@ -1437,3 +2487,8 @@ function CampaignReferencePreview({ reference }: { reference: CampaignReference 
     </div>
   );
 }
+
+
+
+
+

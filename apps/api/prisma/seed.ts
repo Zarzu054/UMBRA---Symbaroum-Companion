@@ -22,6 +22,7 @@ async function upsertUser(email: string, password: string, role: "player" | "gm"
 
 async function main(): Promise<void> {
   await upsertUser("dev-player@umbra.local", "ChangeMe123!", "player");
+  await upsertUser("dev-gm@umbra.local", "ChangeMe123!", "gm");
 
   const superadminEmail = process.env.SUPERADMIN_EMAIL ?? "superadmin@umbra.local";
   const superadminPassword = process.env.SUPERADMIN_PASSWORD ?? "SuperAdmin123!";

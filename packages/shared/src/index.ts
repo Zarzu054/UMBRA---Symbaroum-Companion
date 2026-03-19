@@ -1,13 +1,20 @@
 import { z } from "zod";
 export * from "./symbaroumCompendium.js";
+export * from "./campaignActionEngine.js";
 
 export const userRoleSchema = z.enum(["player", "gm", "superadmin"]);
 export const registerRoleSchema = z.enum(["player", "gm"]);
 export const skillLevelSchema = z.enum(["novato", "adepto", "maestro"]);
+export const actionCostSchema = z.enum(["free", "movement", "combat", "reaction"]);
+export const campaignChatVisibilitySchema = z.enum(["all", "gm_only"]);
+export const campaignChatMessageTypeSchema = z.enum(["text", "action"]);
 
 export type UserRole = z.infer<typeof userRoleSchema>;
 export type RegisterRole = z.infer<typeof registerRoleSchema>;
 export type SkillLevel = z.infer<typeof skillLevelSchema>;
+export type ActionCost = z.infer<typeof actionCostSchema>;
+export type CampaignChatVisibility = z.infer<typeof campaignChatVisibilitySchema>;
+export type CampaignChatMessageType = z.infer<typeof campaignChatMessageTypeSchema>;
 
 export const SYMBAROUM_RACES = [
   "Humano",
@@ -78,6 +85,15 @@ const attributeBlockSchema = z.object({
   tenaz: z.number().int().min(5).max(15)
 });
 
+const actionMetadataSchema = z.object({
+  id: z.string().min(1).max(120),
+  label: z.string().min(1).max(120),
+  cost: actionCostSchema.default("combat"),
+  rollAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
+  damageFormula: z.string().max(80).optional(),
+  effectSummary: z.string().max(400).default("")
+});
+
 const ratedEntrySchema = z.object({
   nombre: z.string().min(1).max(120),
   tipo: z.string().max(120).default(""),
@@ -85,7 +101,8 @@ const ratedEntrySchema = z.object({
   nivel: skillLevelSchema,
   fuente: z.string().max(120).default(""),
   pagina: z.number().int().min(1).max(2000).optional(),
-  notas: z.string().max(800).default("")
+  notas: z.string().max(800).default(""),
+  acciones: z.array(actionMetadataSchema).max(12).default([])
 });
 
 const sourceRefSchema = z.object({
@@ -117,8 +134,7 @@ const artifactCardSchema = z.object({
   corrupcion: z.string().max(120).default("")
 });
 
-export const characterSheetSchema = z
-  .object({
+const characterSheetObjectSchema = z.object({
     identidad: z.object({
     nombreJugador: z.string().max(120).default(""),
     raza: z.enum(SYMBAROUM_RACES).or(z.string().min(1).max(80)),
@@ -203,8 +219,9 @@ export const characterSheetSchema = z
   ]),
   referencias: z.array(sourceRefSchema).max(300).default([]),
     notas: z.string().max(8000).default("")
-  })
-  .superRefine((sheet, ctx) => {
+  });
+
+export const characterSheetSchema = characterSheetObjectSchema.superRefine((sheet, ctx) => {
     if (sheet.progreso.experienciaGastada > sheet.progreso.experienciaTotal) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -292,6 +309,44 @@ function normalizeName(value: string): string {
 }
 
 export type CharacterSheet = z.infer<typeof characterSheetSchema>;
+
+export const importedCharacterSheetSchema = characterSheetObjectSchema.superRefine((sheet, ctx) => {
+  if (sheet.progreso.experienciaGastada > sheet.progreso.experienciaTotal) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["progreso", "experienciaGastada"],
+      message: "La experiencia gastada no puede ser mayor que la experiencia total"
+    });
+  }
+
+  if (sheet.combate.robustezActual > sheet.combate.robustezMax) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["combate", "robustezActual"],
+      message: "La robustez actual no puede superar la robustez máxima"
+    });
+  }
+
+  const canonicalAbilityNames = sheet.habilidades.map((entry) => normalizeName(entry.nombre));
+  const hasMysticAbility = canonicalAbilityNames.some((name) => NORMALIZED_MYSTIC_ABILITY_NAMES.includes(name));
+  const hasRitualAbility = canonicalAbilityNames.some((name) => NORMALIZED_RITUAL_ABILITY_NAMES.includes(name));
+
+  if (sheet.poderesMisticos.length > 0 && !hasMysticAbility) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["poderesMisticos"],
+      message: "Para registrar poderes misticos debes incluir una habilidad mistica base (Poder místico, Magia, Teúrgia, Brujería o Hechicería)"
+    });
+  }
+
+  if (sheet.rituales.length > 0 && !hasRitualAbility) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["rituales"],
+      message: "Para registrar rituales debes incluir la habilidad Rituales"
+    });
+  }
+});
 
 export function createEmptyCharacterSheet(): CharacterSheet {
   return {
@@ -390,7 +445,7 @@ export function createEmptyCharacterSheet(): CharacterSheet {
 }
 
 export function parseCharacterSheet(input: unknown): CharacterSheet {
-  return characterSheetSchema.parse(input);
+  return importedCharacterSheetSchema.parse(input);
 }
 
 export const createCharacterSchema = z.object({
@@ -403,11 +458,22 @@ export const createCharacterSchema = z.object({
   sheet: characterSheetSchema
 });
 
+export const importCharacterSchema = z.object({
+  name: z.string().min(2).max(80),
+  archetype: z.string().min(2).max(80),
+  race: z.string().min(2).max(80),
+  culture: z.string().max(80).default(""),
+  profession: z.string().max(120).default(""),
+  level: z.literal(1),
+  sheet: importedCharacterSheetSchema
+});
+
 export const updateCharacterSchema = createCharacterSchema.partial().extend({
-  sheet: characterSheetSchema
+  sheet: importedCharacterSheetSchema
 });
 
 export type CreateCharacterInput = z.infer<typeof createCharacterSchema>;
+export type ImportCharacterInput = z.infer<typeof importCharacterSchema>;
 export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 
 export type Character = {
@@ -471,6 +537,12 @@ export const createCampaignNpcSchema = z.object({
 });
 
 export const updateCampaignNpcSchema = createCampaignNpcSchema.partial();
+export const updateCampaignCharacterSheetSchema = z.object({
+  sheet: characterSheetSchema
+});
+export const updateCampaignNpcSheetSchema = z.object({
+  sheet: characterSheetSchema.nullable()
+});
 
 export const grantCampaignExperienceSchema = z.object({
   characterId: z.string().uuid(),
@@ -498,8 +570,32 @@ export const assignCampaignSessionExperienceSchema = z.object({
         amount: z.number().int().min(0).max(1000)
       })
     )
-    .max(128)
+    .min(1)
+    .max(50)
 });
+
+export const executeCampaignCharacterActionSchema = z.object({
+  characterId: z.string().uuid(),
+  actionId: z.string().min(1).max(120),
+  note: z.string().max(1000).default("")
+});
+
+export const createCampaignChatMessageSchema = z
+  .object({
+    characterId: z.string().uuid().optional(),
+    visibility: campaignChatVisibilitySchema.default("all"),
+    text: z.string().max(2000).default(""),
+    actionExecution: executeCampaignCharacterActionSchema.optional()
+  })
+  .superRefine((payload, ctx) => {
+    if (!payload.text.trim() && !payload.actionExecution) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["text"],
+        message: "El mensaje debe incluir texto o una accion ejecutada"
+      });
+    }
+  });
 
 export const createCampaignReferenceSchema = z.object({
   name: z.string().min(2).max(120),
@@ -523,12 +619,16 @@ export type AddCampaignMemberInput = z.infer<typeof addCampaignMemberSchema>;
 export type LinkCampaignCharacterInput = z.infer<typeof linkCampaignCharacterSchema>;
 export type CreateCampaignNpcInput = z.infer<typeof createCampaignNpcSchema>;
 export type UpdateCampaignNpcInput = z.infer<typeof updateCampaignNpcSchema>;
+export type UpdateCampaignCharacterSheetInput = z.infer<typeof updateCampaignCharacterSheetSchema>;
+export type UpdateCampaignNpcSheetInput = z.infer<typeof updateCampaignNpcSheetSchema>;
 export type GrantCampaignExperienceInput = z.infer<typeof grantCampaignExperienceSchema>;
 export type CreateCampaignSessionInput = z.infer<typeof createCampaignSessionSchema>;
 export type UpdateCampaignSessionInput = z.infer<typeof updateCampaignSessionSchema>;
 export type AssignCampaignSessionExperienceInput = z.infer<typeof assignCampaignSessionExperienceSchema>;
 export type CreateCampaignReferenceInput = z.infer<typeof createCampaignReferenceSchema>;
 export type UpdateCampaignReferenceInput = z.infer<typeof updateCampaignReferenceSchema>;
+export type ExecuteCampaignCharacterActionInput = z.infer<typeof executeCampaignCharacterActionSchema>;
+export type CreateCampaignChatMessageInput = z.infer<typeof createCampaignChatMessageSchema>;
 
 export type AuthUser = {
   id: string;
@@ -570,6 +670,7 @@ export type CampaignCharacter = {
   ownerEmail: string;
   experienceTotal: number;
   experienceSpent: number;
+  sheet: CharacterSheet | null;
   updatedAt: string;
 };
 
@@ -593,6 +694,7 @@ export type CampaignNpc = {
   summary: string;
   notes: string;
   statBlock: string;
+  sheet: CharacterSheet | null;
   isGenerated: boolean;
   createdAt: string;
   updatedAt: string;
@@ -635,6 +737,45 @@ export type CampaignReference = {
   updatedAt: string;
 };
 
+export type CharacterActionDefinition = {
+  id: string;
+  label: string;
+  sourceType: "weapon" | "ability" | "power" | "ritual";
+  sourceName: string;
+  cost: ActionCost;
+  rollAttribute?: AttributeKey;
+  damageFormula?: string;
+  effectSummary: string;
+};
+
+export type ActionRollResult = {
+  kind: "attribute_check" | "damage";
+  label: string;
+  dice: number[];
+  total: number;
+  formula: string;
+  target?: number;
+  success?: boolean;
+};
+
+export type CampaignChatMessage = {
+  id: string;
+  campaignId: string;
+  userId: string;
+  userEmail: string;
+  characterId: string | null;
+  characterName: string | null;
+  visibility: CampaignChatVisibility;
+  messageType: CampaignChatMessageType;
+  text: string;
+  actionId: string | null;
+  actionLabel: string | null;
+  actionCost: ActionCost | null;
+  actionSummary: string | null;
+  rolls: ActionRollResult[];
+  createdAt: string;
+};
+
 export type Campaign = {
   id: string;
   name: string;
@@ -652,4 +793,5 @@ export type Campaign = {
   experienceLog: CampaignExperienceLog[];
   sessions: CampaignSession[];
   references: CampaignReference[];
+  chatMessages: CampaignChatMessage[];
 };

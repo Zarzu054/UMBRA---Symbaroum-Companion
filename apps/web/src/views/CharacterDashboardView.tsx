@@ -51,6 +51,7 @@ function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"
 
 export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Props) {
   const controller = useCharacterController(ensureAccessToken);
+  const isCampaignManagedLock = controller.isEditing;
   const [activeModule, setActiveModule] = useState<AppModule>("characters");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [compendiumFocus, setCompendiumFocus] = useState<CompendiumFocus>({
@@ -184,6 +185,21 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
       <section className="panel content-toolbar-panel">
         <div className="toolbar">
           <button onClick={controller.openCreateModal}>Nuevo personaje</button>
+          <label className={`file-trigger${controller.isSaving ? " is-disabled" : ""}`}>
+            Importar PDF
+            <input
+              type="file"
+              accept="application/pdf,.pdf"
+              disabled={controller.isSaving}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) {
+                  void controller.importFromPdf(file);
+                }
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
           <button disabled={controller.isSaving} onClick={() => void controller.createRandomCharacter()}>
             Generar aleatorio
           </button>
@@ -195,6 +211,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           Constructor avanzado basado en hoja completa: identidad, atributos, progreso, combate, corrupcion,
           habilidades, poderes, rituales, equipo y referencias por libro/pagina.
         </p>
+        {controller.error && !controller.isFormModalOpen ? <p className="error">{controller.error}</p> : null}
       </section>
 
       {controller.isFormModalOpen ? (
@@ -393,6 +410,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
 
         <div className="section-title">Progreso y recursos</div>
         <p className="section-help">Control de avance: nivel, experiencia ganada y experiencia invertida.</p>
+        {isCampaignManagedLock ? <p className="section-help">Estos campos de progreso y estado de aventura se gestionan desde Campañas.</p> : null}
+        <fieldset disabled={isCampaignManagedLock} className="campaign-managed-fieldset">
         <div className="form-grid">
           <label className="field">
             <span>PX total</span>
@@ -414,6 +433,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           </label>
           <div className="info-box">PX disponible: {controller.derived.xpDisponible}</div>
         </div>
+        </fieldset>
 
         <div className="section-title">Cálculos automáticos (MVP)</div>
         <p className="section-help">
@@ -438,6 +458,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
 
         <div className="section-title">Combate y corrupcion</div>
         <p className="section-help">Estado actual en combate y seguimiento de corrupción temporal/permanente.</p>
+        {isCampaignManagedLock ? <p className="section-help">Robustez, corrupción, armas y armadura se actualizan dentro de la campaña.</p> : null}
+        <fieldset disabled={isCampaignManagedLock} className="campaign-managed-fieldset">
         <div className="form-grid">
           <label className="field">
             <span>Robustez máxima</span>
@@ -655,6 +677,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           </label>
           <div className="info-box">Corrupcion total: {controller.derived.corrupcionTotal}</div>
         </div>
+        </fieldset>
 
         <div className="section-title">Habilidades</div>
         <p className="section-help">Agrega habilidades del compendio o manuales. Define nivel y referencia de regla.</p>
@@ -932,6 +955,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
 
         <div className="section-title">Rasgos, equipo y contactos</div>
         <p className="section-help">Elementos narrativos y de inventario que impactan la partida y la hoja.</p>
+        {isCampaignManagedLock ? <p className="section-help">Inventario, contactos y recursos vivos se editan desde la hoja de campaña.</p> : null}
+        <fieldset disabled={isCampaignManagedLock} className="campaign-managed-fieldset">
         <div className="triple-columns">
           <div>
             <div className="inline-row">
@@ -994,9 +1019,12 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             </ul>
           </div>
         </div>
+        </fieldset>
 
         <div className="section-title">Trasfondo y notas</div>
         <p className="section-help">Resumen de historia, objetivos y aclaraciones de reglas aplicadas a este PJ.</p>
+        {isCampaignManagedLock ? <p className="section-help">Dinero, objetivo personal, grupo, trasfondo vivo y notas de aventura se gestionan desde Campañas.</p> : null}
+        <fieldset disabled={isCampaignManagedLock} className="campaign-managed-fieldset">
         <div className="form-grid">
           <label className="field">
             <span>Objetivo personal</span>
@@ -1120,6 +1148,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             </article>
           ))}
         </div>
+        </fieldset>
           </div>
         </section>
       ) : null}
@@ -1235,4 +1264,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     </main>
   );
 }
+
+
+
 

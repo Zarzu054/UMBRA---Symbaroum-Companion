@@ -1,5 +1,5 @@
 ﻿import type { Prisma } from "@prisma/client";
-import { parseCharacterSheet, type Campaign, type CampaignAvailableCharacter, type UserRole } from "@umbra/shared";
+import { createEmptyCharacterSheet, parseCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CharacterSheet, type UserRole } from "@umbra/shared";
 import { prisma } from "../config/prisma.js";
 
 const campaignInclude = {
@@ -47,6 +47,15 @@ const campaignInclude = {
     orderBy: {
       updatedAt: "desc"
     }
+  },
+  chatMessages: {
+    include: {
+      user: true,
+      character: true
+    },
+    orderBy: {
+      createdAt: "asc"
+    }
   }
 } satisfies Prisma.CampaignInclude;
 
@@ -64,6 +73,13 @@ type CharacterAvailabilityRow = {
   };
   sheet: Prisma.JsonValue;
 };
+
+type CampaignChatMessageRow = Prisma.CampaignChatMessageGetPayload<{
+  include: {
+    user: true;
+    character: true;
+  };
+}>;
 
 function mapAvailableCharacter(row: CharacterAvailabilityRow, linkedIds: Set<string>): CampaignAvailableCharacter {
   let experienceTotal = 0;
@@ -89,6 +105,26 @@ function mapAvailableCharacter(row: CharacterAvailabilityRow, linkedIds: Set<str
   };
 }
 
+function mapChatMessage(row: CampaignChatMessageRow) {
+  return {
+    id: row.id,
+    campaignId: row.campaignId,
+    userId: row.userId,
+    userEmail: row.user.email,
+    characterId: row.characterId,
+    characterName: row.character?.name ?? null,
+    visibility: row.visibility,
+    messageType: row.messageType,
+    text: row.text,
+    actionId: row.actionId,
+    actionLabel: row.actionLabel,
+    actionCost: row.actionCost as "free" | "movement" | "combat" | "reaction" | null,
+    actionSummary: row.actionSummary,
+    rolls: Array.isArray(row.rolls) ? row.rolls as [] : [],
+    createdAt: row.createdAt.toISOString()
+  };
+}
+
 function mapCampaign(
   row: CampaignRow,
   viewerId: string,
@@ -99,6 +135,9 @@ function mapCampaign(
   const isDirector = viewerRole === "superadmin" || row.gmId === viewerId;
   const visibleSessions = row.sessions;
   const visibleReferences = row.references.filter((reference) => isDirector || reference.isPublic);
+  const visibleChatMessages = row.chatMessages.filter(
+    (message) => isDirector || message.userId === viewerId || message.visibility === "all"
+  );
 
   return {
     id: row.id,
@@ -137,6 +176,7 @@ function mapCampaign(
         ownerEmail: entry.character.owner.email,
         experienceTotal,
         experienceSpent,
+        sheet: isDirector || entry.character.ownerId === viewerId ? parseCharacterSheet(entry.character.sheet) : null,
         updatedAt: entry.character.updatedAt.toISOString()
       };
     }),
@@ -151,6 +191,7 @@ function mapCampaign(
       summary: npc.summary,
       notes: npc.notes,
       statBlock: npc.statBlock,
+      sheet: npc.sheet ? parseCharacterSheet(npc.sheet) : null,
       isGenerated: npc.isGenerated,
       createdAt: npc.createdAt.toISOString(),
       updatedAt: npc.updatedAt.toISOString()
@@ -188,7 +229,8 @@ function mapCampaign(
       isPublic: reference.isPublic,
       createdAt: reference.createdAt.toISOString(),
       updatedAt: reference.updatedAt.toISOString()
-    }))
+    })),
+    chatMessages: visibleChatMessages.map((message) => mapChatMessage(message))
   };
 }
 
@@ -321,6 +363,7 @@ export class CampaignModel {
       summary: string;
       notes: string;
       statBlock: string;
+      sheet?: Prisma.JsonValue | null;
       isGenerated: boolean;
     }
   ): Promise<void> {
@@ -343,6 +386,7 @@ export class CampaignModel {
       summary: string;
       notes: string;
       statBlock: string;
+      sheet: Prisma.JsonValue | null;
       isGenerated: boolean;
     }>
   ): Promise<void> {
@@ -464,6 +508,59 @@ export class CampaignModel {
     });
   }
 
+  async createChatMessage(
+    campaignId: string,
+    payload: {
+      userId: string;
+      characterId?: string;
+      visibility: "all" | "gm_only";
+      messageType: "text" | "action";
+      text: string;
+      actionId?: string;
+      actionLabel?: string;
+      actionCost?: string;
+      actionSummary?: string;
+      rolls?: unknown[];
+    }
+  ) {
+    const row = await prisma.campaignChatMessage.create({
+      data: {
+        campaignId,
+        userId: payload.userId,
+        characterId: payload.characterId,
+        visibility: payload.visibility,
+        messageType: payload.messageType,
+        text: payload.text,
+        actionId: payload.actionId,
+        actionLabel: payload.actionLabel,
+        actionCost: payload.actionCost,
+        actionSummary: payload.actionSummary,
+        rolls: (payload.rolls ?? []) as Prisma.InputJsonValue
+      },
+      include: {
+        user: true,
+        character: true
+      }
+    });
+
+    return mapChatMessage(row as CampaignChatMessageRow);
+  }
+
+  async listChatMessages(campaignId: string) {
+    const rows = await prisma.campaignChatMessage.findMany({
+      where: { campaignId },
+      include: {
+        user: true,
+        character: true
+      },
+      orderBy: {
+        createdAt: "asc"
+      }
+    });
+
+    return rows.map((row) => mapChatMessage(row));
+  }
+
   async findMemberByEmail(email: string): Promise<{ id: string; email: string; role: string } | null> {
     return prisma.user.findUnique({
       where: { email },
@@ -504,10 +601,38 @@ export class CampaignModel {
     });
   }
 
-  async findNpcById(npcId: string): Promise<{ id: string; campaignId: string } | null> {
+  async findCharacterLinkDetailById(
+    linkId: string
+  ): Promise<{ id: string; campaignId: string; characterId: string; ownerId: string } | null> {
+    const row = await prisma.campaignCharacter.findUnique({
+      where: { id: linkId },
+      select: {
+        id: true,
+        campaignId: true,
+        characterId: true,
+        character: {
+          select: {
+            ownerId: true
+          }
+        }
+      }
+    });
+
+    if (!row) return null;
+    return {
+      id: row.id,
+      campaignId: row.campaignId,
+      characterId: row.characterId,
+      ownerId: row.character.ownerId
+    };
+  }
+
+  async findNpcById(
+    npcId: string
+  ): Promise<{ id: string; campaignId: string; name: string; race: string; archetype: string; occupation: string; sheet: Prisma.JsonValue | null } | null> {
     return prisma.campaignNpc.findUnique({
       where: { id: npcId },
-      select: { id: true, campaignId: true }
+      select: { id: true, campaignId: true, name: true, race: true, archetype: true, occupation: true, sheet: true }
     });
   }
 
@@ -522,6 +647,92 @@ export class CampaignModel {
     return prisma.campaignReference.findUnique({
       where: { id: referenceId },
       select: { id: true, campaignId: true }
+    });
+  }
+
+  async findCampaignCharacterForUser(campaignId: string, characterId: string): Promise<{ characterId: string; ownerId: string; sheet: Prisma.JsonValue } | null> {
+    const row = await prisma.campaignCharacter.findFirst({
+      where: {
+        campaignId,
+        characterId
+      },
+      select: {
+        characterId: true,
+        character: {
+          select: {
+            ownerId: true,
+            sheet: true
+          }
+        }
+      }
+    });
+
+    if (!row) return null;
+    return {
+      characterId: row.characterId,
+      ownerId: row.character.ownerId,
+      sheet: row.character.sheet
+    };
+  }
+
+  async updateLinkedCharacterSheet(characterId: string, sheet: CharacterSheet): Promise<void> {
+    await prisma.character.update({
+      where: { id: characterId },
+      data: {
+        race: String(sheet.identidad.raza),
+        culture: String(sheet.identidad.cultura),
+        archetype: String(sheet.identidad.arquetipo),
+        profession: sheet.identidad.profesion,
+        sheet
+      }
+    });
+  }
+
+  async createNpcSheet(npcId: string, seed?: Partial<CharacterSheet>): Promise<void> {
+    const base = createEmptyCharacterSheet();
+    const nextSheet: CharacterSheet = {
+      ...base,
+      ...seed,
+      identidad: {
+        ...base.identidad,
+        ...seed?.identidad
+      },
+      atributos: {
+        ...base.atributos,
+        ...seed?.atributos
+      },
+      progreso: {
+        ...base.progreso,
+        ...seed?.progreso
+      },
+      combate: {
+        ...base.combate,
+        ...seed?.combate
+      },
+      corrupcion: {
+        ...base.corrupcion,
+        ...seed?.corrupcion
+      },
+      recursos: {
+        ...base.recursos,
+        ...seed?.recursos
+      },
+      grupo: {
+        ...base.grupo,
+        ...seed?.grupo
+      }
+    };
+
+    await prisma.campaignNpc.update({
+      where: { id: npcId },
+      data: { sheet: nextSheet }
+    });
+  }
+
+  async updateNpcSheet(npcId: string, sheet: CharacterSheet | null): Promise<void> {
+    await prisma.campaignNpc.update({
+      where: { id: npcId },
+      data: { sheet }
     });
   }
 

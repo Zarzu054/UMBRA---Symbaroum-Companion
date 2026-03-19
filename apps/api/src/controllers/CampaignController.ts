@@ -2,6 +2,7 @@
 import type {
   AddCampaignMemberInput,
   AssignCampaignSessionExperienceInput,
+  CreateCampaignChatMessageInput,
   CreateCampaignInput,
   CreateCampaignNpcInput,
   CreateCampaignReferenceInput,
@@ -9,10 +10,13 @@ import type {
   GrantCampaignExperienceInput,
   UpdateCampaignInput,
   UpdateCampaignNpcInput,
+  UpdateCampaignNpcSheetInput,
   UpdateCampaignReferenceInput,
+  UpdateCampaignCharacterSheetInput,
   UpdateCampaignSessionInput
 } from "@umbra/shared";
 import { CampaignService } from "../services/CampaignService.js";
+import { campaignLiveHub } from "../services/CampaignLiveHub.js";
 
 export class CampaignController {
   constructor(private readonly service: CampaignService) {}
@@ -33,6 +37,51 @@ export class CampaignController {
     const user = request.authUser!;
     const campaign = await this.service.createCampaign(user.id, user.role, request.body);
     reply.code(201).send({ data: campaign });
+  }
+
+  async listChatMessages(request: FastifyRequest<{ Params: { campaignId: string } }>, reply: FastifyReply): Promise<void> {
+    const user = request.authUser!;
+    const messages = await this.service.listChatMessages(user.id, user.role, request.params.campaignId);
+    reply.send({ data: messages });
+  }
+
+  async createChatMessage(
+    request: FastifyRequest<{ Params: { campaignId: string }; Body: CreateCampaignChatMessageInput }>,
+    reply: FastifyReply
+  ): Promise<void> {
+    const user = request.authUser!;
+    const message = await this.service.createChatMessage(user.id, user.email, user.role, request.params.campaignId, request.body);
+    reply.code(201).send({ data: message });
+  }
+
+  async streamChat(request: FastifyRequest<{ Params: { campaignId: string } }>, reply: FastifyReply): Promise<void> {
+    const user = request.authUser!;
+    await this.service.getCampaign(user.id, user.role, request.params.campaignId);
+
+    reply.hijack();
+    const raw = reply.raw;
+    raw.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+    raw.setHeader("Cache-Control", "no-cache, no-transform");
+    raw.setHeader("Connection", "keep-alive");
+    raw.write(JSON.stringify({ type: "ready" }) + "\n");
+
+    const unsubscribe = campaignLiveHub.subscribe(request.params.campaignId, (message) => {
+      const isDirector = user.role === "gm" || user.role === "superadmin";
+      if (!isDirector && message.userId !== user.id && message.visibility !== "all") {
+        return;
+      }
+      raw.write(JSON.stringify({ type: "message", data: message }) + "\n");
+    });
+
+    const heartbeat = setInterval(() => {
+      raw.write(JSON.stringify({ type: "keepalive" }) + "\n");
+    }, 15000);
+
+    request.raw.on("close", () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+      raw.end();
+    });
   }
 
   async update(
@@ -74,6 +123,15 @@ export class CampaignController {
     reply.send({ data: campaign });
   }
 
+  async updateCharacterSheet(
+    request: FastifyRequest<{ Params: { linkId: string }; Body: UpdateCampaignCharacterSheetInput }>,
+    reply: FastifyReply
+  ): Promise<void> {
+    const user = request.authUser!;
+    const campaign = await this.service.updateCharacterSheet(user.id, user.role, request.params.linkId, request.body);
+    reply.send({ data: campaign });
+  }
+
   async createNpc(
     request: FastifyRequest<{ Params: { campaignId: string }; Body: CreateCampaignNpcInput }>,
     reply: FastifyReply
@@ -101,6 +159,21 @@ export class CampaignController {
   async deleteNpc(request: FastifyRequest<{ Params: { npcId: string } }>, reply: FastifyReply): Promise<void> {
     const user = request.authUser!;
     const campaign = await this.service.deleteNpc(user.id, user.role, request.params.npcId);
+    reply.send({ data: campaign });
+  }
+
+  async createNpcSheet(request: FastifyRequest<{ Params: { npcId: string } }>, reply: FastifyReply): Promise<void> {
+    const user = request.authUser!;
+    const campaign = await this.service.createNpcSheet(user.id, user.role, request.params.npcId);
+    reply.send({ data: campaign });
+  }
+
+  async updateNpcSheet(
+    request: FastifyRequest<{ Params: { npcId: string }; Body: UpdateCampaignNpcSheetInput }>,
+    reply: FastifyReply
+  ): Promise<void> {
+    const user = request.authUser!;
+    const campaign = await this.service.updateNpcSheet(user.id, user.role, request.params.npcId, request.body);
     reply.send({ data: campaign });
   }
 

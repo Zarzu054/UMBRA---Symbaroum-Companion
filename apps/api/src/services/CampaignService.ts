@@ -1,21 +1,29 @@
 ﻿import {
   addCampaignMemberSchema,
+  assignCampaignSessionExperienceSchema,
+  createCampaignChatMessageSchema,
   createCampaignNpcSchema,
   createCampaignReferenceSchema,
   createCampaignSchema,
   createCampaignSessionSchema,
-  assignCampaignSessionExperienceSchema,
+  createEmptyCharacterSheet,
+  executeCharacterAction,
   grantCampaignExperienceSchema,
   linkCampaignCharacterSchema,
+  parseCharacterSheet,
   SYMBAROUM_ARCHETYPES,
   SYMBAROUM_RACES,
   updateCampaignNpcSchema,
+  updateCampaignNpcSheetSchema,
   updateCampaignReferenceSchema,
   updateCampaignSchema,
+  updateCampaignCharacterSheetSchema,
   updateCampaignSessionSchema,
   type AddCampaignMemberInput,
   type AssignCampaignSessionExperienceInput,
   type Campaign,
+  type CampaignChatMessage,
+  type CreateCampaignChatMessageInput,
   type CreateCampaignInput,
   type CreateCampaignNpcInput,
   type CreateCampaignReferenceInput,
@@ -23,11 +31,14 @@
   type GrantCampaignExperienceInput,
   type UpdateCampaignInput,
   type UpdateCampaignNpcInput,
+  type UpdateCampaignNpcSheetInput,
   type UpdateCampaignReferenceInput,
+  type UpdateCampaignCharacterSheetInput,
   type UpdateCampaignSessionInput,
   type UserRole
 } from "@umbra/shared";
 import { CampaignModel } from "../models/CampaignModel.js";
+import { campaignLiveHub } from "./CampaignLiveHub.js";
 import { AppError } from "../utils/AppError.js";
 
 const NPC_THREATS = ["Bajo", "Medio", "Alto", "Elite"] as const;
@@ -86,6 +97,60 @@ export class CampaignService {
     }
 
     return campaign;
+  }
+
+  async listChatMessages(userId: string, userRole: UserRole, campaignId: string): Promise<CampaignChatMessage[]> {
+    const campaign = await this.getCampaign(userId, userRole, campaignId);
+    return campaign.chatMessages;
+  }
+
+  async createChatMessage(
+    userId: string,
+    _userEmail: string,
+    userRole: UserRole,
+    campaignId: string,
+    input: CreateCampaignChatMessageInput
+  ): Promise<CampaignChatMessage> {
+    await this.getCampaign(userId, userRole, campaignId);
+    const payload = createCampaignChatMessageSchema.parse(input);
+
+    if (payload.actionExecution) {
+      const linkedCharacter = await this.model.findCampaignCharacterForUser(campaignId, payload.actionExecution.characterId);
+      if (!linkedCharacter) {
+        throw new AppError("CAMPAIGN_CHARACTER_NOT_LINKED", "El personaje no esta vinculado a la campana", 404);
+      }
+
+      const isDirector = userRole === "gm" || userRole === "superadmin";
+      if (!isDirector && linkedCharacter.ownerId !== userId) {
+        throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes ejecutar acciones con tus propios personajes", 403);
+      }
+
+      const sheet = parseCharacterSheet(linkedCharacter.sheet);
+      const executed = executeCharacterAction(sheet, payload.actionExecution.actionId);
+      const message = await this.model.createChatMessage(campaignId, {
+        userId,
+        characterId: payload.actionExecution.characterId,
+        visibility: payload.visibility,
+        messageType: "action",
+        text: payload.actionExecution.note || payload.text,
+        actionId: executed.action.id,
+        actionLabel: executed.action.label,
+        actionCost: executed.action.cost,
+        actionSummary: executed.action.effectSummary,
+        rolls: executed.rolls
+      });
+      campaignLiveHub.publish(campaignId, message);
+      return message;
+    }
+
+    const message = await this.model.createChatMessage(campaignId, {
+      userId,
+      visibility: payload.visibility,
+      messageType: "text",
+      text: payload.text.trim()
+    });
+    campaignLiveHub.publish(campaignId, message);
+    return message;
   }
 
   async createCampaign(userId: string, userRole: UserRole, input: CreateCampaignInput): Promise<Campaign> {
@@ -204,6 +269,70 @@ export class CampaignService {
 
     await this.assertCampaignManagedBy(userId, userRole, npc.campaignId);
     await this.model.deleteNpc(npcId);
+    return this.getCampaign(userId, userRole, npc.campaignId);
+  }
+
+  async updateCharacterSheet(
+    userId: string,
+    userRole: UserRole,
+    linkId: string,
+    input: UpdateCampaignCharacterSheetInput
+  ): Promise<Campaign> {
+    const link = await this.model.findCharacterLinkDetailById(linkId);
+    if (!link) {
+      throw new AppError("CAMPAIGN_CHARACTER_LINK_NOT_FOUND", "Vinculo de personaje no encontrado", 404);
+    }
+
+    const isDirector = userRole === "gm" || userRole === "superadmin";
+    if (!isDirector && link.ownerId !== userId) {
+      throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes modificar la hoja de tus propios personajes", 403);
+    }
+
+    if (isDirector) {
+      await this.assertCampaignManagedBy(userId, userRole, link.campaignId);
+    }
+
+    const payload = updateCampaignCharacterSheetSchema.parse(input);
+    await this.model.updateLinkedCharacterSheet(link.characterId, payload.sheet);
+    return this.getCampaign(userId, userRole, link.campaignId);
+  }
+
+  async updateNpcSheet(
+    userId: string,
+    userRole: UserRole,
+    npcId: string,
+    input: UpdateCampaignNpcSheetInput
+  ): Promise<Campaign> {
+    requireDirectorRole(userRole);
+    const npc = await this.model.findNpcById(npcId);
+    if (!npc) {
+      throw new AppError("CAMPAIGN_NPC_NOT_FOUND", "PNJ no encontrado", 404);
+    }
+
+    await this.assertCampaignManagedBy(userId, userRole, npc.campaignId);
+    const payload = updateCampaignNpcSheetSchema.parse(input);
+    await this.model.updateNpcSheet(npcId, payload.sheet);
+    return this.getCampaign(userId, userRole, npc.campaignId);
+  }
+
+  async createNpcSheet(userId: string, userRole: UserRole, npcId: string): Promise<Campaign> {
+    requireDirectorRole(userRole);
+    const npc = await this.model.findNpcById(npcId);
+    if (!npc) {
+      throw new AppError("CAMPAIGN_NPC_NOT_FOUND", "PNJ no encontrado", 404);
+    }
+
+    await this.assertCampaignManagedBy(userId, userRole, npc.campaignId);
+    await this.model.createNpcSheet(npcId, {
+      identidad: {
+        ...createEmptyCharacterSheet().identidad,
+        raza: npc.race || "Humano",
+        arquetipo: npc.archetype || "Guerrero",
+        profesion: npc.occupation || "",
+        apariencia: npc.summary || "",
+        trasfondo: npc.notes || ""
+      }
+    });
     return this.getCampaign(userId, userRole, npc.campaignId);
   }
 

@@ -1,10 +1,12 @@
 import {
   createCharacterSchema,
   createEmptyCharacterSheet,
+  importCharacterSchema,
   parseCharacterSheet,
   updateCharacterSchema,
   type Character,
   type CreateCharacterInput,
+  type ImportCharacterInput,
   type UpdateCharacterInput
 } from "@umbra/shared";
 import { AppError } from "../utils/AppError.js";
@@ -38,6 +40,33 @@ export class CharacterService {
     };
 
     const payload = createCharacterSchema.parse(normalized);
+    return this.model.create(ownerId, {
+      ...payload,
+      sheet: parseCharacterSheet(payload.sheet ?? createEmptyCharacterSheet())
+    });
+  }
+
+  async importCharacter(ownerId: string, input: ImportCharacterInput): Promise<Character> {
+    const normalizedSheet = {
+      ...(input.sheet ?? createEmptyCharacterSheet()),
+      progreso: {
+        ...(input.sheet?.progreso ?? createEmptyCharacterSheet().progreso),
+        nivel: 1 as const
+      }
+    };
+
+    const normalized = {
+      ...input,
+      name: input.name?.trim() || "Personaje importado",
+      archetype: input.archetype?.trim() || input.sheet?.identidad?.arquetipo || "Guerrero",
+      race: input.race?.trim() || input.sheet?.identidad?.raza || "Humano",
+      culture: input.culture?.trim() || input.sheet?.identidad?.cultura || "Ambriano",
+      profession: input.profession?.trim() || input.sheet?.identidad?.profesion || "",
+      level: 1 as const,
+      sheet: normalizedSheet
+    };
+
+    const payload = importCharacterSchema.parse(normalized);
     return this.model.create(ownerId, {
       ...payload,
       sheet: parseCharacterSheet(payload.sheet ?? createEmptyCharacterSheet())
