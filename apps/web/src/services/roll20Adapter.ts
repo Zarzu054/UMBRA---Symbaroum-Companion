@@ -1,5 +1,7 @@
 ﻿import type { RollRequest } from "@umbra/shared";
 
+export type Roll20Visibility = "public" | "gm";
+
 function getKindLabel(request: RollRequest): string {
   switch (request.kind) {
     case "attack":
@@ -13,10 +15,10 @@ function getKindLabel(request: RollRequest): string {
   }
 }
 
-export function toRoll20Text(request: RollRequest): string {
+export function toRoll20Text(request: RollRequest, visibility: Roll20Visibility = "public"): string {
   const lines = [
     `${request.characterName} - ${request.actionLabel} [${getKindLabel(request)}]`,
-    `/r ${request.formula}`
+    `${visibility === "gm" ? "/gr" : "/r"} ${request.formula}`
   ];
 
   if (request.rollAttribute && typeof request.target === "number") {

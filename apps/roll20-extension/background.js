@@ -1,7 +1,11 @@
 ﻿const ROLL20_EDITOR_PATTERNS = [
-  /^https:\/\/app\.roll20\.net\/editor\//i,
-  /^https:\/\/roll20\.net\/editor\//i
+  /^https:\/\/app\.roll20\.net\/editor(?:\/|$)/i,
+  /^https:\/\/roll20\.net\/editor(?:\/|$)/i
 ];
+
+function log(...args) {
+  console.log("[UMBRA Roll20 Bridge][background]", ...args);
+}
 
 function isRoll20EditorUrl(url) {
   return typeof url === "string" && ROLL20_EDITOR_PATTERNS.some((pattern) => pattern.test(url));
@@ -13,9 +17,12 @@ async function getRoll20Tabs() {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  log("message received", message?.type);
+
   if (message?.type === "UMBRA_ROLL20_PING") {
     getRoll20Tabs()
       .then((tabs) => {
+        log("ping tabs", tabs.map((tab) => ({ id: tab.id, url: tab.url })));
         sendResponse({
           ok: true,
           bridgeAvailable: true,
@@ -25,6 +32,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         });
       })
       .catch((error) => {
+        log("ping error", error);
         sendResponse({
           ok: false,
           bridgeAvailable: true,
@@ -39,6 +47,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "UMBRA_ROLL20_SEND") {
     getRoll20Tabs()
       .then(async (tabs) => {
+        log("send tabs", tabs.map((tab) => ({ id: tab.id, url: tab.url })));
         if (tabs.length === 0) {
           sendResponse({
             ok: false,
@@ -51,11 +60,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         }
 
         const [tab] = tabs;
+        log("sending to tab", tab.id);
         const response = await chrome.tabs.sendMessage(tab.id, {
           type: "ROLL20_INSERT_TEXT",
           text: message.text,
           send: true
         });
+        log("tab response", response);
 
         sendResponse({
           ok: true,
@@ -66,6 +77,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         });
       })
       .catch((error) => {
+        log("send error", error);
         sendResponse({
           ok: false,
           bridgeAvailable: true,

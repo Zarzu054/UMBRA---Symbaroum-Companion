@@ -1,19 +1,17 @@
 ﻿import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   buildRollRequest,
+  createCampaignNpcSchema,
   deriveCharacterActions,
   executeCharacterAction,
-  createCampaignNpcSchema,
-  createCampaignChatMessageSchema,
   createCampaignReferenceSchema,
   createCampaignSchema,
   createCampaignSessionSchema,
   type ActionRollResult,
-  type CampaignChatMessage,
-  type CampaignChatVisibility,
   type CharacterSheet,
   type CharacterActionDefinition,
   type CharacterActionPhase,
+  type RollRequest,
   type RollDestination,
   type AuthUser,
   type Campaign,
@@ -30,14 +28,12 @@ import {
   addCampaignMember,
   assignCampaignSessionExperience,
   createCampaign,
-  createCampaignChatMessage,
   createCampaignNpc,
   createCampaignNpcSheet,
   createCampaignReference,
   createCampaignSession,
   deleteCampaignNpc,
   deleteCampaignReference,
-  fetchCampaignChatMessages,
   fetchCampaigns,
   generateCampaignNpc,
   grantCampaignExperience,
@@ -55,6 +51,7 @@ import {
   dispatchRoll20Request,
   getRollDestination,
   pingRoll20Bridge,
+  type Roll20Visibility,
   type Roll20BridgeStatus,
   setRollDestination as persistRollDestination
 } from "../services/rollTransport";
@@ -75,7 +72,15 @@ type CampaignSheetTarget =
   | { kind: "character"; linkId: string }
   | { kind: "npc"; npcId: string };
 
-type CampaignDetailSection = "overview" | "wiki" | "members" | "sessions" | "characters" | "npcs" | "chat" | "xp" | "sheet";
+type CampaignDetailSection = "overview" | "wiki" | "members" | "sessions" | "characters" | "npcs" | "xp" | "sheet";
+
+type PendingRollConfirmation = {
+  request: RollRequest;
+  action: CharacterActionDefinition;
+  phase: CharacterActionPhase;
+  runLocalAfterSend: boolean;
+  visibility: Roll20Visibility;
+};
 
 const emptyCampaignForm: CreateCampaignInput = { name: "", summary: "", setting: "", notes: "" };
 const emptyNpcForm: CreateCampaignNpcInput = {
@@ -358,11 +363,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         : null
   );
   const [activeSection, setActiveSection] = useState<CampaignDetailSection>("overview");
-  const [chatMessages, setChatMessages] = useState<CampaignChatMessage[]>([]);
-  const [chatText, setChatText] = useState("");
-  const [chatVisibility, setChatVisibility] = useState<CampaignChatVisibility>("all");
-  const [chatActorCharacterId, setChatActorCharacterId] = useState<string>("");
-  const [actionNote, setActionNote] = useState("");
   const [rollDestination, setRollDestinationState] = useState<RollDestination>(() => getRollDestination());
   const [rollTransportMessage, setRollTransportMessage] = useState<string | null>(null);
   const [roll20BridgeStatus, setRoll20BridgeStatus] = useState<Roll20BridgeStatus | null>(null);
@@ -416,22 +416,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     () => selectedCampaign?.availableCharacters.filter((entry) => !entry.linked) ?? [],
     [selectedCampaign]
   );
-  const controllableCharacters = useMemo(
-    () =>
-      (selectedCampaign?.characters ?? []).filter(
-        (entry) => entry.sheet && (isDirector || entry.ownerId === user.id)
-      ),
-    [isDirector, selectedCampaign, user.id]
-  );
-  const activeChatCharacter = useMemo(
-    () => controllableCharacters.find((entry) => entry.characterId === chatActorCharacterId) ?? controllableCharacters[0] ?? null,
-    [chatActorCharacterId, controllableCharacters]
-  );
-  const availableActions = useMemo<CharacterActionDefinition[]>(
-    () => (activeChatCharacter?.sheet ? deriveCharacterActions(activeChatCharacter.sheet) : []),
-    [activeChatCharacter]
-  );
-
   function handleRollDestinationChange(destination: RollDestination): void {
     setRollDestinationState(destination);
     persistRollDestination(destination);
@@ -442,19 +426,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           ? "Las tiradas se prepararÃ¡n para Roll20 por defecto."
           : "Las tiradas se enviarÃ¡n a Roll20 y tambiÃ©n se resolverÃ¡n en UMBRA."
     );
-  }
-
-  async function sendActionToRoll20(
-    sheet: CharacterSheet,
-    characterName: string,
-    action: CharacterActionDefinition,
-    phase: CharacterActionPhase,
-    note: string
-  ): Promise<void> {
-    const request = buildRollRequest(sheet, characterName, action.id, phase, rollDestination, note);
-    const result = await dispatchRoll20Request(request);
-    setRoll20BridgeStatus(result.status);
-    setRollTransportMessage(result.status.message);
   }
 
   useEffect(() => {
@@ -543,10 +514,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setReferenceAliasesText("");
       setSelectedReferenceId(null);
       setSelectedSheetTarget(null);
-      setChatMessages([]);
-      setChatText("");
-      setChatActorCharacterId("");
-      setActionNote("");
       return;
     }
 
@@ -575,12 +542,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       amount: prev.amount,
       reason: prev.reason
     }));
-    setChatMessages((current) => (current === selectedCampaign.chatMessages ? current : selectedCampaign.chatMessages));
-    setChatActorCharacterId((current) =>
-      current && selectedCampaign.characters.some((entry) => entry.characterId === current)
-        ? current
-        : ((selectedCampaign.characters.find((entry) => entry.sheet && (isDirector || entry.ownerId === user.id))?.characterId) ?? "")
-    );
     setSelectedReferenceId((current) =>
       current && selectedCampaign.references.some((reference) => reference.id === current)
         ? current
@@ -661,59 +622,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     });
     setReferenceAliasesText(aliasesToText(selectedReference.aliases));
   }, [selectedReference]);
-
-  useEffect(() => {
-    if (!selectedCampaign) {
-      return;
-    }
-
-    const abortController = new AbortController();
-    const campaignId = selectedCampaign.id;
-
-    async function connectStream(): Promise<void> {
-      try {
-        const token = await ensureAccessToken();
-        const initialMessages = await fetchCampaignChatMessages(campaignId, token);
-        setChatMessages(initialMessages);
-
-        const response = await fetch(`/api/campaigns/${campaignId}/chat-stream`, {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-          signal: abortController.signal
-        });
-
-        if (!response.ok || !response.body) {
-          return;
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            const event = JSON.parse(line) as { type: string; data?: CampaignChatMessage };
-            if (event.type !== "message" || !event.data) continue;
-            setChatMessages((current) =>
-              current.some((entry) => entry.id === event.data!.id) ? current : [...current, event.data!]
-            );
-          }
-        }
-      } catch {
-        // Ignore aborted or transient stream errors in MVP.
-      }
-    }
-
-    void connectStream();
-    return () => abortController.abort();
-  }, [ensureAccessToken, selectedCampaign]);
 
   useEffect(() => {
     if (!selectedCampaign || rollDestination === "umbra") {
@@ -1127,74 +1035,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     }
   }
 
-  async function handleSendChatMessage(): Promise<void> {
-    if (!selectedCampaign || !chatText.trim()) {
-      return;
-    }
-
-    setError(null);
-    setIsSaving(true);
-    try {
-      const token = await ensureAccessToken();
-      const message = await createCampaignChatMessage(
-        selectedCampaign.id,
-        createCampaignChatMessageSchema.parse({
-          characterId: chatActorCharacterId || undefined,
-          visibility: chatVisibility,
-          text: chatText.trim()
-        }),
-        token
-      );
-      setChatMessages((current) => (current.some((entry) => entry.id === message.id) ? current : [...current, message]));
-      setChatText("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo enviar el mensaje");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  async function handleExecuteAction(action: CharacterActionDefinition, phase: CharacterActionPhase): Promise<void> {
-    if (!selectedCampaign || !activeChatCharacter?.sheet) {
-      return;
-    }
-
-    setError(null);
-    setIsSaving(true);
-    try {
-      if (rollDestination !== "umbra") {
-        await sendActionToRoll20(activeChatCharacter.sheet, activeChatCharacter.name, action, phase, actionNote.trim());
-      }
-
-      if (rollDestination === "roll20") {
-        setActionNote("");
-        return;
-      }
-
-      const token = await ensureAccessToken();
-      const message = await createCampaignChatMessage(
-        selectedCampaign.id,
-        createCampaignChatMessageSchema.parse({
-          visibility: chatVisibility,
-          text: "",
-          actionExecution: {
-            characterId: activeChatCharacter.characterId,
-            actionId: action.id,
-            phase,
-            note: actionNote.trim()
-          }
-        }),
-        token
-      );
-      setChatMessages((current) => (current.some((entry) => entry.id === message.id) ? current : [...current, message]));
-      setActionNote("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo ejecutar la accion");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
   return (
     <section className="campaigns-module" ref={rootRef}>
       {!selectedCampaign ? (
@@ -1324,7 +1164,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               <button type="button" className={activeSection === "sessions" ? "is-active" : ""} onClick={() => setActiveSection("sessions")}>Sesiones</button>
               <button type="button" className={activeSection === "characters" ? "is-active" : ""} onClick={() => setActiveSection("characters")}>Personajes</button>
               <button type="button" className={activeSection === "npcs" ? "is-active" : ""} onClick={() => setActiveSection("npcs")}>PNJ</button>
-              <button type="button" className={activeSection === "chat" ? "is-active" : ""} onClick={() => setActiveSection("chat")}>Chat</button>
               <button type="button" className={activeSection === "xp" ? "is-active" : ""} onClick={() => setActiveSection("xp")}>PX</button>
               {selectedSheetTarget ? (
                 <button type="button" className={activeSection === "sheet" ? "is-active" : ""} onClick={() => setActiveSection("sheet")}>Hoja abierta</button>
@@ -1877,113 +1716,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             </section>
           ) : null}
 
-          {activeSection === "chat" ? (
-          <section className="panel">
-            <div className="row-actions">
-              <h3>Chat de campaña</h3>
-              <span className="meta-text">Tiempo real para mesa y DJ</span>
-            </div>
-            <div className="campaign-chat-layout">
-              <div className="campaign-chat-feed">
-                {chatMessages.map((message) => (
-                  <article key={message.id} className={`card campaign-chat-message${message.visibility === "gm_only" ? " is-private" : ""}`}>
-                    <strong>
-                      {message.characterName ? `${message.characterName} · ` : ""}
-                      {message.userEmail}
-                    </strong>
-                    <span>
-                      {new Date(message.createdAt).toLocaleTimeString()} · {message.visibility === "gm_only" ? "Solo DJ" : "Para todos"}
-                    </span>
-                    {message.actionLabel ? (
-                      <span>
-                        {message.actionLabel}
-                        {message.actionCost ? ` (${message.actionCost})` : ""}
-                      </span>
-                    ) : null}
-                    {message.text ? <p>{message.text}</p> : null}
-                    {message.rolls.length > 0 ? (
-                      <div className="campaign-chat-rolls">
-                        {renderActionRolls(message.rolls, message.id)}
-                      </div>
-                    ) : null}
-                  </article>
-                ))}
-                {chatMessages.length === 0 ? <p className="section-help">Aun no hay mensajes en la campaña.</p> : null}
-              </div>
-
-              <div className="campaign-chat-compose">
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Visibilidad</span>
-                    <select value={chatVisibility} onChange={(event) => setChatVisibility(event.target.value as CampaignChatVisibility)}>
-                      <option value="all">Para todos</option>
-                      <option value="gm_only">Solo DJ</option>
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Actor</span>
-                    <select value={chatActorCharacterId} onChange={(event) => setChatActorCharacterId(event.target.value)}>
-                      <option value="">Sin personaje</option>
-                      {controllableCharacters.map((entry) => (
-                        <option key={entry.characterId} value={entry.characterId}>
-                          {entry.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <label className="field">
-                  <span>Mensaje</span>
-                  <textarea rows={4} value={chatText} onChange={(event) => setChatText(event.target.value)} />
-                </label>
-                <button disabled={isSaving || !chatText.trim()} onClick={() => void handleSendChatMessage()}>
-                  Enviar mensaje
-                </button>
-
-                {activeChatCharacter ? (
-                  <>
-                    <div className="section-title">Acciones de {activeChatCharacter.name}</div>
-                    <label className="field">
-                      <span>Nota de accion</span>
-                      <input value={actionNote} onChange={(event) => setActionNote(event.target.value)} placeholder="Objetivo, contexto o aclaracion" />
-                    </label>
-                    <div className="campaign-action-list">
-                      {availableActions.map((action) => (
-                        <div key={action.id} className="campaign-action-button">
-                          <strong>{action.label}</strong>
-                          <span>{action.sourceName}</span>
-                          <span>
-                            {action.cost}
-                            {action.rollAttribute ? ` · ${action.rollAttribute}` : ""}
-                            {action.damageFormula ? ` · ${action.damageFormula}` : ""}
-                          </span>
-                          <div className="campaign-action-controls">
-                            {action.rollAttribute ? (
-                              <button type="button" disabled={isSaving} onClick={() => void handleExecuteAction(action, "attack")}>
-                                {getActionPhaseLabel(action, "attack")}
-                              </button>
-                            ) : null}
-                            {action.damageFormula ? (
-                              <button type="button" disabled={isSaving} onClick={() => void handleExecuteAction(action, "damage")}>
-                                {getActionPhaseLabel(action, "damage")}
-                              </button>
-                            ) : null}
-                          </div>
-                        </div>
-                      ))}
-                      {availableActions.length === 0 ? (
-                        <p className="section-help">No hay acciones ejecutables configuradas para este personaje. Ahora mismo el sistema genera acciones de armas y cualquier accion estructurada en habilidades, poderes o rituales.</p>
-                      ) : null}
-                    </div>
-                  </>
-                ) : (
-                  <p className="section-help">Selecciona uno de tus personajes vinculados para ver acciones ejecutables.</p>
-                )}
-              </div>
-            </div>
-          </section>
-          ) : null}
-
           {activeSection === "xp" ? (
           <section className="panel">
             <h3>Historial de experiencia</h3>
@@ -2034,6 +1766,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
   const [contactsText, setContactsText] = useState(listToText(sheet.contactos));
   const [lastActionResult, setLastActionResult] = useState<{ action: CharacterActionDefinition; rolls: ActionRollResult[] } | null>(null);
   const [rollTransportStatus, setRollTransportStatus] = useState<string | null>(null);
+  const [pendingRollConfirmation, setPendingRollConfirmation] = useState<PendingRollConfirmation | null>(null);
   const actions = useMemo(() => deriveCharacterActions(draft), [draft]);
 
   useEffect(() => {
@@ -2042,17 +1775,18 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
     setContactsText(listToText(sheet.contactos));
     setLastActionResult(null);
     setRollTransportStatus(null);
+    setPendingRollConfirmation(null);
   }, [sheet]);
 
   function updateDraft(mutator: (current: CharacterSheet) => CharacterSheet): void {
     setDraft((current) => mutator(current));
   }
 
-  async function handleRunAction(action: CharacterActionDefinition, phase: CharacterActionPhase): Promise<void> {
+  async function runActionWithCurrentDestination(action: CharacterActionDefinition, phase: CharacterActionPhase): Promise<void> {
     try {
       if (rollDestination !== "umbra") {
         const request = buildRollRequest(draft, title, action.id, phase, rollDestination);
-        const result = await dispatchRoll20Request(request);
+        const result = await dispatchRoll20Request(request, pendingRollConfirmation?.visibility ?? "public");
         setRollTransportStatus(result.status.message);
       }
 
@@ -2064,6 +1798,42 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
       setLastActionResult(executeCharacterAction(draft, action.id, phase));
     } catch (error) {
       setRollTransportStatus(error instanceof Error ? error.message : "No se pudo preparar la tirada");
+    }
+  }
+
+  function handleRunAction(action: CharacterActionDefinition, phase: CharacterActionPhase): void {
+    if (rollDestination === "umbra") {
+      void runActionWithCurrentDestination(action, phase);
+      return;
+    }
+
+    setPendingRollConfirmation({
+      request: buildRollRequest(draft, title, action.id, phase, rollDestination),
+      action,
+      phase,
+      runLocalAfterSend: rollDestination === "both",
+      visibility: "public"
+    });
+  }
+
+  async function handleConfirmRoll20Send(): Promise<void> {
+    if (!pendingRollConfirmation) {
+      return;
+    }
+
+    try {
+      const result = await dispatchRoll20Request(pendingRollConfirmation.request, pendingRollConfirmation.visibility);
+      setRollTransportStatus(result.status.message);
+
+      if (pendingRollConfirmation.runLocalAfterSend) {
+        setLastActionResult(executeCharacterAction(draft, pendingRollConfirmation.action.id, pendingRollConfirmation.phase));
+      } else {
+        setLastActionResult(null);
+      }
+    } catch (error) {
+      setRollTransportStatus(error instanceof Error ? error.message : "No se pudo preparar la tirada");
+    } finally {
+      setPendingRollConfirmation(null);
     }
   }
 
@@ -2587,6 +2357,38 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
           </div>
         ) : null}
       </section>
+      {pendingRollConfirmation ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel">
+            <h3>Enviar tirada a Roll20</h3>
+            <p className="section-help">
+              {pendingRollConfirmation.action.label} · {getActionPhaseLabel(pendingRollConfirmation.action, pendingRollConfirmation.phase)}
+            </p>
+            <label className="field">
+              <span>Visibilidad</span>
+              <select
+                value={pendingRollConfirmation.visibility}
+                onChange={(event) =>
+                  setPendingRollConfirmation((current) =>
+                    current ? { ...current, visibility: event.target.value as Roll20Visibility } : current
+                  )
+                }
+              >
+                <option value="public">Pública (/r)</option>
+                <option value="gm">Solo DJ (/gr)</option>
+              </select>
+            </label>
+            <div className="row-actions">
+              <button type="button" className="subtle-button" onClick={() => setPendingRollConfirmation(null)}>
+                Cancelar
+              </button>
+              <button type="button" onClick={() => void handleConfirmRoll20Send()}>
+                Enviar a Roll20
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

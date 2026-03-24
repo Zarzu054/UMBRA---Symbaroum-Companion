@@ -29,7 +29,11 @@
     },
     {
       "matches": [
+        "https://app.roll20.net/editor",
+        "https://app.roll20.net/editor/",
         "https://app.roll20.net/editor/*",
+        "https://roll20.net/editor",
+        "https://roll20.net/editor/",
         "https://roll20.net/editor/*"
       ],
       "js": ["roll20-bridge.js"],

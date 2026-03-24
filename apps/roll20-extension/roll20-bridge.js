@@ -1,25 +1,71 @@
 ﻿const INPUT_SELECTORS = [
   "#textchat-input textarea",
   "#textchat-input [contenteditable='true']",
-  "textarea[placeholder*='chat' i]",
-  "textarea",
-  "[contenteditable='true'][role='textbox']"
+  "#textchat textarea",
+  "#textchat-input input[type='text']"
 ];
 
 const SEND_SELECTORS = [
   "#textchat-input button[type='submit']",
   "#textchat-input .btn",
+  "#textchat button[type='submit']",
   "button[aria-label*='send' i]"
 ];
 
-function findFirst(selectors) {
-  for (const selector of selectors) {
-    const node = document.querySelector(selector);
-    if (node) {
-      return node;
-    }
+function log(...args) {
+  console.log("[UMBRA Roll20 Bridge][roll20]", ...args);
+}
+
+log("content script loaded", window.location.href);
+
+function isVisible(node) {
+  if (!(node instanceof HTMLElement)) {
+    return false;
   }
-  return null;
+
+  const style = window.getComputedStyle(node);
+  const rect = node.getBoundingClientRect();
+  return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+}
+
+function pickBestInput() {
+  const candidates = INPUT_SELECTORS.flatMap((selector) => Array.from(document.querySelectorAll(selector)));
+  const visible = candidates.filter(isVisible);
+  log("input candidates", candidates.length, "visible", visible.length);
+  if (visible.length === 0) {
+    return null;
+  }
+
+  visible.sort((left, right) => {
+    const leftRect = left.getBoundingClientRect();
+    const rightRect = right.getBoundingClientRect();
+    return (rightRect.bottom + rightRect.right) - (leftRect.bottom + leftRect.right);
+  });
+
+  return visible[0];
+}
+
+function pickBestSendButton(inputNode) {
+  const candidates = SEND_SELECTORS.flatMap((selector) => Array.from(document.querySelectorAll(selector))).filter(isVisible);
+  log("send button candidates", candidates.length);
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const inputRect = inputNode instanceof HTMLElement ? inputNode.getBoundingClientRect() : null;
+  if (!inputRect) {
+    return candidates[0];
+  }
+
+  candidates.sort((left, right) => {
+    const leftRect = left.getBoundingClientRect();
+    const rightRect = right.getBoundingClientRect();
+    const leftDistance = Math.abs(leftRect.top - inputRect.top) + Math.abs(leftRect.left - inputRect.right);
+    const rightDistance = Math.abs(rightRect.top - inputRect.top) + Math.abs(rightRect.left - inputRect.right);
+    return leftDistance - rightDistance;
+  });
+
+  return candidates[0];
 }
 
 function setInputValue(node, text) {
@@ -46,7 +92,7 @@ function setInputValue(node, text) {
 }
 
 function sendCurrentInput(inputNode) {
-  const sendButton = findFirst(SEND_SELECTORS);
+  const sendButton = pickBestSendButton(inputNode);
   if (sendButton instanceof HTMLElement) {
     sendButton.click();
     return true;
@@ -76,21 +122,26 @@ function sendCurrentInput(inputNode) {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  log("message received", message?.type);
+
   if (message?.type !== "ROLL20_INSERT_TEXT") {
     return false;
   }
 
-  const inputNode = findFirst(INPUT_SELECTORS);
+  const inputNode = pickBestInput();
   if (!inputNode) {
+    log("no visible chat input found");
     sendResponse({
       mode: "error",
-      message: "No se encontró el chat de Roll20 en la página actual."
+      message: "No se encontró un campo de chat visible en Roll20."
     });
     return false;
   }
 
+  log("using input", inputNode);
   const inserted = setInputValue(inputNode, message.text || "");
   if (!inserted) {
+    log("failed to write into chat input");
     sendResponse({
       mode: "error",
       message: "No se pudo escribir en el chat de Roll20."
@@ -100,6 +151,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message.send) {
     const sent = sendCurrentInput(inputNode);
+    log("send result", sent);
     sendResponse({
       mode: sent ? "sent" : "inserted",
       message: sent ? "Tirada enviada a Roll20." : "Texto insertado en el chat de Roll20."

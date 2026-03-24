@@ -1,5 +1,6 @@
 ﻿import type { RollDestination, RollRequest } from "@umbra/shared";
-import { toRoll20Text } from "./roll20Adapter";
+import { toRoll20Text, type Roll20Visibility } from "./roll20Adapter";
+export type { Roll20Visibility } from "./roll20Adapter";
 
 const STORAGE_KEY = "umbra.rollDestination";
 export const ROLL20_BRIDGE_EVENT = "umbra:roll20-request";
@@ -21,7 +22,7 @@ function waitForBridgeResponse(requestId: string, timeoutMs = 1500): Promise<Rol
         bridgeAvailable: false,
         hasRoll20Tab: false,
         mode: "copied",
-        message: "No se detect\u00f3 el bridge de Roll20. La tirada se ha copiado al portapapeles."
+        message: "No se detectó el bridge de Roll20. La tirada se ha copiado al portapapeles."
       });
     }, timeoutMs);
 
@@ -55,8 +56,11 @@ export async function pingRoll20Bridge(): Promise<Roll20BridgeStatus> {
   return waitForBridgeResponse(requestId);
 }
 
-export async function dispatchRoll20Request(request: RollRequest): Promise<{ text: string; status: Roll20BridgeStatus }> {
-  const text = toRoll20Text(request);
+export async function dispatchRoll20Request(
+  request: RollRequest,
+  visibility: Roll20Visibility = "public"
+): Promise<{ text: string; status: Roll20BridgeStatus }> {
+  const text = toRoll20Text(request, visibility);
   try {
     await navigator.clipboard.writeText(text);
   } catch {
