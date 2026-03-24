@@ -89,6 +89,7 @@ const actionMetadataSchema = z.object({
   id: z.string().min(1).max(120),
   label: z.string().min(1).max(120),
   cost: actionCostSchema.default("combat"),
+  requiredLevel: skillLevelSchema.optional(),
   rollAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
   damageFormula: z.string().max(80).optional(),
   effectSummary: z.string().max(400).default("")
@@ -577,6 +578,7 @@ export const assignCampaignSessionExperienceSchema = z.object({
 export const executeCampaignCharacterActionSchema = z.object({
   characterId: z.string().uuid(),
   actionId: z.string().min(1).max(120),
+  phase: z.enum(["attack", "damage"]).default("attack"),
   note: z.string().max(1000).default("")
 });
 
@@ -743,13 +745,33 @@ export type CharacterActionDefinition = {
   sourceType: "weapon" | "ability" | "power" | "ritual";
   sourceName: string;
   cost: ActionCost;
+  requiredLevel?: SkillLevel;
   rollAttribute?: AttributeKey;
   damageFormula?: string;
   effectSummary: string;
 };
 
+export type CharacterActionPhase = "attack" | "damage";
+
+export type RollDestination = "umbra" | "roll20" | "both";
+
+export type RollRequest = {
+  destination: RollDestination;
+  kind: "attack" | "check" | "damage";
+  phase: CharacterActionPhase;
+  characterName: string;
+  actionId: string;
+  actionLabel: string;
+  sourceName: string;
+  sourceType: "weapon" | "ability" | "power" | "ritual";
+  formula: string;
+  rollAttribute?: AttributeKey;
+  target?: number;
+  note?: string;
+};
+
 export type ActionRollResult = {
-  kind: "attribute_check" | "damage";
+  kind: "attack_check" | "attribute_check" | "damage";
   label: string;
   dice: number[];
   total: number;

@@ -126,7 +126,7 @@ export class CampaignService {
       }
 
       const sheet = parseCharacterSheet(linkedCharacter.sheet);
-      const executed = executeCharacterAction(sheet, payload.actionExecution.actionId);
+      const executed = executeCharacterAction(sheet, payload.actionExecution.actionId, payload.actionExecution.phase);
       const message = await this.model.createChatMessage(campaignId, {
         userId,
         characterId: payload.actionExecution.characterId,

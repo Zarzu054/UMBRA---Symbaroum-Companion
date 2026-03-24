@@ -1,0 +1,39 @@
+﻿{
+  "manifest_version": 3,
+  "name": "UMBRA Roll20 Bridge",
+  "version": "0.1.0",
+  "description": "Bridge minimal entre UMBRA y el chat de Roll20.",
+  "permissions": ["tabs"],
+  "host_permissions": [
+    "http://localhost:*/*",
+    "http://127.0.0.1:*/*",
+    "https://localhost:*/*",
+    "https://127.0.0.1:*/*",
+    "https://app.roll20.net/*",
+    "https://roll20.net/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:*/*",
+        "http://127.0.0.1:*/*",
+        "https://localhost:*/*",
+        "https://127.0.0.1:*/*"
+      ],
+      "js": ["umbra-bridge.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://app.roll20.net/editor/*",
+        "https://roll20.net/editor/*"
+      ],
+      "js": ["roll20-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

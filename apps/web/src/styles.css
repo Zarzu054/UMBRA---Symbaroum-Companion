@@ -828,6 +828,29 @@ button.subtle-button {
   align-items: start;
 }
 
+.campaign-section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0 6px;
+}
+
+.campaign-overview-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-top: 18px;
+}
+
+.campaign-action-modal {
+  width: min(760px, 100%);
+  display: grid;
+  gap: 12px;
+}
+
+.campaign-chat-page .campaign-chat-layout,
+.campaign-sheet-shell {
+  min-height: calc(100vh - 280px);
+}
+
 .campaign-chat-layout {
   display: grid;
   grid-template-columns: minmax(320px, 1.2fr) minmax(280px, 0.9fr);
@@ -1102,6 +1125,22 @@ td {
   font-size: 0.88rem;
 }
 
+.campaign-header-actions {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.campaign-roll-destination-field {
+  min-width: 200px;
+  margin: 0;
+}
+
+.campaign-roll-destination-feedback {
+  margin: 8px 0 0;
+}
+
 .campaign-sheet-readonly {
   display: grid;
   gap: 4px;
@@ -1234,6 +1273,32 @@ td {
   box-shadow: inset 0 0 0 1px rgba(255, 248, 235, 0.75);
 }
 
+.campaign-chat-rolls,
+.campaign-sheet-roll-result {
+  display: grid;
+  gap: 10px;
+}
+
+.campaign-roll-group {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid rgba(138, 82, 48, 0.18);
+  background: rgba(255, 248, 238, 0.68);
+}
+
+.campaign-roll-group strong {
+  color: #7e4a31;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.74rem;
+}
+
+.campaign-roll-group-lines {
+  display: grid;
+  gap: 4px;
+}
+
 .campaign-sheet-card--attributes {
   padding-top: 14px;
 }
@@ -1241,6 +1306,8 @@ td {
 .campaign-sheet .campaign-action-button {
   min-height: 96px;
   align-content: start;
+  display: grid;
+  gap: 8px;
   border-radius: 0;
   background:
     linear-gradient(180deg, rgba(255, 250, 243, 0.98), rgba(244, 235, 221, 0.98));
@@ -1255,6 +1322,17 @@ td {
 
 .campaign-sheet .campaign-action-button span:last-child {
   color: #8f4a31;
+}
+
+.campaign-action-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.campaign-action-controls button {
+  flex: 1 1 140px;
 }
 
 .campaign-sheet .field span {

@@ -1,5 +1,6 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+﻿import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  buildRollRequest,
   deriveCharacterActions,
   executeCharacterAction,
   createCampaignNpcSchema,
@@ -12,6 +13,8 @@ import {
   type CampaignChatVisibility,
   type CharacterSheet,
   type CharacterActionDefinition,
+  type CharacterActionPhase,
+  type RollDestination,
   type AuthUser,
   type Campaign,
   type CampaignReference,
@@ -48,6 +51,13 @@ import {
   updateCampaignReference,
   updateCampaignSession
 } from "../services/campaignService";
+import {
+  dispatchRoll20Request,
+  getRollDestination,
+  pingRoll20Bridge,
+  type Roll20BridgeStatus,
+  setRollDestination as persistRollDestination
+} from "../services/rollTransport";
 
 type Props = {
   user: AuthUser;
@@ -64,6 +74,8 @@ type CampaignHashState = {
 type CampaignSheetTarget =
   | { kind: "character"; linkId: string }
   | { kind: "npc"; npcId: string };
+
+type CampaignDetailSection = "overview" | "wiki" | "members" | "sessions" | "characters" | "npcs" | "chat" | "xp" | "sheet";
 
 const emptyCampaignForm: CreateCampaignInput = { name: "", summary: "", setting: "", notes: "" };
 const emptyNpcForm: CreateCampaignNpcInput = {
@@ -263,12 +275,67 @@ function renderLinkedText(
   return nodes.length > 0 ? nodes.map((node, index) => <Fragment key={index}>{node}</Fragment>) : text;
 }
 
+function renderActionRollGroup(title: string, rolls: ActionRollResult[], keyPrefix: string): ReactNode {
+  return (
+    <div className="campaign-roll-group" key={keyPrefix}>
+      <strong>{title}</strong>
+      <div className="campaign-roll-group-lines">
+        {rolls.map((roll, index) => (
+          <span key={`${keyPrefix}-${index}`}>
+            {roll.label}: {roll.formula} = {roll.total}
+            {typeof roll.target === "number" ? ` vs ${roll.target} ${roll.success ? "éxito" : "fallo"}` : ""}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function renderActionRolls(rolls: ActionRollResult[], keyPrefix: string): ReactNode {
+  const attackRolls = rolls.filter((roll) => roll.kind === "attack_check");
+  const checkRolls = rolls.filter((roll) => roll.kind === "attribute_check");
+  const damageRolls = rolls.filter((roll) => roll.kind === "damage");
+  const blocks: ReactNode[] = [];
+
+  if (attackRolls.length > 0) {
+    blocks.push(renderActionRollGroup("Ataque", attackRolls, `${keyPrefix}-attack`));
+  }
+
+  if (checkRolls.length > 0) {
+    blocks.push(renderActionRollGroup("Prueba", checkRolls, `${keyPrefix}-check`));
+  }
+
+  if (damageRolls.length > 0) {
+    blocks.push(renderActionRollGroup("Daño", damageRolls, `${keyPrefix}-damage`));
+  }
+
+  if (blocks.length > 0) {
+    return blocks;
+  }
+
+  return rolls.map((roll, index) => (
+    <span key={`${keyPrefix}-${index}`}>
+      {roll.label}: {roll.formula} = {roll.total}
+      {typeof roll.target === "number" ? ` vs ${roll.target} ${roll.success ? "éxito" : "fallo"}` : ""}
+    </span>
+  ));
+}
+
+function getActionPhaseLabel(action: CharacterActionDefinition, phase: CharacterActionPhase): string {
+  if (phase === "damage") {
+    return "Tirar daño";
+  }
+
+  return action.sourceType === "weapon" ? "Tirar ataque" : "Tirar prueba";
+}
+
 export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
+  const initialHashState = parseCampaignHash();
   const isDirector = user.role === "gm" || user.role === "superadmin";
   const rootRef = useRef<HTMLElement | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(initialHashState.campaignId);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(initialHashState.sessionId);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -283,12 +350,22 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [referenceForm, setReferenceForm] = useState<CreateCampaignReferenceInput>(emptyReferenceForm);
   const [referenceAliasesText, setReferenceAliasesText] = useState("");
   const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(null);
-  const [selectedSheetTarget, setSelectedSheetTarget] = useState<CampaignSheetTarget | null>(null);
+  const [selectedSheetTarget, setSelectedSheetTarget] = useState<CampaignSheetTarget | null>(
+    initialHashState.sheetKind === "character" && initialHashState.sheetId
+      ? { kind: "character", linkId: initialHashState.sheetId }
+      : initialHashState.sheetKind === "npc" && initialHashState.sheetId
+        ? { kind: "npc", npcId: initialHashState.sheetId }
+        : null
+  );
+  const [activeSection, setActiveSection] = useState<CampaignDetailSection>("overview");
   const [chatMessages, setChatMessages] = useState<CampaignChatMessage[]>([]);
   const [chatText, setChatText] = useState("");
   const [chatVisibility, setChatVisibility] = useState<CampaignChatVisibility>("all");
   const [chatActorCharacterId, setChatActorCharacterId] = useState<string>("");
   const [actionNote, setActionNote] = useState("");
+  const [rollDestination, setRollDestinationState] = useState<RollDestination>(() => getRollDestination());
+  const [rollTransportMessage, setRollTransportMessage] = useState<string | null>(null);
+  const [roll20BridgeStatus, setRoll20BridgeStatus] = useState<Roll20BridgeStatus | null>(null);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -355,6 +432,31 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     [activeChatCharacter]
   );
 
+  function handleRollDestinationChange(destination: RollDestination): void {
+    setRollDestinationState(destination);
+    persistRollDestination(destination);
+    setRollTransportMessage(
+      destination === "umbra"
+        ? "Las tiradas se resolverÃ¡n dentro de UMBRA."
+        : destination === "roll20"
+          ? "Las tiradas se prepararÃ¡n para Roll20 por defecto."
+          : "Las tiradas se enviarÃ¡n a Roll20 y tambiÃ©n se resolverÃ¡n en UMBRA."
+    );
+  }
+
+  async function sendActionToRoll20(
+    sheet: CharacterSheet,
+    characterName: string,
+    action: CharacterActionDefinition,
+    phase: CharacterActionPhase,
+    note: string
+  ): Promise<void> {
+    const request = buildRollRequest(sheet, characterName, action.id, phase, rollDestination, note);
+    const result = await dispatchRoll20Request(request);
+    setRoll20BridgeStatus(result.status);
+    setRollTransportMessage(result.status.message);
+  }
+
   useEffect(() => {
     void refresh();
   }, []);
@@ -379,6 +481,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   }, []);
 
   useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
     if (campaigns.length === 0) {
       if (selectedCampaignId !== null) {
         setSelectedCampaignId(null);
@@ -396,9 +502,13 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         ? hashState.campaignId
         : null;
     setSelectedCampaignId(fallbackCampaignId);
-  }, [campaigns, selectedCampaignId]);
+  }, [campaigns, isLoading, selectedCampaignId]);
 
   useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
     if (!selectedCampaign) {
       if (selectedSessionId !== null) {
         setSelectedSessionId(null);
@@ -416,7 +526,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         ? hashState.sessionId
         : selectedCampaign.sessions[0]?.id ?? null;
     setSelectedSessionId(fallbackSessionId);
-  }, [selectedCampaign, selectedSessionId]);
+  }, [isLoading, selectedCampaign, selectedSessionId]);
 
   useEffect(() => {
     replaceCampaignHash(selectedCampaignId, selectedSessionId, selectedSheetTarget);
@@ -494,6 +604,26 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setSelectedSheetTarget(null);
     }
   }, [selectedCampaign, selectedSheetTarget]);
+
+  useEffect(() => {
+    if (!selectedCampaign) {
+      if (activeSection !== "overview") {
+        setActiveSection("overview");
+      }
+      return;
+    }
+
+    if (selectedSheetTarget) {
+      if (activeSection !== "sheet") {
+        setActiveSection("sheet");
+      }
+      return;
+    }
+
+    if (activeSection === "sheet") {
+      setActiveSection("characters");
+    }
+  }, [activeSection, selectedCampaign, selectedSheetTarget]);
 
   useEffect(() => {
     if (!selectedSession || !selectedCampaign) {
@@ -585,6 +715,34 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     return () => abortController.abort();
   }, [ensureAccessToken, selectedCampaign]);
 
+  useEffect(() => {
+    if (!selectedCampaign || rollDestination === "umbra") {
+      setRoll20BridgeStatus(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function checkBridge(): Promise<void> {
+      const status = await pingRoll20Bridge();
+      if (!cancelled) {
+        setRoll20BridgeStatus(status);
+      }
+    }
+
+    void checkBridge();
+
+    function handleWindowFocus(): void {
+      void checkBridge();
+    }
+
+    window.addEventListener("focus", handleWindowFocus);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", handleWindowFocus);
+    };
+  }, [rollDestination, selectedCampaign]);
+
   async function refresh(): Promise<void> {
     setIsLoading(true);
     setError(null);
@@ -592,7 +750,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const token = await ensureAccessToken();
       setCampaigns(await fetchCampaigns(token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron cargar las campaÃ±as");
+      setError(err instanceof Error ? err.message : "No se pudieron cargar las campaÃƒÂ±as");
     } finally {
       setIsLoading(false);
     }
@@ -610,6 +768,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
   function openReference(referenceId: string): void {
     setSelectedReferenceId(referenceId);
+    setActiveSection("wiki");
   }
 
   async function handleCreateCampaign(): Promise<void> {
@@ -621,7 +780,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       upsertCampaign(created);
       setCampaignForm(emptyCampaignForm);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear la campaÃ±a");
+      setError(err instanceof Error ? err.message : "No se pudo crear la campaÃƒÂ±a");
     } finally {
       setIsSaving(false);
     }
@@ -638,7 +797,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const token = await ensureAccessToken();
       upsertCampaign(await updateCampaign(selectedCampaign.id, draft, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar la campaÃ±a");
+      setError(err instanceof Error ? err.message : "No se pudo guardar la campaÃƒÂ±a");
     } finally {
       setIsSaving(false);
     }
@@ -821,7 +980,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       upsertCampaign(updated);
       setSelectedSessionId(getMatchingSessionId(updated, parsed));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear la sesiÃ³n");
+      setError(err instanceof Error ? err.message : "No se pudo crear la sesiÃƒÂ³n");
     } finally {
       setIsSaving(false);
     }
@@ -838,7 +997,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const token = await ensureAccessToken();
       upsertCampaign(await updateCampaignSession(selectedSession.id, { ...sessionForm } as UpdateCampaignSessionInput, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar la sesiÃ³n");
+      setError(err instanceof Error ? err.message : "No se pudo guardar la sesiÃƒÂ³n");
     } finally {
       setIsSaving(false);
     }
@@ -868,7 +1027,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       upsertCampaign(updated);
       setSessionXpDraft(Object.fromEntries(updated.characters.map((entry) => [entry.characterId, 0])));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo asignar PX de sesiÃ³n");
+      setError(err instanceof Error ? err.message : "No se pudo asignar PX de sesiÃƒÂ³n");
     } finally {
       setIsSaving(false);
     }
@@ -995,14 +1154,23 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     }
   }
 
-  async function handleExecuteAction(action: CharacterActionDefinition): Promise<void> {
-    if (!selectedCampaign || !activeChatCharacter) {
+  async function handleExecuteAction(action: CharacterActionDefinition, phase: CharacterActionPhase): Promise<void> {
+    if (!selectedCampaign || !activeChatCharacter?.sheet) {
       return;
     }
 
     setError(null);
     setIsSaving(true);
     try {
+      if (rollDestination !== "umbra") {
+        await sendActionToRoll20(activeChatCharacter.sheet, activeChatCharacter.name, action, phase, actionNote.trim());
+      }
+
+      if (rollDestination === "roll20") {
+        setActionNote("");
+        return;
+      }
+
       const token = await ensureAccessToken();
       const message = await createCampaignChatMessage(
         selectedCampaign.id,
@@ -1012,6 +1180,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           actionExecution: {
             characterId: activeChatCharacter.characterId,
             actionId: action.id,
+            phase,
             note: actionNote.trim()
           }
         }),
@@ -1028,10 +1197,12 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
   return (
     <section className="campaigns-module" ref={rootRef}>
+      {!selectedCampaign ? (
       <section className="panel campaign-hero">
         <h2>Gestor de Campañas</h2>
         <p>Centraliza miembros, personajes vinculados, sesiones del DJ, PNJs y reparto de experiencia.</p>
       </section>
+      ) : null}
 
       {error ? (
         <section className="panel error-list">
@@ -1052,9 +1223,18 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
           <div className="campaign-list">
             {campaigns.map((campaign) => (
-              <button key={campaign.id} className="campaign-list-item" onClick={() => setSelectedCampaignId(campaign.id)}>
+              <button
+                key={campaign.id}
+                className="campaign-list-item"
+                onClick={() => {
+                  setSelectedCampaignId(campaign.id);
+                  setSelectedSessionId(null);
+                  setSelectedSheetTarget(null);
+                  setActiveSection("overview");
+                }}
+              >
                 <strong>{campaign.name}</strong>
-                <span>{campaign.setting || "Sin ambientación"}</span>
+                <span>{campaign.setting || "Sin ambientaciÃ³n"}</span>
                 <span>{campaign.members.length} miembros</span>
                 <span>{campaign.sessions.length} sesiones</span>
               </button>
@@ -1100,8 +1280,12 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 <button
                   className="subtle-button"
                   onClick={() => {
+                    replaceCampaignHash(null, null, null);
                     setSelectedCampaignId(null);
                     setSelectedSessionId(null);
+                    setSelectedReferenceId(null);
+                    setSelectedSheetTarget(null);
+                    setActiveSection("overview");
                   }}
                 >
                   Volver a campañas
@@ -1111,12 +1295,43 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   DJ: <strong>{selectedCampaign.gmEmail}</strong>
                 </p>
               </div>
-              {isDirector ? (
-                <button disabled={isSaving} onClick={() => void handleSaveCampaign()}>
-                  Guardar detalle
-                </button>
+              <div className="campaign-header-actions">
+                <label className="field campaign-roll-destination-field">
+                  <span>Destino de tiradas</span>
+                  <select value={rollDestination} onChange={(event) => handleRollDestinationChange(event.target.value as RollDestination)}>
+                    <option value="roll20">Roll20</option>
+                    <option value="umbra">UMBRA</option>
+                    <option value="both">Ambos</option>
+                  </select>
+                </label>
+                {isDirector ? (
+                  <button disabled={isSaving} onClick={() => void handleSaveCampaign()}>
+                    Guardar detalle
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            {rollTransportMessage ? <p className="meta-text campaign-roll-destination-feedback">{rollTransportMessage}</p> : null}
+            {rollDestination !== "umbra" && roll20BridgeStatus ? (
+              <p className="meta-text campaign-roll-destination-feedback">
+                Bridge Roll20: {roll20BridgeStatus.message}
+              </p>
+            ) : null}
+            <div className="toolbar campaign-section-nav">
+              <button type="button" className={activeSection === "overview" ? "is-active" : ""} onClick={() => setActiveSection("overview")}>Resumen</button>
+              <button type="button" className={activeSection === "wiki" ? "is-active" : ""} onClick={() => setActiveSection("wiki")}>Wiki</button>
+              <button type="button" className={activeSection === "members" ? "is-active" : ""} onClick={() => setActiveSection("members")}>Miembros</button>
+              <button type="button" className={activeSection === "sessions" ? "is-active" : ""} onClick={() => setActiveSection("sessions")}>Sesiones</button>
+              <button type="button" className={activeSection === "characters" ? "is-active" : ""} onClick={() => setActiveSection("characters")}>Personajes</button>
+              <button type="button" className={activeSection === "npcs" ? "is-active" : ""} onClick={() => setActiveSection("npcs")}>PNJ</button>
+              <button type="button" className={activeSection === "chat" ? "is-active" : ""} onClick={() => setActiveSection("chat")}>Chat</button>
+              <button type="button" className={activeSection === "xp" ? "is-active" : ""} onClick={() => setActiveSection("xp")}>PX</button>
+              {selectedSheetTarget ? (
+                <button type="button" className={activeSection === "sheet" ? "is-active" : ""} onClick={() => setActiveSection("sheet")}>Hoja abierta</button>
               ) : null}
             </div>
+            {activeSection === "overview" ? (
+            <>
             <div className="form-grid">
               <label className="field">
                 <span>Nombre</span>
@@ -1153,8 +1368,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 onOpenReference={openReference}
               />
             ) : null}
+            </>
+            ) : null}
           </section>
 
+          {activeSection === "wiki" ? (
           <section className="panel">
             <div className="row-actions">
               <h3>Wiki de campaña</h3>
@@ -1245,7 +1463,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               </div>
             </div>
           </section>
+          ) : null}
 
+          {activeSection === "members" ? (
           <section className="panel">
             <div className="row-actions">
               <h3>Miembros</h3>
@@ -1276,7 +1496,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               ))}
             </div>
           </section>
+          ) : null}
 
+          {activeSection === "sessions" ? (
           <section className="panel">
             <div className="row-actions">
               <h3>Sesiones</h3>
@@ -1321,7 +1543,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     </div>
                     <div className="form-grid">
                       <label className="field">
-                        <span>Título</span>
+                        <span>TÃ­tulo</span>
                         <input value={sessionForm.title} onChange={(event) => setSessionForm((prev) => ({ ...prev, title: event.target.value }))} />
                       </label>
                       <label className="field">
@@ -1333,7 +1555,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                         />
                       </label>
                       <label className="field">
-                        <span>Ubicación</span>
+                        <span>UbicaciÃ³n</span>
                         <input value={sessionForm.location} onChange={(event) => setSessionForm((prev) => ({ ...prev, location: event.target.value }))} />
                       </label>
                       <label className="field">
@@ -1368,7 +1590,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                       <textarea rows={4} value={sessionForm.publicNotes} onChange={(event) => setSessionForm((prev) => ({ ...prev, publicNotes: event.target.value }))} />
                     </label>
                     <CampaignLinkedTextBlock
-                      title="Vista enlazada de notas públicas"
+                      title="Vista enlazada de notas pÃºblicas"
                       text={sessionForm.publicNotes}
                       references={selectedCampaign.references}
                       onOpenReference={openReference}
@@ -1440,7 +1662,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               </div>
             </div>
           </section>
+          ) : null}
 
+          {activeSection === "characters" ? (
           <section className="panel">
             <div className="row-actions">
               <h3>Personajes de la campaña</h3>
@@ -1471,7 +1695,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   <span>PX total: {entry.experienceTotal}</span>
                   <span>PX gastada: {entry.experienceSpent}</span>
                   {entry.sheet ? (
-                    <button type="button" onClick={() => setSelectedSheetTarget({ kind: "character", linkId: entry.id })}>
+                    <button type="button" onClick={() => { setSelectedSheetTarget({ kind: "character", linkId: entry.id }); setActiveSection("sheet"); }}>
                       Abrir hoja
                     </button>
                   ) : null}
@@ -1521,7 +1745,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               </div>
             ) : null}
           </section>
+          ) : null}
 
+          {activeSection === "npcs" ? (
           <section className="panel">
             <div className="row-actions">
               <h3>PNJs</h3>
@@ -1548,7 +1774,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     <input value={npcForm.archetype} onChange={(event) => setNpcForm((prev) => ({ ...prev, archetype: event.target.value }))} />
                   </label>
                   <label className="field">
-                    <span>Ocupación</span>
+                    <span>OcupaciÃ³n</span>
                     <input value={npcForm.occupation} onChange={(event) => setNpcForm((prev) => ({ ...prev, occupation: event.target.value }))} />
                   </label>
                   <label className="field">
@@ -1585,9 +1811,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   onOpenReference={openReference}
                   onSave={handleUpdateNpc}
                   onDelete={handleDeleteNpc}
-                  onOpenSheet={() => setSelectedSheetTarget({ kind: "npc", npcId: npc.id })}
+                  onOpenSheet={() => { setSelectedSheetTarget({ kind: "npc", npcId: npc.id }); setActiveSection("sheet"); }}
                   onCreateSheet={async (npcId) => {
                     setSelectedSheetTarget({ kind: "npc", npcId });
+                    setActiveSection("sheet");
                     await handleCreateNpcSheet(npcId);
                   }}
                 />
@@ -1597,12 +1824,13 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               ) : null}
             </div>
           </section>
+          ) : null}
 
-          {selectedCharacterSheetEntry?.sheet ? (
+          {activeSection === "sheet" && selectedCharacterSheetEntry?.sheet ? (
             <section className="panel campaign-sheet-shell">
               <div className="row-actions">
                 <h3>Hoja de personaje</h3>
-                <button type="button" onClick={() => setSelectedSheetTarget(null)}>
+                <button type="button" onClick={() => { setSelectedSheetTarget(null); setActiveSection("characters"); }}>
                   Cerrar hoja
                 </button>
               </div>
@@ -1610,6 +1838,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 title={selectedCharacterSheetEntry.name}
                 subtitle={`${selectedCharacterSheetEntry.ownerEmail} · Personaje de campaña`}
                 sheet={selectedCharacterSheetEntry.sheet}
+                rollDestination={rollDestination}
                 editable={isDirector || selectedCharacterSheetEntry.ownerId === user.id}
                 busy={isSaving}
                 onSave={async (sheet) => handleSaveCharacterSheet(selectedCharacterSheetEntry.id, sheet)}
@@ -1617,11 +1846,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             </section>
           ) : null}
 
-          {selectedSheetTarget?.kind === "npc" && selectedNpcSheetEntry ? (
+          {activeSection === "sheet" && selectedSheetTarget?.kind === "npc" && selectedNpcSheetEntry ? (
             <section className="panel campaign-sheet-shell">
               <div className="row-actions">
                 <h3>Hoja de PNJ</h3>
-                <button type="button" onClick={() => setSelectedSheetTarget(null)}>
+                <button type="button" onClick={() => { setSelectedSheetTarget(null); setActiveSection("npcs"); }}>
                   Cerrar hoja
                 </button>
               </div>
@@ -1630,13 +1859,14 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   title={selectedNpcSheetEntry.name}
                   subtitle={`${selectedNpcSheetEntry.race || "PNJ"} · ${selectedNpcSheetEntry.archetype || selectedNpcSheetEntry.occupation || "Sin arquetipo"}`}
                   sheet={selectedNpcSheetEntry.sheet}
+                  rollDestination={rollDestination}
                   editable={isDirector}
                   busy={isSaving}
                   onSave={async (sheet) => handleSaveNpcSheet(selectedNpcSheetEntry.id, sheet)}
                 />
               ) : (
                 <div className="campaign-empty-sheet">
-                  <p className="section-help">Este PNJ todavía no tiene hoja de personaje. Puedes crearla y usarla para llevar equipo, corrupción, robustez y acciones.</p>
+                  <p className="section-help">Este PNJ todavÃ­a no tiene hoja de personaje. Puedes crearla y usarla para llevar equipo, corrupción, robustez y acciones.</p>
                   {isDirector ? (
                     <button disabled={isSaving} onClick={() => void handleCreateNpcSheet(selectedNpcSheetEntry.id)}>
                       Crear hoja de PNJ
@@ -1647,6 +1877,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             </section>
           ) : null}
 
+          {activeSection === "chat" ? (
           <section className="panel">
             <div className="row-actions">
               <h3>Chat de campaña</h3>
@@ -1672,12 +1903,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     {message.text ? <p>{message.text}</p> : null}
                     {message.rolls.length > 0 ? (
                       <div className="campaign-chat-rolls">
-                        {message.rolls.map((roll, index) => (
-                          <span key={`${message.id}-roll-${index}`}>
-                            {roll.label}: {roll.formula} = {roll.total}
-                            {typeof roll.target === "number" ? ` vs ${roll.target} ${roll.success ? "exito" : "fallo"}` : ""}
-                          </span>
-                        ))}
+                        {renderActionRolls(message.rolls, message.id)}
                       </div>
                     ) : null}
                   </article>
@@ -1723,7 +1949,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     </label>
                     <div className="campaign-action-list">
                       {availableActions.map((action) => (
-                        <button key={action.id} className="campaign-action-button" disabled={isSaving} onClick={() => void handleExecuteAction(action)}>
+                        <div key={action.id} className="campaign-action-button">
                           <strong>{action.label}</strong>
                           <span>{action.sourceName}</span>
                           <span>
@@ -1731,7 +1957,19 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                             {action.rollAttribute ? ` · ${action.rollAttribute}` : ""}
                             {action.damageFormula ? ` · ${action.damageFormula}` : ""}
                           </span>
-                        </button>
+                          <div className="campaign-action-controls">
+                            {action.rollAttribute ? (
+                              <button type="button" disabled={isSaving} onClick={() => void handleExecuteAction(action, "attack")}>
+                                {getActionPhaseLabel(action, "attack")}
+                              </button>
+                            ) : null}
+                            {action.damageFormula ? (
+                              <button type="button" disabled={isSaving} onClick={() => void handleExecuteAction(action, "damage")}>
+                                {getActionPhaseLabel(action, "damage")}
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
                       ))}
                       {availableActions.length === 0 ? (
                         <p className="section-help">No hay acciones ejecutables configuradas para este personaje. Ahora mismo el sistema genera acciones de armas y cualquier accion estructurada en habilidades, poderes o rituales.</p>
@@ -1744,7 +1982,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               </div>
             </div>
           </section>
+          ) : null}
 
+          {activeSection === "xp" ? (
           <section className="panel">
             <h3>Historial de experiencia</h3>
             <div className="campaign-log-list">
@@ -1760,6 +2000,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               ) : null}
             </div>
           </section>
+          ) : null}
         </section>
       )}
     </section>
@@ -1781,16 +2022,18 @@ type CampaignSheetEditorProps = {
   title: string;
   subtitle: string;
   sheet: CharacterSheet;
+  rollDestination: RollDestination;
   editable: boolean;
   busy: boolean;
   onSave: (sheet: CharacterSheet) => Promise<void>;
 };
 
-function CampaignSheetEditor({ title, subtitle, sheet, editable, busy, onSave }: CampaignSheetEditorProps) {
+function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable, busy, onSave }: CampaignSheetEditorProps) {
   const [draft, setDraft] = useState<CharacterSheet>(sheet);
   const [equipmentText, setEquipmentText] = useState(listToText(sheet.equipo));
   const [contactsText, setContactsText] = useState(listToText(sheet.contactos));
   const [lastActionResult, setLastActionResult] = useState<{ action: CharacterActionDefinition; rolls: ActionRollResult[] } | null>(null);
+  const [rollTransportStatus, setRollTransportStatus] = useState<string | null>(null);
   const actions = useMemo(() => deriveCharacterActions(draft), [draft]);
 
   useEffect(() => {
@@ -1798,14 +2041,30 @@ function CampaignSheetEditor({ title, subtitle, sheet, editable, busy, onSave }:
     setEquipmentText(listToText(sheet.equipo));
     setContactsText(listToText(sheet.contactos));
     setLastActionResult(null);
+    setRollTransportStatus(null);
   }, [sheet]);
 
   function updateDraft(mutator: (current: CharacterSheet) => CharacterSheet): void {
     setDraft((current) => mutator(current));
   }
 
-  function handleRunAction(action: CharacterActionDefinition): void {
-    setLastActionResult(executeCharacterAction(draft, action.id));
+  async function handleRunAction(action: CharacterActionDefinition, phase: CharacterActionPhase): Promise<void> {
+    try {
+      if (rollDestination !== "umbra") {
+        const request = buildRollRequest(draft, title, action.id, phase, rollDestination);
+        const result = await dispatchRoll20Request(request);
+        setRollTransportStatus(result.status.message);
+      }
+
+      if (rollDestination === "roll20") {
+        setLastActionResult(null);
+        return;
+      }
+
+      setLastActionResult(executeCharacterAction(draft, action.id, phase));
+    } catch (error) {
+      setRollTransportStatus(error instanceof Error ? error.message : "No se pudo preparar la tirada");
+    }
   }
 
   function getActionsForSource(sourceName: string): CharacterActionDefinition[] {
@@ -1837,7 +2096,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, editable, busy, onSave }:
             />
           </label>
           <label className="field">
-            <span>Corrupción temporal</span>
+            <span>CorrupciÃ³n temporal</span>
             <input
               type="number"
               min={0}
@@ -1852,7 +2111,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, editable, busy, onSave }:
             />
           </label>
           <label className="field">
-            <span>Corrupción permanente</span>
+            <span>CorrupciÃ³n permanente</span>
             <input
               type="number"
               min={0}
@@ -1876,7 +2135,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, editable, busy, onSave }:
             <span>Raza: {String(draft.identidad.raza)}</span>
             <span>Cultura: {String(draft.identidad.cultura)}</span>
             <span>Arquetipo: {String(draft.identidad.arquetipo)}</span>
-            <span>Profesión: {draft.identidad.profesion || "Sin definir"}</span>
+            <span>ProfesiÃ³n: {draft.identidad.profesion || "Sin definir"}</span>
           </div>
           <label className="field">
             <span>Objetivo personal</span>
@@ -1907,7 +2166,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, editable, busy, onSave }:
           <h4>Combate y recursos</h4>
           <div className="form-grid">
             <label className="field">
-              <span>Robustez máxima</span>
+              <span>Robustez mÃ¡xima</span>
               <input
                 type="number"
                 min={1}
@@ -1977,7 +2236,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, editable, busy, onSave }:
             />
           </label>
           <label className="field">
-            <span>Protección</span>
+            <span>ProtecciÃ³n</span>
             <input
               disabled={!editable}
               value={draft.combate.armaduraProteccion}
@@ -2203,7 +2462,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, editable, busy, onSave }:
                 />
                 <input
                   disabled={!editable}
-                  placeholder="Ocupación"
+                  placeholder="OcupaciÃ³n"
                   value={contacto.ocupacion}
                   onChange={(event) =>
                     updateDraft((current) => ({
@@ -2267,7 +2526,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, editable, busy, onSave }:
                 />
                 <input
                   disabled={!editable}
-                  placeholder="Corrupción"
+                  placeholder="CorrupciÃ³n"
                   value={artefacto.corrupcion}
                   onChange={(event) =>
                     updateDraft((current) => ({
@@ -2295,7 +2554,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, editable, busy, onSave }:
         </div>
         <div className="campaign-sheet-actions">
           {actions.map((action) => (
-            <button key={action.id} type="button" className="campaign-action-button" onClick={() => handleRunAction(action)}>
+            <div key={action.id} className="campaign-action-button">
               <strong>{action.label}</strong>
               <span>{action.sourceName}</span>
               <span>
@@ -2303,19 +2562,27 @@ function CampaignSheetEditor({ title, subtitle, sheet, editable, busy, onSave }:
                 {action.rollAttribute ? ` · ${action.rollAttribute}` : ""}
                 {action.damageFormula ? ` · ${action.damageFormula}` : ""}
               </span>
-            </button>
+              <div className="campaign-action-controls">
+                {action.rollAttribute ? (
+                  <button type="button" onClick={() => void handleRunAction(action, "attack")}>
+                    {getActionPhaseLabel(action, "attack")}
+                  </button>
+                ) : null}
+                {action.damageFormula ? (
+                  <button type="button" onClick={() => void handleRunAction(action, "damage")}>
+                    {getActionPhaseLabel(action, "damage")}
+                  </button>
+                ) : null}
+              </div>
+            </div>
           ))}
           {actions.length === 0 ? <p className="section-help">No hay acciones ejecutables con la configuración actual de la hoja.</p> : null}
         </div>
+        {rollTransportStatus ? <p className="meta-text campaign-roll-destination-feedback">{rollTransportStatus}</p> : null}
         {lastActionResult ? (
           <div className="campaign-sheet-roll-result">
             <strong>{lastActionResult.action.label}</strong>
-            {lastActionResult.rolls.map((roll, index) => (
-              <span key={`${lastActionResult.action.id}-${index}`}>
-                {roll.label}: {roll.formula} = {roll.total}
-                {typeof roll.target === "number" ? ` vs ${roll.target} ${roll.success ? "éxito" : "fallo"}` : ""}
-              </span>
-            ))}
+            {renderActionRolls(lastActionResult.rolls, lastActionResult.action.id)}
             <p>{lastActionResult.action.effectSummary}</p>
           </div>
         ) : null}
@@ -2328,7 +2595,7 @@ type CapabilityColumnProps = {
   title: string;
   entries: Array<{ nombre: string; nivel: string; efecto: string }>;
   getActionsForSource: (sourceName: string) => CharacterActionDefinition[];
-  onRunAction: (action: CharacterActionDefinition) => void;
+  onRunAction: (action: CharacterActionDefinition, phase: CharacterActionPhase) => void;
 };
 
 function CapabilityColumn({ title, entries, getActionsForSource, onRunAction }: CapabilityColumnProps) {
@@ -2345,9 +2612,18 @@ function CapabilityColumn({ title, entries, getActionsForSource, onRunAction }: 
             {entryActions.length > 0 ? (
               <div className="campaign-capability-actions">
                 {entryActions.map((action) => (
-                  <button key={action.id} type="button" className="subtle-button" onClick={() => onRunAction(action)}>
-                    {action.label}
-                  </button>
+                  <div key={action.id} className="campaign-action-controls">
+                    {action.rollAttribute ? (
+                      <button type="button" className="subtle-button" onClick={() => onRunAction(action, "attack")}>
+                        {getActionPhaseLabel(action, "attack")}
+                      </button>
+                    ) : null}
+                    {action.damageFormula ? (
+                      <button type="button" className="subtle-button" onClick={() => onRunAction(action, "damage")}>
+                        {getActionPhaseLabel(action, "damage")}
+                      </button>
+                    ) : null}
+                  </div>
                 ))}
               </div>
             ) : null}
@@ -2483,10 +2759,16 @@ function CampaignReferencePreview({ reference }: { reference: CampaignReference 
         </p>
       ) : null}
       {reference.summary ? <p>{reference.summary}</p> : null}
-      {reference.content ? <p>{reference.content}</p> : <p className="section-help">Sin contenido detallado todavía.</p>}
+      {reference.content ? <p>{reference.content}</p> : <p className="section-help">Sin contenido detallado todavÃ­a.</p>}
     </div>
   );
 }
+
+
+
+
+
+
 
 
 

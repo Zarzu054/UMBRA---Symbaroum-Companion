@@ -4,6 +4,7 @@ export type SymbaroumCapabilityAction = {
   id: string;
   label: string;
   cost: "free" | "movement" | "combat" | "reaction";
+  requiredLevel?: "novato" | "adepto" | "maestro";
   rollAttribute?: "agil" | "atento" | "discreto" | "diestro" | "fuerte" | "inteligente" | "persuasivo" | "tenaz";
   damageFormula?: string;
   effectSummary: string;
@@ -100,6 +101,7 @@ function inferCapabilityActions(
       id: `${slugify(level)}-${slugify(nombre)}`,
       label: buildActionLabel(tipo, nombre, level),
       cost,
+      requiredLevel: normalizeSkillLevel(level),
       rollAttribute: inferRollAttribute(text),
       damageFormula: inferDamageFormula(text),
       effectSummary: text.trim()
@@ -120,6 +122,7 @@ function inferCapabilityActions(
       id: `general-${slugify(nombre)}`,
       label: buildActionLabel(tipo, nombre, "general"),
       cost: fallbackCost,
+      requiredLevel: undefined,
       rollAttribute: inferRollAttribute(resumen),
       damageFormula: inferDamageFormula(resumen),
       effectSummary: resumen.trim()
@@ -209,6 +212,14 @@ function buildActionLabel(tipo: SymbaroumCapabilityType, nombre: string, level: 
 
 function stripAccents(value: string): string {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function normalizeSkillLevel(level: string): SymbaroumCapabilityAction["requiredLevel"] {
+  const normalized = stripAccents(level).toLowerCase();
+  if (normalized === "novato") return "novato";
+  if (normalized === "adepto") return "adepto";
+  if (normalized === "maestro") return "maestro";
+  return undefined;
 }
 
 function dedupeActions(actions: SymbaroumCapabilityAction[]): SymbaroumCapabilityAction[] {

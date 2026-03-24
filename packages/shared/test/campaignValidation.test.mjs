@@ -71,19 +71,62 @@ test("createCampaignReferenceSchema acepta referencias publicas con alias", () =
   assert.equal(parsed.isPublic, true);
 });
 
-test("deriveCharacterActions genera accion de arma y executeCharacterAction la resuelve", () => {
+test("deriveCharacterActions genera accion de arma y executeCharacterAction separa ataque y daño", () => {
   const sheet = createEmptyCharacterSheet();
   sheet.combate.armaPrincipal = "Espada larga";
   sheet.combate.armaPrincipalAtributo = "fuerte";
   sheet.combate.danioPrincipal = "1d8";
-  sheet.atributos.fuerte = 13;
+  sheet.atributos.fuerte = 20;
 
   const actions = deriveCharacterActions(sheet);
   assert.equal(actions.length, 1);
   assert.equal(actions[0].label, "Atacar con Espada larga");
 
-  const executed = executeCharacterAction(sheet, actions[0].id);
-  assert.equal(executed.rolls.length, 2);
-  assert.equal(executed.rolls[0].formula, "1d20");
-  assert.equal(executed.rolls[1].formula, "1d8");
+  const attack = executeCharacterAction(sheet, actions[0].id, "attack");
+  assert.equal(attack.rolls.length, 1);
+  assert.equal(attack.rolls[0].formula, "1d20");
+
+  const damage = executeCharacterAction(sheet, actions[0].id, "damage");
+  assert.equal(damage.rolls.length, 1);
+  assert.equal(damage.rolls[0].formula, "1d8");
+});
+
+test("deriveCharacterActions filtra acciones por el nivel real de la capacidad", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.poderesMisticos = [
+    {
+      nombre: "Tormenta de flechas",
+      tipo: "Poder místico",
+      efecto: "",
+      nivel: "adepto",
+      fuente: "Guía Avanzada del Jugador",
+      notas: "",
+      acciones: [
+        { id: "novato-tormenta", label: "Tormenta de flechas (Novato)", cost: "combat", requiredLevel: "novato", rollAttribute: "tenaz", damageFormula: "1d6", effectSummary: "" },
+        { id: "adepto-tormenta", label: "Tormenta de flechas (Adepto)", cost: "combat", requiredLevel: "adepto", rollAttribute: "tenaz", damageFormula: "1d8", effectSummary: "" },
+        { id: "maestro-tormenta", label: "Tormenta de flechas (Maestro)", cost: "combat", requiredLevel: "maestro", rollAttribute: "tenaz", damageFormula: "1d8", effectSummary: "" }
+      ]
+    }
+  ];
+
+  const actions = deriveCharacterActions(sheet)
+    .filter((action) => action.sourceName === "Tormenta de flechas")
+    .map((action) => action.requiredLevel);
+
+  assert.deepEqual(actions, ["novato", "adepto"]);
+});
+
+test("executeCharacterAction no tira daño cuando falla la tirada de ataque", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.combate.armaPrincipal = "Espada larga";
+  sheet.combate.armaPrincipalAtributo = "fuerte";
+  sheet.combate.danioPrincipal = "1d8";
+  sheet.atributos.fuerte = 0;
+
+  const [action] = deriveCharacterActions(sheet);
+  const executed = executeCharacterAction(sheet, action.id);
+
+  assert.equal(executed.rolls.length, 1);
+  assert.equal(executed.rolls[0].kind, "attack_check");
+  assert.equal(executed.rolls[0].success, false);
 });
