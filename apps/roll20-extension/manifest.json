@@ -5,6 +5,7 @@
   "description": "Bridge minimal entre UMBRA y el chat de Roll20.",
   "permissions": ["tabs"],
   "host_permissions": [
+    "https://umbra.z4rzu.com/*",
     "http://localhost:*/*",
     "http://127.0.0.1:*/*",
     "https://localhost:*/*",
@@ -19,6 +20,7 @@
   "content_scripts": [
     {
       "matches": [
+        "https://umbra.z4rzu.com/*",
         "http://localhost:*/*",
         "http://127.0.0.1:*/*",
         "https://localhost:*/*",
