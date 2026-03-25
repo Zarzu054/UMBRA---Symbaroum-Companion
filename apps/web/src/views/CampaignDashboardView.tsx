@@ -1,4 +1,4 @@
-﻿import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   buildRollRequest,
   createCampaignNpcSchema,
@@ -49,11 +49,7 @@ import {
 } from "../services/campaignService";
 import {
   dispatchRoll20Request,
-  getRollDestination,
-  pingRoll20Bridge,
-  type Roll20Visibility,
-  type Roll20BridgeStatus,
-  setRollDestination as persistRollDestination
+  type Roll20Visibility
 } from "../services/rollTransport";
 
 type Props = {
@@ -72,7 +68,7 @@ type CampaignSheetTarget =
   | { kind: "character"; linkId: string }
   | { kind: "npc"; npcId: string };
 
-type CampaignDetailSection = "overview" | "wiki" | "members" | "sessions" | "characters" | "npcs" | "xp" | "sheet";
+type CampaignDetailSection = "wiki" | "members" | "sessions" | "characters" | "npcs" | "xp" | "sheet";
 
 type PendingRollConfirmation = {
   request: RollRequest;
@@ -110,6 +106,14 @@ const emptyReferenceForm: CreateCampaignReferenceInput = {
   summary: "",
   content: "",
   isPublic: false
+};
+
+const referenceFieldLabels: Record<string, string> = {
+  name: "Nombre",
+  label: "Etiqueta",
+  aliases: "Alias",
+  summary: "Resumen corto",
+  content: "Contenido"
 };
 
 function toLocalDateTimeValue(value: string): string {
@@ -194,6 +198,36 @@ function aliasesToInput(value: string): string[] {
 
 function aliasesToText(value: string[]): string {
   return value.join(", ");
+}
+
+type ReferenceValidationIssue = {
+  code: string;
+  path: Array<string | number>;
+  message: string;
+  minimum?: number | bigint;
+  maximum?: number | bigint;
+  type?: string;
+};
+
+function formatReferenceValidationIssues(issues: ReferenceValidationIssue[]): string[] {
+  return issues.map((issue) => {
+    const rawField = typeof issue.path[0] === "string" ? issue.path[0] : "field";
+    const field = referenceFieldLabels[rawField] ?? rawField;
+
+    if (issue.code === "too_small" && issue.type === "string" && issue.minimum === 2) {
+      return `${field}: debe contener al menos 2 caracteres.`;
+    }
+
+    if (issue.code === "too_big" && issue.type === "string") {
+      return `${field}: no puede superar ${issue.maximum} caracteres.`;
+    }
+
+    if (rawField === "aliases" && issue.code === "too_big") {
+      return "Alias: no puede haber m?s de 20 alias.";
+    }
+
+    return `${field}: ${issue.message}.`;
+  });
 }
 
 function escapeRegExp(value: string): string {
@@ -354,7 +388,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [sessionXpDraft, setSessionXpDraft] = useState<Record<string, number>>({});
   const [referenceForm, setReferenceForm] = useState<CreateCampaignReferenceInput>(emptyReferenceForm);
   const [referenceAliasesText, setReferenceAliasesText] = useState("");
+  const [referenceValidationErrors, setReferenceValidationErrors] = useState<string[]>([]);
   const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(null);
+  const [isReferenceEditorOpen, setIsReferenceEditorOpen] = useState(false);
+  const [isReferenceDetailOpen, setIsReferenceDetailOpen] = useState(false);
   const [selectedSheetTarget, setSelectedSheetTarget] = useState<CampaignSheetTarget | null>(
     initialHashState.sheetKind === "character" && initialHashState.sheetId
       ? { kind: "character", linkId: initialHashState.sheetId }
@@ -362,10 +399,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         ? { kind: "npc", npcId: initialHashState.sheetId }
         : null
   );
-  const [activeSection, setActiveSection] = useState<CampaignDetailSection>("overview");
-  const [rollDestination, setRollDestinationState] = useState<RollDestination>(() => getRollDestination());
-  const [rollTransportMessage, setRollTransportMessage] = useState<string | null>(null);
-  const [roll20BridgeStatus, setRoll20BridgeStatus] = useState<Roll20BridgeStatus | null>(null);
+  const [activeSection, setActiveSection] = useState<CampaignDetailSection>("wiki");
+  const [isCreateCampaignModalOpen, setIsCreateCampaignModalOpen] = useState(false);
+  const [isCampaignDetailsModalOpen, setIsCampaignDetailsModalOpen] = useState(false);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -416,18 +452,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     () => selectedCampaign?.availableCharacters.filter((entry) => !entry.linked) ?? [],
     [selectedCampaign]
   );
-  function handleRollDestinationChange(destination: RollDestination): void {
-    setRollDestinationState(destination);
-    persistRollDestination(destination);
-    setRollTransportMessage(
-      destination === "umbra"
-        ? "Las tiradas se resolverÃ¡n dentro de UMBRA."
-        : destination === "roll20"
-          ? "Las tiradas se prepararÃ¡n para Roll20 por defecto."
-          : "Las tiradas se enviarÃ¡n a Roll20 y tambiÃ©n se resolverÃ¡n en UMBRA."
-    );
-  }
-
   useEffect(() => {
     void refresh();
   }, []);
@@ -512,6 +536,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setSessionXpDraft({});
       setReferenceForm(emptyReferenceForm);
       setReferenceAliasesText("");
+      setReferenceValidationErrors([]);
       setSelectedReferenceId(null);
       setSelectedSheetTarget(null);
       return;
@@ -568,8 +593,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
   useEffect(() => {
     if (!selectedCampaign) {
-      if (activeSection !== "overview") {
-        setActiveSection("overview");
+      if (activeSection !== "wiki") {
+        setActiveSection("wiki");
       }
       return;
     }
@@ -623,34 +648,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     setReferenceAliasesText(aliasesToText(selectedReference.aliases));
   }, [selectedReference]);
 
-  useEffect(() => {
-    if (!selectedCampaign || rollDestination === "umbra") {
-      setRoll20BridgeStatus(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function checkBridge(): Promise<void> {
-      const status = await pingRoll20Bridge();
-      if (!cancelled) {
-        setRoll20BridgeStatus(status);
-      }
-    }
-
-    void checkBridge();
-
-    function handleWindowFocus(): void {
-      void checkBridge();
-    }
-
-    window.addEventListener("focus", handleWindowFocus);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("focus", handleWindowFocus);
-    };
-  }, [rollDestination, selectedCampaign]);
-
   async function refresh(): Promise<void> {
     setIsLoading(true);
     setError(null);
@@ -658,7 +655,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const token = await ensureAccessToken();
       setCampaigns(await fetchCampaigns(token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron cargar las campaÃƒÂ±as");
+      setError(err instanceof Error ? err.message : "No se pudieron cargar las campañas");
     } finally {
       setIsLoading(false);
     }
@@ -677,6 +674,23 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   function openReference(referenceId: string): void {
     setSelectedReferenceId(referenceId);
     setActiveSection("wiki");
+    setIsReferenceDetailOpen(true);
+  }
+
+  function openCreateReferenceEditor(): void {
+    setSelectedReferenceId(null);
+    setReferenceForm(emptyReferenceForm);
+    setReferenceAliasesText("");
+    setReferenceValidationErrors([]);
+    setIsReferenceDetailOpen(false);
+    setIsReferenceEditorOpen(true);
+  }
+
+  function openEditReferenceEditor(referenceId: string): void {
+    setSelectedReferenceId(referenceId);
+    setReferenceValidationErrors([]);
+    setIsReferenceDetailOpen(false);
+    setIsReferenceEditorOpen(true);
   }
 
   async function handleCreateCampaign(): Promise<void> {
@@ -687,8 +701,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const created = await createCampaign(createCampaignSchema.parse(campaignForm), token);
       upsertCampaign(created);
       setCampaignForm(emptyCampaignForm);
+      setIsCreateCampaignModalOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear la campaÃƒÂ±a");
+      setError(err instanceof Error ? err.message : "No se pudo crear la campaña");
     } finally {
       setIsSaving(false);
     }
@@ -705,7 +720,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const token = await ensureAccessToken();
       upsertCampaign(await updateCampaign(selectedCampaign.id, draft, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar la campaÃƒÂ±a");
+      setError(err instanceof Error ? err.message : "No se pudo guardar la campaña");
     } finally {
       setIsSaving(false);
     }
@@ -888,7 +903,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       upsertCampaign(updated);
       setSelectedSessionId(getMatchingSessionId(updated, parsed));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear la sesiÃƒÂ³n");
+      setError(err instanceof Error ? err.message : "No se pudo crear la sesión");
     } finally {
       setIsSaving(false);
     }
@@ -905,7 +920,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const token = await ensureAccessToken();
       upsertCampaign(await updateCampaignSession(selectedSession.id, { ...sessionForm } as UpdateCampaignSessionInput, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar la sesiÃƒÂ³n");
+      setError(err instanceof Error ? err.message : "No se pudo guardar la sesión");
     } finally {
       setIsSaving(false);
     }
@@ -935,7 +950,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       upsertCampaign(updated);
       setSessionXpDraft(Object.fromEntries(updated.characters.map((entry) => [entry.characterId, 0])));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo asignar PX de sesiÃƒÂ³n");
+      setError(err instanceof Error ? err.message : "No se pudo asignar PX de sesión");
     } finally {
       setIsSaving(false);
     }
@@ -972,19 +987,37 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
+    const parsedInput = createCampaignReferenceSchema.safeParse({
+      ...referenceForm,
+      aliases: aliasesToInput(referenceAliasesText)
+    });
+
+    if (!parsedInput.success) {
+      setReferenceValidationErrors(formatReferenceValidationIssues(parsedInput.error.issues));
+      return;
+    }
+
+    setReferenceValidationErrors([]);
     setError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
-      const parsed = createCampaignReferenceSchema.parse({
-        ...referenceForm,
-        aliases: aliasesToInput(referenceAliasesText)
-      });
+      const parsed = parsedInput.data;
       const updated = await createCampaignReference(selectedCampaign.id, parsed, token);
       upsertCampaign(updated);
       setReferenceForm(emptyReferenceForm);
       setReferenceAliasesText("");
-      setSelectedReferenceId(updated.references[0]?.id ?? null);
+      const createdReferenceId =
+        updated.references.find(
+          (reference) =>
+            reference.name === parsed.name &&
+            reference.label === parsed.label &&
+            reference.summary === parsed.summary &&
+            reference.content === parsed.content
+        )?.id ?? updated.references[0]?.id ?? null;
+      setSelectedReferenceId(createdReferenceId);
+      setIsReferenceEditorOpen(false);
+      setIsReferenceDetailOpen(createdReferenceId !== null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear la referencia");
     } finally {
@@ -997,17 +1030,27 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
+    const parsedInput = createCampaignReferenceSchema.safeParse({
+      ...referenceForm,
+      aliases: aliasesToInput(referenceAliasesText)
+    });
+
+    if (!parsedInput.success) {
+      setReferenceValidationErrors(formatReferenceValidationIssues(parsedInput.error.issues));
+      return;
+    }
+
+    setReferenceValidationErrors([]);
     setError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
-      const parsed = {
-        ...referenceForm,
-        aliases: aliasesToInput(referenceAliasesText)
-      } as UpdateCampaignReferenceInput;
+      const parsed = parsedInput.data as UpdateCampaignReferenceInput;
       const updated = await updateCampaignReference(selectedReference.id, parsed, token);
       upsertCampaign(updated);
       setSelectedReferenceId(selectedReference.id);
+      setIsReferenceEditorOpen(false);
+      setIsReferenceDetailOpen(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar la referencia");
     } finally {
@@ -1028,6 +1071,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const updated = await deleteCampaignReference(deletedId, token);
       upsertCampaign(updated);
       setSelectedReferenceId(updated.references.find((reference) => reference.id !== deletedId)?.id ?? updated.references[0]?.id ?? null);
+      setIsReferenceEditorOpen(false);
+      setIsReferenceDetailOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo eliminar la referencia");
     } finally {
@@ -1054,9 +1099,22 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         <section className="panel campaign-list-page">
           <div className="row-actions">
             <h3>Campañas</h3>
-            <button disabled={isLoading} onClick={() => void refresh()}>
-              Recargar
-            </button>
+            <div className="toolbar">
+              {isDirector ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCampaignForm(emptyCampaignForm);
+                    setIsCreateCampaignModalOpen(true);
+                  }}
+                >
+                  Nueva campaña
+                </button>
+              ) : null}
+              <button disabled={isLoading} onClick={() => void refresh()}>
+                Recargar
+              </button>
+            </div>
           </div>
 
           {isLoading ? <p>Cargando campañas...</p> : null}
@@ -1070,11 +1128,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   setSelectedCampaignId(campaign.id);
                   setSelectedSessionId(null);
                   setSelectedSheetTarget(null);
-                  setActiveSection("overview");
+                  setActiveSection("wiki");
                 }}
               >
                 <strong>{campaign.name}</strong>
-                <span>{campaign.setting || "Sin ambientaciÃ³n"}</span>
+                <span>{campaign.setting || "Sin ambientación"}</span>
                 <span>{campaign.members.length} miembros</span>
                 <span>{campaign.sessions.length} sesiones</span>
               </button>
@@ -1084,33 +1142,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             ) : null}
           </div>
 
-          {isDirector ? (
-            <div className="campaign-create-form">
-              <div className="section-title">Nueva campaña</div>
-              <label className="field">
-                <span>Nombre</span>
-                <input value={campaignForm.name} onChange={(event) => setCampaignForm((prev) => ({ ...prev, name: event.target.value }))} />
-              </label>
-              <label className="field">
-                <span>Ambientación</span>
-                <input
-                  value={campaignForm.setting}
-                  onChange={(event) => setCampaignForm((prev) => ({ ...prev, setting: event.target.value }))}
-                />
-              </label>
-              <label className="field">
-                <span>Resumen</span>
-                <textarea
-                  rows={3}
-                  value={campaignForm.summary}
-                  onChange={(event) => setCampaignForm((prev) => ({ ...prev, summary: event.target.value }))}
-                />
-              </label>
-              <button disabled={isSaving} onClick={() => void handleCreateCampaign()}>
-                Crear campaña
-              </button>
-            </div>
-          ) : null}
         </section>
       ) : (
         <section className="campaign-main">
@@ -1125,7 +1156,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     setSelectedSessionId(null);
                     setSelectedReferenceId(null);
                     setSelectedSheetTarget(null);
-                    setActiveSection("overview");
+                    setActiveSection("wiki");
                   }}
                 >
                   Volver a campañas
@@ -1136,29 +1167,14 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 </p>
               </div>
               <div className="campaign-header-actions">
-                <label className="field campaign-roll-destination-field">
-                  <span>Destino de tiradas</span>
-                  <select value={rollDestination} onChange={(event) => handleRollDestinationChange(event.target.value as RollDestination)}>
-                    <option value="roll20">Roll20</option>
-                    <option value="umbra">UMBRA</option>
-                    <option value="both">Ambos</option>
-                  </select>
-                </label>
                 {isDirector ? (
-                  <button disabled={isSaving} onClick={() => void handleSaveCampaign()}>
-                    Guardar detalle
+                  <button type="button" disabled={isSaving} onClick={() => setIsCampaignDetailsModalOpen(true)}>
+                    Detalles
                   </button>
                 ) : null}
               </div>
             </div>
-            {rollTransportMessage ? <p className="meta-text campaign-roll-destination-feedback">{rollTransportMessage}</p> : null}
-            {rollDestination !== "umbra" && roll20BridgeStatus ? (
-              <p className="meta-text campaign-roll-destination-feedback">
-                Bridge Roll20: {roll20BridgeStatus.message}
-              </p>
-            ) : null}
             <div className="toolbar campaign-section-nav">
-              <button type="button" className={activeSection === "overview" ? "is-active" : ""} onClick={() => setActiveSection("overview")}>Resumen</button>
               <button type="button" className={activeSection === "wiki" ? "is-active" : ""} onClick={() => setActiveSection("wiki")}>Wiki</button>
               <button type="button" className={activeSection === "members" ? "is-active" : ""} onClick={() => setActiveSection("members")}>Miembros</button>
               <button type="button" className={activeSection === "sessions" ? "is-active" : ""} onClick={() => setActiveSection("sessions")}>Sesiones</button>
@@ -1169,46 +1185,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 <button type="button" className={activeSection === "sheet" ? "is-active" : ""} onClick={() => setActiveSection("sheet")}>Hoja abierta</button>
               ) : null}
             </div>
-            {activeSection === "overview" ? (
-            <>
-            <div className="form-grid">
-              <label className="field">
-                <span>Nombre</span>
-                <input value={draft.name} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))} />
-              </label>
-              <label className="field">
-                <span>Ambientación</span>
-                <input
-                  value={draft.setting}
-                  disabled={!isDirector}
-                  onChange={(event) => setDraft((prev) => ({ ...prev, setting: event.target.value }))}
-                />
-              </label>
-            </div>
-            <label className="field">
-              <span>Resumen</span>
-              <textarea rows={3} value={draft.summary} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, summary: event.target.value }))} />
-            </label>
-            <CampaignLinkedTextBlock
-              title="Vista enlazada del resumen"
-              text={draft.summary}
-              references={selectedCampaign.references}
-              onOpenReference={openReference}
-            />
-            <label className="field">
-              <span>Notas del director</span>
-              <textarea rows={5} value={draft.notes} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))} />
-            </label>
-            {draft.notes ? (
-              <CampaignLinkedTextBlock
-                title="Vista enlazada de notas"
-                text={draft.notes}
-                references={selectedCampaign.references}
-                onOpenReference={openReference}
-              />
-            ) : null}
-            </>
-            ) : null}
           </section>
 
           {activeSection === "wiki" ? (
@@ -1216,92 +1192,127 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             <div className="row-actions">
               <h3>Wiki de campaña</h3>
               {isDirector ? (
-                <button
-                  disabled={isSaving}
-                  onClick={() => {
-                    setSelectedReferenceId(null);
-                    setReferenceForm(emptyReferenceForm);
-                    setReferenceAliasesText("");
-                  }}
-                >
+                <button disabled={isSaving} onClick={openCreateReferenceEditor}>
                   Nueva referencia
                 </button>
               ) : null}
             </div>
-            <div className="campaign-reference-layout">
-              <div className="campaign-reference-list">
-                {selectedCampaign.references.map((reference) => (
-                  <button
-                    key={reference.id}
-                    className={`campaign-list-item${selectedReferenceId === reference.id ? " is-active" : ""}`}
-                    onClick={() => openReference(reference.id)}
-                  >
-                    <strong>{reference.name}</strong>
-                    <span>{reference.label}</span>
-                    <span>{reference.isPublic ? "Visible para jugadores" : "Solo DJ"}</span>
-                  </button>
-                ))}
-                {selectedCampaign.references.length === 0 ? (
-                  <p className="section-help">Aun no hay referencias creadas para esta campaña.</p>
-                ) : null}
-              </div>
-
-              <div className="campaign-reference-detail">
-                {isDirector ? (
-                  <>
-                    <div className="row-actions">
-                      <h3>{selectedReference ? "Editar referencia" : "Crear referencia"}</h3>
-                      <div className="toolbar">
-                        <button disabled={isSaving} onClick={() => void (selectedReference ? handleSaveReference() : handleCreateReference())}>
-                          {selectedReference ? "Guardar referencia" : "Crear referencia"}
-                        </button>
-                        {selectedReference ? (
-                          <button className="danger" disabled={isSaving} onClick={() => void handleDeleteReference()}>
-                            Eliminar referencia
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="form-grid">
-                      <label className="field">
-                        <span>Nombre</span>
-                        <input value={referenceForm.name} onChange={(event) => setReferenceForm((prev) => ({ ...prev, name: event.target.value }))} />
-                      </label>
-                      <label className="field">
-                        <span>Etiqueta</span>
-                        <input value={referenceForm.label} onChange={(event) => setReferenceForm((prev) => ({ ...prev, label: event.target.value }))} />
-                      </label>
-                      <label className="field">
-                        <span>Alias</span>
-                        <input value={referenceAliasesText} onChange={(event) => setReferenceAliasesText(event.target.value)} placeholder="Bosque oscuro, Davokar oscuro" />
-                      </label>
-                      <label className="field checkbox-field">
-                        <span>Visible para jugadores</span>
-                        <input
-                          type="checkbox"
-                          checked={referenceForm.isPublic}
-                          onChange={(event) => setReferenceForm((prev) => ({ ...prev, isPublic: event.target.checked }))}
-                        />
-                      </label>
-                    </div>
-                    <label className="field">
-                      <span>Resumen corto</span>
-                      <textarea rows={2} value={referenceForm.summary} onChange={(event) => setReferenceForm((prev) => ({ ...prev, summary: event.target.value }))} />
-                    </label>
-                    <label className="field">
-                      <span>Contenido</span>
-                      <textarea rows={8} value={referenceForm.content} onChange={(event) => setReferenceForm((prev) => ({ ...prev, content: event.target.value }))} />
-                    </label>
-                    <CampaignReferencePreview reference={{ ...referenceForm, id: selectedReference?.id ?? "draft", aliases: aliasesToInput(referenceAliasesText), createdAt: "", updatedAt: "" }} />
-                  </>
-                ) : selectedReference ? (
-                  <CampaignReferencePreview reference={selectedReference} />
-                ) : (
-                  <p className="section-help">Selecciona una referencia resaltada o una entrada de la lista.</p>
-                )}
-              </div>
+            <div className="cards">
+              {selectedCampaign.references.map((reference) => (
+                <article key={reference.id} className="card campaign-reference-card">
+                  <strong>{reference.name}</strong>
+                  <span>{reference.label || "Sin etiqueta"}</span>
+                  <span>{reference.isPublic ? "Visible para jugadores" : "Solo DJ"}</span>
+                  {reference.summary ? <p>{reference.summary}</p> : null}
+                  <div className="card-actions">
+                    <button type="button" onClick={() => openReference(reference.id)}>
+                      Ver detalle
+                    </button>
+                    {isDirector ? (
+                      <button type="button" onClick={() => openEditReferenceEditor(reference.id)}>
+                        Editar
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+              {selectedCampaign.references.length === 0 ? (
+                <p className="section-help">Aún no hay referencias creadas para esta campaña.</p>
+              ) : null}
             </div>
           </section>
+          ) : null}
+
+          {isReferenceEditorOpen ? (
+            <section
+              className="modal-backdrop"
+              onClick={() => {
+                if (!isSaving) {
+                  setIsReferenceEditorOpen(false);
+                }
+              }}
+            >
+              <div className="panel modal-panel campaign-reference-modal" onClick={(event) => event.stopPropagation()}>
+                <div className="row-actions">
+                  <h3>{selectedReference ? "Editar referencia" : "Crear referencia"}</h3>
+                  <div className="toolbar">
+                    <button disabled={isSaving} onClick={() => void (selectedReference ? handleSaveReference() : handleCreateReference())}>
+                      {selectedReference ? "Guardar referencia" : "Crear referencia"}
+                    </button>
+                    {selectedReference ? (
+                      <button className="danger" disabled={isSaving} onClick={() => void handleDeleteReference()}>
+                        Eliminar referencia
+                      </button>
+                    ) : null}
+                    <button type="button" disabled={isSaving} onClick={() => setIsReferenceEditorOpen(false)}>
+                      Cerrar
+                    </button>
+                  </div>
+                </div>
+                {referenceValidationErrors.length > 0 ? (
+                  <div className="error-list">
+                    {referenceValidationErrors.map((message) => (
+                      <p key={message}>{message}</p>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="form-grid">
+                  <label className="field">
+                    <span>Nombre</span>
+                    <input value={referenceForm.name} onChange={(event) => { setReferenceValidationErrors([]); setReferenceForm((prev) => ({ ...prev, name: event.target.value })); }} />
+                  </label>
+                  <label className="field">
+                    <span>Etiqueta</span>
+                    <input value={referenceForm.label} onChange={(event) => { setReferenceValidationErrors([]); setReferenceForm((prev) => ({ ...prev, label: event.target.value })); }} />
+                  </label>
+                  <label className="field">
+                    <span>Alias</span>
+                    <input value={referenceAliasesText} onChange={(event) => { setReferenceValidationErrors([]); setReferenceAliasesText(event.target.value); }} placeholder="Bosque oscuro, Davokar oscuro" />
+                  </label>
+                  <label className="field checkbox-field">
+                    <span>Visible para jugadores</span>
+                    <input
+                      type="checkbox"
+                      checked={referenceForm.isPublic}
+                      onChange={(event) => setReferenceForm((prev) => ({ ...prev, isPublic: event.target.checked }))}
+                    />
+                  </label>
+                </div>
+                <label className="field">
+                  <span>Resumen corto</span>
+                  <textarea rows={2} value={referenceForm.summary} onChange={(event) => { setReferenceValidationErrors([]); setReferenceForm((prev) => ({ ...prev, summary: event.target.value })); }} />
+                </label>
+                <label className="field">
+                  <span>Contenido</span>
+                  <textarea rows={8} value={referenceForm.content} onChange={(event) => { setReferenceValidationErrors([]); setReferenceForm((prev) => ({ ...prev, content: event.target.value })); }} />
+                </label>
+                <CampaignReferencePreview reference={{ ...referenceForm, id: selectedReference?.id ?? "draft", aliases: aliasesToInput(referenceAliasesText), createdAt: "", updatedAt: "" }} />
+              </div>
+            </section>
+          ) : null}
+
+          {isReferenceDetailOpen && selectedReference ? (
+            <section
+              className="modal-backdrop"
+              onClick={() => setIsReferenceDetailOpen(false)}
+            >
+              <div className="panel modal-panel campaign-reference-modal" onClick={(event) => event.stopPropagation()}>
+                <div className="row-actions">
+                  <h3>Detalle de referencia</h3>
+                  <div className="toolbar">
+                    {isDirector ? (
+                      <button type="button" onClick={() => openEditReferenceEditor(selectedReference.id)}>
+                        Editar
+                      </button>
+                    ) : null}
+                    <button type="button" onClick={() => setIsReferenceDetailOpen(false)}>
+                      Cerrar
+                    </button>
+                  </div>
+                </div>
+                <CampaignReferencePreview reference={selectedReference} />
+              </div>
+            </section>
           ) : null}
 
           {activeSection === "members" ? (
@@ -1382,7 +1393,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     </div>
                     <div className="form-grid">
                       <label className="field">
-                        <span>TÃ­tulo</span>
+                        <span>Título</span>
                         <input value={sessionForm.title} onChange={(event) => setSessionForm((prev) => ({ ...prev, title: event.target.value }))} />
                       </label>
                       <label className="field">
@@ -1394,7 +1405,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                         />
                       </label>
                       <label className="field">
-                        <span>UbicaciÃ³n</span>
+                        <span>Ubicación</span>
                         <input value={sessionForm.location} onChange={(event) => setSessionForm((prev) => ({ ...prev, location: event.target.value }))} />
                       </label>
                       <label className="field">
@@ -1429,7 +1440,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                       <textarea rows={4} value={sessionForm.publicNotes} onChange={(event) => setSessionForm((prev) => ({ ...prev, publicNotes: event.target.value }))} />
                     </label>
                     <CampaignLinkedTextBlock
-                      title="Vista enlazada de notas pÃºblicas"
+                      title="Vista enlazada de notas públicas"
                       text={sessionForm.publicNotes}
                       references={selectedCampaign.references}
                       onOpenReference={openReference}
@@ -1613,7 +1624,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     <input value={npcForm.archetype} onChange={(event) => setNpcForm((prev) => ({ ...prev, archetype: event.target.value }))} />
                   </label>
                   <label className="field">
-                    <span>OcupaciÃ³n</span>
+                    <span>Ocupación</span>
                     <input value={npcForm.occupation} onChange={(event) => setNpcForm((prev) => ({ ...prev, occupation: event.target.value }))} />
                   </label>
                   <label className="field">
@@ -1677,8 +1688,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 title={selectedCharacterSheetEntry.name}
                 subtitle={`${selectedCharacterSheetEntry.ownerEmail} · Personaje de campaña`}
                 sheet={selectedCharacterSheetEntry.sheet}
-                rollDestination={rollDestination}
-                editable={isDirector || selectedCharacterSheetEntry.ownerId === user.id}
+                rollDestination="umbra"
+                editable={false}
+                allowActions={false}
                 busy={isSaving}
                 onSave={async (sheet) => handleSaveCharacterSheet(selectedCharacterSheetEntry.id, sheet)}
               />
@@ -1698,14 +1710,14 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   title={selectedNpcSheetEntry.name}
                   subtitle={`${selectedNpcSheetEntry.race || "PNJ"} · ${selectedNpcSheetEntry.archetype || selectedNpcSheetEntry.occupation || "Sin arquetipo"}`}
                   sheet={selectedNpcSheetEntry.sheet}
-                  rollDestination={rollDestination}
+                  rollDestination="umbra"
                   editable={isDirector}
                   busy={isSaving}
                   onSave={async (sheet) => handleSaveNpcSheet(selectedNpcSheetEntry.id, sheet)}
                 />
               ) : (
                 <div className="campaign-empty-sheet">
-                  <p className="section-help">Este PNJ todavÃ­a no tiene hoja de personaje. Puedes crearla y usarla para llevar equipo, corrupción, robustez y acciones.</p>
+                  <p className="section-help">Este PNJ todavía no tiene hoja de personaje. Puedes crearla y usarla para llevar equipo, corrupción, robustez y acciones.</p>
                   {isDirector ? (
                     <button disabled={isSaving} onClick={() => void handleCreateNpcSheet(selectedNpcSheetEntry.id)}>
                       Crear hoja de PNJ
@@ -1735,6 +1747,126 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           ) : null}
         </section>
       )}
+
+      {isCampaignDetailsModalOpen && selectedCampaign ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setIsCampaignDetailsModalOpen(false);
+            }
+          }}
+        >
+          <div className="panel modal-panel campaign-create-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="row-actions">
+              <h2>Detalles de campa?a</h2>
+              <div className="toolbar">
+                <button disabled={isSaving} onClick={() => void handleSaveCampaign()}>
+                  {isSaving ? "Guardando..." : "Guardar detalle"}
+                </button>
+                <button type="button" onClick={() => setIsCampaignDetailsModalOpen(false)} disabled={isSaving}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            <div className="form-grid">
+              <label className="field">
+                <span>Nombre</span>
+                <input value={draft.name} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, name: event.target.value }))} />
+              </label>
+              <label className="field">
+                <span>Ambientaci?n</span>
+                <input
+                  value={draft.setting}
+                  disabled={!isDirector}
+                  onChange={(event) => setDraft((prev) => ({ ...prev, setting: event.target.value }))}
+                />
+              </label>
+            </div>
+            <label className="field">
+              <span>Resumen</span>
+              <textarea rows={3} value={draft.summary} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, summary: event.target.value }))} />
+            </label>
+            <CampaignLinkedTextBlock
+              title="Vista enlazada del resumen"
+              text={draft.summary}
+              references={selectedCampaign.references}
+              onOpenReference={openReference}
+            />
+            <label className="field">
+              <span>Notas del director</span>
+              <textarea rows={5} value={draft.notes} disabled={!isDirector} onChange={(event) => setDraft((prev) => ({ ...prev, notes: event.target.value }))} />
+            </label>
+            {draft.notes ? (
+              <CampaignLinkedTextBlock
+                title="Vista enlazada de notas"
+                text={draft.notes}
+                references={selectedCampaign.references}
+                onOpenReference={openReference}
+              />
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {isCreateCampaignModalOpen ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setIsCreateCampaignModalOpen(false);
+            }
+          }}
+        >
+          <div className="panel modal-panel campaign-create-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="row-actions">
+              <h2>Nueva campaña</h2>
+              <div className="toolbar">
+                <button disabled={isSaving} onClick={() => void handleCreateCampaign()}>
+                  {isSaving ? "Creando..." : "Crear campaña"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateCampaignModalOpen(false)}
+                  disabled={isSaving}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+
+            <div className="campaign-create-form">
+              <label className="field">
+                <span>Nombre</span>
+                <input value={campaignForm.name} onChange={(event) => setCampaignForm((prev) => ({ ...prev, name: event.target.value }))} />
+              </label>
+              <label className="field">
+                <span>Ambientación</span>
+                <input
+                  value={campaignForm.setting}
+                  onChange={(event) => setCampaignForm((prev) => ({ ...prev, setting: event.target.value }))}
+                />
+              </label>
+              <label className="field">
+                <span>Resumen</span>
+                <textarea
+                  rows={3}
+                  value={campaignForm.summary}
+                  onChange={(event) => setCampaignForm((prev) => ({ ...prev, summary: event.target.value }))}
+                />
+              </label>
+              <label className="field">
+                <span>Notas del director</span>
+                <textarea
+                  rows={6}
+                  value={campaignForm.notes}
+                  onChange={(event) => setCampaignForm((prev) => ({ ...prev, notes: event.target.value }))}
+                />
+              </label>
+            </div>
+          </div>
+        </section>
+      ) : null}
     </section>
   );
 }
@@ -1756,11 +1888,12 @@ type CampaignSheetEditorProps = {
   sheet: CharacterSheet;
   rollDestination: RollDestination;
   editable: boolean;
+  allowActions?: boolean;
   busy: boolean;
   onSave: (sheet: CharacterSheet) => Promise<void>;
 };
 
-function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable, busy, onSave }: CampaignSheetEditorProps) {
+function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable, allowActions = true, busy, onSave }: CampaignSheetEditorProps) {
   const [draft, setDraft] = useState<CharacterSheet>(sheet);
   const [equipmentText, setEquipmentText] = useState(listToText(sheet.equipo));
   const [contactsText, setContactsText] = useState(listToText(sheet.contactos));
@@ -1866,7 +1999,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
             />
           </label>
           <label className="field">
-            <span>CorrupciÃ³n temporal</span>
+            <span>Corrupción temporal</span>
             <input
               type="number"
               min={0}
@@ -1881,7 +2014,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
             />
           </label>
           <label className="field">
-            <span>CorrupciÃ³n permanente</span>
+            <span>Corrupción permanente</span>
             <input
               type="number"
               min={0}
@@ -1905,7 +2038,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
             <span>Raza: {String(draft.identidad.raza)}</span>
             <span>Cultura: {String(draft.identidad.cultura)}</span>
             <span>Arquetipo: {String(draft.identidad.arquetipo)}</span>
-            <span>ProfesiÃ³n: {draft.identidad.profesion || "Sin definir"}</span>
+            <span>Profesión: {draft.identidad.profesion || "Sin definir"}</span>
           </div>
           <label className="field">
             <span>Objetivo personal</span>
@@ -1936,7 +2069,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
           <h4>Combate y recursos</h4>
           <div className="form-grid">
             <label className="field">
-              <span>Robustez mÃ¡xima</span>
+              <span>Robustez máxima</span>
               <input
                 type="number"
                 min={1}
@@ -2006,7 +2139,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
             />
           </label>
           <label className="field">
-            <span>ProtecciÃ³n</span>
+            <span>Protección</span>
             <input
               disabled={!editable}
               value={draft.combate.armaduraProteccion}
@@ -2164,9 +2297,9 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
       <section className="campaign-sheet-card">
         <h4>Capacidades y acciones</h4>
         <div className="campaign-sheet-capability-columns">
-          <CapabilityColumn title="Habilidades" entries={draft.habilidades} getActionsForSource={getActionsForSource} onRunAction={handleRunAction} />
-          <CapabilityColumn title="Poderes místicos" entries={draft.poderesMisticos} getActionsForSource={getActionsForSource} onRunAction={handleRunAction} />
-          <CapabilityColumn title="Rituales" entries={draft.rituales} getActionsForSource={getActionsForSource} onRunAction={handleRunAction} />
+          <CapabilityColumn title="Habilidades" entries={draft.habilidades} getActionsForSource={getActionsForSource} onRunAction={handleRunAction} allowActions={allowActions} />
+          <CapabilityColumn title="Poderes místicos" entries={draft.poderesMisticos} getActionsForSource={getActionsForSource} onRunAction={handleRunAction} allowActions={allowActions} />
+          <CapabilityColumn title="Rituales" entries={draft.rituales} getActionsForSource={getActionsForSource} onRunAction={handleRunAction} allowActions={allowActions} />
         </div>
       </section>
 
@@ -2232,7 +2365,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
                 />
                 <input
                   disabled={!editable}
-                  placeholder="OcupaciÃ³n"
+                  placeholder="Ocupación"
                   value={contacto.ocupacion}
                   onChange={(event) =>
                     updateDraft((current) => ({
@@ -2296,7 +2429,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
                 />
                 <input
                   disabled={!editable}
-                  placeholder="CorrupciÃ³n"
+                  placeholder="Corrupción"
                   value={artefacto.corrupcion}
                   onChange={(event) =>
                     updateDraft((current) => ({
@@ -2313,6 +2446,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
         </section>
       </div>
 
+      {allowActions ? (
       <section className="campaign-sheet-card">
         <div className="row-actions">
           <h4>Acciones disponibles</h4>
@@ -2357,7 +2491,8 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
           </div>
         ) : null}
       </section>
-      {pendingRollConfirmation ? (
+      ) : null}
+      {allowActions && pendingRollConfirmation ? (
         <div className="modal-backdrop">
           <div className="modal-panel">
             <h3>Enviar tirada a Roll20</h3>
@@ -2398,9 +2533,10 @@ type CapabilityColumnProps = {
   entries: Array<{ nombre: string; nivel: string; efecto: string }>;
   getActionsForSource: (sourceName: string) => CharacterActionDefinition[];
   onRunAction: (action: CharacterActionDefinition, phase: CharacterActionPhase) => void;
+  allowActions: boolean;
 };
 
-function CapabilityColumn({ title, entries, getActionsForSource, onRunAction }: CapabilityColumnProps) {
+function CapabilityColumn({ title, entries, getActionsForSource, onRunAction, allowActions }: CapabilityColumnProps) {
   return (
     <div className="campaign-capability-column">
       <h5>{title}</h5>
@@ -2411,7 +2547,7 @@ function CapabilityColumn({ title, entries, getActionsForSource, onRunAction }: 
             <strong>{entry.nombre}</strong>
             <span>{entry.nivel}</span>
             {entry.efecto ? <p>{entry.efecto}</p> : null}
-            {entryActions.length > 0 ? (
+            {allowActions && entryActions.length > 0 ? (
               <div className="campaign-capability-actions">
                 {entryActions.map((action) => (
                   <div key={action.id} className="campaign-action-controls">
@@ -2472,7 +2608,7 @@ function CampaignNpcEditor({ npc, editable, busy, references, onOpenReference, o
           <input value={draft.archetype ?? ""} disabled={!editable} onChange={(event) => setDraft((prev) => ({ ...prev, archetype: event.target.value }))} />
         </label>
         <label className="field">
-          <span>Ocupacion</span>
+          <span>Ocupación</span>
           <input value={draft.occupation ?? ""} disabled={!editable} onChange={(event) => setDraft((prev) => ({ ...prev, occupation: event.target.value }))} />
         </label>
         <label className="field">
@@ -2486,7 +2622,7 @@ function CampaignNpcEditor({ npc, editable, busy, references, onOpenReference, o
       </label>
       <CampaignLinkedTextBlock title="Vista enlazada del resumen" text={draft.summary ?? ""} references={references} onOpenReference={onOpenReference} />
       <label className="field">
-        <span>Bloque rapido</span>
+        <span>Bloque r?pido</span>
         <textarea rows={2} value={draft.statBlock ?? ""} disabled={!editable} onChange={(event) => setDraft((prev) => ({ ...prev, statBlock: event.target.value }))} />
       </label>
       <label className="field">
@@ -2561,10 +2697,12 @@ function CampaignReferencePreview({ reference }: { reference: CampaignReference 
         </p>
       ) : null}
       {reference.summary ? <p>{reference.summary}</p> : null}
-      {reference.content ? <p>{reference.content}</p> : <p className="section-help">Sin contenido detallado todavÃ­a.</p>}
+      {reference.content ? <p>{reference.content}</p> : <p className="section-help">Sin contenido detallado todavía.</p>}
     </div>
   );
 }
+
+
 
 
 

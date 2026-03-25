@@ -1362,6 +1362,16 @@ td {
   font-weight: 700;
 }
 
+.character-actions-page {
+  display: grid;
+  gap: 20px;
+  min-height: calc(100vh - 72px);
+}
+
+.character-actions-page-header {
+  align-items: start;
+}
+
 @media (max-width: 900px) {
   .page {
     width: 100%;

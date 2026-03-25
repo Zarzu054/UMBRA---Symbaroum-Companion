@@ -1,12 +1,35 @@
-﻿import { useEffect, useState } from "react";
-import type { AuthUser } from "@umbra/shared";
+﻿import { useEffect, useMemo, useState } from "react";
+import {
+  buildRollRequest,
+  deriveCharacterActions,
+  executeCharacterAction,
+  parseCharacterSheet,
+  type ActionRollResult,
+  type AuthUser,
+  type Character,
+  type CharacterActionDefinition,
+  type CharacterActionPhase,
+  type CharacterSheet,
+  type RollDestination,
+  type RollRequest
+} from "@umbra/shared";
 import { CharacterCard } from "../components/CharacterCard";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
 import { findCompendiumCapabilityEntryId } from "../models/compendiumEntries";
 import { toCharacterCardViewModel } from "../models/characterModel";
+import { computeDerivedStats } from "../models/rulesEngine";
 import { exportCharacterSheetPdf } from "../services/characterPdfExport";
+import {
+  dispatchRoll20Request,
+  getRollDestination,
+  pingRoll20Bridge,
+  setRollDestination as persistRollDestination,
+  type Roll20BridgeStatus,
+  type Roll20Visibility
+} from "../services/rollTransport";
 import { CampaignDashboardView } from "./CampaignDashboardView";
 import { CompendiumView } from "./CompendiumView";
+
 
 type Props = {
   user: AuthUser;
@@ -21,6 +44,12 @@ type CompendiumFocus = {
   query: string;
   source: string;
   token: number;
+};
+
+type PendingCharacterRollConfirmation = {
+  request: RollRequest;
+  visibility: Roll20Visibility;
+  title: string;
 };
 
 function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"> } {
@@ -51,7 +80,8 @@ function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"
 
 export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Props) {
   const controller = useCharacterController(ensureAccessToken);
-  const isCampaignManagedLock = controller.isEditing;
+  const isCampaignManagedLock = false;
+  const isCapabilityLocked = controller.isEditing;
   const [activeModule, setActiveModule] = useState<AppModule>("characters");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [compendiumFocus, setCompendiumFocus] = useState<CompendiumFocus>({
@@ -180,6 +210,21 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             />
           ) : activeModule === "campaigns" ? (
             <CampaignDashboardView user={user} ensureAccessToken={ensureAccessToken} />
+          ) : controller.simulationCharacter ? (
+            <section className="panel character-actions-page">
+              <div className="row-actions character-actions-page-header">
+                <div>
+                  <h2>Hoja de acciones</h2>
+                  <p className="section-help">
+                    Vista táctica completa del personaje con todas las tiradas disponibles.
+                  </p>
+                </div>
+                <button type="button" onClick={controller.clearSimulationCharacter}>
+                  Volver a personajes
+                </button>
+              </div>
+              <CharacterActionSheet character={controller.simulationCharacter} />
+            </section>
           ) : (
             <>
       <section className="panel content-toolbar-panel">
@@ -208,7 +253,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
       <section className="panel lore-panel">
         <h2>Ficha de Personaje de Symbaroum</h2>
         <p>
-          Constructor avanzado basado en hoja completa: identidad, atributos, progreso, combate, corrupcion,
+          Constructor avanzado basado en hoja completa: identidad, atributos, progreso, combate, corrupción,
           habilidades, poderes, rituales, equipo y referencias por libro/pagina.
         </p>
         {controller.error && !controller.isFormModalOpen ? <p className="error">{controller.error}</p> : null}
@@ -240,7 +285,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                 className="danger"
                 disabled={controller.isSaving}
                 onClick={() => {
-                  if (window.confirm("Esta acciÃ³n eliminarÃ¡ el personaje. Â¿Deseas continuar?")) {
+                  if (window.confirm("Esta acción eliminará el personaje. ¿Deseas continuar?")) {
                     void controller.deleteSelected();
                   }
                 }}
@@ -456,7 +501,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           </div>
         ) : null}
 
-        <div className="section-title">Combate y corrupcion</div>
+        <div className="section-title">Combate y corrupción</div>
         <p className="section-help">Estado actual en combate y seguimiento de corrupción temporal/permanente.</p>
         {isCampaignManagedLock ? <p className="section-help">Robustez, corrupción, armas y armadura se actualizan dentro de la campaña.</p> : null}
         <fieldset disabled={isCampaignManagedLock} className="campaign-managed-fieldset">
@@ -675,12 +720,17 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               onChange={(event) => controller.updateSheet("corrupcion.umbral", Number(event.target.value || 0))}
             />
           </label>
-          <div className="info-box">Corrupcion total: {controller.derived.corrupcionTotal}</div>
+          <div className="info-box">Corrupción total: {controller.derived.corrupcionTotal}</div>
         </div>
         </fieldset>
 
-        <div className="section-title">Habilidades</div>
-        <p className="section-help">Agrega habilidades del compendio o manuales. Define nivel y referencia de regla.</p>
+        <div className="section-title">Habilidades y capacidades</div>
+        <p className="section-help">
+          Las capacidades del personaje quedan fijadas fuera de la edición narrativa. Aquí se muestran para consulta y
+          referencia de reglas.
+        </p>
+        {isCapabilityLocked ? <p className="section-help">Las habilidades, poderes y rituales no se editan desde esta ficha.</p> : null}
+        <fieldset disabled={isCapabilityLocked} className="campaign-managed-fieldset">
         <div className="inline-row">
           <select
             value={controller.catalogSelection.habilidadId}
@@ -771,7 +821,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           ))}
         </div>
 
-        <div className="section-title">Poderes misticos y rituales</div>
+        <div className="section-title">Poderes místicos y rituales</div>
         <p className="section-help">Registra poderes y rituales activos del personaje con su nivel de dominio.</p>
         <div className="inline-row">
           <select
@@ -952,6 +1002,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             </article>
           ))}
         </div>
+        </fieldset>
 
         <div className="section-title">Rasgos, equipo y contactos</div>
         <p className="section-help">Elementos narrativos y de inventario que impactan la partida y la hoja.</p>
@@ -1101,7 +1152,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                 />
               </label>
               <label className="field">
-                <span>Ocupacion</span>
+                <span>Ocupación</span>
                 <input
                   value={item.ocupacion}
                   onChange={(event) => controller.updateSheet(`contactosHoja.${index}.ocupacion`, event.target.value)}
@@ -1139,7 +1190,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                 />
               </label>
               <label className="field">
-                <span>Corrupcion</span>
+                <span>Corrupción</span>
                 <input
                   value={item.corrupcion}
                   onChange={(event) => controller.updateSheet(`artefactos.${index}.corrupcion`, event.target.value)}
@@ -1175,88 +1226,6 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           ))}
         </div>
       </section>
-
-      <section className="panel">
-        <h2>Simulador de tiradas</h2>
-        <p className="section-help">Disponible solo para personajes ya creados. Pulsa "Simular tiradas" en una tarjeta.</p>
-        {controller.simulationCharacter ? (
-          <>
-            <p className="meta-text">
-              Personaje activo: <strong>{controller.simulationCharacter.name}</strong>
-            </p>
-            <div className="form-grid">
-              <label className="field">
-                <span>Tipo de tirada</span>
-                <select
-                  value={controller.rollState.mode}
-                  onChange={(event) =>
-                    controller.setRollState((prev) => ({
-                      ...prev,
-                      mode: event.target.value as "defensa" | "iniciativa" | "atributo"
-                    }))
-                  }
-                >
-                  <option value="defensa">Defensa (usa cálculo total)</option>
-                  <option value="iniciativa">Iniciativa (usa cálculo total)</option>
-                  <option value="atributo">Atributo</option>
-                </select>
-              </label>
-              {controller.rollState.mode === "atributo" ? (
-                <label className="field">
-                  <span>Atributo</span>
-                  <select
-                    value={controller.rollState.attribute}
-                    onChange={(event) =>
-                      controller.setRollState((prev) => ({
-                        ...prev,
-                        attribute: event.target.value as (typeof controller.attributeKeys)[number]
-                      }))
-                    }
-                  >
-                    {controller.attributeKeys.map((attribute) => (
-                      <option key={attribute} value={attribute}>
-                        {controller.attributeLabels[attribute]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              <label className="field">
-                <span>Modificador situacional</span>
-                <input
-                  type="number"
-                  value={controller.rollState.situationalMod}
-                  onChange={(event) =>
-                    controller.setRollState((prev) => ({ ...prev, situationalMod: Number(event.target.value || 0) }))
-                  }
-                />
-              </label>
-              <div className="toolbar">
-                <button onClick={controller.runTestRoll}>Tirar d20</button>
-                <button onClick={controller.clearRollHistory}>Limpiar historial</button>
-              </div>
-            </div>
-            {controller.simulationDerived ? (
-              <div className="form-grid">
-                <div className="info-box">Defensa total: {controller.simulationDerived.defensaTotal}</div>
-                <div className="info-box">Iniciativa total: {controller.simulationDerived.iniciativaTotal}</div>
-                <div className="info-box">Corrupción total: {controller.simulationDerived.corrupcionTotal}</div>
-              </div>
-            ) : null}
-            {controller.rollState.history.length > 0 ? (
-              <div className="roll-log">
-                {controller.rollState.history.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-              </div>
-            ) : (
-              <p className="section-help">Aún no hay tiradas de prueba.</p>
-            )}
-          </>
-        ) : (
-          <p className="section-help">Elige un personaje para habilitar el simulador.</p>
-        )}
-      </section>
             </>
           )}
         </section>
@@ -1267,4 +1236,480 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
 
 
 
+
+
+
+type CharacterActionSheetProps = {
+  character: Character;
+};
+
+function rollCheck(label: string, target: number): ActionRollResult {
+  const total = Math.floor(Math.random() * 20) + 1;
+  return {
+    kind: "attribute_check",
+    label,
+    dice: [total],
+    formula: "1d20",
+    total,
+    target,
+    success: total <= target
+  };
+}
+
+function rollDamage(label: string, formula: string): ActionRollResult | null {
+  const match = formula.trim().match(/^(\d+)d(\d+)([+-]\d+)?$/i);
+  if (!match) {
+    return null;
+  }
+
+  const diceCount = Number(match[1]);
+  const diceSides = Number(match[2]);
+  const modifier = Number(match[3] ?? "0");
+  if (!Number.isFinite(diceCount) || !Number.isFinite(diceSides) || diceCount <= 0 || diceSides <= 0) {
+    return null;
+  }
+
+  let total = modifier;
+  const dice: number[] = [];
+  for (let index = 0; index < diceCount; index += 1) {
+    const die = Math.floor(Math.random() * diceSides) + 1;
+    dice.push(die);
+    total += die;
+  }
+
+  return {
+    kind: "damage",
+    label,
+    dice,
+    formula,
+    total
+  };
+}
+
+function renderRollGroups(rolls: ActionRollResult[]) {
+  const groups = [
+    { title: "Prueba", items: rolls.filter((roll) => roll.kind === "attribute_check") },
+    { title: "Ataque", items: rolls.filter((roll) => roll.kind === "attack_check") },
+    { title: "Daño", items: rolls.filter((roll) => roll.kind === "damage") }
+  ].filter((group) => group.items.length > 0);
+
+  return groups.map((group) => (
+    <div key={group.title} className="campaign-roll-group">
+      <strong>{group.title}</strong>
+      <div className="campaign-roll-group-lines">
+        {group.items.map((roll, index) => (
+          <span key={`${group.title}-${index}`}>
+            {roll.label}: {roll.formula} = {roll.total}
+            {typeof roll.target === "number" ? ` vs ${roll.target} ${roll.success ? "éxito" : "fallo"}` : ""}
+          </span>
+        ))}
+      </div>
+    </div>
+  ));
+}
+
+function getActionButtonLabel(action: CharacterActionDefinition, phase: CharacterActionPhase): string {
+  if (phase === "damage") {
+    return "Tirar daño";
+  }
+
+  return action.sourceType === "weapon" ? "Tirar ataque" : "Tirar prueba";
+}
+
+function attributeLabel(attribute: string): string {
+  switch (attribute) {
+    case "agil":
+      return "Ágil";
+    case "atento":
+      return "Atento";
+    case "discreto":
+      return "Discreto";
+    case "diestro":
+      return "Diestro";
+    case "fuerte":
+      return "Fuerte";
+    case "inteligente":
+      return "Inteligente";
+    case "persuasivo":
+      return "Persuasivo";
+    case "tenaz":
+      return "Tenaz";
+    default:
+      return attribute;
+  }
+}
+
+function CharacterActionSheet({ character }: CharacterActionSheetProps) {
+  const sheet = useMemo(() => parseCharacterSheet(character.sheet), [character.sheet]);
+  const derived = useMemo(() => computeDerivedStats(sheet), [sheet]);
+  const actions = useMemo(() => deriveCharacterActions(sheet), [sheet]);
+  const [history, setHistory] = useState<Array<{ title: string; detail?: string; rolls: ActionRollResult[] }>>([]);
+  const [rollDestination, setRollDestination] = useState<RollDestination>(() => {
+    const destination = getRollDestination();
+    return destination === "both" ? "roll20" : destination;
+  });
+  const [rollTransportStatus, setRollTransportStatus] = useState<string | null>(null);
+  const [roll20BridgeStatus, setRoll20BridgeStatus] = useState<Roll20BridgeStatus | null>(null);
+  const [pendingRollConfirmation, setPendingRollConfirmation] = useState<PendingCharacterRollConfirmation | null>(null);
+
+  useEffect(() => {
+    if (rollDestination === "umbra") {
+      setRoll20BridgeStatus(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function checkBridge(): Promise<void> {
+      const status = await pingRoll20Bridge();
+      if (!cancelled) {
+        setRoll20BridgeStatus(status);
+      }
+    }
+
+    void checkBridge();
+    return () => {
+      cancelled = true;
+    };
+  }, [rollDestination]);
+
+  function pushHistory(title: string, rolls: ActionRollResult[], detail?: string): void {
+    setHistory((current) => [{ title, detail, rolls }, ...current].slice(0, 12));
+  }
+
+  function handleRollDestinationChange(destination: RollDestination): void {
+    setRollDestination(destination);
+    persistRollDestination(destination);
+    setRollTransportStatus(
+      destination === "umbra"
+        ? "Las tiradas se resolverán dentro de UMBRA."
+        : "Las tiradas se prepararán para Roll20 por defecto."
+    );
+  }
+
+  function queueRoll20Request(request: RollRequest, title: string): void {
+    setPendingRollConfirmation({
+      request,
+      title,
+      visibility: "public"
+    });
+  }
+
+  function runAttributeRoll(attribute: keyof CharacterSheet["atributos"]): void {
+    const title = `Prueba de ${attributeLabel(attribute)}`;
+    if (rollDestination !== "umbra") {
+      queueRoll20Request(
+        {
+          kind: "check",
+          phase: "attack",
+          characterName: character.name,
+          actionId: `attribute:${attribute}`,
+          actionLabel: title,
+          sourceName: attributeLabel(attribute),
+          sourceType: "ability",
+          formula: "1d20",
+          target: sheet.atributos[attribute],
+          rollAttribute: attribute,
+          destination: rollDestination
+        },
+        title
+      );
+      return;
+    }
+
+    pushHistory(title, [rollCheck(`Prueba (${attributeLabel(attribute)})`, sheet.atributos[attribute])]);
+  }
+
+  function runDefenseRoll(): void {
+    if (rollDestination !== "umbra") {
+      queueRoll20Request(
+        {
+          kind: "check",
+          phase: "attack",
+          characterName: character.name,
+          actionId: "derived:defense",
+          actionLabel: "Defensa",
+          sourceName: "Defensa",
+          sourceType: "ability",
+          formula: "1d20",
+          target: derived.defensaTotal,
+          destination: rollDestination
+        },
+        "Defensa"
+      );
+      return;
+    }
+
+    pushHistory("Defensa", [rollCheck("Defensa", derived.defensaTotal)]);
+  }
+
+  function runInitiativeRoll(): void {
+    if (rollDestination !== "umbra") {
+      queueRoll20Request(
+        {
+          kind: "check",
+          phase: "attack",
+          characterName: character.name,
+          actionId: "derived:initiative",
+          actionLabel: "Iniciativa",
+          sourceName: "Iniciativa",
+          sourceType: "ability",
+          formula: "1d20",
+          target: derived.iniciativaTotal,
+          destination: rollDestination
+        },
+        "Iniciativa"
+      );
+      return;
+    }
+
+    pushHistory("Iniciativa", [rollCheck("Iniciativa", derived.iniciativaTotal)]);
+  }
+
+  function runArmorRoll(label: string, formula: string): void {
+    if (rollDestination !== "umbra") {
+      queueRoll20Request(
+        {
+          kind: "damage",
+          phase: "damage",
+          characterName: character.name,
+          actionId: `armor:${label}`,
+          actionLabel: label,
+          sourceName: label,
+          sourceType: "ability",
+          formula,
+          destination: rollDestination
+        },
+        label
+      );
+      return;
+    }
+
+    const roll = rollDamage(label, formula);
+    if (!roll) {
+      return;
+    }
+    pushHistory(label, [roll]);
+  }
+
+  function runAction(action: CharacterActionDefinition, phase: CharacterActionPhase): void {
+    if (rollDestination !== "umbra") {
+      queueRoll20Request(
+        buildRollRequest(sheet, character.name, action.id, phase, rollDestination),
+        `${action.label} · ${getActionButtonLabel(action, phase)}`
+      );
+      return;
+    }
+
+    const result = executeCharacterAction(sheet, action.id, phase);
+    pushHistory(result.action.label, result.rolls, result.action.effectSummary);
+  }
+
+  async function handleConfirmRoll20Send(): Promise<void> {
+    if (!pendingRollConfirmation) {
+      return;
+    }
+
+    try {
+      const result = await dispatchRoll20Request(pendingRollConfirmation.request, pendingRollConfirmation.visibility);
+      setRoll20BridgeStatus(result.status);
+      setRollTransportStatus(result.status.message);
+    } catch (error) {
+      setRollTransportStatus(error instanceof Error ? error.message : "No se pudo preparar la tirada");
+    } finally {
+      setPendingRollConfirmation(null);
+    }
+  }
+
+  const weaponActions = actions.filter((action) => action.sourceType === "weapon");
+  const capabilityActions = actions.filter((action) => action.sourceType !== "weapon");
+
+  return (
+    <div className="character-action-sheet">
+      <div className="row-actions">
+        <div>
+          <h3>{character.name}</h3>
+          <p className="meta-text">
+            {character.archetype} · {character.race} · {character.profession || "Sin profesión"}
+          </p>
+        </div>
+        <div className="form-grid character-action-sheet-stats">
+          <div className="info-box">Defensa total: {derived.defensaTotal}</div>
+          <div className="info-box">Iniciativa total: {derived.iniciativaTotal}</div>
+          <div className="info-box">Corrupción total: {derived.corrupcionTotal}</div>
+        </div>
+      </div>
+      <div className="row-actions">
+        <label className="field campaign-roll-destination-field">
+          <span>Destino de tiradas</span>
+          <select value={rollDestination} onChange={(event) => handleRollDestinationChange(event.target.value as RollDestination)}>
+            <option value="roll20">Roll20</option>
+            <option value="umbra">UMBRA</option>
+          </select>
+        </label>
+        {rollTransportStatus ? <p className="meta-text campaign-roll-destination-feedback">{rollTransportStatus}</p> : null}
+        {rollDestination !== "umbra" && roll20BridgeStatus ? (
+          <p className="meta-text campaign-roll-destination-feedback">Bridge Roll20: {roll20BridgeStatus.message}</p>
+        ) : null}
+      </div>
+
+      <div className="character-action-sections">
+        <section className="campaign-sheet-card">
+          <h4>Atributos y defensas</h4>
+          <div className="campaign-sheet-actions">
+            {(Object.entries(sheet.atributos) as Array<[keyof CharacterSheet["atributos"], number]>).map(([key, value]) => (
+              <div key={key} className="campaign-action-button">
+                <strong>{attributeLabel(key)}</strong>
+                <span>Objetivo: {value}</span>
+                <div className="campaign-action-controls">
+                  <button type="button" onClick={() => runAttributeRoll(key)}>
+                    Tirar prueba
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div className="campaign-action-button">
+              <strong>Defensa</strong>
+              <span>Objetivo: {derived.defensaTotal}</span>
+              <div className="campaign-action-controls">
+                <button type="button" onClick={runDefenseRoll}>Tirar prueba</button>
+              </div>
+            </div>
+            <div className="campaign-action-button">
+              <strong>Iniciativa</strong>
+              <span>Objetivo: {derived.iniciativaTotal}</span>
+              <div className="campaign-action-controls">
+                <button type="button" onClick={runInitiativeRoll}>Tirar prueba</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="campaign-sheet-card">
+          <h4>Armas y armaduras</h4>
+          <div className="campaign-sheet-actions">
+            {weaponActions.map((action) => (
+              <div key={action.id} className="campaign-action-button">
+                <strong>{action.label}</strong>
+                <span>{action.sourceName}</span>
+                <span>{action.rollAttribute ? `${action.rollAttribute}` : "Sin atributo"}{action.damageFormula ? ` · ${action.damageFormula}` : ""}</span>
+                <div className="campaign-action-controls">
+                  {action.rollAttribute ? (
+                    <button type="button" onClick={() => runAction(action, "attack")}>
+                      {getActionButtonLabel(action, "attack")}
+                    </button>
+                  ) : null}
+                  {action.damageFormula ? (
+                    <button type="button" onClick={() => runAction(action, "damage")}>
+                      {getActionButtonLabel(action, "damage")}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+            {sheet.combate.armaduraProteccion ? (
+              <div className="campaign-action-button">
+                <strong>{sheet.combate.armadura || "Armadura principal"}</strong>
+                <span>{sheet.combate.armaduraProteccion}</span>
+                <div className="campaign-action-controls">
+                  <button type="button" onClick={() => runArmorRoll("Protección principal", sheet.combate.armaduraProteccion)}>
+                    Tirar daño
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {sheet.combate.armaduraSecundariaProteccion ? (
+              <div className="campaign-action-button">
+                <strong>{sheet.combate.armaduraSecundaria || "Armadura secundaria"}</strong>
+                <span>{sheet.combate.armaduraSecundariaProteccion}</span>
+                <div className="campaign-action-controls">
+                  <button type="button" onClick={() => runArmorRoll("Protección secundaria", sheet.combate.armaduraSecundariaProteccion)}>
+                    Tirar daño
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        <section className="campaign-sheet-card">
+          <h4>Capacidades accionables</h4>
+          <div className="campaign-sheet-actions">
+            {capabilityActions.map((action) => (
+              <div key={action.id} className="campaign-action-button">
+                <strong>{action.label}</strong>
+                <span>{action.sourceName}</span>
+                <span>
+                  {action.cost}
+                  {action.rollAttribute ? ` · ${action.rollAttribute}` : ""}
+                  {action.damageFormula ? ` · ${action.damageFormula}` : ""}
+                </span>
+                <div className="campaign-action-controls">
+                  {action.rollAttribute ? (
+                    <button type="button" onClick={() => runAction(action, "attack")}>
+                      {getActionButtonLabel(action, "attack")}
+                    </button>
+                  ) : null}
+                  {action.damageFormula ? (
+                    <button type="button" onClick={() => runAction(action, "damage")}>
+                      {getActionButtonLabel(action, "damage")}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+            {capabilityActions.length === 0 ? <p className="section-help">Este personaje no tiene capacidades accionables registradas.</p> : null}
+          </div>
+        </section>
+
+        <section className="campaign-sheet-card">
+          <h4>Historial de tiradas</h4>
+          {history.length > 0 ? (
+            <div className="roll-log">
+              {history.map((entry, index) => (
+                <div key={`${entry.title}-${index}`} className="character-action-history-entry">
+                  <strong>{entry.title}</strong>
+                  {renderRollGroups(entry.rolls)}
+                  {entry.detail ? <p>{entry.detail}</p> : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="section-help">Aún no has lanzado ninguna tirada desde esta hoja.</p>
+          )}
+        </section>
+      </div>
+      {pendingRollConfirmation ? (
+        <div className="modal-backdrop">
+          <div className="modal-panel">
+            <h3>Enviar tirada a Roll20</h3>
+            <p className="section-help">{pendingRollConfirmation.title}</p>
+            <label className="field">
+              <span>Visibilidad</span>
+              <select
+                value={pendingRollConfirmation.visibility}
+                onChange={(event) =>
+                  setPendingRollConfirmation((current) =>
+                    current ? { ...current, visibility: event.target.value as Roll20Visibility } : current
+                  )
+                }
+              >
+                <option value="public">Pública (/r)</option>
+                <option value="gm">Solo DJ (/gr)</option>
+              </select>
+            </label>
+            <div className="row-actions">
+              <button type="button" className="subtle-button" onClick={() => setPendingRollConfirmation(null)}>
+                Cancelar
+              </button>
+              <button type="button" onClick={() => void handleConfirmRoll20Send()}>
+                Enviar a Roll20
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 

@@ -1,4 +1,4 @@
-import type { CharacterSheet } from "@umbra/shared";
+﻿import type { CharacterSheet } from "@umbra/shared";
 
 type ModifierKey = "DEF" | "INI" | "ROBMAX" | "ROBACT" | "UMBDOLOR" | "UMBCORR" | "CORRTEMP" | "CORRPERM";
 
@@ -84,3 +84,4 @@ function collectCapabilityModifiers(sheet: CharacterSheet): Record<ModifierKey, 
 
   return result;
 }
+

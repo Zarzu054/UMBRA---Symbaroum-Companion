@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   ATTRIBUTE_KEYS,
   ATTRIBUTE_LABELS,
@@ -392,6 +392,11 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     clearRollHistory();
   }
 
+  function clearSimulationCharacter(): void {
+    setSimulationCharacterId(null);
+    clearRollHistory();
+  }
+
   function runTestRoll(): void {
     const d20 = Math.floor(Math.random() * 20) + 1;
     const situational = Number(rollState.situationalMod || 0);
@@ -470,6 +475,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       setCatalogSelection,
       setRollState,
       selectCharacterForSimulation,
+      clearSimulationCharacter,
       runTestRoll,
       clearRollHistory,
       addSimpleItem,
@@ -507,3 +513,4 @@ export function getRoleLabel(role: "player" | "gm" | "superadmin"): string {
 export function cloneSheet(sheet: CharacterSheet): CharacterSheet {
   return parseCharacterSheet(structuredClone(sheet));
 }
+

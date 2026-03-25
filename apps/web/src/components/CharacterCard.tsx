@@ -19,7 +19,7 @@ export function CharacterCard({ item, selected, onSelect, onSimulate, onExportPd
       <small>{item.createdLabel}</small>
       <div className="card-actions">
         <button onClick={onSelect}>{selected ? "Editando" : "Editar"}</button>
-        <button onClick={onSimulate}>Simular tiradas</button>
+        <button onClick={onSimulate}>Hoja de acciones</button>
         <button onClick={onExportPdf}>Exportar PDF</button>
         <button onClick={onDuplicate}>Duplicar</button>
         <button className="danger" onClick={onDelete}>
