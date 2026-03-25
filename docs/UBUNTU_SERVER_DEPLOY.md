@@ -84,3 +84,60 @@ Parar:
 ```bash
 docker compose --env-file deploy/ubuntu/.env.server -f docker-compose.prod.yml down
 ```
+
+## Deploy automatico desde GitHub Actions
+
+Se ha preparado el workflow:
+
+- `.github/workflows/deploy-main.yml`
+
+Y el script remoto:
+
+- `deploy/ubuntu/deploy.sh`
+
+El flujo es:
+
+1. push a `main`
+2. GitHub Actions entra por SSH al servidor
+3. en el servidor se ejecuta:
+   - `git fetch origin main`
+   - `git checkout main`
+   - `git reset --hard origin/main`
+   - `docker compose ... up -d --build`
+   - comprobacion de `http://127.0.0.1:4000/health`
+
+### Secrets de GitHub necesarios
+
+En el repositorio de GitHub, crea estos secrets:
+
+- `DEPLOY_HOST`
+- `DEPLOY_PORT`
+- `DEPLOY_USER`
+- `DEPLOY_SSH_KEY`
+- `DEPLOY_PATH`
+
+Valores esperados:
+
+- `DEPLOY_HOST`: IP o hostname publico del servidor
+- `DEPLOY_PORT`: normalmente `22`
+- `DEPLOY_USER`: usuario SSH del servidor, por ejemplo `zarzu`
+- `DEPLOY_SSH_KEY`: clave privada que GitHub Actions usara para entrar al servidor
+- `DEPLOY_PATH`: ruta absoluta del repo en el servidor, por ejemplo `/home/zarzu/UMBRA---Symbaroum-Companion`
+
+### Preparacion del servidor para el deploy por git
+
+El servidor debe poder hacer `git fetch origin main` sin pedir password.
+
+Opciones validas:
+
+- usar una deploy key SSH en el servidor con acceso de solo lectura al repo
+- o usar una clave SSH personal del usuario del servidor con acceso al repo
+
+Compruebalo en el servidor:
+
+```bash
+cd ~/UMBRA---Symbaroum-Companion
+git fetch origin main
+```
+
+Si ese comando pide credenciales o falla, GitHub Actions no podra desplegar.
