@@ -51,9 +51,6 @@ export function AuthGatewayView({ mode, isSubmitting, error, onModeChange, onLog
             inputMode="email"
             autoComplete={mode === "login" ? "username" : "email"}
             aria-label="Correo"
-            data-bwignore="true"
-            data-1p-ignore="true"
-            data-lpignore="true"
             placeholder="Correo"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
@@ -64,9 +61,6 @@ export function AuthGatewayView({ mode, isSubmitting, error, onModeChange, onLog
             type="password"
             autoComplete={mode === "login" ? "current-password" : "new-password"}
             aria-label="Contrasena"
-            data-bwignore="true"
-            data-1p-ignore="true"
-            data-lpignore="true"
             placeholder="Contrasena"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
