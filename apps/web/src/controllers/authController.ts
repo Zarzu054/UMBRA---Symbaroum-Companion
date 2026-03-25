@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LoginInput, RegisterInput } from "@umbra/shared";
 import type { AuthState } from "../models/authModel";
 import { clearAuthState, loadAuthState, saveAuthState } from "../services/authStorage";
-import { getCurrentUser, loginUser, logoutUser, refreshSession, registerUser } from "../services/authService";
+import { changePassword, getCurrentUser, loginUser, logoutUser, refreshSession, registerUser } from "../services/authService";
 
 type AuthMode = "login" | "register";
 
@@ -72,6 +72,24 @@ export function useAuthController() {
     }
   }
 
+  async function rotatePassword(currentPassword: string, newPassword: string): Promise<void> {
+    if (!auth) {
+      setError("No autenticado");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const session = await changePassword({ currentPassword, newPassword }, auth.accessToken);
+      setAndPersist(session);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo actualizar la contrasena");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   async function ensureAccessToken(): Promise<string> {
     if (!auth) throw new Error("No autenticado");
 
@@ -106,6 +124,7 @@ export function useAuthController() {
       setAuthMode,
       register,
       login,
+      rotatePassword,
       logout,
       ensureAccessToken
     }),

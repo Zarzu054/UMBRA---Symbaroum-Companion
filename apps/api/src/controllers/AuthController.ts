@@ -24,6 +24,11 @@ export class AuthController {
     reply.code(204).send();
   }
 
+  async changePassword(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const session = await this.authService.changePassword(request.authUser!.id, request.body);
+    reply.send({ data: session });
+  }
+
   async me(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const user = await this.authService.getUserById(request.authUser!.id);
     reply.send({ data: user });

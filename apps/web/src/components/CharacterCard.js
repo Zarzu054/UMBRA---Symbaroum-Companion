@@ -1,0 +1,4 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+export function CharacterCard({ item, selected, onSelect, onSimulate, onExportPdf, onDuplicate, onDelete }) {
+    return (_jsxs("article", { className: `card ${selected ? "card-selected" : ""}`, children: [_jsx("h3", { children: item.title }), _jsx("p", { children: item.subtitle }), _jsx("p", { className: "meta-text", children: item.meta }), _jsx("small", { children: item.createdLabel }), _jsxs("div", { className: "card-actions", children: [_jsx("button", { onClick: onSelect, children: selected ? "Editando" : "Editar" }), _jsx("button", { onClick: onSimulate, children: "Hoja de acciones" }), _jsx("button", { onClick: onExportPdf, children: "Exportar PDF" }), _jsx("button", { onClick: onDuplicate, children: "Duplicar" }), _jsx("button", { className: "danger", onClick: onDelete, children: "Eliminar" })] })] }));
+}

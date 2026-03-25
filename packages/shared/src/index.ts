@@ -505,6 +505,21 @@ export const refreshSchema = z.object({
   refreshToken: z.string().min(20)
 });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(8).max(128),
+    newPassword: z.string().min(8).max(128)
+  })
+  .superRefine((payload, ctx) => {
+    if (payload.currentPassword === payload.newPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["newPassword"],
+        message: "La nueva contrasena debe ser distinta de la actual"
+      });
+    }
+  });
+
 export const campaignMemberRoleSchema = z.enum(["gm", "player"]);
 export const campaignSessionStatusSchema = z.enum(["planned", "completed", "cancelled"]);
 
@@ -614,6 +629,7 @@ export const updateCampaignReferenceSchema = createCampaignReferenceSchema.parti
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type CampaignMemberRole = z.infer<typeof campaignMemberRoleSchema>;
 export type CampaignSessionStatus = z.infer<typeof campaignSessionStatusSchema>;
 export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
@@ -637,6 +653,7 @@ export type AuthUser = {
   id: string;
   email: string;
   role: UserRole;
+  mustChangePassword: boolean;
 };
 
 export type AuthTokens = {

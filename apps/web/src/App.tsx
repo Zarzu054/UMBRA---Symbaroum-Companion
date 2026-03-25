@@ -1,5 +1,5 @@
 import { useAuthController } from "./controllers/authController";
-import { AuthGatewayView } from "./views/AuthGatewayView";
+import { AuthGatewayView, ForcedPasswordChangeView } from "./views/AuthGatewayView";
 import { CharacterDashboardView } from "./views/CharacterDashboardView";
 import { SuperAdminDashboardView } from "./views/SuperAdminDashboardView";
 
@@ -25,6 +25,17 @@ export function App() {
         onModeChange={auth.setAuthMode}
         onLogin={auth.login}
         onRegister={auth.register}
+      />
+    );
+  }
+
+  if (auth.auth.user.mustChangePassword) {
+    return (
+      <ForcedPasswordChangeView
+        email={auth.auth.user.email}
+        isSubmitting={auth.isSubmitting}
+        error={auth.error}
+        onSubmit={(input) => auth.rotatePassword(input.currentPassword, input.newPassword)}
       />
     );
   }

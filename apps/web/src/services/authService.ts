@@ -1,4 +1,4 @@
-import type { AuthSession, LoginInput, RefreshInput, RegisterInput, SupportUser } from "@umbra/shared";
+import type { AuthSession, ChangePasswordInput, LoginInput, RefreshInput, RegisterInput, SupportUser } from "@umbra/shared";
 import { fromSession, type AuthState } from "../models/authModel";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
@@ -53,6 +53,11 @@ export async function refreshSession(input: RefreshInput): Promise<AuthState> {
 
 export async function logoutUser(input: RefreshInput): Promise<void> {
   await postJson<RefreshInput, void>("/auth/logout", input);
+}
+
+export async function changePassword(input: ChangePasswordInput, accessToken: string): Promise<AuthState> {
+  const session = await postJson<ChangePasswordInput, AuthSession>("/auth/change-password", input, accessToken);
+  return fromSession(session);
 }
 
 export async function getCurrentUser(accessToken: string) {

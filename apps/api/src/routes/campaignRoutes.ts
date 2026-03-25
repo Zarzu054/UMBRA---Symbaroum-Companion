@@ -17,6 +17,7 @@ import type {
 } from "@umbra/shared";
 import { CampaignController } from "../controllers/CampaignController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
+import { requirePasswordChangeComplete } from "../middleware/requirePasswordChangeComplete.js";
 import { CampaignModel } from "../models/CampaignModel.js";
 import { CampaignService } from "../services/CampaignService.js";
 
@@ -25,122 +26,122 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   const service = new CampaignService(model);
   const controller = new CampaignController(service);
 
-  app.get("/campaigns", { preHandler: [requireAuth] }, controller.list.bind(controller));
-  app.get<{ Params: { campaignId: string } }>("/campaigns/:campaignId", { preHandler: [requireAuth] }, async (request, reply) =>
+  app.get("/campaigns", { preHandler: [requireAuth, requirePasswordChangeComplete] }, controller.list.bind(controller));
+  app.get<{ Params: { campaignId: string } }>("/campaigns/:campaignId", { preHandler: [requireAuth, requirePasswordChangeComplete] }, async (request, reply) =>
     controller.get(request, reply)
   );
   app.get<{ Params: { campaignId: string } }>(
     "/campaigns/:campaignId/chat-messages",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.listChatMessages(request, reply)
   );
   app.get<{ Params: { campaignId: string } }>(
     "/campaigns/:campaignId/chat-stream",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.streamChat(request, reply)
   );
-  app.post<{ Body: CreateCampaignInput }>("/campaigns", { preHandler: [requireAuth] }, async (request, reply) =>
+  app.post<{ Body: CreateCampaignInput }>("/campaigns", { preHandler: [requireAuth, requirePasswordChangeComplete] }, async (request, reply) =>
     controller.create(request, reply)
   );
   app.post<{ Params: { campaignId: string }; Body: CreateCampaignChatMessageInput }>(
     "/campaigns/:campaignId/chat-messages",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.createChatMessage(request, reply)
   );
   app.put<{ Params: { campaignId: string }; Body: UpdateCampaignInput }>(
     "/campaigns/:campaignId",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.update(request, reply)
   );
   app.post<{ Params: { campaignId: string }; Body: AddCampaignMemberInput }>(
     "/campaigns/:campaignId/members",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.addMember(request, reply)
   );
-  app.delete<{ Params: { memberId: string } }>("/campaign-members/:memberId", { preHandler: [requireAuth] }, async (request, reply) =>
+  app.delete<{ Params: { memberId: string } }>("/campaign-members/:memberId", { preHandler: [requireAuth, requirePasswordChangeComplete] }, async (request, reply) =>
     controller.removeMember(request, reply)
   );
   app.post<{ Params: { campaignId: string }; Body: { characterId: string } }>(
     "/campaigns/:campaignId/characters",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.linkCharacter(request, reply)
   );
   app.delete<{ Params: { linkId: string } }>(
     "/campaign-characters/:linkId",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.unlinkCharacter(request, reply)
   );
   app.put<{ Params: { linkId: string }; Body: UpdateCampaignCharacterSheetInput }>(
     "/campaign-characters/:linkId/sheet",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.updateCharacterSheet(request, reply)
   );
   app.post<{ Params: { campaignId: string }; Body: CreateCampaignNpcInput }>(
     "/campaigns/:campaignId/npcs",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.createNpc(request, reply)
   );
   app.post<{ Params: { campaignId: string } }>(
     "/campaigns/:campaignId/npcs/generate",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.generateNpc(request, reply)
   );
   app.put<{ Params: { npcId: string }; Body: UpdateCampaignNpcInput }>(
     "/campaign-npcs/:npcId",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.updateNpc(request, reply)
   );
-  app.delete<{ Params: { npcId: string } }>("/campaign-npcs/:npcId", { preHandler: [requireAuth] }, async (request, reply) =>
+  app.delete<{ Params: { npcId: string } }>("/campaign-npcs/:npcId", { preHandler: [requireAuth, requirePasswordChangeComplete] }, async (request, reply) =>
     controller.deleteNpc(request, reply)
   );
   app.post<{ Params: { npcId: string } }>(
     "/campaign-npcs/:npcId/sheet",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.createNpcSheet(request, reply)
   );
   app.put<{ Params: { npcId: string }; Body: UpdateCampaignNpcSheetInput }>(
     "/campaign-npcs/:npcId/sheet",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.updateNpcSheet(request, reply)
   );
   app.post<{ Params: { campaignId: string }; Body: CreateCampaignSessionInput }>(
     "/campaigns/:campaignId/sessions",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.createSession(request, reply)
   );
   app.post<{ Params: { campaignId: string }; Body: CreateCampaignReferenceInput }>(
     "/campaigns/:campaignId/references",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.createReference(request, reply)
   );
   app.put<{ Params: { sessionId: string }; Body: UpdateCampaignSessionInput }>(
     "/campaign-sessions/:sessionId",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.updateSession(request, reply)
   );
   app.delete<{ Params: { sessionId: string } }>(
     "/campaign-sessions/:sessionId",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.deleteSession(request, reply)
   );
   app.put<{ Params: { referenceId: string }; Body: UpdateCampaignReferenceInput }>(
     "/campaign-references/:referenceId",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.updateReference(request, reply)
   );
   app.delete<{ Params: { referenceId: string } }>(
     "/campaign-references/:referenceId",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.deleteReference(request, reply)
   );
   app.post<{ Params: { sessionId: string }; Body: AssignCampaignSessionExperienceInput }>(
     "/campaign-sessions/:sessionId/xp-awards",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.assignSessionExperience(request, reply)
   );
   app.post<{ Params: { campaignId: string }; Body: GrantCampaignExperienceInput }>(
     "/campaigns/:campaignId/xp-grants",
-    { preHandler: [requireAuth] },
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.grantExperience(request, reply)
   );
 }

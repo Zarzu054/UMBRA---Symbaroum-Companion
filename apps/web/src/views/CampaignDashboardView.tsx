@@ -2467,7 +2467,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
           <div className="campaign-sheet-attributes">
             {Object.entries(draft.atributos).map(([key, value]) => (
               <div key={key} className="campaign-sheet-attribute">
-                <span>{key}</span>
+                <span>{formatAttributeLabel(key)}</span>
                 <strong>{value}</strong>
               </div>
             ))}
@@ -2791,6 +2791,29 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
       ) : null}
     </div>
   );
+}
+
+function formatAttributeLabel(attribute: string): string {
+  switch (attribute) {
+    case "agil":
+      return "Agil";
+    case "atento":
+      return "Atento";
+    case "discreto":
+      return "Discreto";
+    case "diestro":
+      return "Diestro";
+    case "fuerte":
+      return "Fuerte";
+    case "inteligente":
+      return "Inteligente";
+    case "persuasivo":
+      return "Persuasivo";
+    case "tenaz":
+      return "Tenaz";
+    default:
+      return attribute;
+  }
 }
 
 type CapabilityColumnProps = {

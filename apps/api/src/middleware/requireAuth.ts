@@ -27,7 +27,8 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply):
     request.authUser = {
       id: payload.sub,
       email: payload.email,
-      role: payload.role
+      role: payload.role,
+      mustChangePassword: payload.mustChangePassword === true
     };
   } catch {
     reply.code(401).send({ error: "Token de acceso invalido" });

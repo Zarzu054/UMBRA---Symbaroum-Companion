@@ -1,7 +1,7 @@
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
-import { type AuthSession, type AuthUser, loginSchema, refreshSchema, registerSchema } from "@umbra/shared";
+import { changePasswordSchema, type AuthSession, type AuthUser, loginSchema, refreshSchema, registerSchema } from "@umbra/shared";
 import type { UserRole as DbUserRole } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { env } from "../config/env.js";
@@ -11,6 +11,7 @@ type AccessTokenPayload = {
   sub: string;
   email: string;
   role: "player" | "gm" | "superadmin";
+  mustChangePassword: boolean;
   type: "access";
 };
 
@@ -40,7 +41,12 @@ export class AuthService {
       }
     });
 
-    return this.issueSession({ id: user.id, email: user.email, role: toAppRole(user.role) });
+    return this.issueSession({
+      id: user.id,
+      email: user.email,
+      role: toAppRole(user.role),
+      mustChangePassword: user.mustChangePassword
+    });
   }
 
   async login(input: unknown): Promise<AuthSession> {
@@ -57,7 +63,12 @@ export class AuthService {
       throw new AppError("INVALID_CREDENTIALS", "Credenciales invalidas", 401);
     }
 
-    return this.issueSession({ id: user.id, email: user.email, role: toAppRole(user.role) });
+    return this.issueSession({
+      id: user.id,
+      email: user.email,
+      role: toAppRole(user.role),
+      mustChangePassword: user.mustChangePassword
+    });
   }
 
   async refresh(input: unknown): Promise<AuthSession> {
@@ -84,7 +95,12 @@ export class AuthService {
       data: { revokedAt: new Date() }
     });
 
-    return this.issueSession({ id: stored.user.id, email: stored.user.email, role: toAppRole(stored.user.role) });
+    return this.issueSession({
+      id: stored.user.id,
+      email: stored.user.email,
+      role: toAppRole(stored.user.role),
+      mustChangePassword: stored.user.mustChangePassword
+    });
   }
 
   async logout(input: unknown): Promise<void> {
@@ -107,7 +123,7 @@ export class AuthService {
   async getUserById(userId: string): Promise<AuthUser> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, role: true }
+      select: { id: true, email: true, role: true, mustChangePassword: true }
     });
 
     if (!user) {
@@ -115,6 +131,51 @@ export class AuthService {
     }
 
     return { ...user, role: toAppRole(user.role) };
+  }
+
+  async changePassword(userId: string, input: unknown): Promise<AuthSession> {
+    const payload = changePasswordSchema.parse(input);
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new AppError("USER_NOT_FOUND", "Usuario no encontrado", 404);
+    }
+
+    const validPassword = await argon2.verify(user.passwordHash, payload.currentPassword);
+    if (!validPassword) {
+      throw new AppError("INVALID_CREDENTIALS", "Credenciales invalidas", 401);
+    }
+
+    const passwordHash = await argon2.hash(payload.newPassword);
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          passwordHash,
+          mustChangePassword: false
+        }
+      }),
+      prisma.refreshToken.updateMany({
+        where: {
+          userId,
+          revokedAt: null
+        },
+        data: {
+          revokedAt: new Date()
+        }
+      })
+    ]);
+
+    return this.issueSession({
+      id: user.id,
+      email: user.email,
+      role: toAppRole(user.role),
+      mustChangePassword: false
+    });
   }
 
   private async issueSession(user: AuthUser): Promise<AuthSession> {
@@ -125,6 +186,7 @@ export class AuthService {
         sub: user.id,
         email: user.email,
         role: user.role,
+        mustChangePassword: user.mustChangePassword,
         type: "access"
       } satisfies AccessTokenPayload,
       env.JWT_ACCESS_SECRET,

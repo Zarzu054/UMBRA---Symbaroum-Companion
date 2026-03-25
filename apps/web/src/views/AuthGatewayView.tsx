@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { LoginInput, RegisterInput } from "@umbra/shared";
+import type { ChangePasswordInput, LoginInput, RegisterInput } from "@umbra/shared";
 
 type Props = {
   mode: "login" | "register";
@@ -85,6 +85,76 @@ export function AuthGatewayView({ mode, isSubmitting, error, onModeChange, onLog
 
           <button className="auth-submit" type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Procesando..." : mode === "login" ? "Entrar" : "Crear cuenta"}
+          </button>
+        </form>
+      </section>
+    </main>
+  );
+}
+
+type ForcedPasswordChangeProps = {
+  email: string;
+  isSubmitting: boolean;
+  error: string | null;
+  onSubmit: (input: ChangePasswordInput) => Promise<void>;
+};
+
+export function ForcedPasswordChangeView({ email, isSubmitting, error, onSubmit }: ForcedPasswordChangeProps) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const mismatchError =
+    confirmPassword && newPassword !== confirmPassword ? "La confirmacion no coincide con la nueva contrasena" : null;
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    if (mismatchError) {
+      return;
+    }
+    void onSubmit({ currentPassword, newPassword });
+  }
+
+  return (
+    <main className="page auth-page">
+      <section className="panel auth-panel">
+        <h1>UMBRA</h1>
+        <p>Debes cambiar la contrasena temporal antes de continuar.</p>
+        <p className="meta-text">{email}</p>
+
+        <form className="form-grid auth-form-grid" onSubmit={handleSubmit} autoComplete="on">
+          <input
+            type="password"
+            name="currentPassword"
+            autoComplete="current-password"
+            aria-label="Contrasena actual"
+            placeholder="Contrasena temporal"
+            value={currentPassword}
+            onChange={(event) => setCurrentPassword(event.target.value)}
+          />
+          <input
+            type="password"
+            name="newPassword"
+            autoComplete="new-password"
+            aria-label="Nueva contrasena"
+            placeholder="Nueva contrasena"
+            value={newPassword}
+            onChange={(event) => setNewPassword(event.target.value)}
+          />
+          <input
+            type="password"
+            name="confirmPassword"
+            autoComplete="new-password"
+            aria-label="Confirmar nueva contrasena"
+            placeholder="Confirmar nueva contrasena"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+          />
+
+          {mismatchError ? <p className="error auth-error">{mismatchError}</p> : null}
+          {!mismatchError && error ? <p className="error auth-error">{error}</p> : null}
+
+          <button className="auth-submit" type="submit" disabled={isSubmitting || Boolean(mismatchError)}>
+            {isSubmitting ? "Actualizando..." : "Guardar nueva contrasena"}
           </button>
         </form>
       </section>
