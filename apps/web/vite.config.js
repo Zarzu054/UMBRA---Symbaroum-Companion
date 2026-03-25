@@ -1,7 +1,14 @@
+import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 export default defineConfig({
     plugins: [react()],
+    resolve: {
+        alias: {
+            "@umbra/shared": resolve(__dirname, "../../packages/shared/src/index.ts")
+        },
+        extensions: [".tsx", ".ts", ".jsx", ".js", ".mjs", ".json"]
+    },
     server: {
         host: "0.0.0.0",
         port: 5173,

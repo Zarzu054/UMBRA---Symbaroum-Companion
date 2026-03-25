@@ -11,6 +11,8 @@
     "dev:api": "npm run dev -w @umbra/api",
     "dev:web": "npm run dev -w @umbra/web",
     "build": "npm run build -w @umbra/shared && npm run build -w @umbra/api && npm run build -w @umbra/web",
+    "build:prod": "npm run build --prefix packages/shared && npm run build --prefix apps/web",
+    "start:prod": "npm run start:prod --prefix apps/api",
     "typecheck": "npm run typecheck -w @umbra/shared && npm run typecheck -w @umbra/api && npm run typecheck -w @umbra/web"
   }
 }

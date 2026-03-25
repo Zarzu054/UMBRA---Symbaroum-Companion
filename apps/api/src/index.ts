@@ -1,5 +1,8 @@
 import cors from "@fastify/cors";
-import Fastify from "fastify";
+import Fastify, { type FastifyInstance } from "fastify";
+import { access, readFile } from "node:fs/promises";
+import { extname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ZodError } from "zod";
 import { verifyDatabaseConnection, prisma } from "./config/prisma.js";
 import { env } from "./config/env.js";
@@ -67,6 +70,9 @@ async function bootstrap(): Promise<void> {
   });
 
   await registerRoutes(app);
+  if (env.NODE_ENV === "production") {
+    registerProductionFrontend(app);
+  }
   await verifyDatabaseConnection();
 
   app.addHook("onClose", async () => {
@@ -74,6 +80,89 @@ async function bootstrap(): Promise<void> {
   });
 
   await app.listen({ port: env.API_PORT, host: "0.0.0.0" });
+}
+
+function registerProductionFrontend(app: FastifyInstance): void {
+  const webDistRoot = fileURLToPath(new URL("../../web/dist/", import.meta.url));
+  const indexFile = resolve(webDistRoot, "index.html");
+
+  app.setNotFoundHandler(async (request, reply) => {
+    const requestPath = request.url.split("?")[0] ?? "/";
+
+    if (
+      request.method !== "GET" ||
+      requestPath.startsWith("/auth") ||
+      requestPath.startsWith("/api") ||
+      requestPath.startsWith("/admin") ||
+      requestPath === "/health"
+    ) {
+      reply.code(404).send({
+        error: "NOT_FOUND",
+        message: "Recurso no encontrado"
+      });
+      return;
+    }
+
+    const candidatePath =
+      requestPath === "/" || !extname(requestPath)
+        ? indexFile
+        : resolve(webDistRoot, `.${requestPath}`);
+
+    if (!candidatePath.startsWith(webDistRoot)) {
+      reply.code(403).send({
+        error: "FORBIDDEN",
+        message: "Ruta no permitida"
+      });
+      return;
+    }
+
+    const filePath = (await fileExists(candidatePath)) ? candidatePath : indexFile;
+    if (!(await fileExists(filePath))) {
+      reply.code(404).send({
+        error: "WEB_BUILD_MISSING",
+        message: "No se ha encontrado el build web de produccion"
+      });
+      return;
+    }
+
+    reply.type(getContentType(filePath));
+    reply.send(await readFile(filePath));
+  });
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getContentType(path: string): string {
+  switch (extname(path).toLowerCase()) {
+    case ".css":
+      return "text/css; charset=utf-8";
+    case ".html":
+      return "text/html; charset=utf-8";
+    case ".js":
+      return "application/javascript; charset=utf-8";
+    case ".json":
+      return "application/json; charset=utf-8";
+    case ".svg":
+      return "image/svg+xml";
+    case ".png":
+      return "image/png";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".woff2":
+      return "font/woff2";
+    case ".pdf":
+      return "application/pdf";
+    default:
+      return "application/octet-stream";
+  }
 }
 
 bootstrap().catch((error) => {

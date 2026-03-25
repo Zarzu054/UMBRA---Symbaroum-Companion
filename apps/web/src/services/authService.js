@@ -42,6 +42,10 @@ export async function refreshSession(input) {
 export async function logoutUser(input) {
     await postJson("/auth/logout", input);
 }
+export async function changePassword(input, accessToken) {
+    const session = await postJson("/auth/change-password", input, accessToken);
+    return fromSession(session);
+}
 export async function getCurrentUser(accessToken) {
     const response = await fetch("/auth/me", {
         headers: { Authorization: `Bearer ${accessToken}` }

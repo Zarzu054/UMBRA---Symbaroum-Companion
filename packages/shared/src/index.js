@@ -436,6 +436,20 @@ export const loginSchema = z.object({
 export const refreshSchema = z.object({
     refreshToken: z.string().min(20)
 });
+export const changePasswordSchema = z
+    .object({
+    currentPassword: z.string().min(8).max(128),
+    newPassword: z.string().min(8).max(128)
+})
+    .superRefine((payload, ctx) => {
+    if (payload.currentPassword === payload.newPassword) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["newPassword"],
+            message: "La nueva contrasena debe ser distinta de la actual"
+        });
+    }
+});
 export const campaignMemberRoleSchema = z.enum(["gm", "player"]);
 export const campaignSessionStatusSchema = z.enum(["planned", "completed", "cancelled"]);
 export const createCampaignSchema = z.object({

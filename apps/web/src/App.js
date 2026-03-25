@@ -1,6 +1,6 @@
 import { jsx as _jsx } from "react/jsx-runtime";
 import { useAuthController } from "./controllers/authController";
-import { AuthGatewayView } from "./views/AuthGatewayView";
+import { AuthGatewayView, ForcedPasswordChangeView } from "./views/AuthGatewayView";
 import { CharacterDashboardView } from "./views/CharacterDashboardView";
 import { SuperAdminDashboardView } from "./views/SuperAdminDashboardView";
 export function App() {
@@ -10,6 +10,9 @@ export function App() {
     }
     if (!auth.auth) {
         return (_jsx(AuthGatewayView, { mode: auth.authMode, isSubmitting: auth.isSubmitting, error: auth.error, onModeChange: auth.setAuthMode, onLogin: auth.login, onRegister: auth.register }));
+    }
+    if (auth.auth.user.mustChangePassword) {
+        return (_jsx(ForcedPasswordChangeView, { email: auth.auth.user.email, isSubmitting: auth.isSubmitting, error: auth.error, onSubmit: (input) => auth.rotatePassword(input.currentPassword, input.newPassword) }));
     }
     if (auth.auth.user.role === "superadmin") {
         return (_jsx(SuperAdminDashboardView, { user: auth.auth.user, ensureAccessToken: auth.ensureAccessToken, onLogout: auth.logout }));

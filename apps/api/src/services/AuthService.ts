@@ -23,6 +23,10 @@ type RefreshTokenPayload = {
 
 export class AuthService {
   async register(input: unknown): Promise<AuthSession> {
+    if (!env.ALLOW_PUBLIC_REGISTRATION) {
+      throw new AppError("REGISTRATION_DISABLED", "El registro publico esta deshabilitado", 403);
+    }
+
     const payload = registerSchema.parse(input);
     const email = payload.email.toLowerCase();
 

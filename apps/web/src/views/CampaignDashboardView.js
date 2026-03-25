@@ -1125,7 +1125,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
                                             const nextValue = event.target.value;
                                             setContactsText(nextValue);
                                             updateDraft((current) => ({ ...current, contactos: textToList(nextValue) }));
-                                        } })] })] }), _jsxs("section", { className: "campaign-sheet-card", children: [_jsx("h4", { children: "Atributos" }), _jsx("div", { className: "campaign-sheet-attributes", children: Object.entries(draft.atributos).map(([key, value]) => (_jsxs("div", { className: "campaign-sheet-attribute", children: [_jsx("span", { children: key }), _jsx("strong", { children: value })] }, key))) })] }), _jsxs("section", { className: "campaign-sheet-card", children: [_jsx("h4", { children: "Armas preparadas" }), _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Arma principal" }), _jsx("input", { disabled: !editable, value: draft.combate.armaPrincipal, onChange: (event) => updateDraft((current) => ({
+                                        } })] })] }), _jsxs("section", { className: "campaign-sheet-card", children: [_jsx("h4", { children: "Atributos" }), _jsx("div", { className: "campaign-sheet-attributes", children: Object.entries(draft.atributos).map(([key, value]) => (_jsxs("div", { className: "campaign-sheet-attribute", children: [_jsx("span", { children: formatAttributeLabel(key) }), _jsx("strong", { children: value })] }, key))) })] }), _jsxs("section", { className: "campaign-sheet-card", children: [_jsx("h4", { children: "Armas preparadas" }), _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Arma principal" }), _jsx("input", { disabled: !editable, value: draft.combate.armaPrincipal, onChange: (event) => updateDraft((current) => ({
                                                     ...current,
                                                     combate: { ...current.combate, armaPrincipal: event.target.value }
                                                 })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Atributo" }), _jsx("input", { disabled: !editable, value: draft.combate.armaPrincipalAtributo, onChange: (event) => updateDraft((current) => ({
@@ -1171,6 +1171,28 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
                                                 ...current,
                                                 artefactos: current.artefactos.map((item, itemIndex) => itemIndex === index ? { ...item, corrupcion: event.target.value } : item)
                                             })) })] }, `artefacto-${index}`))) })] })] }), allowActions ? (_jsxs("section", { className: "campaign-sheet-card", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h4", { children: "Acciones disponibles" }), editable ? (_jsx("button", { type: "button", disabled: busy, onClick: () => void onSave(draft), children: "Guardar hoja" })) : null] }), _jsxs("div", { className: "campaign-sheet-actions", children: [actions.map((action) => (_jsxs("div", { className: "campaign-action-button", children: [_jsx("strong", { children: action.label }), _jsx("span", { children: action.sourceName }), _jsxs("span", { children: [action.cost, action.rollAttribute ? ` · ${action.rollAttribute}` : "", action.damageFormula ? ` · ${action.damageFormula}` : ""] }), _jsxs("div", { className: "campaign-action-controls", children: [action.rollAttribute ? (_jsx("button", { type: "button", onClick: () => void handleRunAction(action, "attack"), children: getActionPhaseLabel(action, "attack") })) : null, action.damageFormula ? (_jsx("button", { type: "button", onClick: () => void handleRunAction(action, "damage"), children: getActionPhaseLabel(action, "damage") })) : null] })] }, action.id))), actions.length === 0 ? _jsx("p", { className: "section-help", children: "No hay acciones ejecutables con la configuraci?n actual de la hoja." }) : null] }), rollTransportStatus ? _jsx("p", { className: "meta-text campaign-roll-destination-feedback", children: rollTransportStatus }) : null, lastActionResult ? (_jsxs("div", { className: "campaign-sheet-roll-result", children: [_jsx("strong", { children: lastActionResult.action.label }), renderActionRolls(lastActionResult.rolls, lastActionResult.action.id), _jsx("p", { children: lastActionResult.action.effectSummary })] })) : null] })) : null, allowActions && pendingRollConfirmation ? (_jsx("div", { className: "modal-backdrop", children: _jsxs("div", { className: "modal-panel", children: [_jsx("h3", { children: "Enviar tirada a Roll20" }), _jsxs("p", { className: "section-help", children: [pendingRollConfirmation.action.label, " \u00B7 ", getActionPhaseLabel(pendingRollConfirmation.action, pendingRollConfirmation.phase)] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Visibilidad" }), _jsxs("select", { value: pendingRollConfirmation.visibility, onChange: (event) => setPendingRollConfirmation((current) => current ? { ...current, visibility: event.target.value } : current), children: [_jsx("option", { value: "public", children: "P\u00FAblica (/r)" }), _jsx("option", { value: "gm", children: "Solo DJ (/gr)" })] })] }), _jsxs("div", { className: "row-actions", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: () => setPendingRollConfirmation(null), children: "Cancelar" }), _jsx("button", { type: "button", onClick: () => void handleConfirmRoll20Send(), children: "Enviar a Roll20" })] })] }) })) : null] }));
+}
+function formatAttributeLabel(attribute) {
+    switch (attribute) {
+        case "agil":
+            return "Agil";
+        case "atento":
+            return "Atento";
+        case "discreto":
+            return "Discreto";
+        case "diestro":
+            return "Diestro";
+        case "fuerte":
+            return "Fuerte";
+        case "inteligente":
+            return "Inteligente";
+        case "persuasivo":
+            return "Persuasivo";
+        case "tenaz":
+            return "Tenaz";
+        default:
+            return attribute;
+    }
 }
 function CapabilityColumn({ title, entries, getActionsForSource, onRunAction, allowActions }) {
     return (_jsxs("div", { className: "campaign-capability-column", children: [_jsx("h5", { children: title }), entries.map((entry) => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { clearAuthState, loadAuthState, saveAuthState } from "../services/authStorage";
-import { getCurrentUser, loginUser, logoutUser, refreshSession, registerUser } from "../services/authService";
+import { changePassword, getCurrentUser, loginUser, logoutUser, refreshSession, registerUser } from "../services/authService";
 export function useAuthController() {
     const [auth, setAuth] = useState(null);
     const [authMode, setAuthMode] = useState("login");
@@ -69,6 +69,24 @@ export function useAuthController() {
             setIsSubmitting(false);
         }
     }
+    async function rotatePassword(currentPassword, newPassword) {
+        if (!auth) {
+            setError("No autenticado");
+            return;
+        }
+        setIsSubmitting(true);
+        setError(null);
+        try {
+            const session = await changePassword({ currentPassword, newPassword }, auth.accessToken);
+            setAndPersist(session);
+        }
+        catch (err) {
+            setError(err instanceof Error ? err.message : "No se pudo actualizar la contrasena");
+        }
+        finally {
+            setIsSubmitting(false);
+        }
+    }
     async function ensureAccessToken() {
         if (!auth)
             throw new Error("No autenticado");
@@ -100,6 +118,7 @@ export function useAuthController() {
         setAuthMode,
         register,
         login,
+        rotatePassword,
         logout,
         ensureAccessToken
     }), [auth, authMode, isBootstrapping, isSubmitting, error]);

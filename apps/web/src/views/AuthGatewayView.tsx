@@ -14,6 +14,7 @@ export function AuthGatewayView({ mode, isSubmitting, error, onModeChange, onLog
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"player" | "gm">("player");
+  const allowPublicRegistration = import.meta.env.VITE_ALLOW_PUBLIC_REGISTRATION !== "false";
 
   async function submit(): Promise<void> {
     if (mode === "login") {
@@ -35,10 +36,12 @@ export function AuthGatewayView({ mode, isSubmitting, error, onModeChange, onLog
         <h1>UMBRA</h1>
         <p>Companion de Symbaroum</p>
 
-        <div className="auth-switch">
-          <button className={mode === "login" ? "active" : ""} onClick={() => onModeChange("login")}>Entrar</button>
-          <button className={mode === "register" ? "active" : ""} onClick={() => onModeChange("register")}>Registro</button>
-        </div>
+        {allowPublicRegistration ? (
+          <div className="auth-switch">
+            <button className={mode === "login" ? "active" : ""} onClick={() => onModeChange("login")}>Entrar</button>
+            <button className={mode === "register" ? "active" : ""} onClick={() => onModeChange("register")}>Registro</button>
+          </div>
+        ) : null}
 
         <form className="form-grid auth-form-grid" onSubmit={handleSubmit} autoComplete="on">
           <input
@@ -68,7 +71,7 @@ export function AuthGatewayView({ mode, isSubmitting, error, onModeChange, onLog
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
-          {mode === "register" ? (
+          {mode === "register" && allowPublicRegistration ? (
             <select
               id="auth-role"
               name="role"
@@ -82,6 +85,8 @@ export function AuthGatewayView({ mode, isSubmitting, error, onModeChange, onLog
           ) : null}
 
           {error ? <p className="error auth-error">{error}</p> : null}
+
+          {!allowPublicRegistration ? <p className="meta-text">El acceso se gestiona solo con cuentas creadas por el administrador.</p> : null}
 
           <button className="auth-submit" type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Procesando..." : mode === "login" ? "Entrar" : "Crear cuenta"}
