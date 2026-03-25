@@ -13,7 +13,7 @@ const SEND_SELECTORS = [
 ];
 
 function log(...args) {
-  console.log("[UMBRA Roll20 Bridge][roll20]", ...args);
+  console.log("[UMBRA20][roll20]", ...args);
 }
 
 log("content script loaded", window.location.href);

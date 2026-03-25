@@ -1,6 +1,6 @@
 ﻿{
   "manifest_version": 3,
-  "name": "UMBRA Roll20 Bridge",
+  "name": "UMBRA20",
   "version": "0.1.0",
   "description": "Bridge minimal entre UMBRA y el chat de Roll20.",
   "permissions": ["tabs"],

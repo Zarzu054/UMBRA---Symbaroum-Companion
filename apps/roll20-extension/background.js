@@ -4,7 +4,7 @@
 ];
 
 function log(...args) {
-  console.log("[UMBRA Roll20 Bridge][background]", ...args);
+  console.log("[UMBRA20][background]", ...args);
 }
 
 function isRoll20EditorUrl(url) {

@@ -1,6 +1,6 @@
-﻿# Roll20 bridge MVP
+# UMBRA20 MVP
 
-La integración actual de UMBRA con Roll20 se resuelve con una extensión mínima de Chrome en `apps/roll20-extension`.
+La integraci?n actual de UMBRA con Roll20 se resuelve con una extensi?n m?nima de Chrome llamada `UMBRA20`, ubicada en `apps/roll20-extension`.
 
 ## Qué hace
 

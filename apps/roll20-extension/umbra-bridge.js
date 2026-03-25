@@ -3,7 +3,7 @@ const PING_EVENT = "umbra:roll20-ping";
 const RESPONSE_EVENT = "umbra:roll20-response";
 
 function log(...args) {
-  console.log("[UMBRA Roll20 Bridge][umbra]", ...args);
+  console.log("[UMBRA20][umbra]", ...args);
 }
 
 log("content script loaded", window.location.href);
