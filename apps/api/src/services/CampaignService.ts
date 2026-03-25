@@ -160,10 +160,23 @@ export class CampaignService {
   }
 
   async updateCampaign(userId: string, userRole: UserRole, campaignId: string, input: UpdateCampaignInput): Promise<Campaign> {
-    requireDirectorRole(userRole);
-    await this.assertCampaignManagedBy(userId, userRole, campaignId);
     const payload = updateCampaignSchema.parse(input);
-    return this.model.update(campaignId, payload, userId, userRole);
+    const isDirector = userRole === "gm" || userRole === "superadmin";
+
+    if (isDirector) {
+      await this.assertCampaignManagedBy(userId, userRole, campaignId);
+      return this.model.update(campaignId, payload, userId, userRole);
+    }
+
+    await this.getCampaign(userId, userRole, campaignId);
+    const payloadKeys = Object.keys(payload);
+    const onlySharedNotesUpdate = payloadKeys.length > 0 && payloadKeys.every((key) => key === "sharedNotes");
+
+    if (!onlySharedNotesUpdate) {
+      throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes editar las notas compartidas de la campana", 403);
+    }
+
+    return this.model.update(campaignId, { sharedNotes: payload.sharedNotes ?? "" }, userId, userRole);
   }
 
   async addMember(userId: string, userRole: UserRole, campaignId: string, input: AddCampaignMemberInput): Promise<Campaign> {
@@ -354,6 +367,18 @@ export class CampaignService {
     await this.assertCampaignManagedBy(userId, userRole, session.campaignId);
     const payload = updateCampaignSessionSchema.parse(input);
     await this.model.updateSession(sessionId, toSessionPayload(payload));
+    return this.getCampaign(userId, userRole, session.campaignId);
+  }
+
+  async deleteSession(userId: string, userRole: UserRole, sessionId: string): Promise<Campaign> {
+    requireDirectorRole(userRole);
+    const session = await this.model.findSessionById(sessionId);
+    if (!session) {
+      throw new AppError("CAMPAIGN_SESSION_NOT_FOUND", "Sesion no encontrada", 404);
+    }
+
+    await this.assertCampaignManagedBy(userId, userRole, session.campaignId);
+    await this.model.deleteSession(sessionId);
     return this.getCampaign(userId, userRole, session.campaignId);
   }
 

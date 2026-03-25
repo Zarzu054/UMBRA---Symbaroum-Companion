@@ -69,7 +69,7 @@ export const ATTRIBUTE_LABELS: Record<AttributeKey, string> = {
 };
 
 const STARTING_ABILITY_PATTERNS = new Set(["5novato", "2novato_1adepto"]);
-const MYSTIC_ABILITY_NAMES = ["Poder místico", "Poder mÃ­stico", "Magia", "Teúrgia", "TeÃºrgia", "Brujería", "BrujerÃ­a", "Hechicería", "HechicerÃ­a"];
+const MYSTIC_ABILITY_NAMES = ["Poder místico", "Magia", "Teúrgia", "Brujería", "Hechicería"];
 const RITUAL_ABILITY_NAMES = ["Rituales"];
 const NORMALIZED_MYSTIC_ABILITY_NAMES = MYSTIC_ABILITY_NAMES.map(normalizeName);
 const NORMALIZED_RITUAL_ABILITY_NAMES = RITUAL_ABILITY_NAMES.map(normalizeName);
@@ -512,7 +512,8 @@ export const createCampaignSchema = z.object({
   name: z.string().min(3).max(120),
   summary: z.string().max(400).default(""),
   setting: z.string().max(200).default(""),
-  notes: z.string().max(4000).default("")
+  notes: z.string().max(4000).default(""),
+  sharedNotes: z.string().max(6000).default("")
 });
 
 export const updateCampaignSchema = createCampaignSchema.partial();
@@ -804,6 +805,7 @@ export type Campaign = {
   summary: string;
   setting: string;
   notes: string;
+  sharedNotes: string;
   gmId: string;
   gmEmail: string;
   createdAt: string;

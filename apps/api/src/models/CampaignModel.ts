@@ -145,6 +145,7 @@ function mapCampaign(
     summary: row.summary,
     setting: row.setting,
     notes: isDirector ? row.notes : "",
+    sharedNotes: row.sharedNotes,
     gmId: row.gmId,
     gmEmail: row.gm.email,
     createdAt: row.createdAt.toISOString(),
@@ -270,7 +271,11 @@ export class CampaignModel {
     return mapCampaign(row, userId, userRole, availableRows);
   }
 
-  async create(gmId: string, payload: { name: string; summary: string; setting: string; notes: string }, userRole: UserRole): Promise<Campaign> {
+  async create(
+    gmId: string,
+    payload: { name: string; summary: string; setting: string; notes: string; sharedNotes: string },
+    userRole: UserRole
+  ): Promise<Campaign> {
     const row = await prisma.campaign.create({
       data: {
         gmId,
@@ -278,6 +283,7 @@ export class CampaignModel {
         summary: payload.summary,
         setting: payload.setting,
         notes: payload.notes,
+        sharedNotes: payload.sharedNotes,
         members: {
           create: {
             userId: gmId,
@@ -293,7 +299,7 @@ export class CampaignModel {
 
   async update(
     campaignId: string,
-    payload: Partial<{ name: string; summary: string; setting: string; notes: string }>,
+    payload: Partial<{ name: string; summary: string; setting: string; notes: string; sharedNotes: string }>,
     viewerId: string,
     viewerRole: UserRole
   ): Promise<Campaign> {
@@ -451,6 +457,12 @@ export class CampaignModel {
         dmNotes: payload.dmNotes,
         status: payload.status
       }
+    });
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    await prisma.campaignSession.delete({
+      where: { id: sessionId }
     });
   }
 

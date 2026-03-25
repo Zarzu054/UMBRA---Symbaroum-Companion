@@ -204,6 +204,12 @@ export class CampaignController {
     reply.send({ data: campaign });
   }
 
+  async deleteSession(request: FastifyRequest<{ Params: { sessionId: string } }>, reply: FastifyReply): Promise<void> {
+    const user = request.authUser!;
+    const campaign = await this.service.deleteSession(user.id, user.role, request.params.sessionId);
+    reply.send({ data: campaign });
+  }
+
   async updateReference(
     request: FastifyRequest<{ Params: { referenceId: string }; Body: UpdateCampaignReferenceInput }>,
     reply: FastifyReply

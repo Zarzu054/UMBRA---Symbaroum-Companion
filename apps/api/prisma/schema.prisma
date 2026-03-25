@@ -90,6 +90,7 @@ model Campaign {
   summary      String              @default("")
   setting      String              @default("")
   notes        String              @default("")
+  sharedNotes  String              @default("") @map("shared_notes")
   createdAt    DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
   gm           User                @relation("CampaignGm", fields: [gmId], references: [id], onDelete: Cascade)

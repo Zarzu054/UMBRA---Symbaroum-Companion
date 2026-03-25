@@ -118,6 +118,11 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [requireAuth] },
     async (request, reply) => controller.updateSession(request, reply)
   );
+  app.delete<{ Params: { sessionId: string } }>(
+    "/campaign-sessions/:sessionId",
+    { preHandler: [requireAuth] },
+    async (request, reply) => controller.deleteSession(request, reply)
+  );
   app.put<{ Params: { referenceId: string }; Body: UpdateCampaignReferenceInput }>(
     "/campaign-references/:referenceId",
     { preHandler: [requireAuth] },

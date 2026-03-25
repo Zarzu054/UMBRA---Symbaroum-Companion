@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   buildRollRequest,
   deriveCharacterActions,
@@ -82,7 +82,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   const controller = useCharacterController(ensureAccessToken);
   const isCampaignManagedLock = false;
   const isCapabilityLocked = controller.isEditing;
-  const [activeModule, setActiveModule] = useState<AppModule>("characters");
+  const canAccessCharacters = user.role !== "gm";
+  const [activeModule, setActiveModule] = useState<AppModule>(canAccessCharacters ? "characters" : "campaigns");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [compendiumFocus, setCompendiumFocus] = useState<CompendiumFocus>({
     entryId: null,
@@ -94,6 +95,12 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   useEffect(() => {
     function syncWithHash(): void {
       const parsed = parseHash();
+      if (!canAccessCharacters && parsed.module === "characters") {
+        setActiveModule("campaigns");
+        window.location.hash = "campaigns";
+        return;
+      }
+
       switch (parsed.module) {
         case "compendium":
           setActiveModule("compendium");
@@ -117,7 +124,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     syncWithHash();
     window.addEventListener("hashchange", syncWithHash);
     return () => window.removeEventListener("hashchange", syncWithHash);
-  }, []);
+  }, [canAccessCharacters]);
 
   function openCompendiumCapability(tipo: "habilidad" | "poder_mistico" | "ritual", nombre: string): void {
     const entryId = findCompendiumCapabilityEntryId(tipo, nombre);
@@ -163,13 +170,15 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                 aria-label={isSidebarOpen ? "Ocultar barra lateral" : "Mostrar barra lateral"}
                 onClick={() => setIsSidebarOpen((current) => !current)}
               >
-                {isSidebarOpen ? "◀" : "▶"}
+                {isSidebarOpen ? "<" : ">"}
               </button>
             </div>
             <nav className="sidebar-nav">
-              <button className={activeModule === "characters" ? "active-toggle" : ""} onClick={openCharactersModule}>
-                Personajes
-              </button>
+              {canAccessCharacters ? (
+                <button className={activeModule === "characters" ? "active-toggle" : ""} onClick={openCharactersModule}>
+                  Personajes
+                </button>
+              ) : null}
               <button className={activeModule === "campaigns" ? "active-toggle" : ""} onClick={openCampaignsModule}>
                 Campañas
               </button>
@@ -195,7 +204,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                 aria-label="Mostrar barra lateral"
                 onClick={() => setIsSidebarOpen(true)}
               >
-                ▶
+                {">"}
               </button>
             </div>
           ) : null}
@@ -215,9 +224,6 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               <div className="row-actions character-actions-page-header">
                 <div>
                   <h2>Hoja de acciones</h2>
-                  <p className="section-help">
-                    Vista táctica completa del personaje con todas las tiradas disponibles.
-                  </p>
                 </div>
                 <button type="button" onClick={controller.clearSimulationCharacter}>
                   Volver a personajes
@@ -487,7 +493,6 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         </p>
         <div className="form-grid">
           <div className="info-box">Defensa total: {controller.derived.defensaTotal}</div>
-          <div className="info-box">Iniciativa total: {controller.derived.iniciativaTotal}</div>
           <div className="info-box">Robustez máx. total: {controller.derived.robustezMaximaTotal}</div>
           <div className="info-box">Robustez actual total: {controller.derived.robustezActualTotal}</div>
           <div className="info-box">Umbral de dolor total: {controller.derived.umbralDolorTotal}</div>
@@ -1316,6 +1321,14 @@ function getActionButtonLabel(action: CharacterActionDefinition, phase: Characte
   return action.sourceType === "weapon" ? "Tirar ataque" : "Tirar prueba";
 }
 
+function getActionPhaseTitle(action: CharacterActionDefinition, phase: CharacterActionPhase): string {
+  if (phase === "damage") {
+    return "Daño";
+  }
+
+  return action.sourceType === "weapon" ? "Ataque" : "Prueba";
+}
+
 function attributeLabel(attribute: string): string {
   switch (attribute) {
     case "agil":
@@ -1443,29 +1456,6 @@ function CharacterActionSheet({ character }: CharacterActionSheetProps) {
     pushHistory("Defensa", [rollCheck("Defensa", derived.defensaTotal)]);
   }
 
-  function runInitiativeRoll(): void {
-    if (rollDestination !== "umbra") {
-      queueRoll20Request(
-        {
-          kind: "check",
-          phase: "attack",
-          characterName: character.name,
-          actionId: "derived:initiative",
-          actionLabel: "Iniciativa",
-          sourceName: "Iniciativa",
-          sourceType: "ability",
-          formula: "1d20",
-          target: derived.iniciativaTotal,
-          destination: rollDestination
-        },
-        "Iniciativa"
-      );
-      return;
-    }
-
-    pushHistory("Iniciativa", [rollCheck("Iniciativa", derived.iniciativaTotal)]);
-  }
-
   function runArmorRoll(label: string, formula: string): void {
     if (rollDestination !== "umbra") {
       queueRoll20Request(
@@ -1489,7 +1479,33 @@ function CharacterActionSheet({ character }: CharacterActionSheetProps) {
     if (!roll) {
       return;
     }
+
     pushHistory(label, [roll]);
+  }
+
+  function renderActionControls(action: CharacterActionDefinition): ReactNode {
+    return (
+      <div className="character-action-roll-grid">
+        {action.rollAttribute ? (
+          <div className="character-action-roll-block">
+            <span className="character-action-roll-title">{getActionPhaseTitle(action, "attack")}</span>
+            <span className="character-action-roll-meta">1d20 · {attributeLabel(action.rollAttribute)}</span>
+            <button type="button" onClick={() => runAction(action, "attack")}>
+              {getActionButtonLabel(action, "attack")}
+            </button>
+          </div>
+        ) : null}
+        {action.damageFormula ? (
+          <div className="character-action-roll-block">
+            <span className="character-action-roll-title">Daño</span>
+            <span className="character-action-roll-meta">{action.damageFormula}</span>
+            <button type="button" onClick={() => runAction(action, "damage")}>
+              {getActionButtonLabel(action, "damage")}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   function runAction(action: CharacterActionDefinition, phase: CharacterActionPhase): void {
@@ -1505,13 +1521,13 @@ function CharacterActionSheet({ character }: CharacterActionSheetProps) {
     pushHistory(result.action.label, result.rolls, result.action.effectSummary);
   }
 
-  async function handleConfirmRoll20Send(): Promise<void> {
+  async function handleConfirmRoll20Send(visibility: Roll20Visibility): Promise<void> {
     if (!pendingRollConfirmation) {
       return;
     }
 
     try {
-      const result = await dispatchRoll20Request(pendingRollConfirmation.request, pendingRollConfirmation.visibility);
+      const result = await dispatchRoll20Request(pendingRollConfirmation.request, visibility);
       setRoll20BridgeStatus(result.status);
       setRollTransportStatus(result.status.message);
     } catch (error) {
@@ -1529,14 +1545,6 @@ function CharacterActionSheet({ character }: CharacterActionSheetProps) {
       <div className="row-actions">
         <div>
           <h3>{character.name}</h3>
-          <p className="meta-text">
-            {character.archetype} · {character.race} · {character.profession || "Sin profesión"}
-          </p>
-        </div>
-        <div className="form-grid character-action-sheet-stats">
-          <div className="info-box">Defensa total: {derived.defensaTotal}</div>
-          <div className="info-box">Iniciativa total: {derived.iniciativaTotal}</div>
-          <div className="info-box">Corrupción total: {derived.corrupcionTotal}</div>
         </div>
       </div>
       <div className="row-actions">
@@ -1549,18 +1557,17 @@ function CharacterActionSheet({ character }: CharacterActionSheetProps) {
         </label>
         {rollTransportStatus ? <p className="meta-text campaign-roll-destination-feedback">{rollTransportStatus}</p> : null}
         {rollDestination !== "umbra" && roll20BridgeStatus ? (
-          <p className="meta-text campaign-roll-destination-feedback">Bridge Roll20: {roll20BridgeStatus.message}</p>
+          <p className="meta-text campaign-roll-destination-feedback">UMBRA20: {roll20BridgeStatus.message}</p>
         ) : null}
       </div>
 
       <div className="character-action-sections">
         <section className="campaign-sheet-card">
-          <h4>Atributos y defensas</h4>
+          <h4>Atributos</h4>
           <div className="campaign-sheet-actions">
             {(Object.entries(sheet.atributos) as Array<[keyof CharacterSheet["atributos"], number]>).map(([key, value]) => (
-              <div key={key} className="campaign-action-button">
-                <strong>{attributeLabel(key)}</strong>
-                <span>Objetivo: {value}</span>
+              <div key={key} className="campaign-action-button campaign-action-button--compact">
+                <strong>{attributeLabel(key)}: {value}</strong>
                 <div className="campaign-action-controls">
                   <button type="button" onClick={() => runAttributeRoll(key)}>
                     Tirar prueba
@@ -1568,53 +1575,30 @@ function CharacterActionSheet({ character }: CharacterActionSheetProps) {
                 </div>
               </div>
             ))}
-            <div className="campaign-action-button">
-              <strong>Defensa</strong>
-              <span>Objetivo: {derived.defensaTotal}</span>
-              <div className="campaign-action-controls">
-                <button type="button" onClick={runDefenseRoll}>Tirar prueba</button>
-              </div>
-            </div>
-            <div className="campaign-action-button">
-              <strong>Iniciativa</strong>
-              <span>Objetivo: {derived.iniciativaTotal}</span>
-              <div className="campaign-action-controls">
-                <button type="button" onClick={runInitiativeRoll}>Tirar prueba</button>
-              </div>
-            </div>
           </div>
         </section>
 
         <section className="campaign-sheet-card">
-          <h4>Armas y armaduras</h4>
+          <h4>Defensa y armaduras</h4>
           <div className="campaign-sheet-actions">
-            {weaponActions.map((action) => (
-              <div key={action.id} className="campaign-action-button">
-                <strong>{action.label}</strong>
-                <span>{action.sourceName}</span>
-                <span>{action.rollAttribute ? `${action.rollAttribute}` : "Sin atributo"}{action.damageFormula ? ` · ${action.damageFormula}` : ""}</span>
-                <div className="campaign-action-controls">
-                  {action.rollAttribute ? (
-                    <button type="button" onClick={() => runAction(action, "attack")}>
-                      {getActionButtonLabel(action, "attack")}
-                    </button>
-                  ) : null}
-                  {action.damageFormula ? (
-                    <button type="button" onClick={() => runAction(action, "damage")}>
-                      {getActionButtonLabel(action, "damage")}
-                    </button>
-                  ) : null}
-                </div>
+            <div className="campaign-action-button campaign-action-button--compact">
+              <strong>Defensa: {derived.defensaTotal}</strong>
+              <div className="campaign-action-controls">
+                <button type="button" onClick={runDefenseRoll}>Tirar prueba</button>
               </div>
-            ))}
+            </div>
             {sheet.combate.armaduraProteccion ? (
               <div className="campaign-action-button">
                 <strong>{sheet.combate.armadura || "Armadura principal"}</strong>
                 <span>{sheet.combate.armaduraProteccion}</span>
-                <div className="campaign-action-controls">
-                  <button type="button" onClick={() => runArmorRoll("Protección principal", sheet.combate.armaduraProteccion)}>
-                    Tirar daño
-                  </button>
+                <div className="character-action-roll-grid">
+                  <div className="character-action-roll-block">
+                    <span className="character-action-roll-title">Protección</span>
+                    <span className="character-action-roll-meta">{sheet.combate.armaduraProteccion}</span>
+                    <button type="button" onClick={() => runArmorRoll("Protección principal", sheet.combate.armaduraProteccion)}>
+                      Tirar daño
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : null}
@@ -1622,13 +1606,32 @@ function CharacterActionSheet({ character }: CharacterActionSheetProps) {
               <div className="campaign-action-button">
                 <strong>{sheet.combate.armaduraSecundaria || "Armadura secundaria"}</strong>
                 <span>{sheet.combate.armaduraSecundariaProteccion}</span>
-                <div className="campaign-action-controls">
-                  <button type="button" onClick={() => runArmorRoll("Protección secundaria", sheet.combate.armaduraSecundariaProteccion)}>
-                    Tirar daño
-                  </button>
+                <div className="character-action-roll-grid">
+                  <div className="character-action-roll-block">
+                    <span className="character-action-roll-title">Protección</span>
+                    <span className="character-action-roll-meta">{sheet.combate.armaduraSecundariaProteccion}</span>
+                    <button type="button" onClick={() => runArmorRoll("Protección secundaria", sheet.combate.armaduraSecundariaProteccion)}>
+                      Tirar daño
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : null}
+          </div>
+        </section>
+
+        <section className="campaign-sheet-card">
+          <h4>Armas</h4>
+          <div className="campaign-sheet-actions">
+            {weaponActions.map((action) => (
+              <div key={action.id} className="campaign-action-button">
+                <strong>{action.label}</strong>
+                <span>{action.sourceName}</span>
+                <span>{action.rollAttribute ? `${action.rollAttribute}` : "Sin atributo"}{action.damageFormula ? ` · ${action.damageFormula}` : ""}</span>
+                {renderActionControls(action)}
+              </div>
+            ))}
+            {weaponActions.length === 0 ? <p className="section-help">Este personaje no tiene armas accionables registradas.</p> : null}
           </div>
         </section>
 
@@ -1644,18 +1647,7 @@ function CharacterActionSheet({ character }: CharacterActionSheetProps) {
                   {action.rollAttribute ? ` · ${action.rollAttribute}` : ""}
                   {action.damageFormula ? ` · ${action.damageFormula}` : ""}
                 </span>
-                <div className="campaign-action-controls">
-                  {action.rollAttribute ? (
-                    <button type="button" onClick={() => runAction(action, "attack")}>
-                      {getActionButtonLabel(action, "attack")}
-                    </button>
-                  ) : null}
-                  {action.damageFormula ? (
-                    <button type="button" onClick={() => runAction(action, "damage")}>
-                      {getActionButtonLabel(action, "damage")}
-                    </button>
-                  ) : null}
-                </div>
+                {renderActionControls(action)}
               </div>
             ))}
             {capabilityActions.length === 0 ? <p className="section-help">Este personaje no tiene capacidades accionables registradas.</p> : null}
@@ -1681,29 +1673,20 @@ function CharacterActionSheet({ character }: CharacterActionSheetProps) {
       </div>
       {pendingRollConfirmation ? (
         <div className="modal-backdrop">
-          <div className="modal-panel">
-            <h3>Enviar tirada a Roll20</h3>
+          <div className="panel modal-panel character-roll-confirm-modal">
+            <h3>Enviar tirada</h3>
             <p className="section-help">{pendingRollConfirmation.title}</p>
-            <label className="field">
-              <span>Visibilidad</span>
-              <select
-                value={pendingRollConfirmation.visibility}
-                onChange={(event) =>
-                  setPendingRollConfirmation((current) =>
-                    current ? { ...current, visibility: event.target.value as Roll20Visibility } : current
-                  )
-                }
-              >
-                <option value="public">Pública (/r)</option>
-                <option value="gm">Solo DJ (/gr)</option>
-              </select>
-            </label>
-            <div className="row-actions">
+            <div className="row-actions character-roll-confirm-actions">
+              <div className="character-roll-confirm-primary">
+              <button type="button" onClick={() => void handleConfirmRoll20Send("public")}>
+                Público
+              </button>
+              <button type="button" onClick={() => void handleConfirmRoll20Send("gm")}>
+                Solo DJ
+              </button>
+              </div>
               <button type="button" className="subtle-button" onClick={() => setPendingRollConfirmation(null)}>
                 Cancelar
-              </button>
-              <button type="button" onClick={() => void handleConfirmRoll20Send()}>
-                Enviar a Roll20
               </button>
             </div>
           </div>
@@ -1712,4 +1695,7 @@ function CharacterActionSheet({ character }: CharacterActionSheetProps) {
     </div>
   );
 }
+
+
+
 

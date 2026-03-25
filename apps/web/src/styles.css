@@ -1029,6 +1029,37 @@ td {
   background: var(--paper);
 }
 
+.character-roll-confirm-modal {
+  width: min(560px, 100%);
+  max-height: none;
+  padding: 18px 20px;
+  border-radius: 22px;
+}
+
+.character-roll-confirm-modal h3 {
+  margin-bottom: 6px;
+}
+
+.character-roll-confirm-modal .section-help {
+  margin-bottom: 14px;
+}
+
+.character-roll-confirm-actions {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.character-roll-confirm-primary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.character-roll-confirm-actions button {
+  min-height: 42px;
+  padding: 8px 16px;
+}
+
 .campaign-sheet-shell {
   padding: 18px;
   background:
@@ -1335,6 +1366,58 @@ td {
   flex: 1 1 140px;
 }
 
+.campaign-action-button--compact {
+  gap: 10px;
+}
+
+.campaign-action-button--compact strong {
+  margin-bottom: 0;
+}
+
+.campaign-action-button--compact .campaign-action-controls {
+  margin-top: 0;
+}
+
+.campaign-action-button--compact .campaign-action-controls button {
+  flex-basis: 120px;
+  min-height: 40px;
+  padding: 8px 14px;
+  font-size: 0.95rem;
+}
+
+.character-action-roll-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.character-action-roll-block {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid rgba(165, 103, 73, 0.35);
+  border-radius: 14px;
+  background: rgba(255, 248, 240, 0.54);
+}
+
+.character-action-roll-title {
+  color: #8f4a31;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.character-action-roll-meta {
+  color: #6d5648;
+  font-size: 0.94rem;
+}
+
+.character-action-roll-block button {
+  width: 100%;
+}
+
 .campaign-sheet .field span {
   color: #7e4a31;
   letter-spacing: 0.08em;
@@ -1364,11 +1447,30 @@ td {
 
 .character-actions-page {
   display: grid;
-  gap: 20px;
-  min-height: calc(100vh - 72px);
+  gap: 12px;
+  min-height: auto;
 }
 
 .character-actions-page-header {
+  align-items: start;
+}
+
+.character-actions-page-header h2,
+.character-action-sheet h3 {
+  margin-bottom: 4px;
+}
+
+.character-actions-page-header .section-help,
+.character-action-sheet .meta-text {
+  margin-bottom: 0;
+}
+
+.character-action-sheet {
+  display: grid;
+  gap: 12px;
+}
+
+.character-action-sheet > .row-actions:first-child {
   align-items: start;
 }
 

@@ -34,6 +34,7 @@ import {
   createCampaignSession,
   deleteCampaignNpc,
   deleteCampaignReference,
+  deleteCampaignSession,
   fetchCampaigns,
   generateCampaignNpc,
   grantCampaignExperience,
@@ -68,7 +69,7 @@ type CampaignSheetTarget =
   | { kind: "character"; linkId: string }
   | { kind: "npc"; npcId: string };
 
-type CampaignDetailSection = "wiki" | "members" | "sessions" | "characters" | "npcs" | "xp" | "sheet";
+type CampaignDetailSection = "wiki" | "sharedNotes" | "members" | "sessions" | "characters" | "npcs" | "xp" | "sheet";
 
 type PendingRollConfirmation = {
   request: RollRequest;
@@ -78,7 +79,7 @@ type PendingRollConfirmation = {
   visibility: Roll20Visibility;
 };
 
-const emptyCampaignForm: CreateCampaignInput = { name: "", summary: "", setting: "", notes: "" };
+const emptyCampaignForm: CreateCampaignInput = { name: "", summary: "", setting: "", notes: "", sharedNotes: "" };
 const emptyNpcForm: CreateCampaignNpcInput = {
   name: "",
   race: "",
@@ -402,6 +403,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [activeSection, setActiveSection] = useState<CampaignDetailSection>("wiki");
   const [isCreateCampaignModalOpen, setIsCreateCampaignModalOpen] = useState(false);
   const [isCampaignDetailsModalOpen, setIsCampaignDetailsModalOpen] = useState(false);
+  const [isSessionEditorOpen, setIsSessionEditorOpen] = useState(false);
+  const [isSessionCloseModalOpen, setIsSessionCloseModalOpen] = useState(false);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -547,12 +550,14 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         name: selectedCampaign.name,
         summary: selectedCampaign.summary,
         setting: selectedCampaign.setting,
-        notes: selectedCampaign.notes
+        notes: selectedCampaign.notes,
+        sharedNotes: selectedCampaign.sharedNotes
       };
       return current.name === next.name &&
         current.summary === next.summary &&
         current.setting === next.setting &&
-        current.notes === next.notes
+        current.notes === next.notes &&
+        current.sharedNotes === next.sharedNotes
         ? current
         : next;
     });
@@ -721,6 +726,23 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       upsertCampaign(await updateCampaign(selectedCampaign.id, draft, token));
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar la campaña");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleSaveSharedNotes(): Promise<void> {
+    if (!selectedCampaign) {
+      return;
+    }
+
+    setError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      upsertCampaign(await updateCampaign(selectedCampaign.id, { sharedNotes: draft.sharedNotes }, token));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudieron guardar las notas compartidas");
     } finally {
       setIsSaving(false);
     }
@@ -921,6 +943,53 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       upsertCampaign(await updateCampaignSession(selectedSession.id, { ...sessionForm } as UpdateCampaignSessionInput, token));
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar la sesión");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDeleteSession(sessionId: string): Promise<void> {
+    setError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      const updated = await deleteCampaignSession(sessionId, token);
+      upsertCampaign(updated);
+      setIsSessionEditorOpen(false);
+      setSelectedSessionId(updated.sessions[0]?.id ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo eliminar la sesión");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleCloseSession(): Promise<void> {
+    if (!selectedSession || !selectedCampaign) {
+      return;
+    }
+
+    const awards = selectedCampaign.characters
+      .map((entry) => ({
+        characterId: entry.characterId,
+        amount: Number(sessionXpDraft[entry.characterId] || 0)
+      }))
+      .filter((entry) => entry.amount > 0);
+
+    setError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      let updated = await updateCampaignSession(selectedSession.id, { status: "completed" }, token);
+      if (awards.length > 0) {
+        updated = await assignCampaignSessionExperience(selectedSession.id, { awards }, token);
+      }
+      upsertCampaign(updated);
+      setSelectedSessionId(selectedSession.id);
+      setSessionXpDraft(Object.fromEntries(updated.characters.map((entry) => [entry.characterId, 0])));
+      setIsSessionCloseModalOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo cerrar la sesión");
     } finally {
       setIsSaving(false);
     }
@@ -1176,6 +1245,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             </div>
             <div className="toolbar campaign-section-nav">
               <button type="button" className={activeSection === "wiki" ? "is-active" : ""} onClick={() => setActiveSection("wiki")}>Wiki</button>
+              <button type="button" className={activeSection === "sharedNotes" ? "is-active" : ""} onClick={() => setActiveSection("sharedNotes")}>Notas compartidas</button>
               <button type="button" className={activeSection === "members" ? "is-active" : ""} onClick={() => setActiveSection("members")}>Miembros</button>
               <button type="button" className={activeSection === "sessions" ? "is-active" : ""} onClick={() => setActiveSection("sessions")}>Sesiones</button>
               <button type="button" className={activeSection === "characters" ? "is-active" : ""} onClick={() => setActiveSection("characters")}>Personajes</button>
@@ -1219,6 +1289,35 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               {selectedCampaign.references.length === 0 ? (
                 <p className="section-help">Aún no hay referencias creadas para esta campaña.</p>
               ) : null}
+            </div>
+          </section>
+          ) : null}
+
+          {activeSection === "sharedNotes" ? (
+          <section className="panel">
+            <div className="row-actions">
+              <h3>Notas compartidas de campaña</h3>
+              <button type="button" disabled={isSaving} onClick={() => void handleSaveSharedNotes()}>
+                {isSaving ? "Guardando..." : "Guardar notas compartidas"}
+              </button>
+            </div>
+            <div className="campaign-wiki-shared-notes">
+              <label className="field">
+                <span>Notas compartidas de campaña</span>
+                <textarea
+                  rows={10}
+                  value={draft.sharedNotes}
+                  onChange={(event) => setDraft((prev) => ({ ...prev, sharedNotes: event.target.value }))}
+                  placeholder="Apuntes comunes de la campaña para jugadores y DJ"
+                />
+              </label>
+              <p className="section-help">Estas notas son visibles y editables por todos los miembros de la campaña.</p>
+              <CampaignLinkedTextBlock
+                title="Vista enlazada de notas compartidas"
+                text={draft.sharedNotes}
+                references={selectedCampaign?.references ?? []}
+                onOpenReference={openReference}
+              />
             </div>
           </section>
           ) : null}
@@ -1358,6 +1457,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   onClick={() => {
                     setSelectedSessionId(null);
                     setSessionForm(makeDefaultSessionForm());
+                    setIsSessionEditorOpen(true);
                   }}
                 >
                   Nueva sesión
@@ -1367,147 +1467,91 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             <div className="campaign-session-layout">
               <div className="campaign-session-list">
                 {selectedCampaign.sessions.map((session) => (
-                  <button
-                    key={session.id}
-                    className={`campaign-list-item${selectedSessionId === session.id ? " is-active" : ""}`}
-                    onClick={() => setSelectedSessionId(session.id)}
-                  >
+                  <article key={session.id} className={`card${selectedSessionId === session.id ? " card-selected" : ""}`}>
                     <strong>{session.title}</strong>
                     <span>{new Date(session.scheduledFor).toLocaleString()}</span>
                     <span>{session.status}</span>
-                  </button>
+                    <div className="card-actions">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedSessionId(session.id);
+                          setSessionForm({
+                            title: session.title,
+                            scheduledFor: session.scheduledFor,
+                            location: session.location,
+                            summary: session.summary,
+                            publicNotes: session.publicNotes,
+                            dmNotes: session.dmNotes,
+                            status: session.status
+                          });
+                          setIsSessionEditorOpen(true);
+                        }}
+                      >
+                        Detalles
+                      </button>
+                      {isDirector ? (
+                        <>
+                          {session.status !== "completed" ? (
+                            <button
+                              type="button"
+                              disabled={isSaving}
+                              onClick={() => {
+                                setSelectedSessionId(session.id);
+                                setSessionXpDraft(Object.fromEntries(selectedCampaign.characters.map((entry) => [entry.characterId, 0])));
+                                setIsSessionCloseModalOpen(true);
+                              }}
+                            >
+                              Cerrar sesión
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="danger"
+                            disabled={isSaving}
+                            onClick={() => {
+                              if (window.confirm(`Esta acción eliminará la sesión "${session.title}". ¿Deseas continuar?`)) {
+                                void handleDeleteSession(session.id);
+                              }
+                            }}
+                          >
+                            Eliminar
+                          </button>
+                        </>
+                      ) : null}
+                    </div>
+                  </article>
                 ))}
                 {selectedCampaign.sessions.length === 0 ? (
-                  <p className="section-help">Aún no hay sesiones programadas.</p>
+                  <p className="section-help">A?n no hay sesiones programadas.</p>
                 ) : null}
               </div>
 
               <div className="campaign-session-detail">
-                {isDirector ? (
+                {selectedSession ? (
                   <>
-                    <div className="row-actions">
-                      <h3>{selectedSession ? "Detalle de sesión" : "Crear sesión"}</h3>
-                      <button disabled={isSaving} onClick={() => void (selectedSession ? handleSaveSession() : handleCreateSession())}>
-                        {selectedSession ? "Guardar sesión" : "Programar sesión"}
-                      </button>
-                    </div>
-                    <div className="form-grid">
-                      <label className="field">
-                        <span>Título</span>
-                        <input value={sessionForm.title} onChange={(event) => setSessionForm((prev) => ({ ...prev, title: event.target.value }))} />
-                      </label>
-                      <label className="field">
-                        <span>Fecha y hora</span>
-                        <input
-                          type="datetime-local"
-                          value={toLocalDateTimeValue(sessionForm.scheduledFor)}
-                          onChange={(event) => setSessionForm((prev) => ({ ...prev, scheduledFor: fromLocalDateTimeValue(event.target.value) }))}
-                        />
-                      </label>
-                      <label className="field">
-                        <span>Ubicación</span>
-                        <input value={sessionForm.location} onChange={(event) => setSessionForm((prev) => ({ ...prev, location: event.target.value }))} />
-                      </label>
-                      <label className="field">
-                        <span>Estado</span>
-                        <select
-                          value={sessionForm.status}
-                          onChange={(event) =>
-                            setSessionForm((prev) => ({
-                              ...prev,
-                              status: event.target.value as CreateCampaignSessionInput["status"]
-                            }))
-                          }
-                        >
-                          <option value="planned">Planificada</option>
-                          <option value="completed">Completada</option>
-                          <option value="cancelled">Cancelada</option>
-                        </select>
-                      </label>
-                    </div>
-                    <label className="field">
-                      <span>Resumen para la mesa</span>
-                      <textarea rows={2} value={sessionForm.summary} onChange={(event) => setSessionForm((prev) => ({ ...prev, summary: event.target.value }))} />
-                    </label>
-                    <CampaignLinkedTextBlock
-                      title="Vista enlazada del resumen de sesión"
-                      text={sessionForm.summary}
-                      references={selectedCampaign.references}
-                      onOpenReference={openReference}
-                    />
-                    <label className="field">
-                      <span>Notas visibles para la mesa</span>
-                      <textarea rows={4} value={sessionForm.publicNotes} onChange={(event) => setSessionForm((prev) => ({ ...prev, publicNotes: event.target.value }))} />
-                    </label>
-                    <CampaignLinkedTextBlock
-                      title="Vista enlazada de notas públicas"
-                      text={sessionForm.publicNotes}
-                      references={selectedCampaign.references}
-                      onOpenReference={openReference}
-                    />
-                    <label className="field">
-                      <span>Notas secretas del DJ</span>
-                      <textarea rows={4} value={sessionForm.dmNotes} onChange={(event) => setSessionForm((prev) => ({ ...prev, dmNotes: event.target.value }))} />
-                    </label>
-                    <CampaignLinkedTextBlock
-                      title="Vista enlazada de notas secretas"
-                      text={sessionForm.dmNotes}
-                      references={selectedCampaign.references}
-                      onOpenReference={openReference}
-                    />
-
-                    {selectedSession ? (
-                      <>
-                        <div className="section-title">PX al cerrar sesión</div>
-                        <div className="cards">
-                          {selectedCampaign.characters.map((entry) => (
-                            <article key={entry.characterId} className="card">
-                              <strong>{entry.name}</strong>
-                              <span>{entry.ownerEmail}</span>
-                              <label className="field">
-                                <span>PX de esta sesión</span>
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={sessionXpDraft[entry.characterId] ?? 0}
-                                  onChange={(event) =>
-                                    setSessionXpDraft((prev) => ({
-                                      ...prev,
-                                      [entry.characterId]: Number(event.target.value || 0)
-                                    }))
-                                  }
-                                />
-                              </label>
-                            </article>
-                          ))}
-                        </div>
-                        <button disabled={isSaving} onClick={() => void handleAssignSessionXp()}>
-                          Asignar PX de sesión
-                        </button>
-                      </>
+                    <h3>{selectedSession.title}</h3>
+                    <p className="section-help">{new Date(selectedSession.scheduledFor).toLocaleString()} ? {selectedSession.status}</p>
+                    {selectedSession.location ? (
+                      <div className="campaign-session-meta">
+                        <strong>Ubicación:</strong> <span>{selectedSession.location}</span>
+                      </div>
                     ) : null}
-                  </>
+                    <CampaignLinkedTextBlock
+                      title="Resumen"
+                      text={selectedSession.summary}
+                      references={selectedCampaign?.references ?? []}
+                      onOpenReference={openReference}
+                    />
+                    <CampaignLinkedTextBlock
+                      title="Notas visibles"
+                      text={selectedSession.publicNotes}
+                      references={selectedCampaign?.references ?? []}
+                      onOpenReference={openReference}
+                    />
+                 </>
                 ) : (
-                  <>
-                    <h3>{selectedSession?.title ?? "Sesiones"}</h3>
-                    <p className="section-help">Las sesiones son una herramienta interna del DJ en el MVP actual.</p>
-                    {selectedSession ? (
-                      <>
-                        <CampaignLinkedTextBlock
-                          title="Resumen"
-                          text={selectedSession.summary}
-                          references={selectedCampaign.references}
-                          onOpenReference={openReference}
-                        />
-                        <CampaignLinkedTextBlock
-                          title="Notas visibles"
-                          text={selectedSession.publicNotes}
-                          references={selectedCampaign.references}
-                          onOpenReference={openReference}
-                        />
-                      </>
-                    ) : null}
-                  </>
+                  <p className="section-help">Selecciona una sesión para ver sus detalles.</p>
                 )}
               </div>
             </div>
@@ -1657,7 +1701,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   npc={npc}
                   editable={isDirector}
                   busy={isSaving}
-                  references={selectedCampaign.references}
+                  references={selectedCampaign?.references ?? []}
                   onOpenReference={openReference}
                   onSave={handleUpdateNpc}
                   onDelete={handleDeleteNpc}
@@ -1748,6 +1792,210 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         </section>
       )}
 
+      {isSessionEditorOpen ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setIsSessionEditorOpen(false);
+            }
+          }}
+        >
+          <div className="panel modal-panel campaign-reference-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="row-actions">
+              <h3>{selectedSession ? "Detalle de sesión" : "Crear sesión"}</h3>
+              <div className="toolbar">
+                {isDirector ? (
+                  <>
+                    <button disabled={isSaving} onClick={() => void (selectedSession ? handleSaveSession() : handleCreateSession())}>
+                      {selectedSession ? "Guardar sesión" : "Programar sesión"}
+                    </button>
+                    {selectedSession && selectedSession.status !== "completed" ? (
+                      <button
+                        type="button"
+                        disabled={isSaving}
+                        onClick={() => {
+                          setSessionXpDraft(Object.fromEntries((selectedCampaign?.characters ?? []).map((entry) => [entry.characterId, 0])));
+                          setIsSessionCloseModalOpen(true);
+                        }}
+                      >
+                        Cerrar sesión
+                      </button>
+                    ) : null}
+                    {selectedSession ? (
+                      <button
+                        type="button"
+                        className="danger"
+                        disabled={isSaving}
+                        onClick={() => {
+                          if (window.confirm(`Esta acción eliminará la sesión "${selectedSession.title}". ¿Deseas continuar?`)) {
+                            void handleDeleteSession(selectedSession.id);
+                          }
+                        }}
+                      >
+                        Eliminar
+                      </button>
+                    ) : null}
+                  </>
+                ) : null}
+                <button type="button" disabled={isSaving} onClick={() => setIsSessionEditorOpen(false)}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            {isDirector ? (
+              <>
+                <div className="form-grid">
+                  <label className="field">
+                    <span>T?tulo</span>
+                    <input value={sessionForm.title} onChange={(event) => setSessionForm((prev) => ({ ...prev, title: event.target.value }))} />
+                  </label>
+                  <label className="field">
+                    <span>Fecha y hora</span>
+                    <input
+                      type="datetime-local"
+                      value={toLocalDateTimeValue(sessionForm.scheduledFor)}
+                      onChange={(event) => setSessionForm((prev) => ({ ...prev, scheduledFor: fromLocalDateTimeValue(event.target.value) }))}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Ubicaci?n</span>
+                    <input value={sessionForm.location} onChange={(event) => setSessionForm((prev) => ({ ...prev, location: event.target.value }))} />
+                  </label>
+                  <label className="field">
+                    <span>Estado</span>
+                    <select
+                      value={sessionForm.status}
+                      onChange={(event) =>
+                        setSessionForm((prev) => ({
+                          ...prev,
+                          status: event.target.value as CreateCampaignSessionInput["status"]
+                        }))
+                      }
+                    >
+                      <option value="planned">Planificada</option>
+                      <option value="completed">Completada</option>
+                      <option value="cancelled">Cancelada</option>
+                    </select>
+                  </label>
+                </div>
+                <label className="field">
+                  <span>Resumen para la mesa</span>
+                  <textarea rows={2} value={sessionForm.summary} onChange={(event) => setSessionForm((prev) => ({ ...prev, summary: event.target.value }))} />
+                </label>
+                <CampaignLinkedTextBlock
+                  title="Vista enlazada del resumen de sesión"
+                  text={sessionForm.summary}
+                  references={selectedCampaign?.references ?? []}
+                  onOpenReference={openReference}
+                />
+                <label className="field">
+                  <span>Notas visibles para la mesa</span>
+                  <textarea rows={4} value={sessionForm.publicNotes} onChange={(event) => setSessionForm((prev) => ({ ...prev, publicNotes: event.target.value }))} />
+                </label>
+                <CampaignLinkedTextBlock
+                  title="Vista enlazada de notas públicas"
+                  text={sessionForm.publicNotes}
+                  references={selectedCampaign?.references ?? []}
+                  onOpenReference={openReference}
+                />
+                <label className="field">
+                  <span>Notas secretas del DJ</span>
+                  <textarea rows={4} value={sessionForm.dmNotes} onChange={(event) => setSessionForm((prev) => ({ ...prev, dmNotes: event.target.value }))} />
+                </label>
+                <CampaignLinkedTextBlock
+                  title="Vista enlazada de notas secretas"
+                  text={sessionForm.dmNotes}
+                  references={selectedCampaign?.references ?? []}
+                  onOpenReference={openReference}
+                />
+              </>
+            ) : (
+              <>
+                <div className="form-grid">
+                  <label className="field">
+                    <span>Título</span>
+                    <input value={sessionForm.title} disabled />
+                  </label>
+                  <label className="field">
+                    <span>Fecha y hora</span>
+                    <input value={new Date(sessionForm.scheduledFor).toLocaleString()} disabled />
+                  </label>
+                  <label className="field">
+                    <span>Ubicación</span>
+                    <input value={sessionForm.location || "Sin ubicación indicada"} disabled />
+                  </label>
+                  <label className="field">
+                    <span>Estado</span>
+                    <input value={sessionForm.status} disabled />
+                  </label>
+                </div>
+                <CampaignLinkedTextBlock
+                  title="Resumen para la mesa"
+                  text={sessionForm.summary}
+                  references={selectedCampaign?.references ?? []}
+                  onOpenReference={openReference}
+                />
+                <CampaignLinkedTextBlock
+                  title="Notas compartidas de la sesión"
+                  text={sessionForm.publicNotes}
+                  references={selectedCampaign?.references ?? []}
+                  onOpenReference={openReference}
+                />
+              </>
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {isSessionCloseModalOpen && selectedSession && selectedCampaign ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setIsSessionCloseModalOpen(false);
+            }
+          }}
+        >
+          <div className="panel modal-panel campaign-reference-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="row-actions">
+              <h3>Cerrar sesión</h3>
+              <div className="toolbar">
+                <button disabled={isSaving} onClick={() => void handleCloseSession()}>
+                  {isSaving ? "Cerrando..." : "Cerrar sesión"}
+                </button>
+                <button type="button" disabled={isSaving} onClick={() => setIsSessionCloseModalOpen(false)}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+            <p className="section-help">Configura el PX que recibe cada personaje al cerrar la sesión. La sesión quedará marcada como completada.</p>
+            <div className="cards">
+              {selectedCampaign.characters.map((entry) => (
+                <article key={entry.characterId} className="card">
+                  <strong>{entry.name}</strong>
+                  <span>{entry.ownerEmail}</span>
+                  <label className="field">
+                    <span>PX de esta sesión</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={sessionXpDraft[entry.characterId] ?? 0}
+                      onChange={(event) =>
+                        setSessionXpDraft((prev) => ({
+                          ...prev,
+                          [entry.characterId]: Number(event.target.value || 0)
+                        }))
+                      }
+                    />
+                  </label>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {isCampaignDetailsModalOpen && selectedCampaign ? (
         <section
           className="modal-backdrop"
@@ -1759,7 +2007,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         >
           <div className="panel modal-panel campaign-create-modal" onClick={(event) => event.stopPropagation()}>
             <div className="row-actions">
-              <h2>Detalles de campa?a</h2>
+              <h2>Detalles de campaña</h2>
               <div className="toolbar">
                 <button disabled={isSaving} onClick={() => void handleSaveCampaign()}>
                   {isSaving ? "Guardando..." : "Guardar detalle"}
@@ -1790,7 +2038,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             <CampaignLinkedTextBlock
               title="Vista enlazada del resumen"
               text={draft.summary}
-              references={selectedCampaign.references}
+              references={selectedCampaign?.references ?? []}
               onOpenReference={openReference}
             />
             <label className="field">
@@ -1801,10 +2049,19 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               <CampaignLinkedTextBlock
                 title="Vista enlazada de notas"
                 text={draft.notes}
-                references={selectedCampaign.references}
+                references={selectedCampaign?.references ?? []}
                 onOpenReference={openReference}
               />
             ) : null}
+            <label className="field">
+              <span>Notas compartidas</span>
+              <textarea
+                rows={5}
+                value={draft.sharedNotes}
+                disabled
+                onChange={(event) => setDraft((prev) => ({ ...prev, sharedNotes: event.target.value }))}
+              />
+            </label>
           </div>
         </section>
       ) : null}
@@ -1861,6 +2118,14 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   rows={6}
                   value={campaignForm.notes}
                   onChange={(event) => setCampaignForm((prev) => ({ ...prev, notes: event.target.value }))}
+                />
+              </label>
+              <label className="field">
+                <span>Notas compartidas</span>
+                <textarea
+                  rows={5}
+                  value={campaignForm.sharedNotes}
+                  onChange={(event) => setCampaignForm((prev) => ({ ...prev, sharedNotes: event.target.value }))}
                 />
               </label>
             </div>
@@ -2480,7 +2745,7 @@ function CampaignSheetEditor({ title, subtitle, sheet, rollDestination, editable
               </div>
             </div>
           ))}
-          {actions.length === 0 ? <p className="section-help">No hay acciones ejecutables con la configuración actual de la hoja.</p> : null}
+          {actions.length === 0 ? <p className="section-help">No hay acciones ejecutables con la configuraci?n actual de la hoja.</p> : null}
         </div>
         {rollTransportStatus ? <p className="meta-text campaign-roll-destination-feedback">{rollTransportStatus}</p> : null}
         {lastActionResult ? (
@@ -2697,18 +2962,10 @@ function CampaignReferencePreview({ reference }: { reference: CampaignReference 
         </p>
       ) : null}
       {reference.summary ? <p>{reference.summary}</p> : null}
-      {reference.content ? <p>{reference.content}</p> : <p className="section-help">Sin contenido detallado todavía.</p>}
+      {reference.content ? <p>{reference.content}</p> : <p className="section-help">Sin contenido detallado todav?a.</p>}
     </div>
   );
 }
-
-
-
-
-
-
-
-
 
 
 

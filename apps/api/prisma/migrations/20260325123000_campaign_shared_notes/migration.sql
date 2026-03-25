@@ -1,0 +1,2 @@
+ALTER TABLE "campaigns"
+ADD COLUMN IF NOT EXISTS "shared_notes" TEXT NOT NULL DEFAULT '';
