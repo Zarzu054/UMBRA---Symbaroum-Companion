@@ -4,6 +4,7 @@ import {
   deriveCharacterActions,
   executeCharacterAction,
   parseCharacterSheet,
+  synchronizeCharacterSheet,
   type ActionRollResult,
   type AuthUser,
   type Character,
@@ -14,11 +15,13 @@ import {
   type RollRequest
 } from "@umbra/shared";
 import { CharacterCard } from "../components/CharacterCard";
+import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
 import { findCompendiumCapabilityEntryId } from "../models/compendiumEntries";
 import { toCharacterCardViewModel } from "../models/characterModel";
 import { computeDerivedStats } from "../models/rulesEngine";
 import { exportCharacterSheetPdf } from "../services/characterPdfExport";
+import { updateCharacter } from "../services/characterService";
 import {
   dispatchRoll20Request,
   getRollDestination,
@@ -52,14 +55,16 @@ type PendingCharacterRollConfirmation = {
   title: string;
 };
 
-function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"> } {
+function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token">; sheetId?: string | null } {
   const rawHash = window.location.hash.replace(/^#/, "");
   if (rawHash.startsWith("campaigns")) {
     return { module: "campaigns" };
   }
 
   if (rawHash.startsWith("characters")) {
-    return { module: "characters" };
+    const [, search = ""] = rawHash.split("?");
+    const params = new URLSearchParams(search);
+    return { module: "characters", sheetId: params.get("sheetId") };
   }
 
   if (!rawHash.startsWith("compendium")) {
@@ -91,6 +96,11 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     source: "all",
     token: 0
   });
+  const [selectedCharacterSheetId, setSelectedCharacterSheetId] = useState<string | null>(() => parseHash().sheetId ?? null);
+  const selectedCharacterSheet = useMemo(
+    () => controller.characters.find((entry) => entry.id === selectedCharacterSheetId) ?? null,
+    [controller.characters, selectedCharacterSheetId]
+  );
 
   useEffect(() => {
     function syncWithHash(): void {
@@ -117,6 +127,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         case "characters":
         default:
           setActiveModule("characters");
+          setSelectedCharacterSheetId(parsed.sheetId ?? null);
           return;
       }
     }
@@ -139,6 +150,20 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
 
   function openCharactersModule(): void {
     setActiveModule("characters");
+    window.location.hash = "characters";
+    setSelectedCharacterSheetId(null);
+  }
+
+  function openCharacterSheet(characterId: string): void {
+    setActiveModule("characters");
+    setSelectedCharacterSheetId(characterId);
+    const params = new URLSearchParams();
+    params.set("sheetId", characterId);
+    window.location.hash = `characters?${params.toString()}`;
+  }
+
+  function closeCharacterSheet(): void {
+    setSelectedCharacterSheetId(null);
     window.location.hash = "characters";
   }
 
@@ -219,17 +244,33 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             />
           ) : activeModule === "campaigns" ? (
             <CampaignDashboardView user={user} ensureAccessToken={ensureAccessToken} />
-          ) : controller.simulationCharacter ? (
-            <section className="panel character-actions-page">
-              <div className="row-actions character-actions-page-header">
-                <div>
-                  <h2>Hoja de acciones</h2>
-                </div>
-                <button type="button" onClick={controller.clearSimulationCharacter}>
-                  Volver a personajes
-                </button>
-              </div>
-              <CharacterActionSheet character={controller.simulationCharacter} />
+          ) : selectedCharacterSheet ? (
+            <section className="character-actions-page">
+              <UnifiedCharacterSheet
+                title={selectedCharacterSheet.name}
+                subtitle={`${selectedCharacterSheet.culture || "Sin cultura"} · ${selectedCharacterSheet.archetype || "Sin arquetipo"} · ${selectedCharacterSheet.race || "Sin raza"}`}
+                sheet={parseCharacterSheet(selectedCharacterSheet.sheet)}
+                editable
+                onBack={closeCharacterSheet}
+                onOpenCompendiumCapability={openCompendiumCapability}
+                onSave={async (nextSheet) => {
+                  const token = await ensureAccessToken();
+                  await updateCharacter(
+                    selectedCharacterSheet.id,
+                    {
+                      name: nextSheet.identidad.nombrePersonaje.trim() || selectedCharacterSheet.name,
+                      archetype: String(nextSheet.identidad.arquetipo),
+                      race: String(nextSheet.identidad.raza),
+                      culture: String(nextSheet.identidad.cultura),
+                      profession: nextSheet.identidad.profesion,
+                      level: 1,
+                      sheet: synchronizeCharacterSheet(nextSheet)
+                    },
+                    token
+                  );
+                  await controller.refresh();
+                }}
+              />
             </section>
           ) : (
             <>
@@ -1217,9 +1258,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             <CharacterCard
               key={character.id}
               item={toCharacterCardViewModel(character)}
-              selected={controller.selectedCharacterId === character.id}
-              onSelect={() => controller.openEditModal(character.id)}
-              onSimulate={() => controller.selectCharacterForSimulation(character.id)}
+              selected={selectedCharacterSheetId === character.id}
+              onOpenSheet={() => openCharacterSheet(character.id)}
               onExportPdf={() => void exportCharacterSheetPdf(character)}
               onDuplicate={() => void controller.duplicateSelected(character.id)}
               onDelete={() => {

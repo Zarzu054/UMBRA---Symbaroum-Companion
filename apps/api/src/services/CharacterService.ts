@@ -30,13 +30,19 @@ export class CharacterService {
 
     const normalized = {
       ...input,
-      name: input.name?.trim() || "Personaje sin nombre",
+      name: input.name?.trim() || input.sheet?.identidad?.nombrePersonaje?.trim() || "Personaje sin nombre",
       archetype: input.archetype?.trim() || input.sheet?.identidad?.arquetipo || "Guerrero",
       race: input.race?.trim() || input.sheet?.identidad?.raza || "Humano",
       culture: input.culture?.trim() || input.sheet?.identidad?.cultura || "Ambriano",
       profession: input.profession?.trim() || input.sheet?.identidad?.profesion || "",
       level: 1 as const,
-      sheet: normalizedSheet
+      sheet: {
+        ...normalizedSheet,
+        identidad: {
+          ...normalizedSheet.identidad,
+          nombrePersonaje: input.name?.trim() || normalizedSheet.identidad?.nombrePersonaje || "Personaje sin nombre"
+        }
+      }
     };
 
     const payload = createCharacterSchema.parse(normalized);
@@ -57,13 +63,19 @@ export class CharacterService {
 
     const normalized = {
       ...input,
-      name: input.name?.trim() || "Personaje importado",
+      name: input.name?.trim() || input.sheet?.identidad?.nombrePersonaje?.trim() || "Personaje importado",
       archetype: input.archetype?.trim() || input.sheet?.identidad?.arquetipo || "Guerrero",
       race: input.race?.trim() || input.sheet?.identidad?.raza || "Humano",
       culture: input.culture?.trim() || input.sheet?.identidad?.cultura || "Ambriano",
       profession: input.profession?.trim() || input.sheet?.identidad?.profesion || "",
       level: 1 as const,
-      sheet: normalizedSheet
+      sheet: {
+        ...normalizedSheet,
+        identidad: {
+          ...normalizedSheet.identidad,
+          nombrePersonaje: input.name?.trim() || normalizedSheet.identidad?.nombrePersonaje || "Personaje importado"
+        }
+      }
     };
 
     const payload = importCharacterSchema.parse(normalized);
@@ -85,6 +97,10 @@ export class CharacterService {
               progreso: {
                 ...input.sheet.progreso,
                 nivel: 1 as const
+              },
+              identidad: {
+                ...input.sheet.identidad,
+                nombrePersonaje: input.name?.trim() || input.sheet.identidad.nombrePersonaje || ""
               }
             }
     };
@@ -116,8 +132,14 @@ export class CharacterService {
       race: source.race,
       culture: source.culture,
       profession: source.profession,
-      level: source.level,
-      sheet: parseCharacterSheet(source.sheet)
+      level: 1,
+      sheet: {
+        ...parseCharacterSheet(source.sheet),
+        identidad: {
+          ...parseCharacterSheet(source.sheet).identidad,
+          nombrePersonaje: duplicatedName
+        }
+      }
     });
   }
 

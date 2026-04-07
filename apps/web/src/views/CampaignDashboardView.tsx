@@ -52,6 +52,7 @@ import {
   dispatchRoll20Request,
   type Roll20Visibility
 } from "../services/rollTransport";
+import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 
 type Props = {
   user: AuthUser;
@@ -1721,42 +1722,29 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           ) : null}
 
           {activeSection === "sheet" && selectedCharacterSheetEntry?.sheet ? (
-            <section className="panel campaign-sheet-shell">
-              <div className="row-actions">
-                <h3>Hoja de personaje</h3>
-                <button type="button" onClick={() => { setSelectedSheetTarget(null); setActiveSection("characters"); }}>
-                  Cerrar hoja
-                </button>
-              </div>
-              <CampaignSheetEditor
+            <section className="campaign-sheet-shell">
+              <UnifiedCharacterSheet
                 title={selectedCharacterSheetEntry.name}
                 subtitle={`${selectedCharacterSheetEntry.ownerEmail} · Personaje de campaña`}
                 sheet={selectedCharacterSheetEntry.sheet}
-                rollDestination="umbra"
-                editable={false}
-                allowActions={false}
+                editable={selectedCharacterSheetEntry.ownerId === user.id}
                 busy={isSaving}
+                onBack={() => { setSelectedSheetTarget(null); setActiveSection("characters"); }}
                 onSave={async (sheet) => handleSaveCharacterSheet(selectedCharacterSheetEntry.id, sheet)}
               />
             </section>
           ) : null}
 
           {activeSection === "sheet" && selectedSheetTarget?.kind === "npc" && selectedNpcSheetEntry ? (
-            <section className="panel campaign-sheet-shell">
-              <div className="row-actions">
-                <h3>Hoja de PNJ</h3>
-                <button type="button" onClick={() => { setSelectedSheetTarget(null); setActiveSection("npcs"); }}>
-                  Cerrar hoja
-                </button>
-              </div>
+            <section className="campaign-sheet-shell">
               {selectedNpcSheetEntry.sheet ? (
-                <CampaignSheetEditor
+                <UnifiedCharacterSheet
                   title={selectedNpcSheetEntry.name}
                   subtitle={`${selectedNpcSheetEntry.race || "PNJ"} · ${selectedNpcSheetEntry.archetype || selectedNpcSheetEntry.occupation || "Sin arquetipo"}`}
                   sheet={selectedNpcSheetEntry.sheet}
-                  rollDestination="umbra"
                   editable={isDirector}
                   busy={isSaving}
+                  onBack={() => { setSelectedSheetTarget(null); setActiveSection("npcs"); }}
                   onSave={async (sheet) => handleSaveNpcSheet(selectedNpcSheetEntry.id, sheet)}
                 />
               ) : (

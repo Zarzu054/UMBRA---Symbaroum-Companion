@@ -125,6 +125,7 @@ function normalizeSheet(
     base.identidad.arquetipo = context.archetype;
     base.identidad.cultura = context.culture || base.identidad.cultura;
     base.identidad.profesion = context.profession || "";
+    base.identidad.nombrePersonaje = context.name || "";
     base.progreso.nivel = 1;
     return base;
   }

@@ -9,7 +9,7 @@
   SkillLevel
 } from "./index.js";
 
-const WEAPON_SLOTS = [
+const LEGACY_WEAPON_SLOTS = [
   {
     id: "weapon:primary",
     sourceName: (sheet: CharacterSheet) => sheet.combate.armaPrincipal,
@@ -37,22 +37,56 @@ const WEAPON_SLOTS = [
 ] as const;
 
 export function deriveCharacterActions(sheet: CharacterSheet): CharacterActionDefinition[] {
+  if (sheet.actions.length > 0) {
+    return sheet.actions.map((action) => ({
+      id: action.id,
+      label: action.label,
+      sourceType: action.sourceType === "utility" ? "ability" : action.sourceType,
+      sourceName: action.sourceName,
+      cost: action.cost,
+      requiredLevel: action.requiredLevel,
+      rollAttribute: action.rollAttribute,
+      damageFormula: normalizeFormula(action.damageFormula ?? ""),
+      effectSummary: action.effectSummary
+    }));
+  }
+
+  return deriveLegacyCharacterActions(sheet);
+}
+
+function deriveLegacyCharacterActions(sheet: CharacterSheet): CharacterActionDefinition[] {
   const actions: CharacterActionDefinition[] = [];
 
-  for (const slot of WEAPON_SLOTS) {
-    const weaponName = slot.sourceName(sheet).trim();
-    if (!weaponName) continue;
-
+  const equippedWeapons = sheet.inventoryItems.filter((item) => item.category === "weapon" && item.equipped);
+  for (const weapon of equippedWeapons) {
     actions.push({
-      id: slot.id,
-      label: `Atacar con ${weaponName}`,
+      id: `weapon:${weapon.id}`,
+      label: `Atacar con ${weapon.name}`,
       sourceType: "weapon",
-      sourceName: weaponName,
+      sourceName: weapon.name,
       cost: "combat",
-      rollAttribute: slot.attribute(sheet),
-      damageFormula: normalizeFormula(slot.damage(sheet)),
-      effectSummary: "Tirada de ataque y, si procede, da\u00f1o del arma."
+      rollAttribute: weapon.attackAttribute ?? "diestro",
+      damageFormula: normalizeFormula(weapon.damageFormula),
+      effectSummary: weapon.qualities || weapon.description || "Tirada de ataque y, si procede, da\u00f1o del arma."
     });
+  }
+
+  if (equippedWeapons.length === 0) {
+    for (const slot of LEGACY_WEAPON_SLOTS) {
+      const weaponName = slot.sourceName(sheet).trim();
+      if (!weaponName) continue;
+
+      actions.push({
+        id: slot.id,
+        label: `Atacar con ${weaponName}`,
+        sourceType: "weapon",
+        sourceName: weaponName,
+        cost: "combat",
+        rollAttribute: slot.attribute(sheet),
+        damageFormula: normalizeFormula(slot.damage(sheet)),
+        effectSummary: "Tirada de ataque y, si procede, da\u00f1o del arma."
+      });
+    }
   }
 
   for (const entry of sheet.habilidades) {
@@ -67,7 +101,7 @@ export function deriveCharacterActions(sheet: CharacterSheet): CharacterActionDe
     actions.push(...mapRatedEntryActions("ritual", entry.nombre, entry.nivel, entry.acciones, entry.efecto || entry.notas));
   }
 
-  return actions;
+  return dedupeActions(actions);
 }
 
 function mapRatedEntryActions(
@@ -296,6 +330,17 @@ function normalizeAttribute(value: string): AttributeKey | undefined {
 function normalizeFormula(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed ? trimmed.toLowerCase() : undefined;
+}
+
+function dedupeActions(actions: CharacterActionDefinition[]): CharacterActionDefinition[] {
+  const seen = new Set<string>();
+  return actions.filter((action) => {
+    if (seen.has(action.id)) {
+      return false;
+    }
+    seen.add(action.id);
+    return true;
+  });
 }
 
 function rollDie(sides: number): number {

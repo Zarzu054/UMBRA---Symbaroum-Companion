@@ -353,7 +353,10 @@ export class CampaignService {
     requireDirectorRole(userRole);
     await this.assertCampaignManagedBy(userId, userRole, campaignId);
     const payload = createCampaignSessionSchema.parse(input);
-    await this.model.createSession(campaignId, toSessionPayload(payload) as ReturnType<typeof toSessionPayload> & { scheduledFor: Date });
+    await this.model.createSession(campaignId, {
+      ...payload,
+      scheduledFor: new Date(payload.scheduledFor)
+    });
     return this.getCampaign(userId, userRole, campaignId);
   }
 
