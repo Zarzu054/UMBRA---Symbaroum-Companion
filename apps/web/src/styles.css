@@ -2755,6 +2755,24 @@ td {
   padding: 0.15rem 0.4rem;
 }
 
+.unified-sheet-inline-quantity-editor {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) 2rem;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.unified-sheet-inline-quantity-editor .subtle-button {
+  min-width: 2rem;
+  min-height: 1.9rem;
+  padding: 0.1rem 0.35rem;
+}
+
+.unified-sheet-inline-quantity-editor input {
+  min-width: 0;
+  text-align: center;
+}
+
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-grid {
   display: grid;
   gap: 0.45rem;

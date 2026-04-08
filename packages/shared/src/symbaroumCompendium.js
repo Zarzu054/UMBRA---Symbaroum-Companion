@@ -341,7 +341,7 @@ const FORMA_VERDADERA_ACTIONS = [
     capabilityAction("general-forma-verdadera", "Lanzar Forma verdadera", "combat", "Revela o fuerza la verdadera forma de un objetivo según el nivel del poder y su resistencia mástica.", { rollAttribute: "tenaz" })
 ];
 const GLIFO_VAMPIRICO_ACTIONS = [
-    capabilityAction("general-glifo-vampirico", "Activar Glifo vampírico", "combat", "Activa un glifo que drena Resistencia del objetivo y la transfiere según el nivel del símbolo.", { rollAttribute: "tenaz" })
+    capabilityAction("general-glifo-vampirico", "Activar Glifo vampírico", "combat", "Activa un glifo que drena Resistencia del objetivo y la transfiere según el nivel del símbolo.", { rollAttribute: "tenaz", damageFormula: "1d4" })
 ];
 const HERIDA_COMPARTIDA_ACTIONS = [
     capabilityAction("novato-herida-compartida", "Lanzar Herida compartida (Novato)", "free", "Supera una tirada de Tenaz para curar 1D6 de Resistencia a otra criatura y sufrir tú la misma cantidad de daño.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
@@ -504,7 +504,7 @@ function resolveMysticPowerActions(nombre, resumen) {
 const ARCO_VELOZ_ACTIONS = [
     capabilityAction("novato-arco-veloz", "Usar Arco veloz (Novato)", "combat", "Sacrifica tu acción de movimiento para disparar una segunda flecha este turno. Ambas flechas se resuelven por separado y pueden dirigirse al mismo objetivo o a dos distintos.", { rollAttribute: "diestro" }),
     capabilityAction("adepto-arco-veloz", "Usar Arco veloz (Adepto)", "combat", "Dispara dos flechas con una sola acción de combate, contra uno o dos objetivos.", { rollAttribute: "diestro" }),
-    capabilityAction("maestro-arco-veloz", "Usar Arco veloz (Maestro)", "reaction", "Resuelve tres disparos con una sola acción de combate, contra uno o varios objetivos.", { rollAttribute: "diestro" })
+    capabilityAction("maestro-arco-veloz", "Usar Arco veloz (Maestro)", "combat", "Resuelve tres disparos con una sola acción de combate, contra uno o varios objetivos.", { rollAttribute: "diestro" })
 ];
 const ATAQUE_CON_DOS_ARMAS_ACTIONS = [
     capabilityAction("novato-ataque-con-dos-armas", "Usar Ataque con dos armas (Novato)", "combat", "Haz dos ataques contra el mismo objetivo: el arma principal causa 1D8 y la secundaria 1D6. El enemigo debe defenderse por separado de cada ataque.", { damageFormula: "1d8/1d6" }),

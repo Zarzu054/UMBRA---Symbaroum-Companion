@@ -75,6 +75,10 @@ const RITUAL_ABILITY_NAMES = ["Rituales"];
 const NORMALIZED_MYSTIC_ABILITY_NAMES = MYSTIC_ABILITY_NAMES.map(normalizeName);
 const NORMALIZED_RITUAL_ABILITY_NAMES = RITUAL_ABILITY_NAMES.map(normalizeName);
 
+function nullableDefaultString(maxLength: number, fallback = "") {
+  return z.preprocess((value) => value == null ? fallback : value, z.string().max(maxLength).default(fallback));
+}
+
 const attributeBlockSchema = z.object({
   agil: z.number().int().min(5).max(15),
   atento: z.number().int().min(5).max(15),
@@ -93,18 +97,18 @@ const actionMetadataSchema = z.object({
   requiredLevel: skillLevelSchema.optional(),
   rollAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
   fixedTarget: z.number().int().min(1).max(20).optional(),
-  damageFormula: z.string().max(80).optional(),
-  effectSummary: z.string().max(400).default("")
+  damageFormula: z.preprocess((value) => value == null ? undefined : value, z.string().max(80).optional()),
+  effectSummary: nullableDefaultString(400, "")
 });
 
 const ratedEntrySchema = z.object({
   nombre: z.string().min(1).max(120),
-  tipo: z.string().max(120).default(""),
-  efecto: z.string().max(1200).default(""),
+  tipo: nullableDefaultString(120, ""),
+  efecto: nullableDefaultString(1200, ""),
   nivel: skillLevelSchema,
-  fuente: z.string().max(120).default(""),
+  fuente: nullableDefaultString(120, ""),
   pagina: z.number().int().min(1).max(2000).optional(),
-  notas: z.string().max(800).default(""),
+  notas: nullableDefaultString(800, ""),
   acciones: z.array(actionMetadataSchema).max(12).default([])
 });
 
@@ -351,16 +355,7 @@ export const characterSheetSchema = characterSheetObjectSchema.superRefine((shee
     }
 
     const canonicalAbilityNames = sheet.habilidades.map((entry) => normalizeName(entry.nombre));
-    const hasMysticAbility = canonicalAbilityNames.some((name) => NORMALIZED_MYSTIC_ABILITY_NAMES.includes(name));
     const hasRitualAbility = canonicalAbilityNames.some((name) => NORMALIZED_RITUAL_ABILITY_NAMES.includes(name));
-
-    if (sheet.poderesMisticos.length > 0 && !hasMysticAbility) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["poderesMisticos"],
-        message: "Para registrar poderes misticos debes incluir una habilidad mistica base (Poder místico, Magia, Teúrgia, Brujería o Hechicería)"
-      });
-    }
 
     if (sheet.rituales.length > 0 && !hasRitualAbility) {
       ctx.addIssue({
@@ -716,36 +711,77 @@ function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>
   pushRatedActions("ritual", sheet.rituales);
 
   const combateSinArmas = sheet.habilidades.find((entry) => normalizeName(entry.nombre) === "combate sin armas");
-  const hasNaturalWeaponAction = actions.some((action) => {
-    if (action.sourceType !== "weapon") return false;
-    const haystack = `${action.label} ${action.sourceName}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    return /(arma natural|garras|garra|colmillos|colmillo|mordisco|cuernos|cuerno|zarpazo|pico)/.test(haystack);
+  const naturalWeaponLevel = getTraitLevelForCanonicalActions(sheet, "arma natural");
+  const baseUnarmedDamage = !combateSinArmas ? "1d4" : combateSinArmas.nivel === "maestro" ? "2d6" : "1d6";
+  actions.push({
+    id: "ability:combate-sin-armas:base",
+    label: "Ataque desarmado",
+    sourceType: "weapon",
+    sourceName: combateSinArmas ? "Combate sin armas" : "Ataque basico",
+    cost: "combat",
+    requiredLevel: combateSinArmas?.nivel,
+    rollAttribute: "fuerte",
+    damageFormula: naturalWeaponLevel > 0 ? combineCanonicalDamageFormula(baseUnarmedDamage, convertTraitBonusToPlayerRoll(naturalWeaponLevel)) : baseUnarmedDamage,
+    effectSummary: !combateSinArmas
+      ? "Ataque desarmado basico disponible para cualquier personaje."
+      : combateSinArmas.nivel === "adepto"
+        ? "Ataque desarmado base. Combate sin armas permite resolver por separado un segundo ataque contra el mismo objetivo."
+        : combateSinArmas.nivel === "maestro"
+          ? "Ataque desarmado base mejorado por Combate sin armas. Los ataques desarmados infligen 2d6."
+          : "Ataque desarmado base de Combate sin armas.",
+    category: "ability",
+    notes: combateSinArmas?.notas ?? "",
+    linkedItemId: ""
   });
 
-  if (!hasNaturalWeaponAction) {
-    actions.push({
-      id: "ability:combate-sin-armas:base",
-      label: "Ataque desarmado",
-      sourceType: "weapon",
-      sourceName: combateSinArmas ? "Combate sin armas" : "Ataque basico",
-      cost: "combat",
-      requiredLevel: combateSinArmas?.nivel,
-      rollAttribute: "fuerte",
-      damageFormula: !combateSinArmas ? "1d4" : combateSinArmas.nivel === "maestro" ? "2d6" : "1d6",
-      effectSummary: !combateSinArmas
-        ? "Ataque desarmado basico disponible para cualquier personaje."
-        : combateSinArmas.nivel === "adepto"
-          ? "Ataque desarmado base. Combate sin armas permite resolver por separado un segundo ataque contra el mismo objetivo."
-          : combateSinArmas.nivel === "maestro"
-            ? "Ataque desarmado base mejorado por Combate sin armas. Los ataques desarmados infligen 2d6."
-            : "Ataque desarmado base de Combate sin armas.",
-      category: "ability",
-      notes: combateSinArmas?.notas ?? "",
-      linkedItemId: ""
-    });
+  return actions;
+}
+
+function getTraitLevelForCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>, traitName: string): number {
+  const target = normalizeName(traitName);
+  const traitSources = [
+    ...(sheet.rasgos ?? []),
+    ...String(sheet.noteSections?.traits ?? "")
+      .split(/[,\n;]/)
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+  ];
+
+  for (const rawTrait of traitSources) {
+    const normalized = normalizeName(rawTrait);
+    if (!normalized.startsWith(target)) {
+      continue;
+    }
+
+    if (/\biii\b|\b3\b/.test(normalized)) return 3;
+    if (/\bii\b|\b2\b/.test(normalized)) return 2;
+    return 1;
   }
 
-  return actions;
+  return 0;
+}
+
+function convertTraitBonusToPlayerRoll(value: number): string {
+  switch (value) {
+    case 2:
+      return "+1d4";
+    case 3:
+      return "+1d6";
+    default:
+      return value >= 0 ? `+${value}` : String(value);
+  }
+}
+
+function combineCanonicalDamageFormula(base: string, bonus: string): string {
+  const normalizedBase = base.trim().toLowerCase();
+  const normalizedBonus = bonus.trim().toLowerCase();
+  if (!normalizedBonus) {
+    return normalizedBase;
+  }
+
+  return normalizedBonus.startsWith("+") || normalizedBonus.startsWith("-")
+    ? `${normalizedBase}${normalizedBonus}`
+    : `${normalizedBase}+${normalizedBonus}`;
 }
 
 function isRatedActionAvailableForEntryLevel(
@@ -778,32 +814,59 @@ function skillLevelRank(level: z.infer<typeof skillLevelSchema>): number {
   }
 }
 
-const CANONICAL_RATED_ACTIONS = {
-  ability: new Map(SYMBAROUM_ABILITIES.map((entry) => [normalizeName(entry.nombre), entry.acciones])),
-  power: new Map(SYMBAROUM_MYSTIC_POWERS.map((entry) => [normalizeName(entry.nombre), entry.acciones])),
-  ritual: new Map(SYMBAROUM_RITUALS.map((entry) => [normalizeName(entry.nombre), entry.acciones]))
+const CANONICAL_RATED_ENTRIES = {
+  ability: new Map(SYMBAROUM_ABILITIES.map((entry) => [normalizeName(entry.nombre), entry])),
+  power: new Map(SYMBAROUM_MYSTIC_POWERS.map((entry) => [normalizeName(entry.nombre), entry])),
+  ritual: new Map(SYMBAROUM_RITUALS.map((entry) => [normalizeName(entry.nombre), entry]))
 } as const;
+
+function sanitizeImportedRatedEntry(entry: unknown): z.infer<typeof ratedEntrySchema> | null {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    return null;
+  }
+
+  const candidate = entry as Record<string, unknown>;
+  const nombre = String(candidate.nombre ?? "").trim();
+  const nivelRaw = String(candidate.nivel ?? "").trim().toLowerCase();
+  const nivel = nivelRaw === "novato" || nivelRaw === "adepto" || nivelRaw === "maestro" ? nivelRaw : "novato";
+
+  const acciones = Array.isArray(candidate.acciones) ? candidate.acciones.filter((action) => action && typeof action === "object") : [];
+
+  return {
+    nombre,
+    tipo: String(candidate.tipo ?? ""),
+    efecto: String(candidate.efecto ?? ""),
+    nivel,
+    fuente: String(candidate.fuente ?? ""),
+    pagina: typeof candidate.pagina === "number" && Number.isInteger(candidate.pagina) ? candidate.pagina : undefined,
+    notas: String(candidate.notas ?? ""),
+    acciones: acciones as z.infer<typeof actionMetadataSchema>[]
+  };
+}
 
 function hydrateRatedEntryActions(
   entries: z.infer<typeof ratedEntrySchema>[] | undefined,
   sourceType: "ability" | "power" | "ritual"
 ): z.infer<typeof ratedEntrySchema>[] {
-  const canonicalActions = CANONICAL_RATED_ACTIONS[sourceType];
-  return (entries ?? []).map((entry) => {
-    if (entry.acciones.length > 0) {
-      return entry;
-    }
+  const canonicalEntries = CANONICAL_RATED_ENTRIES[sourceType];
+  return (entries ?? [])
+    .map((entry) => sanitizeImportedRatedEntry(entry))
+    .filter((entry): entry is z.infer<typeof ratedEntrySchema> => entry !== null && Boolean(entry?.nombre))
+    .map((entry) => {
+      const canonicalEntry = canonicalEntries.get(normalizeName(entry.nombre));
+      const actions = Array.isArray(entry.acciones) ? entry.acciones : [];
 
-    const resolvedActions = canonicalActions.get(normalizeName(entry.nombre));
-    if (!resolvedActions || resolvedActions.length === 0) {
-      return entry;
-    }
-
-    return {
-      ...entry,
-      acciones: resolvedActions.map((action) => ({ ...action }))
-    };
-  });
+      return {
+        ...entry,
+        tipo: entry.tipo || canonicalEntry?.tipo || "",
+        efecto: entry.efecto || canonicalEntry?.efectoResumen || "",
+        fuente: entry.fuente || canonicalEntry?.libro || "",
+        pagina: entry.pagina ?? canonicalEntry?.pagina,
+        acciones: actions.length > 0
+          ? actions
+          : (canonicalEntry?.acciones.map((action) => ({ ...action })) ?? [])
+      };
+    });
 }
 
 function normalizeRatedEntries(
@@ -964,16 +1027,7 @@ export const importedCharacterSheetSchema = characterSheetObjectSchema.superRefi
   }
 
   const canonicalAbilityNames = sheet.habilidades.map((entry) => normalizeName(entry.nombre));
-  const hasMysticAbility = canonicalAbilityNames.some((name) => NORMALIZED_MYSTIC_ABILITY_NAMES.includes(name));
   const hasRitualAbility = canonicalAbilityNames.some((name) => NORMALIZED_RITUAL_ABILITY_NAMES.includes(name));
-
-  if (sheet.poderesMisticos.length > 0 && !hasMysticAbility) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["poderesMisticos"],
-      message: "Para registrar poderes misticos debes incluir una habilidad mistica base (Poder místico, Magia, Teúrgia, Brujería o Hechicería)"
-    });
-  }
 
   if (sheet.rituales.length > 0 && !hasRitualAbility) {
     ctx.addIssue({

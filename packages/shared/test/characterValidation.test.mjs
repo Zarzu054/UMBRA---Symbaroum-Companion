@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createCharacterSchema, createEmptyCharacterSheet, parseCharacterSheet } from "../dist/index.js";
+import { createCharacterSchema, createEmptyCharacterSheet, importCharacterSchema, parseCharacterSheet, synchronizeCharacterSheet } from "../dist/index.js";
 
 function buildPayload() {
   const sheet = createEmptyCharacterSheet();
@@ -82,29 +82,8 @@ test("rechaza habilidades maestro en nivel 1", () => {
   expectIssue(payload, "nivel maestro");
 });
 
-test("rechaza poderes misticos sin habilidad mistica base", () => {
+test("acepta poderes misticos sin habilidad mistica base", () => {
   const payload = buildPayload();
-  payload.sheet.poderesMisticos = [
-    {
-      nombre: "Confusión",
-      tipo: "Poder místico",
-      efecto: "",
-      nivel: "novato",
-      fuente: "Guía Avanzada del Jugador",
-      pagina: 81,
-      notas: ""
-    }
-  ];
-  expectIssue(payload, "habilidad mistica base");
-});
-
-test("acepta poderes misticos con habilidad mistica base", () => {
-  const payload = buildPayload();
-  payload.sheet.habilidades = makeAbilities([
-    ["Magia", "novato"],
-    ["Acróbata", "novato"],
-    ["Alquimista", "adepto"]
-  ]);
   payload.sheet.poderesMisticos = [
     {
       nombre: "Confusión",
@@ -118,6 +97,61 @@ test("acepta poderes misticos con habilidad mistica base", () => {
   ];
   const parsed = createCharacterSchema.safeParse(payload);
   assert.equal(parsed.success, true);
+});
+
+test("importCharacterSchema acepta poderes misticos sin habilidad mistica base", () => {
+  const payload = buildPayload();
+  payload.sheet.poderesMisticos = [
+    {
+      nombre: "Confusión",
+      tipo: "Poder místico",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Guía Avanzada del Jugador",
+      pagina: 81,
+      notas: ""
+    }
+  ];
+  const parsed = importCharacterSchema.safeParse(payload);
+  assert.equal(parsed.success, true);
+});
+
+test("importCharacterSchema acepta habilidades importadas sin descripcion valida y las hidrata por nombre", () => {
+  const payload = buildPayload();
+  payload.sheet.habilidades = [
+    {
+      nombre: "Berserker",
+      tipo: "Habilidad",
+      efecto: null,
+      nivel: "novato",
+      fuente: "",
+      pagina: undefined,
+      notas: null
+    }
+  ];
+  const parsed = importCharacterSchema.safeParse(payload);
+  assert.equal(parsed.success, true);
+});
+
+test("synchronizeCharacterSheet hidrata efecto y acciones canonicas cuando una habilidad importada llega sin descripcion", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.habilidades = [
+    {
+      nombre: "Berserker",
+      tipo: "Habilidad",
+      efecto: null,
+      nivel: "novato",
+      fuente: "",
+      pagina: undefined,
+      notas: null
+    }
+  ];
+
+  const normalized = synchronizeCharacterSheet(sheet);
+  assert.match(normalized.habilidades[0].efecto, /frenesi|frenes/i);
+  assert.ok(normalized.habilidades[0].acciones.length > 0);
+  assert.equal(normalized.habilidades[0].fuente.length > 0, true);
+  assert.equal(typeof normalized.habilidades[0].pagina, "number");
 });
 
 test("rechaza rituales sin habilidad Rituales", () => {

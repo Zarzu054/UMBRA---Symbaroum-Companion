@@ -678,7 +678,7 @@ const FORMA_VERDADERA_ACTIONS: SymbaroumCapabilityAction[] = [
 ];
 
 const GLIFO_VAMPIRICO_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("general-glifo-vampirico", "Activar Glifo vampírico", "combat", "Activa un glifo que drena Resistencia del objetivo y la transfiere según el nivel del símbolo.", { rollAttribute: "tenaz" })
+  capabilityAction("general-glifo-vampirico", "Activar Glifo vampírico", "combat", "Activa un glifo que drena Resistencia del objetivo y la transfiere según el nivel del símbolo.", { rollAttribute: "tenaz", damageFormula: "1d4" })
 ];
 
 const HERIDA_COMPARTIDA_ACTIONS: SymbaroumCapabilityAction[] = [
@@ -887,7 +887,7 @@ const ARCO_VELOZ_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
     "maestro-arco-veloz",
     "Usar Arco veloz (Maestro)",
-    "reaction",
+    "combat",
     "Resuelve tres disparos con una sola acción de combate, contra uno o varios objetivos.",
     { rollAttribute: "diestro" }
   )

@@ -1159,6 +1159,90 @@ const SOURCE_PDF_PATHS = {
     "C\u00f3dice de monstruos": "/books/codice-de-monstruos.pdf",
     "Symbaroum Errata v1.14": "/books/symbaroum-errata-v1-14.pdf",
 };
+const SOURCE_PDF_PAGE_OFFSETS = {
+    "Gu\u00eda Avanzada del Jugador": 2
+};
+const ADVANCED_GUIDE_ENTRY_PAGE_OVERRIDES = {
+    "Arco veloz": 60,
+    "Armas de presa": 60,
+    "Canalización": 62,
+    "Capa danzante": 62,
+    "Combate con arma larga": 63,
+    "Combate con armas de cadena": 63,
+    "Combate sangriento": 63,
+    "Cuchillo rápido": 64,
+    "Danza de batalla": 64,
+    "Disparo magistral": 64,
+    "Elaboración de artefactos": 66,
+    "Esgrima sagrada": 66,
+    "Espíritu combativo": 66,
+    "Experto en asedios": 67,
+    "Golpe bajo": 67,
+    "Herrero": 67,
+    "Instinto de cazador": 68,
+    "Lucha": 68,
+    "Magia del báculo": 69,
+    "Martillo ariete": 70,
+    "Maestro del hacha": 68,
+    "Místico acorazado": 70,
+    "Oportunista": 70,
+    "Pirotecnia": 70,
+    "Puño de flecha": 71,
+    "Reflejos rápidos": 71,
+    "Simbolismo": 72,
+    "Talento místico superior": 72,
+    "Tatuaje rúnico": 73,
+    "Trampero": 73,
+    "Aliento negro": 78,
+    "Arma danzante": 78,
+    "Báculo arrojadizo": 80,
+    "Cacería salvaje": 80,
+    "Esfera de protección": 80,
+    "Espíritu ígneo": 81,
+    "Espíritus atormentadores": 81,
+    "Expulsar a los abismos": 81,
+    "Forma espiritual": 82,
+    "Glifo vampírico": 82,
+    "Golpe psíquico": 83,
+    "Himno de batalla": 83,
+    "Himno debilitante": 83,
+    "Himno heroico": 83,
+    "Imagen especular": 84,
+    "Manantial de vida": 84,
+    "Manto de espinas": 84,
+    "Nube de venganza": 84,
+    "Purgatorio": 86,
+    "Rayo negro": 86,
+    "Runas de protección": 86,
+    "Sello de expulsión": 87,
+    "Símbolo cegador": 87,
+    "Teletransportación": 87
+};
+function resolveCompendiumPdfPage(source, page, searchTerm) {
+    if (!page) {
+        return undefined;
+    }
+    const canonicalSource = canonicalizeCompendiumSourceName(source);
+    let resolvedPage = page;
+    if (canonicalSource === "Gu\u00eda Avanzada del Jugador") {
+        const exactPage = searchTerm ? ADVANCED_GUIDE_ENTRY_PAGE_OVERRIDES[searchTerm.trim()] : undefined;
+        if (exactPage) {
+            resolvedPage = exactPage;
+        }
+        else if (searchTerm?.trim()) {
+            if (page >= 64 && page <= 67) {
+                resolvedPage = 60;
+            }
+            else if (page >= 80 && page <= 81) {
+                resolvedPage = 78;
+            }
+            else if (page >= 90 && page <= 91) {
+                resolvedPage = 88;
+            }
+        }
+    }
+    return resolvedPage + (SOURCE_PDF_PAGE_OFFSETS[canonicalSource] ?? SOURCE_PDF_PAGE_OFFSETS[source] ?? 0);
+}
 export function getCompendiumSourcePdfUrl(source, page, searchTerm) {
     const canonicalSource = canonicalizeCompendiumSourceName(source);
     const basePath = SOURCE_PDF_PATHS[canonicalSource] ?? SOURCE_PDF_PATHS[source];
@@ -1166,8 +1250,9 @@ export function getCompendiumSourcePdfUrl(source, page, searchTerm) {
         return null;
     }
     const fragmentParams = new URLSearchParams();
-    if (page) {
-        fragmentParams.set("page", String(page));
+    const adjustedPage = resolveCompendiumPdfPage(canonicalSource, page, searchTerm);
+    if (adjustedPage) {
+        fragmentParams.set("page", String(adjustedPage));
     }
     if (searchTerm?.trim()) {
         fragmentParams.set("search", searchTerm.trim());

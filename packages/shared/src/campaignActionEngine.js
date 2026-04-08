@@ -303,12 +303,9 @@ function applyPassiveActionRules(sheet, actions) {
     applyConditionalDamageVariants(sheet, styleAdjustedActions);
     const visibleActions = styleAdjustedActions;
     const unarmedCombatLevel = getRatedEntryLevel(sheet, "Combate sin armas");
-    if (visibleActions.some((action) => isNaturalWeaponAction(action))) {
-        return dedupeActions(visibleActions);
-    }
     const hasUnarmedAction = visibleActions.some((action) => action.id === "ability:combate-sin-armas:base");
     if (!hasUnarmedAction) {
-        visibleActions.push(createUnarmedAttackAction(unarmedCombatLevel));
+        visibleActions.push(createUnarmedAttackAction(sheet, unarmedCombatLevel));
     }
     return dedupeActions(visibleActions);
 }
@@ -372,7 +369,23 @@ function getRobustDamageBonus(sheet) {
         appliesTo: "melee"
     };
 }
+function getNaturalWeaponDamageBonus(sheet) {
+    const naturalWeaponLevel = getTraitLevel(sheet, "arma natural");
+    if (naturalWeaponLevel <= 0) {
+        return null;
+    }
+    return {
+        id: `trait:arma-natural:${naturalWeaponLevel}`,
+        label: "Arma natural",
+        formula: convertMonsterFlatBonusToPlayerRoll(naturalWeaponLevel),
+        appliesTo: "melee"
+    };
+}
 function getRobustLevel(sheet) {
+    return getTraitLevel(sheet, "robusto");
+}
+function getTraitLevel(sheet, traitName) {
+    const target = normalizeName(traitName);
     const traitSources = [
         ...sheet.rasgos,
         ...String(sheet.noteSections?.traits ?? "")
@@ -382,7 +395,7 @@ function getRobustLevel(sheet) {
     ];
     for (const rawTrait of traitSources) {
         const normalized = normalizeName(rawTrait);
-        if (!normalized.startsWith("robusto")) {
+        if (!normalized.startsWith(target)) {
             continue;
         }
         if (/\biii\b|\b3\b/.test(normalized))
@@ -474,7 +487,9 @@ function getRatedEntryLevel(sheet, name) {
     const target = normalizeName(name);
     return sheet.habilidades.find((entry) => normalizeName(entry.nombre) === target)?.nivel;
 }
-function createUnarmedAttackAction(level) {
+function createUnarmedAttackAction(sheet, level) {
+    const naturalWeaponBonus = getNaturalWeaponDamageBonus(sheet);
+    const baseDamage = !level ? "1d4" : level === "maestro" ? "2d6" : "1d6";
     return {
         id: "ability:combate-sin-armas:base",
         label: "Ataque desarmado",
@@ -482,7 +497,7 @@ function createUnarmedAttackAction(level) {
         sourceName: level ? "Combate sin armas" : "Ataque basico",
         cost: "combat",
         rollAttribute: "fuerte",
-        damageFormula: !level ? "1d4" : level === "maestro" ? "2d6" : "1d6",
+        damageFormula: naturalWeaponBonus ? combineDamageFormulas(baseDamage, naturalWeaponBonus.formula) : baseDamage,
         effectSummary: !level
             ? "Ataque desarmado basico disponible para cualquier personaje."
             : level === "adepto"
@@ -536,6 +551,7 @@ const INTEGRATED_COMBAT_STYLE_ABILITIES = new Set([
     "combate sin armas",
     "cuchillo rapido",
     "golpe de hierro",
+    "sexto sentido",
     "tirador",
     "viento de acero"
 ]);
@@ -599,6 +615,13 @@ function applyIntegratedCombatStyles(sheet, actions) {
                 next.damageFormula = normalizeFormula(increaseDamageDie(next.damageFormula) ?? next.damageFormula);
             }
             next.effectSummary = appendSummary(next.effectSummary, buildMarksmanSummary(marksmanLevel));
+        }
+        const sixthSenseLevel = getRatedEntryLevel(sheet, "Sexto sentido");
+        if (sixthSenseLevel && isRangedWeaponAction(next)) {
+            if (!next.rollAttribute || next.rollAttribute === "diestro") {
+                next.rollAttribute = "atento";
+            }
+            next.effectSummary = appendSummary(next.effectSummary, buildSixthSenseSummary(sixthSenseLevel));
         }
         const steelWindLevel = getRatedEntryLevel(sheet, "Viento de acero");
         if (steelWindLevel && isThrownWeaponAction(next)) {
@@ -724,6 +747,13 @@ function buildMarksmanSummary(level) {
         return "Tirador: si hieres al objetivo, puedes inmovilizar su movimiento con [Diestro<-Fuerte].";
     return "Tirador: el dano de arcos y ballestas aumenta un nivel.";
 }
+function buildSixthSenseSummary(level) {
+    if (level === "maestro")
+        return "Sexto sentido: puedes combatir a distancia guiandote por otros sentidos incluso en oscuridad o ceguera.";
+    if (level === "adepto")
+        return "Sexto sentido: tu intuicion mejora tambien la iniciativa y la Defensa.";
+    return "Sexto sentido: tus ataques a distancia usan Atento en vez de Diestro.";
+}
 function buildSteelWindSummary(level) {
     if (level === "maestro")
         return "Viento de acero: puedes lanzar hasta tres armas arrojadizas con una sola accion.";
@@ -747,7 +777,10 @@ function isLongWeaponAction(action) {
     return isWeaponTextMatch(action, /(larga|lanza|alabarda|vara|baculo|baston|asta)/);
 }
 function isMeleeWeaponAction(action) {
-    return !isBowOrCrossbowAction(action) && !isThrownWeaponAction(action) && !isNaturalWeaponAction(action);
+    return !isRangedWeaponAction(action);
+}
+function isRangedWeaponAction(action) {
+    return isBowOrCrossbowAction(action) || isThrownWeaponAction(action) || isWeaponTextMatch(action, /(honda|tirachinas|onda)/);
 }
 function isChainWeaponAction(action) {
     return isWeaponTextMatch(action, /(cadena|latigo|mayal|flail)/);

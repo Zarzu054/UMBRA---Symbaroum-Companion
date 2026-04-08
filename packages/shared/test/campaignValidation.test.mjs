@@ -9,7 +9,8 @@ import {
   createCampaignSessionSchema,
   executeCharacterAction,
   grantCampaignExperienceSchema,
-  synchronizeCharacterSheet
+  synchronizeCharacterSheet,
+  SYMBAROUM_ABILITIES
 } from "../dist/index.js";
 
 test("createCampaignSessionSchema acepta una sesion valida", () => {
@@ -116,6 +117,28 @@ test("deriveCharacterActions filtra acciones por el nivel real de la capacidad",
     .map((action) => action.requiredLevel);
 
   assert.deepEqual(actions, ["adepto"]);
+});
+
+test("Glifo vampirico deriva tirada y dano", () => {
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    poderesMisticos: [
+      {
+        nombre: "Glifo vampírico",
+        tipo: "Poder místico",
+        efecto: "",
+        nivel: "novato",
+        fuente: "Guía Avanzada del Jugador",
+        notas: "",
+        acciones: []
+      }
+    ]
+  });
+
+  const action = deriveCharacterActions(sheet).find((entry) => entry.sourceName === "Glifo vampírico");
+  assert.ok(action);
+  assert.equal(action.rollAttribute, "tenaz");
+  assert.equal(action.damageFormula, "1d4");
 });
 
 test("Berserker novato agrega una defensa con objetivo fijo de Agil 5", () => {
@@ -559,6 +582,37 @@ test("todo personaje tiene un ataque desarmado base de 1d4 aunque no tenga Comba
   assert.equal(unarmedAction.rollAttribute, "fuerte");
 });
 
+test("Arma natural se integra en el ataque desarmado y no lo sustituye por un arma separada", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.rasgos = ["Arma natural II"];
+
+  const actions = deriveCharacterActions(sheet);
+  const unarmedAction = actions.find((action) => action.label === "Ataque desarmado");
+  assert.ok(unarmedAction);
+  assert.equal(unarmedAction.damageFormula, "1d4+1d4");
+  assert.equal(actions.filter((action) => /arma natural|garra|mordisco/i.test(action.label)).length, 0);
+});
+
+test("Arma natural mejora tambien el dano desarmado cuando existe Combate sin armas", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.rasgos = ["Arma natural III"];
+  sheet.habilidades = [
+    {
+      nombre: "Combate sin armas",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: []
+    }
+  ];
+
+  const unarmedAction = deriveCharacterActions(sheet).find((action) => action.label === "Ataque desarmado");
+  assert.ok(unarmedAction);
+  assert.equal(unarmedAction.damageFormula, "1d6+1d6");
+});
+
 test("Cuchillo rapido modifica el ataque con cuchillo en vez de aparecer como accion separada", () => {
   const sheet = createEmptyCharacterSheet();
   sheet.inventoryItems = [
@@ -661,6 +715,31 @@ test("Golpe de hierro cambia automaticamente a Fuerte los ataques cuerpo a cuerp
   assert.equal(rollRequest.target, 15);
 });
 
+test("Golpe de hierro tambien modifica el ataque desarmado", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.atributos.fuerte = 14;
+  sheet.atributos.diestro = 9;
+  sheet.habilidades = [
+    {
+      nombre: "Golpe de hierro",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: []
+    }
+  ];
+
+  const unarmedAction = deriveCharacterActions(sheet).find((action) => action.label === "Ataque desarmado");
+  assert.ok(unarmedAction);
+  assert.equal(unarmedAction.rollAttribute, "fuerte");
+
+  const rollRequest = buildRollRequest(sheet, "Kael", unarmedAction.id, "attack", "roll20");
+  assert.equal(rollRequest.rollAttribute, "fuerte");
+  assert.equal(rollRequest.target, 14);
+});
+
 test("Armas a dos manos modifica el arma pesada y no aparece como accion separada", () => {
   const sheet = createEmptyCharacterSheet();
   sheet.inventoryItems = [
@@ -706,6 +785,111 @@ test("Armas a dos manos modifica el arma pesada y no aparece como accion separad
   assert.ok(weaponAction);
   assert.equal(weaponAction.damageFormula, "1d12");
   assert.match(weaponAction.effectSummary, /ignora la armadura/i);
+});
+
+test("Tirador mejora automaticamente arcos y ballestas equipados", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.inventoryItems = [
+    {
+      id: "bow-1",
+      name: "Arco largo",
+      category: "weapon",
+      quantity: 1,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "ranged",
+      attackAttribute: "diestro",
+      damageFormula: "1d8",
+      protectionFormula: "",
+      qualities: "",
+      notes: ""
+    },
+    {
+      id: "crossbow-1",
+      name: "Ballesta",
+      category: "weapon",
+      quantity: 1,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "ranged",
+      attackAttribute: "diestro",
+      damageFormula: "1d10",
+      protectionFormula: "",
+      qualities: "",
+      notes: ""
+    }
+  ];
+  sheet.habilidades = [
+    {
+      nombre: "Tirador",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: []
+    }
+  ];
+
+  const actions = deriveCharacterActions(sheet);
+  assert.equal(actions.find((action) => action.label === "Atacar con Arco largo")?.damageFormula, "1d10");
+  assert.equal(actions.find((action) => action.label === "Atacar con Ballesta")?.damageFormula, "1d12");
+});
+
+test("Sexto sentido cambia a Atento los ataques a distancia disponibles", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.atributos.atento = 13;
+  sheet.inventoryItems = [
+    {
+      id: "bow-1",
+      name: "Arco largo",
+      category: "weapon",
+      quantity: 1,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "ranged",
+      attackAttribute: "diestro",
+      damageFormula: "1d8",
+      protectionFormula: "",
+      qualities: "",
+      notes: ""
+    }
+  ];
+  sheet.habilidades = [
+    {
+      nombre: "Sexto sentido",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: []
+    }
+  ];
+
+  const bowAction = deriveCharacterActions(sheet).find((action) => action.label === "Atacar con Arco largo");
+  assert.ok(bowAction);
+  assert.equal(bowAction.rollAttribute, "atento");
+  assert.match(bowAction.effectSummary, /sexto sentido/i);
+
+  const rollRequest = buildRollRequest(sheet, "Kael", bowAction.id, "attack", "roll20");
+  assert.equal(rollRequest.rollAttribute, "atento");
+  assert.equal(rollRequest.target, 13);
+});
+
+test("Arco veloz maestro se guarda como accion de combate en el compendio canonico", () => {
+  const fastBow = SYMBAROUM_ABILITIES.find((entry) => entry.nombre === "Arco veloz");
+  const masterAction = fastBow?.acciones.find((action) => action.label === "Usar Arco veloz (Maestro)");
+
+  assert.ok(masterAction);
+  assert.equal(masterAction.cost, "combat");
+  assert.equal(masterAction.label, "Usar Arco veloz (Maestro)");
 });
 
 test("las subidas acumuladas de nivel de dado se topan en 1d12 y el exceso pasa a +1", () => {

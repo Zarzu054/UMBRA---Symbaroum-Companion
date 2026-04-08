@@ -228,6 +228,36 @@ function normalizeCapabilityText(text: string): string {
     .toLowerCase();
 }
 
+function normalizeInventoryItemText(text: string): string {
+  return String(text ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function isContainerLikeInventoryItem(item: CharacterSheet["inventoryItems"][number]): boolean {
+  const combinedText = normalizeInventoryItemText([item.name, item.description, item.qualities].filter(Boolean).join(" "));
+  return /(mochila|bolsa|saco|bandolera|estuche|cofre|caja|barril|contenedor|alforja|morral)/.test(combinedText);
+}
+
+function isStackableInventoryItem(item: CharacterSheet["inventoryItems"][number]): boolean {
+  if (isContainerLikeInventoryItem(item)) {
+    return false;
+  }
+  if (item.stackable) {
+    return true;
+  }
+  if (item.isCustom) {
+    return false;
+  }
+  if (item.category === "weapon" || item.category === "armor" || item.category === "artifact") {
+    return false;
+  }
+  return true;
+}
+
 function capitalizeActionLevel(level: string): "Novato" | "Adepto" | "Maestro" | null {
   switch (String(level ?? "").toLowerCase()) {
     case "novato":
@@ -699,6 +729,7 @@ export function UnifiedCharacterSheet({
   }
 
   function renderInventoryItemEditor(item: CharacterSheet["inventoryItems"][number], index: number): ReactNode {
+    const stackable = isStackableInventoryItem(item);
     return (
       <article key={item.id} className="campaign-structured-card">
         <div className="row-actions">
@@ -711,8 +742,8 @@ export function UnifiedCharacterSheet({
             </p>
           </div>
           <div className="unified-sheet-quantity-controls">
-            {item.stackable ? <span className="info-chip">x{item.quantity}</span> : null}
-            {canEditInventory && item.stackable ? (
+            {stackable ? <span className="info-chip">x{item.quantity}</span> : null}
+            {canEditInventory && stackable ? (
               <div className="unified-sheet-stack-controls">
                 <button type="button" className="subtle-button" onClick={() => changeInventoryQuantity(index, 1)}>+</button>
                 <button type="button" className="subtle-button" onClick={() => changeInventoryQuantity(index, -1)}>-</button>
@@ -1328,7 +1359,17 @@ export function UnifiedCharacterSheet({
                         <option value="other">Otro</option>
                       </select>
                     </Field>
-                    <Field label="Cantidad"><input disabled={!editMode} type="number" min={0} value={item.quantity} onChange={(event) => updateInventoryItem(index, "quantity", Number(event.target.value || 0))} /></Field>
+                    <Field label="Cantidad">
+                      {isStackableInventoryItem(item) ? (
+                        <div className="unified-sheet-inline-quantity-editor">
+                          <button type="button" className="subtle-button" disabled={!editMode} onClick={() => changeInventoryQuantity(index, -1)}>-</button>
+                          <input disabled={!editMode} type="number" min={0} value={item.quantity} onChange={(event) => updateInventoryItem(index, "quantity", Number(event.target.value || 0))} />
+                          <button type="button" className="subtle-button" disabled={!editMode} onClick={() => changeInventoryQuantity(index, 1)}>+</button>
+                        </div>
+                      ) : (
+                        <input disabled={!editMode} type="number" min={0} value={item.quantity} onChange={(event) => updateInventoryItem(index, "quantity", Number(event.target.value || 0))} />
+                      )}
+                    </Field>
                     <Field label="Equipada">
                       <select disabled={!editMode} value={item.equipped ? "si" : "no"} onChange={(event) => updateInventoryItem(index, "equipped", event.target.value === "si")}>
                         <option value="si">Si</option>
