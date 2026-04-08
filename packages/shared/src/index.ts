@@ -150,11 +150,21 @@ const canonicalActionEntrySchema = z.object({
   linkedItemId: z.string().max(120).default("")
 });
 
+const itemModifierSchema = z.object({
+  id: z.string().min(1).max(120),
+  label: z.string().min(1).max(120),
+  modifierType: z.enum(["attack", "damage", "armor", "defense", "initiative", "painThreshold", "corruptionThreshold", "custom"]).default("custom"),
+  value: z.string().max(80).default(""),
+  notes: z.string().max(240).default("")
+});
+
 const inventoryItemSchema = z.object({
   id: z.string().min(1).max(120),
   name: z.string().min(1).max(160),
   category: z.enum(["weapon", "armor", "gear", "consumable", "artifact", "treasure", "other"]).default("other"),
   quantity: z.number().int().min(0).max(999).default(1),
+  stackable: z.boolean().default(false),
+  isCustom: z.boolean().default(false),
   description: z.string().max(1200).default(""),
   weight: z.string().max(40).default(""),
   value: z.string().max(80).default(""),
@@ -164,7 +174,9 @@ const inventoryItemSchema = z.object({
   damageFormula: z.string().max(80).default(""),
   protectionFormula: z.string().max(80).default(""),
   qualities: z.string().max(240).default(""),
-  notes: z.string().max(800).default("")
+  notes: z.string().max(800).default(""),
+  grantedActions: z.array(actionMetadataSchema).max(20).default([]),
+  modifiers: z.array(itemModifierSchema).max(20).default([])
 });
 
 const equipmentSlotsSchema = z.object({
@@ -307,7 +319,8 @@ export const characterSheetSchema = characterSheetObjectSchema.superRefine((shee
       });
     }
 
-    if (sheet.combate.robustezActual > sheet.combate.robustezMax) {
+    const robustezMax = sheet.atributos.fuerte;
+    if (sheet.combate.robustezActual > robustezMax) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["combate", "robustezActual"],
@@ -444,6 +457,8 @@ function buildLegacyInventoryItems(sheet: z.infer<typeof characterSheetObjectSch
       name: trimmed,
       category: "weapon",
       quantity: 1,
+      stackable: false,
+      isCustom: false,
       description: "",
       weight: "",
       value: "",
@@ -453,7 +468,9 @@ function buildLegacyInventoryItems(sheet: z.infer<typeof characterSheetObjectSch
       damageFormula: (damageFormula ?? "").trim(),
       protectionFormula: "",
       qualities: (qualities ?? "").trim(),
-      notes: ""
+      notes: "",
+      grantedActions: [],
+      modifiers: []
     });
   };
 
@@ -468,6 +485,8 @@ function buildLegacyInventoryItems(sheet: z.infer<typeof characterSheetObjectSch
       name: (sheet.combate.armadura ?? "").trim(),
       category: "armor",
       quantity: 1,
+      stackable: false,
+      isCustom: false,
       description: "",
       weight: "",
       value: "",
@@ -477,6 +496,8 @@ function buildLegacyInventoryItems(sheet: z.infer<typeof characterSheetObjectSch
       damageFormula: "",
       qualities: (sheet.combate.armaduraCualidad ?? "").trim(),
       notes: "",
+      grantedActions: [],
+      modifiers: [],
       attackAttribute: undefined
     });
   }
@@ -489,6 +510,8 @@ function buildLegacyInventoryItems(sheet: z.infer<typeof characterSheetObjectSch
       name: trimmed,
       category: inferInventoryCategory(trimmed),
       quantity: 1,
+      stackable: /(racion|antorcha|flecha|virote|vial|pocion|elixir|moneda|thaler)/.test(normalizeName(trimmed)),
+      isCustom: false,
       description: "",
       weight: "",
       value: "",
@@ -498,7 +521,9 @@ function buildLegacyInventoryItems(sheet: z.infer<typeof characterSheetObjectSch
       damageFormula: "",
       protectionFormula: "",
       qualities: "",
-      notes: ""
+      notes: "",
+      grantedActions: [],
+      modifiers: []
     });
   }
 
@@ -509,6 +534,8 @@ function buildLegacyInventoryItems(sheet: z.infer<typeof characterSheetObjectSch
       name: artifact.nombre.trim(),
       category: "artifact",
       quantity: 1,
+      stackable: false,
+      isCustom: false,
       description: artifact.poderes.trim(),
       weight: "",
       value: "",
@@ -518,7 +545,9 @@ function buildLegacyInventoryItems(sheet: z.infer<typeof characterSheetObjectSch
       damageFormula: "",
       protectionFormula: "",
       qualities: "",
-      notes: artifact.corrupcion.trim()
+      notes: artifact.corrupcion.trim(),
+      grantedActions: [],
+      modifiers: []
     });
   }
 
@@ -553,6 +582,30 @@ function buildLegacyConditions(sheet: z.infer<typeof characterSheetObjectSchema>
   return conditions;
 }
 
+function synchronizeAutomaticConditions(
+  conditions: z.infer<typeof conditionSchema>[],
+  sheet: Pick<z.infer<typeof characterSheetObjectSchema>, "corrupcion">
+): z.infer<typeof conditionSchema>[] {
+  const manualConditions = conditions.filter((condition) => condition.id !== "legacy-corruption");
+
+  if (sheet.corrupcion.temporal <= 0 && sheet.corrupcion.permanente <= 0) {
+    return manualConditions;
+  }
+
+  return [
+    ...manualConditions,
+    {
+      id: "legacy-corruption",
+      name: "Corrupcion",
+      category: "corruption",
+      active: true,
+      severity: sheet.corrupcion.permanente > 0 ? "major" : "moderate",
+      summary: `Temporal ${sheet.corrupcion.temporal} / Permanente ${sheet.corrupcion.permanente}`,
+      notes: sheet.corrupcion.notas
+    }
+  ];
+}
+
 function buildLegacyNotesSections(sheet: z.infer<typeof characterSheetObjectSchema>): z.infer<typeof noteSectionsSchema> {
   return {
     general: sheet.notas ?? "",
@@ -580,6 +633,28 @@ function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>
       notes: item.notes,
       linkedItemId: item.id
     });
+  }
+
+  for (const item of sheet.inventoryItems) {
+    const canUseItemActions = item.quantity > 0 && (item.category !== "weapon" || item.equipped);
+    if (!canUseItemActions) continue;
+
+    for (const action of item.grantedActions ?? []) {
+      actions.push({
+        id: `item:${item.id}:${action.id}`,
+        label: action.label,
+        sourceType: item.category === "weapon" ? "weapon" : "ability",
+        sourceName: item.name,
+        cost: action.cost,
+        requiredLevel: action.requiredLevel,
+        rollAttribute: action.rollAttribute,
+        damageFormula: action.damageFormula,
+        effectSummary: action.effectSummary,
+        category: item.category,
+        notes: item.notes,
+        linkedItemId: item.id
+      });
+    }
   }
 
   const pushRatedActions = (
@@ -690,26 +765,44 @@ function migrateCharacterSheetInput(input: unknown): unknown {
         campaign: candidate.noteSections.campaign ?? ""
       }
     : buildLegacyNotesSections(candidate);
+  const syncedRobustezMax = candidate.atributos?.fuerte ?? candidate.combate?.robustezMax ?? 10;
 
   return {
     ...candidate,
+    combate: {
+      ...candidate.combate,
+      robustezMax: syncedRobustezMax,
+      robustezActual: Math.min(candidate.combate?.robustezActual ?? syncedRobustezMax, syncedRobustezMax)
+    },
     inventoryItems,
     equipmentSlots,
-    conditions: Array.isArray(candidate.conditions) && candidate.conditions.length > 0 ? candidate.conditions : buildLegacyConditions(candidate),
+    conditions: synchronizeAutomaticConditions(
+      Array.isArray(candidate.conditions) && candidate.conditions.length > 0 ? candidate.conditions : buildLegacyConditions(candidate),
+      candidate
+    ),
     noteSections,
     actions: Array.isArray(candidate.actions) && candidate.actions.length > 0 ? candidate.actions : buildCanonicalActions({
       ...candidate,
       inventoryItems,
       equipmentSlots,
-      conditions: Array.isArray(candidate.conditions) ? candidate.conditions : buildLegacyConditions(candidate),
+      conditions: synchronizeAutomaticConditions(
+        Array.isArray(candidate.conditions) ? candidate.conditions : buildLegacyConditions(candidate),
+        candidate
+      ),
       noteSections
     } as z.infer<typeof characterSheetObjectSchema>)
   };
 }
 
 function buildSynchronizedCharacterSheet(input: CharacterSheet): CharacterSheet {
+  const syncedRobustezMax = input.atributos.fuerte;
   const legacyCompatible = {
     ...input,
+    combate: {
+      ...input.combate,
+      robustezMax: syncedRobustezMax,
+      robustezActual: Math.min(input.combate.robustezActual, syncedRobustezMax)
+    },
     noteSections: {
       ...input.noteSections,
       general: input.noteSections.general || input.notas || "",
@@ -717,7 +810,7 @@ function buildSynchronizedCharacterSheet(input: CharacterSheet): CharacterSheet 
       traits: input.noteSections.traits || input.rasgos.join(", "),
       campaign: input.noteSections.campaign
     },
-    conditions: input.conditions,
+    conditions: synchronizeAutomaticConditions(input.conditions, input),
     inventoryItems: input.inventoryItems,
     equipmentSlots: input.equipmentSlots
   };
@@ -741,7 +834,8 @@ export const importedCharacterSheetSchema = characterSheetObjectSchema.superRefi
     });
   }
 
-  if (sheet.combate.robustezActual > sheet.combate.robustezMax) {
+  const robustezMax = sheet.atributos.fuerte;
+  if (sheet.combate.robustezActual > robustezMax) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["combate", "robustezActual"],

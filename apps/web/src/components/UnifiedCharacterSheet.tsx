@@ -14,6 +14,7 @@ import {
   type RollRequest
 } from "@umbra/shared";
 import { computeDerivedStats } from "../models/rulesEngine";
+import { createCustomInventoryItem, createInventoryItemFromTemplate, ITEM_CATALOG } from "../models/itemCatalog";
 import { useUnifiedCharacterSheet } from "../hooks/useUnifiedCharacterSheet";
 import {
   dispatchRoll20Request,
@@ -23,6 +24,7 @@ import {
 
 type TabId = "actions" | "inventory" | "abilities" | "background" | "notes";
 type CapabilityTabId = "traits" | "abilities" | "powers" | "rituals";
+type InventoryTabId = "money" | "weapons" | "armors" | "items" | "slots";
 type RatedEntry = CharacterSheet["habilidades"][number];
 
 type Props = {
@@ -42,6 +44,108 @@ type PendingRollConfirmation = {
   visibility: Roll20Visibility;
 };
 
+type InventoryCatalogModalTab = "weapons" | "armors" | "items";
+
+type CapabilityTier = {
+  label: "Novato" | "Adepto" | "Maestro";
+  content: string;
+};
+
+type MoneyCounters = {
+  taleros: number;
+  chelines: number;
+  ortegs: number;
+};
+
+function parseMoneyCounters(rawValue: string): MoneyCounters {
+  const value = String(rawValue ?? "");
+  const talerosMatch = value.match(/(\d+)\s*taler/i);
+  const chelinesMatch = value.match(/(\d+)\s*chelin/i);
+  const ortegsMatch = value.match(/(\d+)\s*orteg/i);
+  const slashMatch = value.match(/^\s*(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)\s*$/);
+
+  if (slashMatch) {
+    return {
+      taleros: Number(slashMatch[1] ?? 0),
+      chelines: Number(slashMatch[2] ?? 0),
+      ortegs: Number(slashMatch[3] ?? 0)
+    };
+  }
+
+  return {
+    taleros: Number(talerosMatch?.[1] ?? 0),
+    chelines: Number(chelinesMatch?.[1] ?? 0),
+    ortegs: Number(ortegsMatch?.[1] ?? 0)
+  };
+}
+
+function formatMoneyCounters(counters: MoneyCounters): string {
+  return `${Math.max(0, counters.taleros)} Taleros · ${Math.max(0, counters.chelines)} Chelines · ${Math.max(0, counters.ortegs)} Ortegs`;
+}
+
+function parseCapabilityTiers(text: string): { tiers: CapabilityTier[]; reference: string | null; remainder: string | null } {
+  const source = String(text ?? "").trim();
+  if (!source) {
+    return { tiers: [], reference: null, remainder: null };
+  }
+
+  const tierRegex = /(Novato:|Adepto:|Maestro:)/g;
+  const matches = [...source.matchAll(tierRegex)];
+  if (matches.length === 0) {
+    const referenceIndex = source.indexOf("Ref:");
+    return {
+      tiers: [],
+      reference: referenceIndex >= 0 ? source.slice(referenceIndex).trim() : null,
+      remainder: (referenceIndex >= 0 ? source.slice(0, referenceIndex) : source).trim() || null
+    };
+  }
+
+  const tiers: CapabilityTier[] = [];
+  let reference: string | null = null;
+
+  for (let index = 0; index < matches.length; index += 1) {
+    const match = matches[index];
+    const start = match.index ?? 0;
+    const end = index + 1 < matches.length ? (matches[index + 1].index ?? source.length) : source.length;
+    const rawLabel = (match[0] ?? "").replace(":", "").trim();
+    const rawContent = source.slice(start + match[0].length, end).trim();
+    const referenceIndex = rawContent.indexOf("Ref:");
+    const content = (referenceIndex >= 0 ? rawContent.slice(0, referenceIndex) : rawContent).trim();
+    if (referenceIndex >= 0 && !reference) {
+      reference = rawContent.slice(referenceIndex).trim();
+    }
+    if (!content) {
+      continue;
+    }
+    if (rawLabel === "Novato" || rawLabel === "Adepto" || rawLabel === "Maestro") {
+      tiers.push({ label: rawLabel, content });
+    }
+  }
+
+  return { tiers, reference, remainder: null };
+}
+
+function capabilityLevelRank(level: string): number {
+  switch (String(level ?? "").toLowerCase()) {
+    case "maestro":
+      return 3;
+    case "adepto":
+      return 2;
+    case "novato":
+    default:
+      return 1;
+  }
+}
+
+function normalizeCapabilityText(text: string): string {
+  return String(text ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
 export function UnifiedCharacterSheet({
   title,
   subtitle,
@@ -58,8 +162,12 @@ export function UnifiedCharacterSheet({
     onSave
   });
   const canEditNotes = editMode && editable;
+  const canEditInventory = editable;
   const [activeTab, setActiveTab] = useState<TabId>("actions");
   const [activeCapabilityTab, setActiveCapabilityTab] = useState<CapabilityTabId>("abilities");
+  const [activeInventoryTab, setActiveInventoryTab] = useState<InventoryTabId>("weapons");
+  const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>(ITEM_CATALOG[0]?.templateId ?? "");
+  const [inventoryCatalogModalTab, setInventoryCatalogModalTab] = useState<InventoryCatalogModalTab | null>(null);
   const [history, setHistory] = useState<Array<{ title: string; detail?: string; rolls: ActionRollResult[] }>>([]);
   const rollDestination: RollDestination = "roll20";
   const [pendingRollConfirmation, setPendingRollConfirmation] = useState<PendingRollConfirmation | null>(null);
@@ -76,6 +184,29 @@ export function UnifiedCharacterSheet({
     () => equippedItems.find((item) => item.category === "armor") ?? null,
     [equippedItems]
   );
+  const moneyCounters = useMemo(() => parseMoneyCounters(normalizedSheet.recursos.dinero), [normalizedSheet.recursos.dinero]);
+  const inventorySections = useMemo(
+    () => ({
+      weapons: normalizedSheet.inventoryItems.map((item, index) => ({ item, index })).filter(({ item }) => item.category === "weapon"),
+      armors: normalizedSheet.inventoryItems.map((item, index) => ({ item, index })).filter(({ item }) => item.category === "armor"),
+      items: normalizedSheet.inventoryItems
+        .map((item, index) => ({ item, index }))
+        .filter(({ item }) => item.category !== "weapon" && item.category !== "armor")
+    }),
+    [normalizedSheet.inventoryItems]
+  );
+  const modalCatalogItems = useMemo(() => {
+    if (inventoryCatalogModalTab === "weapons") {
+      return ITEM_CATALOG.filter((item) => item.category === "weapon");
+    }
+    if (inventoryCatalogModalTab === "armors") {
+      return ITEM_CATALOG.filter((item) => item.category === "armor");
+    }
+    if (inventoryCatalogModalTab === "items") {
+      return ITEM_CATALOG.filter((item) => item.category !== "weapon" && item.category !== "armor");
+    }
+    return [];
+  }, [inventoryCatalogModalTab]);
 
   useEffect(() => {
     persistRollDestination("roll20");
@@ -238,7 +369,7 @@ export function UnifiedCharacterSheet({
     setDraft({ ...draft, [section]: draft[section].filter((_, entryIndex) => entryIndex !== index) });
   }
 
-  function updateInventoryItem(index: number, field: keyof CharacterSheet["inventoryItems"][number], value: string | number | boolean): void {
+  function updateInventoryItem(index: number, field: keyof CharacterSheet["inventoryItems"][number], value: string | number | boolean | undefined): void {
     setDraft({
       ...draft,
       inventoryItems: draft.inventoryItems.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item))
@@ -248,7 +379,7 @@ export function UnifiedCharacterSheet({
   function addInventoryItem(): void {
     setDraft({
       ...draft,
-      inventoryItems: [...draft.inventoryItems, { id: `custom-item-${Date.now()}`, name: "", category: "gear", quantity: 1, description: "", weight: "", value: "", equipped: false, slot: "none", attackAttribute: undefined, damageFormula: "", protectionFormula: "", qualities: "", notes: "" }]
+      inventoryItems: [...draft.inventoryItems, createCustomInventoryItem()]
     });
   }
 
@@ -265,6 +396,187 @@ export function UnifiedCharacterSheet({
         artifact: draft.equipmentSlots.artifact === removedId ? "" : draft.equipmentSlots.artifact,
         worn: draft.equipmentSlots.worn === removedId ? "" : draft.equipmentSlots.worn
       }
+    });
+  }
+
+  function addCatalogInventoryItem(): void {
+    const template = ITEM_CATALOG.find((entry) => entry.templateId === selectedCatalogItemId);
+    if (!template) return;
+    setDraft({
+      ...draft,
+      inventoryItems: [...draft.inventoryItems, createInventoryItemFromTemplate(template)]
+    });
+  }
+
+  function openInventoryCatalogModal(tab: InventoryCatalogModalTab): void {
+    const filteredItems = ITEM_CATALOG.filter((item) => {
+      if (tab === "weapons") return item.category === "weapon";
+      if (tab === "armors") return item.category === "armor";
+      return item.category !== "weapon" && item.category !== "armor";
+    });
+    setSelectedCatalogItemId(filteredItems[0]?.templateId ?? "");
+    setInventoryCatalogModalTab(tab);
+  }
+
+  function addSelectedCatalogItemFromModal(): void {
+    addCatalogInventoryItem();
+    setInventoryCatalogModalTab(null);
+  }
+
+  function changeInventoryQuantity(index: number, delta: number): void {
+    const item = draft.inventoryItems[index];
+    if (!item) return;
+    const nextQuantity = Math.max(0, item.quantity + delta);
+    if (nextQuantity <= 0) {
+      removeInventoryItem(index);
+      return;
+    }
+    updateInventoryItem(index, "quantity", nextQuantity);
+  }
+
+  function changeMoneyCounter(currency: keyof MoneyCounters, delta: number): void {
+    const nextCounters: MoneyCounters = {
+      ...moneyCounters,
+      [currency]: Math.max(0, moneyCounters[currency] + delta)
+    };
+    updateField("recursos.dinero", formatMoneyCounters(nextCounters));
+  }
+
+  function renderInventoryItemEditor(item: CharacterSheet["inventoryItems"][number], index: number): ReactNode {
+    return (
+      <article key={item.id} className="campaign-structured-card">
+        <div className="row-actions">
+          <div>
+            <h3>{item.name || "Objeto sin nombre"}</h3>
+            <p className="meta-text">
+              {item.category === "weapon" ? "Arma" : item.category === "armor" ? "Armadura" : "Objeto"}
+              {item.equipped ? " · equipado" : ""}
+              {item.slot !== "none" ? ` · ${slotLabel(item.slot)}` : ""}
+            </p>
+          </div>
+          <div className="unified-sheet-quantity-controls">
+            {item.stackable ? <span className="info-chip">x{item.quantity}</span> : null}
+            {canEditInventory && item.stackable ? (
+              <div className="unified-sheet-stack-controls">
+                <button type="button" className="subtle-button" onClick={() => changeInventoryQuantity(index, 1)}>+</button>
+                <button type="button" className="subtle-button" onClick={() => changeInventoryQuantity(index, -1)}>-</button>
+              </div>
+            ) : null}
+            {canEditInventory ? <button type="button" className="subtle-button" onClick={() => removeInventoryItem(index)}>Quitar</button> : null}
+          </div>
+        </div>
+        <div className="unified-sheet-item-readonly-grid">
+          {item.attackAttribute || item.damageFormula || item.protectionFormula ? (
+            <div className="info-box">
+              {item.attackAttribute ? <span>Ataque: {ATTRIBUTE_LABELS[item.attackAttribute]}</span> : null}
+              {item.damageFormula ? <span>Danio: {item.damageFormula}</span> : null}
+              {item.protectionFormula ? <span>Proteccion: {item.protectionFormula}</span> : null}
+            </div>
+          ) : null}
+          {item.weight || item.value ? (
+            <div className="info-box">
+              {item.weight ? <span>Peso: {item.weight}</span> : null}
+              {item.value ? <span>Valor: {item.value}</span> : null}
+            </div>
+          ) : null}
+          {item.qualities ? <div className="info-box"><span>Cualidades: {item.qualities}</span></div> : null}
+          {item.modifiers.length > 0 ? (
+            <div className="info-box">
+              <span>Modificadores: {item.modifiers.map((modifier) => modifier.label || `${modifier.modifierType} ${modifier.value}`.trim()).join(" · ")}</span>
+            </div>
+          ) : null}
+        </div>
+        {item.description ? <p className="unified-sheet-rich-text">{item.description}</p> : null}
+        {item.notes ? <p className="unified-sheet-capability-notes">{item.notes}</p> : null}
+      </article>
+    );
+  }
+
+  function updateInventoryAction(index: number, actionIndex: number, field: keyof CharacterSheet["inventoryItems"][number]["grantedActions"][number], value: string | undefined): void {
+    setDraft({
+      ...draft,
+      inventoryItems: draft.inventoryItems.map((item, itemIndex) => (
+        itemIndex === index
+          ? {
+              ...item,
+              grantedActions: item.grantedActions.map((action, currentActionIndex) => (
+                currentActionIndex === actionIndex ? { ...action, [field]: value } : action
+              ))
+            }
+          : item
+      ))
+    });
+  }
+
+  function addInventoryAction(index: number): void {
+    setDraft({
+      ...draft,
+      inventoryItems: draft.inventoryItems.map((item, itemIndex) => (
+        itemIndex === index
+          ? {
+              ...item,
+              grantedActions: [
+                ...item.grantedActions,
+                { id: `item-action-${Date.now()}`, label: "Nueva accion", cost: "combat", effectSummary: "" }
+              ]
+            }
+          : item
+      ))
+    });
+  }
+
+  function removeInventoryAction(index: number, actionIndex: number): void {
+    setDraft({
+      ...draft,
+      inventoryItems: draft.inventoryItems.map((item, itemIndex) => (
+        itemIndex === index
+          ? { ...item, grantedActions: item.grantedActions.filter((_, currentActionIndex) => currentActionIndex !== actionIndex) }
+          : item
+      ))
+    });
+  }
+
+  function updateInventoryModifier(index: number, modifierIndex: number, field: keyof CharacterSheet["inventoryItems"][number]["modifiers"][number], value: string): void {
+    setDraft({
+      ...draft,
+      inventoryItems: draft.inventoryItems.map((item, itemIndex) => (
+        itemIndex === index
+          ? {
+              ...item,
+              modifiers: item.modifiers.map((modifier, currentModifierIndex) => (
+                currentModifierIndex === modifierIndex ? { ...modifier, [field]: value } : modifier
+              ))
+            }
+          : item
+      ))
+    });
+  }
+
+  function addInventoryModifier(index: number): void {
+    setDraft({
+      ...draft,
+      inventoryItems: draft.inventoryItems.map((item, itemIndex) => (
+        itemIndex === index
+          ? {
+              ...item,
+              modifiers: [
+                ...item.modifiers,
+                { id: `item-modifier-${Date.now()}`, label: "Nuevo modificador", modifierType: "custom", value: "", notes: "" }
+              ]
+            }
+          : item
+      ))
+    });
+  }
+
+  function removeInventoryModifier(index: number, modifierIndex: number): void {
+    setDraft({
+      ...draft,
+      inventoryItems: draft.inventoryItems.map((item, itemIndex) => (
+        itemIndex === index
+          ? { ...item, modifiers: item.modifiers.filter((_, currentModifierIndex) => currentModifierIndex !== modifierIndex) }
+          : item
+      ))
     });
   }
 
@@ -288,7 +600,12 @@ export function UnifiedCharacterSheet({
     }
     const key = parts[parts.length - 1];
     const current = typeof cursor[key] === "number" ? Number(cursor[key]) : 0;
-    updateField(path, Math.max(min, current + delta));
+    const nextValue = Math.max(min, current + delta);
+    if (path === "combate.robustezActual") {
+      updateField(path, Math.min(derived.robustezMaximaTotal, nextValue));
+      return;
+    }
+    updateField(path, nextValue);
   }
 
   function renderTabStage(className = "unified-sheet-stage campaign-sheet-card"): ReactNode {
@@ -359,66 +676,97 @@ export function UnifiedCharacterSheet({
                 <div className="row-actions">
                   <h3>Inventario y equipo</h3>
                 </div>
-                <div className="form-grid">
-                  <Field label="Dinero"><input disabled value={normalizedSheet.recursos.dinero} onChange={(event) => updateField("recursos.dinero", event.target.value)} /></Field>
-                  <Field label="Otros recursos"><input disabled value={normalizedSheet.recursos.otros} onChange={(event) => updateField("recursos.otros", event.target.value)} /></Field>
-                </div>
-                <div className="unified-sheet-list">
-                  {normalizedSheet.inventoryItems.map((item, index) => (
-                    <article key={item.id} className="campaign-structured-card">
-                      <div className="form-grid">
-                        <Field label="Nombre"><input disabled value={item.name} onChange={(event) => updateInventoryItem(index, "name", event.target.value)} /></Field>
-                        <Field label="Categoria">
-                          <select disabled value={item.category} onChange={(event) => updateInventoryItem(index, "category", event.target.value)}>
-                            <option value="weapon">Arma</option>
-                            <option value="armor">Armadura</option>
-                            <option value="gear">Equipo</option>
-                            <option value="consumable">Consumible</option>
-                            <option value="artifact">Artefacto</option>
-                            <option value="treasure">Tesoro</option>
-                            <option value="other">Otro</option>
-                          </select>
-                        </Field>
-                        <Field label="Cantidad"><input disabled type="number" min={0} value={item.quantity} onChange={(event) => updateInventoryItem(index, "quantity", Number(event.target.value || 0))} /></Field>
-                        <Field label="Equipada">
-                          <select disabled value={item.equipped ? "si" : "no"} onChange={(event) => updateInventoryItem(index, "equipped", event.target.value === "si")}>
-                            <option value="si">Si</option>
-                            <option value="no">No</option>
-                          </select>
-                        </Field>
-                        <Field label="Ranura">
-                          <select disabled value={item.slot} onChange={(event) => updateInventoryItem(index, "slot", event.target.value)}>
-                            <option value="none">Ninguna</option>
-                            <option value="mainHand">Mano principal</option>
-                            <option value="offHand">Mano secundaria</option>
-                            <option value="ranged">A distancia</option>
-                            <option value="armor">Armadura</option>
-                            <option value="artifact">Artefacto</option>
-                            <option value="worn">Vestido</option>
-                          </select>
-                        </Field>
-                        <Field label="Danio / proteccion"><input disabled value={item.category === "armor" ? item.protectionFormula : item.damageFormula} onChange={(event) => updateInventoryItem(index, item.category === "armor" ? "protectionFormula" : "damageFormula", event.target.value)} /></Field>
-                      </div>
-                      <textarea disabled rows={2} value={item.description} onChange={(event) => updateInventoryItem(index, "description", event.target.value)} />
-                    </article>
+                <nav className="unified-sheet-subtabs" aria-label="Secciones del inventario">
+                  {([
+                    ["money", "Dinero"],
+                    ["weapons", "Armas"],
+                    ["armors", "Armaduras"],
+                    ["items", "Objetos"],
+                    ["slots", "Ranuras equipadas"]
+                  ] as Array<[InventoryTabId, string]>).map(([tab, label]) => (
+                    <button key={tab} type="button" className={activeInventoryTab === tab ? "is-active" : ""} onClick={() => setActiveInventoryTab(tab)}>
+                      {label}
+                    </button>
                   ))}
-                </div>
-              </article>
+                </nav>
 
-              <article className="campaign-sheet-card">
-                <h3>Ranuras equipadas</h3>
-                <div className="form-grid">
-                  {(["mainHand", "offHand", "ranged", "armor", "artifact", "worn"] as const).map((slot) => (
-                    <Field key={slot} label={slotLabel(slot)}>
-                      <select disabled value={normalizedSheet.equipmentSlots[slot]} onChange={(event) => updateField(`equipmentSlots.${slot}`, event.target.value)}>
-                        <option value="">Sin asignar</option>
-                        {normalizedSheet.inventoryItems.map((item) => (
-                          <option key={`${slot}-${item.id}`} value={item.id}>{item.name || item.id}</option>
-                        ))}
-                      </select>
-                    </Field>
-                  ))}
-                </div>
+                {activeInventoryTab === "money" ? (
+                  <div className="unified-sheet-money-grid">
+                    {([
+                      ["taleros", "Taleros"],
+                      ["chelines", "Chelines"],
+                      ["ortegs", "Ortegs"]
+                    ] as Array<[keyof MoneyCounters, string]>).map(([key, label]) => (
+                      <article key={key} className="campaign-structured-card unified-sheet-money-card">
+                        <strong>{label}</strong>
+                        <span>x{moneyCounters[key]}</span>
+                        {canEditInventory ? (
+                          <div className="unified-sheet-stack-controls">
+                            <button type="button" className="subtle-button" onClick={() => changeMoneyCounter(key, 1)}>+</button>
+                            <button type="button" className="subtle-button" onClick={() => changeMoneyCounter(key, -1)}>-</button>
+                          </div>
+                        ) : null}
+                      </article>
+                    ))}
+                  </div>
+                ) : null}
+
+                {activeInventoryTab === "weapons" ? (
+                  <>
+                    <div className="row-actions">
+                      <h3>Armas</h3>
+                      {canEditInventory ? <button type="button" onClick={() => openInventoryCatalogModal("weapons")}>Agregar arma</button> : null}
+                    </div>
+                    <div className="unified-sheet-list">
+                      {inventorySections.weapons.length > 0
+                        ? inventorySections.weapons.map(({ item, index }) => renderInventoryItemEditor(item, index))
+                        : <p className="section-help">Sin armas registradas.</p>}
+                    </div>
+                  </>
+                ) : null}
+
+                {activeInventoryTab === "armors" ? (
+                  <>
+                    <div className="row-actions">
+                      <h3>Armaduras</h3>
+                      {canEditInventory ? <button type="button" onClick={() => openInventoryCatalogModal("armors")}>Agregar armadura</button> : null}
+                    </div>
+                    <div className="unified-sheet-list">
+                      {inventorySections.armors.length > 0
+                        ? inventorySections.armors.map(({ item, index }) => renderInventoryItemEditor(item, index))
+                        : <p className="section-help">Sin armaduras registradas.</p>}
+                    </div>
+                  </>
+                ) : null}
+
+                {activeInventoryTab === "items" ? (
+                  <>
+                    <div className="row-actions">
+                      <h3>Objetos</h3>
+                      {canEditInventory ? <button type="button" onClick={() => openInventoryCatalogModal("items")}>Agregar objeto</button> : null}
+                    </div>
+                    <div className="unified-sheet-list">
+                      {inventorySections.items.length > 0
+                        ? inventorySections.items.map(({ item, index }) => renderInventoryItemEditor(item, index))
+                        : <p className="section-help">Sin otros objetos registrados.</p>}
+                    </div>
+                  </>
+                ) : null}
+
+                {activeInventoryTab === "slots" ? (
+                  <div className="form-grid">
+                    {(["mainHand", "offHand", "ranged", "armor", "artifact", "worn"] as const).map((slot) => (
+                      <Field key={slot} label={slotLabel(slot)}>
+                        <select disabled={!canEditInventory} value={normalizedSheet.equipmentSlots[slot]} onChange={(event) => updateField(`equipmentSlots.${slot}`, event.target.value)}>
+                          <option value="">Sin asignar</option>
+                          {normalizedSheet.inventoryItems.map((item) => (
+                            <option key={`${slot}-${item.id}`} value={item.id}>{item.name || item.id}</option>
+                          ))}
+                        </select>
+                      </Field>
+                    ))}
+                  </div>
+                ) : null}
               </article>
             </section>
           ) : null}
@@ -843,6 +1191,54 @@ export function UnifiedCharacterSheet({
           </div>
         </div>
       ) : null}
+      {inventoryCatalogModalTab ? (
+        <div className="modal-backdrop" onClick={() => setInventoryCatalogModalTab(null)}>
+          <div className="panel modal-panel character-roll-confirm-modal unified-sheet-item-catalog-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>
+              {inventoryCatalogModalTab === "weapons"
+                ? "Agregar arma"
+                : inventoryCatalogModalTab === "armors"
+                  ? "Agregar armadura"
+                  : "Agregar objeto"}
+            </h3>
+            <p className="section-help">Selecciona un objeto existente del catalogo para anadirlo al inventario.</p>
+            <label className="field">
+              <span>Catalogo</span>
+              <select value={selectedCatalogItemId} onChange={(event) => setSelectedCatalogItemId(event.target.value)}>
+                {modalCatalogItems.map((item) => (
+                  <option key={item.templateId} value={item.templateId}>{item.name}</option>
+                ))}
+              </select>
+            </label>
+            {modalCatalogItems.length > 0 ? (
+              <div className="unified-sheet-item-catalog-preview">
+                {(() => {
+                  const selectedItem = modalCatalogItems.find((item) => item.templateId === selectedCatalogItemId) ?? modalCatalogItems[0];
+                  if (!selectedItem) return null;
+                  return (
+                    <>
+                      <strong>{selectedItem.name}</strong>
+                      {selectedItem.description ? <p>{selectedItem.description}</p> : null}
+                      <div className="unified-sheet-capability-meta">
+                        <span>{selectedItem.category === "weapon" ? "Arma" : selectedItem.category === "armor" ? "Armadura" : "Objeto"}</span>
+                        {selectedItem.damageFormula ? <span>Danio {selectedItem.damageFormula}</span> : null}
+                        {selectedItem.protectionFormula ? <span>Proteccion {selectedItem.protectionFormula}</span> : null}
+                        {selectedItem.qualities ? <span>{selectedItem.qualities}</span> : null}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            ) : (
+              <p className="section-help">No hay elementos disponibles en esta categoria.</p>
+            )}
+            <div className="row-actions character-roll-confirm-actions">
+              <button type="button" className="subtle-button" onClick={() => setInventoryCatalogModalTab(null)}>Cancelar</button>
+              <button type="button" disabled={modalCatalogItems.length === 0 || !selectedCatalogItemId} onClick={addSelectedCatalogItemFromModal}>Agregar</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -875,23 +1271,53 @@ function CapabilityTextList({
     <div className="unified-sheet-list">
       {entries.length > 0 ? (
         entries.map((entry, index) => (
-          <article key={`${title}-${index}-${entry.nombre}`} className="unified-sheet-capability-card">
-            <div className="row-actions">
-              <h3>{entry.nombre || title}</h3>
-              {onOpenCompendium && entry.nombre ? (
-                <button type="button" className="subtle-button" onClick={() => onOpenCompendium(entry.nombre)}>
-                  Ver en compendio
-                </button>
-              ) : null}
-            </div>
-            <div className="unified-sheet-capability-meta">
-              {entry.tipo ? <span>{entry.tipo}</span> : null}
-              {entry.nivel ? <span>{entry.nivel}</span> : null}
-              {entry.fuente ? <span>{entry.fuente}{entry.pagina ? ` p. ${entry.pagina}` : ""}</span> : entry.pagina ? <span>p. {entry.pagina}</span> : null}
-            </div>
-            {entry.efecto ? <p className="unified-sheet-rich-text">{entry.efecto}</p> : null}
-            {entry.notas ? <p className="unified-sheet-capability-notes">{entry.notas}</p> : null}
-          </article>
+          (() => {
+            const parsed = parseCapabilityTiers(entry.efecto);
+            const parsedNotes = parseCapabilityTiers(entry.notas);
+            const visibleTierCount = capabilityLevelRank(entry.nivel);
+            const visibleTiers = parsed.tiers.filter((tier) => capabilityLevelRank(tier.label) <= visibleTierCount);
+            const normalizedBody = normalizeCapabilityText([
+              ...visibleTiers.map((tier) => `${tier.label}: ${tier.content}`),
+              parsed.remainder ?? "",
+              parsed.reference ?? ""
+            ].join(" "));
+            const normalizedNotes = normalizeCapabilityText(entry.notas);
+            const shouldShowNotes =
+              normalizedNotes.length > 0 &&
+              parsedNotes.tiers.length === 0 &&
+              !normalizedBody.includes(normalizedNotes);
+
+            return (
+              <article key={`${title}-${index}-${entry.nombre}`} className="unified-sheet-capability-card">
+                <div className="row-actions">
+                  <h3>{entry.nombre || title}</h3>
+                  {onOpenCompendium && entry.nombre ? (
+                    <button type="button" className="subtle-button" onClick={() => onOpenCompendium(entry.nombre)}>
+                      Ver en compendio
+                    </button>
+                  ) : null}
+                </div>
+                <div className="unified-sheet-capability-meta">
+                  {entry.tipo ? <span>{entry.tipo}</span> : null}
+                  {entry.nivel ? <span>{entry.nivel}</span> : null}
+                  {entry.fuente ? <span>{entry.fuente}{entry.pagina ? ` p. ${entry.pagina}` : ""}</span> : entry.pagina ? <span>p. {entry.pagina}</span> : null}
+                </div>
+                {visibleTiers.length > 0 ? (
+                  <div className="unified-sheet-capability-tier-list">
+                    {visibleTiers.map((tier) => (
+                      <section key={`${entry.nombre}-${tier.label}`} className="unified-sheet-capability-tier">
+                        <h4>{tier.label}</h4>
+                        <p className="unified-sheet-rich-text">{tier.content}</p>
+                      </section>
+                    ))}
+                  </div>
+                ) : null}
+                {!visibleTiers.length && parsed.remainder ? <p className="unified-sheet-rich-text">{parsed.remainder}</p> : null}
+                {parsed.reference ? <p className="unified-sheet-capability-notes">{parsed.reference}</p> : null}
+                {shouldShowNotes ? <p className="unified-sheet-capability-notes">{entry.notas}</p> : null}
+              </article>
+            );
+          })()
         ))
       ) : (
         <p className="unified-sheet-capability-empty">Sin entradas.</p>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { parseCharacterSheet, synchronizeCharacterSheet, type CharacterSheet } from "@umbra/shared";
 
 type UseUnifiedCharacterSheetOptions = {
@@ -11,10 +11,14 @@ export function useUnifiedCharacterSheet({ sheet, editable, onSave }: UseUnified
   const [draft, setDraft] = useState<CharacterSheet>(() => parseCharacterSheet(sheet));
   const [editMode, setEditMode] = useState<boolean>(editable);
   const [isSavingLocal, setIsSavingLocal] = useState(false);
+  const autosaveTimerRef = useRef<number | null>(null);
+  const lastSavedSnapshotRef = useRef<string>(JSON.stringify(synchronizeCharacterSheet(parseCharacterSheet(sheet))));
 
   useEffect(() => {
-    setDraft(parseCharacterSheet(sheet));
+    const parsed = parseCharacterSheet(sheet);
+    setDraft(parsed);
     setEditMode(editable);
+    lastSavedSnapshotRef.current = JSON.stringify(synchronizeCharacterSheet(parsed));
   }, [editable, sheet]);
 
   function updateField(path: string, value: string | number | boolean): void {
@@ -51,6 +55,40 @@ export function useUnifiedCharacterSheet({ sheet, editable, onSave }: UseUnified
   }
 
   const isDirty = useMemo(() => JSON.stringify(synchronizeCharacterSheet(draft)) !== JSON.stringify(synchronizeCharacterSheet(sheet)), [draft, sheet]);
+
+  useEffect(() => {
+    if (!onSave || !editable) {
+      return;
+    }
+
+    const normalizedDraft = synchronizeCharacterSheet(draft);
+    const snapshot = JSON.stringify(normalizedDraft);
+    if (snapshot === lastSavedSnapshotRef.current) {
+      return;
+    }
+
+    if (autosaveTimerRef.current !== null) {
+      window.clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = window.setTimeout(() => {
+      setIsSavingLocal(true);
+      void onSave(normalizedDraft)
+        .then(() => {
+          lastSavedSnapshotRef.current = snapshot;
+        })
+        .finally(() => {
+          setIsSavingLocal(false);
+        });
+    }, 350);
+
+    return () => {
+      if (autosaveTimerRef.current !== null) {
+        window.clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+    };
+  }, [draft, editable, onSave]);
 
   return {
     draft,

@@ -1068,6 +1068,25 @@ td {
   gap: 10px;
 }
 
+.unified-sheet-item-catalog-modal {
+  width: min(520px, 100%);
+}
+
+.unified-sheet-item-catalog-preview {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 16px;
+  background: rgba(255, 250, 244, 0.88);
+  border: 1px solid rgba(90, 77, 64, 0.14);
+}
+
+.unified-sheet-item-catalog-preview p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
 .character-roll-confirm-primary {
   display: flex;
   flex-wrap: wrap;
@@ -1825,6 +1844,8 @@ td {
   display: grid;
   place-items: center;
   aspect-ratio: 1;
+  width: 68px;
+  max-width: 68px;
 }
 
 .unified-sheet-portrait-ring {
@@ -2491,6 +2512,24 @@ td {
   line-height: 1.15;
 }
 
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-tier-list {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-tier {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-tier h4 {
+  margin: 0;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5d4736;
+}
+
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-meta {
   display: flex;
   flex-wrap: wrap;
@@ -2516,6 +2555,62 @@ td {
   margin: 0;
   font-size: 0.76rem;
   color: #625142;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-inventory-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-inventory-toolbar select {
+  min-width: 12rem;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-item-sections {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-quantity-controls {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-stack-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-stack-controls .subtle-button {
+  min-width: 2rem;
+  min-height: 1.7rem;
+  padding: 0.15rem 0.4rem;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-grid {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-card {
+  align-items: center;
+  text-align: center;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-card strong {
+  font-size: 0.8rem;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-card span {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #243748;
 }
 
 .unified-sheet-vital-actions .is-defense-roll {
@@ -2626,9 +2721,12 @@ td {
 
   .unified-sheet-header-band,
   .unified-sheet-body-grid,
-  .unified-sheet-hero-main,
   .unified-sheet-vitals-bar {
     grid-template-columns: 1fr;
+  }
+
+  .unified-sheet-header-band {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.95fr);
   }
 
   .unified-sheet-header-stats {
@@ -2667,6 +2765,7 @@ td {
   }
 
   .unified-sheet-portrait {
+    width: 120px;
     max-width: 120px;
     justify-self: center;
   }

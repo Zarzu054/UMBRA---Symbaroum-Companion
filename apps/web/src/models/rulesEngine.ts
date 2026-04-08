@@ -23,7 +23,8 @@ export function computeDerivedStats(sheet: CharacterSheet): DerivedStats {
   const xpDisponible = Math.max(0, sheet.progreso.experienciaTotal - sheet.progreso.experienciaGastada);
   const corrupcionTotal =
     Math.max(0, sheet.corrupcion.temporal + modifiers.CORRTEMP) + Math.max(0, sheet.corrupcion.permanente + modifiers.CORRPERM);
-  const robustezMaximaTotal = Math.max(0, sheet.combate.robustezMax + modifiers.ROBMAX);
+  const robustezBase = sheet.atributos.fuerte;
+  const robustezMaximaTotal = Math.max(0, robustezBase + modifiers.ROBMAX);
   const robustezActualTotal = Math.min(Math.max(0, sheet.combate.robustezActual + modifiers.ROBACT), robustezMaximaTotal);
   const umbralDolorTotal = Math.max(0, sheet.combate.umbralDolor + modifiers.UMBDOLOR);
   const umbralCorrupcionTotal = Math.max(0, sheet.corrupcion.umbral + modifiers.UMBCORR);
@@ -40,7 +41,7 @@ export function computeDerivedStats(sheet: CharacterSheet): DerivedStats {
   if (sheet.progreso.experienciaGastada > sheet.progreso.experienciaTotal) {
     warnings.push("La experiencia gastada supera la experiencia total");
   }
-  if (sheet.combate.robustezActual > sheet.combate.robustezMax) {
+  if (sheet.combate.robustezActual > robustezMaximaTotal) {
     warnings.push("La robustez actual supera la robustez máxima");
   }
 
