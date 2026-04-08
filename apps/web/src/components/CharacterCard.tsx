@@ -3,14 +3,13 @@ import type { CharacterCardViewModel } from "../models/characterModel";
 type Props = {
   item: CharacterCardViewModel;
   selected: boolean;
-  onSelect: () => void;
-  onSimulate: () => void;
+  onOpenSheet: () => void;
   onExportPdf: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
 };
 
-export function CharacterCard({ item, selected, onSelect, onSimulate, onExportPdf, onDuplicate, onDelete }: Props) {
+export function CharacterCard({ item, selected, onOpenSheet, onExportPdf, onDuplicate, onDelete }: Props) {
   return (
     <article className={`card ${selected ? "card-selected" : ""}`}>
       <h3>{item.title}</h3>
@@ -18,8 +17,7 @@ export function CharacterCard({ item, selected, onSelect, onSimulate, onExportPd
       <p className="meta-text">{item.meta}</p>
       <small>{item.createdLabel}</small>
       <div className="card-actions">
-        <button onClick={onSelect}>{selected ? "Editando" : "Editar"}</button>
-        <button onClick={onSimulate}>Hoja de acciones</button>
+        <button onClick={onOpenSheet}>{selected ? "Hoja abierta" : "Abrir hoja"}</button>
         <button onClick={onExportPdf}>Exportar PDF</button>
         <button onClick={onDuplicate}>Duplicar</button>
         <button className="danger" onClick={onDelete}>

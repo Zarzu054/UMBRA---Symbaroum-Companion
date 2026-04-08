@@ -135,8 +135,79 @@ const artifactCardSchema = z.object({
   corrupcion: z.string().max(120).default("")
 });
 
+const canonicalActionEntrySchema = z.object({
+  id: z.string().min(1).max(120),
+  label: z.string().min(1).max(120),
+  sourceType: z.enum(["weapon", "ability", "power", "ritual", "utility"]).default("ability"),
+  sourceName: z.string().min(1).max(160),
+  cost: actionCostSchema.default("combat"),
+  requiredLevel: skillLevelSchema.optional(),
+  rollAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
+  damageFormula: z.string().max(80).optional(),
+  effectSummary: z.string().max(800).default(""),
+  category: z.string().max(80).default("general"),
+  notes: z.string().max(800).default(""),
+  linkedItemId: z.string().max(120).default("")
+});
+
+const itemModifierSchema = z.object({
+  id: z.string().min(1).max(120),
+  label: z.string().min(1).max(120),
+  modifierType: z.enum(["attack", "damage", "armor", "defense", "initiative", "painThreshold", "corruptionThreshold", "custom"]).default("custom"),
+  value: z.string().max(80).default(""),
+  notes: z.string().max(240).default("")
+});
+
+const inventoryItemSchema = z.object({
+  id: z.string().min(1).max(120),
+  name: z.string().min(1).max(160),
+  category: z.enum(["weapon", "armor", "gear", "consumable", "artifact", "treasure", "other"]).default("other"),
+  quantity: z.number().int().min(0).max(999).default(1),
+  stackable: z.boolean().default(false),
+  isCustom: z.boolean().default(false),
+  description: z.string().max(1200).default(""),
+  weight: z.string().max(40).default(""),
+  value: z.string().max(80).default(""),
+  equipped: z.boolean().default(false),
+  slot: z.enum(["mainHand", "offHand", "ranged", "armor", "artifact", "worn", "none"]).default("none"),
+  attackAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
+  damageFormula: z.string().max(80).default(""),
+  protectionFormula: z.string().max(80).default(""),
+  qualities: z.string().max(240).default(""),
+  notes: z.string().max(800).default(""),
+  grantedActions: z.array(actionMetadataSchema).max(20).default([]),
+  modifiers: z.array(itemModifierSchema).max(20).default([])
+});
+
+const equipmentSlotsSchema = z.object({
+  mainHand: z.string().max(120).default(""),
+  offHand: z.string().max(120).default(""),
+  ranged: z.string().max(120).default(""),
+  armor: z.string().max(120).default(""),
+  artifact: z.string().max(120).default(""),
+  worn: z.string().max(120).default("")
+});
+
+const conditionSchema = z.object({
+  id: z.string().min(1).max(120),
+  name: z.string().min(1).max(120),
+  category: z.enum(["state", "injury", "corruption", "custom"]).default("custom"),
+  active: z.boolean().default(true),
+  severity: z.enum(["minor", "moderate", "major"]).default("minor"),
+  summary: z.string().max(400).default(""),
+  notes: z.string().max(800).default("")
+});
+
+const noteSectionsSchema = z.object({
+  general: z.string().max(8000).default(""),
+  background: z.string().max(4000).default(""),
+  traits: z.string().max(2000).default(""),
+  campaign: z.string().max(4000).default("")
+});
+
 const characterSheetObjectSchema = z.object({
-    identidad: z.object({
+  identidad: z.object({
+    nombrePersonaje: z.string().max(120).default(""),
     nombreJugador: z.string().max(120).default(""),
     raza: z.enum(SYMBAROUM_RACES).or(z.string().min(1).max(80)),
     cultura: z.enum(SYMBAROUM_CULTURES).or(z.string().min(1).max(80)).default("Ambriano"),
@@ -218,9 +289,26 @@ const characterSheetObjectSchema = z.object({
     { nombre: "", poderes: "", corrupcion: "" },
     { nombre: "", poderes: "", corrupcion: "" }
   ]),
+  actions: z.array(canonicalActionEntrySchema).max(200).default([]),
+  inventoryItems: z.array(inventoryItemSchema).max(400).default([]),
+  equipmentSlots: equipmentSlotsSchema.default({
+    mainHand: "",
+    offHand: "",
+    ranged: "",
+    armor: "",
+    artifact: "",
+    worn: ""
+  }),
+  conditions: z.array(conditionSchema).max(120).default([]),
+  noteSections: noteSectionsSchema.default({
+    general: "",
+    background: "",
+    traits: "",
+    campaign: ""
+  }),
   referencias: z.array(sourceRefSchema).max(300).default([]),
-    notas: z.string().max(8000).default("")
-  });
+  notas: z.string().max(8000).default("")
+});
 
 export const characterSheetSchema = characterSheetObjectSchema.superRefine((sheet, ctx) => {
     if (sheet.progreso.experienciaGastada > sheet.progreso.experienciaTotal) {
@@ -231,7 +319,8 @@ export const characterSheetSchema = characterSheetObjectSchema.superRefine((shee
       });
     }
 
-    if (sheet.combate.robustezActual > sheet.combate.robustezMax) {
+    const robustezMax = sheet.atributos.fuerte;
+    if (sheet.combate.robustezActual > robustezMax) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["combate", "robustezActual"],
@@ -309,6 +398,431 @@ function normalizeName(value: string): string {
     .toLowerCase();
 }
 
+function slugify(value: string): string {
+  return normalizeName(value).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "item";
+}
+
+function coerceAttribute(value: string): AttributeKey | undefined {
+  const normalized = normalizeName(value);
+  if ((ATTRIBUTE_KEYS as readonly string[]).includes(normalized)) {
+    return normalized as AttributeKey;
+  }
+
+  switch (normalized) {
+    case "rapido":
+      return "agil";
+    case "vigilante":
+      return "atento";
+    case "preciso":
+      return "diestro";
+    case "astuto":
+      return "inteligente";
+    case "resolutivo":
+      return "tenaz";
+    default:
+      return undefined;
+  }
+}
+
+function inferInventoryCategory(name: string): "weapon" | "armor" | "gear" | "consumable" | "artifact" | "treasure" | "other" {
+  const normalized = normalizeName(name);
+  if (/(espada|arco|lanza|daga|arma|martillo|hacha|ballesta)/.test(normalized)) return "weapon";
+  if (/(armadura|escudo|yelmo|casco|coraza|malla)/.test(normalized)) return "armor";
+  if (/(pocion|elixir|vial|brebaje|racion|antorcha)/.test(normalized)) return "consumable";
+  if (/(artefacto|reliquia|amuleto)/.test(normalized)) return "artifact";
+  if (/(moneda|thaler|dinero|tesoro)/.test(normalized)) return "treasure";
+  return "gear";
+}
+
+function buildLegacyInventoryItems(sheet: z.infer<typeof characterSheetObjectSchema>): z.infer<typeof inventoryItemSchema>[] {
+  const items: z.infer<typeof inventoryItemSchema>[] = [];
+  const pushItem = (item: z.infer<typeof inventoryItemSchema>): void => {
+    if (!items.some((entry) => entry.id === item.id)) {
+      items.push(item);
+    }
+  };
+
+  const addWeapon = (
+    id: string,
+    name: string | undefined,
+    slot: "mainHand" | "offHand" | "ranged",
+    damageFormula: string | undefined,
+    attribute: string | undefined,
+    qualities: string | undefined
+  ) => {
+    const trimmed = (name ?? "").trim();
+    if (!trimmed) return;
+    pushItem({
+      id,
+      name: trimmed,
+      category: "weapon",
+      quantity: 1,
+      stackable: false,
+      isCustom: false,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot,
+      attackAttribute: coerceAttribute(attribute ?? ""),
+      damageFormula: (damageFormula ?? "").trim(),
+      protectionFormula: "",
+      qualities: (qualities ?? "").trim(),
+      notes: "",
+      grantedActions: [],
+      modifiers: []
+    });
+  };
+
+  addWeapon("legacy-weapon-primary", sheet.combate.armaPrincipal, "mainHand", sheet.combate.danioPrincipal, sheet.combate.armaPrincipalAtributo, sheet.combate.armaPrincipalCualidad);
+  addWeapon("legacy-weapon-secondary", sheet.combate.armaSecundaria, "offHand", sheet.combate.danioSecundaria, sheet.combate.armaSecundariaAtributo, "");
+  addWeapon("legacy-weapon-tertiary", sheet.combate.armaTerciaria, "ranged", sheet.combate.danioTerciaria, sheet.combate.armaTerciariaAtributo, sheet.combate.armaTerciariaCualidad);
+  addWeapon("legacy-weapon-quaternary", sheet.combate.armaCuaternaria, "ranged", sheet.combate.danioCuaternaria, sheet.combate.armaCuaternariaAtributo, sheet.combate.armaCuaternariaCualidad);
+
+  if ((sheet.combate.armadura ?? "").trim()) {
+    pushItem({
+      id: "legacy-armor-primary",
+      name: (sheet.combate.armadura ?? "").trim(),
+      category: "armor",
+      quantity: 1,
+      stackable: false,
+      isCustom: false,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "armor",
+      protectionFormula: (sheet.combate.armaduraProteccion ?? "").trim(),
+      damageFormula: "",
+      qualities: (sheet.combate.armaduraCualidad ?? "").trim(),
+      notes: "",
+      grantedActions: [],
+      modifiers: [],
+      attackAttribute: undefined
+    });
+  }
+
+  for (const [index, entry] of (sheet.equipo ?? []).entries()) {
+    const trimmed = entry.trim();
+    if (!trimmed) continue;
+    pushItem({
+      id: `legacy-equipment-${index + 1}-${slugify(trimmed)}`,
+      name: trimmed,
+      category: inferInventoryCategory(trimmed),
+      quantity: 1,
+      stackable: /(racion|antorcha|flecha|virote|vial|pocion|elixir|moneda|thaler)/.test(normalizeName(trimmed)),
+      isCustom: false,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: false,
+      slot: "none",
+      attackAttribute: undefined,
+      damageFormula: "",
+      protectionFormula: "",
+      qualities: "",
+      notes: "",
+      grantedActions: [],
+      modifiers: []
+    });
+  }
+
+  for (const [index, artifact] of (sheet.artefactos ?? []).entries()) {
+    if (!artifact.nombre.trim()) continue;
+    pushItem({
+      id: `legacy-artifact-${index + 1}-${slugify(artifact.nombre)}`,
+      name: artifact.nombre.trim(),
+      category: "artifact",
+      quantity: 1,
+      stackable: false,
+      isCustom: false,
+      description: artifact.poderes.trim(),
+      weight: "",
+      value: "",
+      equipped: index === 0,
+      slot: index === 0 ? "artifact" : "none",
+      attackAttribute: undefined,
+      damageFormula: "",
+      protectionFormula: "",
+      qualities: "",
+      notes: artifact.corrupcion.trim(),
+      grantedActions: [],
+      modifiers: []
+    });
+  }
+
+  return items;
+}
+
+function buildLegacyEquipmentSlots(items: z.infer<typeof inventoryItemSchema>[], sheet: z.infer<typeof characterSheetObjectSchema>): z.infer<typeof equipmentSlotsSchema> {
+  const findByName = (name: string) => items.find((item) => normalizeName(item.name) === normalizeName(name))?.id ?? "";
+  return {
+    mainHand: findByName(sheet.combate.armaPrincipal),
+    offHand: findByName(sheet.combate.armaSecundaria),
+    ranged: findByName(sheet.combate.armaTerciaria) || findByName(sheet.combate.armaCuaternaria),
+    armor: findByName(sheet.combate.armadura),
+    artifact: items.find((item) => item.slot === "artifact")?.id ?? "",
+    worn: ""
+  };
+}
+
+function buildLegacyConditions(sheet: z.infer<typeof characterSheetObjectSchema>): z.infer<typeof conditionSchema>[] {
+  const conditions: z.infer<typeof conditionSchema>[] = [];
+  if (sheet.corrupcion.temporal > 0 || sheet.corrupcion.permanente > 0) {
+    conditions.push({
+      id: "legacy-corruption",
+      name: "Corrupcion",
+      category: "corruption",
+      active: true,
+      severity: sheet.corrupcion.permanente > 0 ? "major" : "moderate",
+      summary: `Temporal ${sheet.corrupcion.temporal} / Permanente ${sheet.corrupcion.permanente}`,
+      notes: sheet.corrupcion.notas
+    });
+  }
+  return conditions;
+}
+
+function synchronizeAutomaticConditions(
+  conditions: z.infer<typeof conditionSchema>[],
+  sheet: Pick<z.infer<typeof characterSheetObjectSchema>, "corrupcion">
+): z.infer<typeof conditionSchema>[] {
+  const manualConditions = conditions.filter((condition) => condition.id !== "legacy-corruption");
+
+  if (sheet.corrupcion.temporal <= 0 && sheet.corrupcion.permanente <= 0) {
+    return manualConditions;
+  }
+
+  return [
+    ...manualConditions,
+    {
+      id: "legacy-corruption",
+      name: "Corrupcion",
+      category: "corruption",
+      active: true,
+      severity: sheet.corrupcion.permanente > 0 ? "major" : "moderate",
+      summary: `Temporal ${sheet.corrupcion.temporal} / Permanente ${sheet.corrupcion.permanente}`,
+      notes: sheet.corrupcion.notas
+    }
+  ];
+}
+
+function buildLegacyNotesSections(sheet: z.infer<typeof characterSheetObjectSchema>): z.infer<typeof noteSectionsSchema> {
+  return {
+    general: sheet.notas ?? "",
+    background: sheet.identidad.trasfondo ?? "",
+    traits: (sheet.rasgos ?? []).join(", "),
+    campaign: [sheet.grupo?.nombre ?? "", sheet.grupo?.objetivo ?? "", ...(sheet.contactos ?? [])].filter(Boolean).join("\n")
+  };
+}
+
+function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>): z.infer<typeof canonicalActionEntrySchema>[] {
+  const actions: z.infer<typeof canonicalActionEntrySchema>[] = [];
+
+  for (const item of sheet.inventoryItems) {
+    if (item.category !== "weapon" || !item.equipped) continue;
+    actions.push({
+      id: `inventory:${item.id}`,
+      label: `Atacar con ${item.name}`,
+      sourceType: "weapon",
+      sourceName: item.name,
+      cost: "combat",
+      rollAttribute: item.attackAttribute ?? "diestro",
+      damageFormula: item.damageFormula || undefined,
+      effectSummary: item.qualities || item.description || "Tirada de ataque desde equipo equipado.",
+      category: "weapon",
+      notes: item.notes,
+      linkedItemId: item.id
+    });
+  }
+
+  for (const item of sheet.inventoryItems) {
+    const canUseItemActions = item.quantity > 0 && (item.category !== "weapon" || item.equipped);
+    if (!canUseItemActions) continue;
+
+    for (const action of item.grantedActions ?? []) {
+      actions.push({
+        id: `item:${item.id}:${action.id}`,
+        label: action.label,
+        sourceType: item.category === "weapon" ? "weapon" : "ability",
+        sourceName: item.name,
+        cost: action.cost,
+        requiredLevel: action.requiredLevel,
+        rollAttribute: action.rollAttribute,
+        damageFormula: action.damageFormula,
+        effectSummary: action.effectSummary,
+        category: item.category,
+        notes: item.notes,
+        linkedItemId: item.id
+      });
+    }
+  }
+
+  const pushRatedActions = (
+    sourceType: "ability" | "power" | "ritual",
+    entries: z.infer<typeof ratedEntrySchema>[] | undefined
+  ): void => {
+    for (const entry of entries ?? []) {
+      if (sourceType === "ability" && normalizeName(entry.nombre) === "combate sin armas") {
+        continue;
+      }
+
+      const entryActions = entry.acciones ?? [];
+      if (entryActions.length > 0) {
+        for (const action of entryActions) {
+          actions.push({
+            id: `${sourceType}:${entry.nombre}:${action.id}`,
+            label: action.label,
+            sourceType,
+            sourceName: entry.nombre,
+            cost: action.cost,
+            requiredLevel: action.requiredLevel,
+            rollAttribute: action.rollAttribute,
+            damageFormula: action.damageFormula,
+            effectSummary: action.effectSummary,
+            category: sourceType,
+            notes: entry.notas,
+            linkedItemId: ""
+          });
+        }
+      } else if ((entry.efecto || entry.notas).trim()) {
+        actions.push({
+          id: `${sourceType}:${entry.nombre}:fallback`,
+          label: `Usar ${entry.nombre}`,
+          sourceType,
+          sourceName: entry.nombre,
+          cost: "combat",
+          requiredLevel: entry.nivel,
+          rollAttribute: undefined,
+          damageFormula: undefined,
+          effectSummary: entry.efecto || entry.notas,
+          category: sourceType,
+          notes: entry.notas,
+          linkedItemId: ""
+        });
+      }
+    }
+  };
+
+  pushRatedActions("ability", sheet.habilidades);
+  pushRatedActions("power", sheet.poderesMisticos);
+  pushRatedActions("ritual", sheet.rituales);
+
+  const combateSinArmas = sheet.habilidades.find((entry) => normalizeName(entry.nombre) === "combate sin armas");
+  const hasNaturalWeaponAction = actions.some((action) => {
+    if (action.sourceType !== "weapon") return false;
+    const haystack = `${action.label} ${action.sourceName}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return /(arma natural|garras|garra|colmillos|colmillo|mordisco|cuernos|cuerno|zarpazo|pico)/.test(haystack);
+  });
+
+  if (combateSinArmas && !hasNaturalWeaponAction) {
+    actions.push({
+      id: "ability:combate-sin-armas:base",
+      label: "Ataque desarmado",
+      sourceType: "weapon",
+      sourceName: "Combate sin armas",
+      cost: "combat",
+      requiredLevel: combateSinArmas.nivel,
+      rollAttribute: "fuerte",
+      damageFormula: combateSinArmas.nivel === "maestro" ? "2d6" : "1d6",
+      effectSummary: combateSinArmas.nivel === "adepto"
+        ? "Ataque desarmado base. Combate sin armas permite resolver por separado un segundo ataque contra el mismo objetivo."
+        : combateSinArmas.nivel === "maestro"
+          ? "Ataque desarmado base mejorado por Combate sin armas. Los ataques desarmados infligen 2d6."
+          : "Ataque desarmado base de Combate sin armas.",
+      category: "ability",
+      notes: combateSinArmas.notas,
+      linkedItemId: ""
+    });
+  }
+
+  return actions;
+}
+
+function migrateCharacterSheetInput(input: unknown): unknown {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return input;
+  }
+
+  const candidate = structuredClone(input) as z.infer<typeof characterSheetObjectSchema>;
+  const inventoryItems = Array.isArray(candidate.inventoryItems) && candidate.inventoryItems.length > 0
+    ? candidate.inventoryItems
+    : buildLegacyInventoryItems(candidate);
+  const equipmentSlots = candidate.equipmentSlots
+    ? {
+        mainHand: candidate.equipmentSlots.mainHand ?? "",
+        offHand: candidate.equipmentSlots.offHand ?? "",
+        ranged: candidate.equipmentSlots.ranged ?? "",
+        armor: candidate.equipmentSlots.armor ?? "",
+        artifact: candidate.equipmentSlots.artifact ?? "",
+        worn: candidate.equipmentSlots.worn ?? ""
+      }
+    : buildLegacyEquipmentSlots(inventoryItems, candidate);
+  const noteSections = candidate.noteSections
+    ? {
+        general: candidate.noteSections.general ?? candidate.notas ?? "",
+        background: candidate.noteSections.background ?? candidate.identidad?.trasfondo ?? "",
+        traits: candidate.noteSections.traits ?? (candidate.rasgos ?? []).join(", "),
+        campaign: candidate.noteSections.campaign ?? ""
+      }
+    : buildLegacyNotesSections(candidate);
+  const syncedRobustezMax = candidate.atributos?.fuerte ?? candidate.combate?.robustezMax ?? 10;
+
+  return {
+    ...candidate,
+    combate: {
+      ...candidate.combate,
+      robustezMax: syncedRobustezMax,
+      robustezActual: Math.min(candidate.combate?.robustezActual ?? syncedRobustezMax, syncedRobustezMax)
+    },
+    inventoryItems,
+    equipmentSlots,
+    conditions: synchronizeAutomaticConditions(
+      Array.isArray(candidate.conditions) && candidate.conditions.length > 0 ? candidate.conditions : buildLegacyConditions(candidate),
+      candidate
+    ),
+    noteSections,
+    actions: Array.isArray(candidate.actions) && candidate.actions.length > 0 ? candidate.actions : buildCanonicalActions({
+      ...candidate,
+      inventoryItems,
+      equipmentSlots,
+      conditions: synchronizeAutomaticConditions(
+        Array.isArray(candidate.conditions) ? candidate.conditions : buildLegacyConditions(candidate),
+        candidate
+      ),
+      noteSections
+    } as z.infer<typeof characterSheetObjectSchema>)
+  };
+}
+
+function buildSynchronizedCharacterSheet(input: CharacterSheet): CharacterSheet {
+  const syncedRobustezMax = input.atributos.fuerte;
+  const legacyCompatible = {
+    ...input,
+    combate: {
+      ...input.combate,
+      robustezMax: syncedRobustezMax,
+      robustezActual: Math.min(input.combate.robustezActual, syncedRobustezMax)
+    },
+    noteSections: {
+      ...input.noteSections,
+      general: input.noteSections.general || input.notas || "",
+      background: input.noteSections.background || input.identidad.trasfondo || "",
+      traits: input.noteSections.traits || input.rasgos.join(", "),
+      campaign: input.noteSections.campaign
+    },
+    conditions: synchronizeAutomaticConditions(input.conditions, input),
+    inventoryItems: input.inventoryItems,
+    equipmentSlots: input.equipmentSlots
+  };
+  const autoActions = buildCanonicalActions(legacyCompatible);
+  const manualUtilityActions = input.actions.filter((action) => action.sourceType === "utility");
+  return {
+    ...input,
+    noteSections: legacyCompatible.noteSections,
+    actions: [...manualUtilityActions, ...autoActions]
+  };
+}
+
 export type CharacterSheet = z.infer<typeof characterSheetSchema>;
 
 export const importedCharacterSheetSchema = characterSheetObjectSchema.superRefine((sheet, ctx) => {
@@ -320,7 +834,8 @@ export const importedCharacterSheetSchema = characterSheetObjectSchema.superRefi
     });
   }
 
-  if (sheet.combate.robustezActual > sheet.combate.robustezMax) {
+  const robustezMax = sheet.atributos.fuerte;
+  if (sheet.combate.robustezActual > robustezMax) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["combate", "robustezActual"],
@@ -352,6 +867,7 @@ export const importedCharacterSheetSchema = characterSheetObjectSchema.superRefi
 export function createEmptyCharacterSheet(): CharacterSheet {
   return {
     identidad: {
+      nombrePersonaje: "",
       nombreJugador: "",
       raza: "Humano",
       cultura: "Ambriano",
@@ -440,13 +956,34 @@ export function createEmptyCharacterSheet(): CharacterSheet {
       poderes: "",
       corrupcion: ""
     })),
+    actions: [],
+    inventoryItems: [],
+    equipmentSlots: {
+      mainHand: "",
+      offHand: "",
+      ranged: "",
+      armor: "",
+      artifact: "",
+      worn: ""
+    },
+    conditions: [],
+    noteSections: {
+      general: "",
+      background: "",
+      traits: "",
+      campaign: ""
+    },
     referencias: [],
     notas: ""
   };
 }
 
 export function parseCharacterSheet(input: unknown): CharacterSheet {
-  return importedCharacterSheetSchema.parse(input);
+  return importedCharacterSheetSchema.parse(migrateCharacterSheetInput(input));
+}
+
+export function synchronizeCharacterSheet(input: CharacterSheet): CharacterSheet {
+  return importedCharacterSheetSchema.parse(buildSynchronizedCharacterSheet(parseCharacterSheet(input)));
 }
 
 export const createCharacterSchema = z.object({

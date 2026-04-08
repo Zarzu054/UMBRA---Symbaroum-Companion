@@ -23,14 +23,16 @@ export function computeDerivedStats(sheet: CharacterSheet): DerivedStats {
   const xpDisponible = Math.max(0, sheet.progreso.experienciaTotal - sheet.progreso.experienciaGastada);
   const corrupcionTotal =
     Math.max(0, sheet.corrupcion.temporal + modifiers.CORRTEMP) + Math.max(0, sheet.corrupcion.permanente + modifiers.CORRPERM);
-  const robustezMaximaTotal = Math.max(0, sheet.combate.robustezMax + modifiers.ROBMAX);
+  const robustezBase = sheet.atributos.fuerte;
+  const robustezMaximaTotal = Math.max(0, robustezBase + modifiers.ROBMAX);
   const robustezActualTotal = Math.min(Math.max(0, sheet.combate.robustezActual + modifiers.ROBACT), robustezMaximaTotal);
   const umbralDolorTotal = Math.max(0, sheet.combate.umbralDolor + modifiers.UMBDOLOR);
   const umbralCorrupcionTotal = Math.max(0, sheet.corrupcion.umbral + modifiers.UMBCORR);
 
-  const baseDefensa = Number(sheet.combate.defensaBase || 10);
-  const defensaTotal = baseDefensa + sheet.combate.defensaMod + modifiers.DEF;
-  const iniciativaTotal = sheet.combate.iniciativaMod + modifiers.INI;
+  const iniciativaBase = resolveInitiativeAttribute(sheet);
+  const defensaBase = resolveDefenseAttribute(sheet);
+  const defensaTotal = defensaBase + sheet.combate.defensaMod + modifiers.DEF;
+  const iniciativaTotal = iniciativaBase + sheet.combate.iniciativaMod + modifiers.INI;
 
   const warnings: string[] = [];
   if (corrupcionTotal >= sheet.atributos.tenaz) {
@@ -39,7 +41,7 @@ export function computeDerivedStats(sheet: CharacterSheet): DerivedStats {
   if (sheet.progreso.experienciaGastada > sheet.progreso.experienciaTotal) {
     warnings.push("La experiencia gastada supera la experiencia total");
   }
-  if (sheet.combate.robustezActual > sheet.combate.robustezMax) {
+  if (sheet.combate.robustezActual > robustezMaximaTotal) {
     warnings.push("La robustez actual supera la robustez máxima");
   }
 
@@ -55,6 +57,62 @@ export function computeDerivedStats(sheet: CharacterSheet): DerivedStats {
     umbralCorrupcionTotal,
     warnings
   };
+}
+
+function resolveInitiativeAttribute(sheet: CharacterSheet): number {
+  const candidates = [sheet.atributos.agil];
+
+  if (hasCapabilityAtLevel(sheet, "Sexto sentido", "adepto")) {
+    candidates.push(sheet.atributos.atento);
+  }
+
+  if (hasCapabilityAtLevel(sheet, "Tactico", "novato")) {
+    candidates.push(sheet.atributos.inteligente);
+  }
+
+  return Math.max(...candidates);
+}
+
+function resolveDefenseAttribute(sheet: CharacterSheet): number {
+  const candidates = [sheet.atributos.agil];
+
+  if (hasCapabilityAtLevel(sheet, "Sexto sentido", "adepto")) {
+    candidates.push(sheet.atributos.atento);
+  }
+
+  if (hasCapabilityAtLevel(sheet, "Tactico", "adepto")) {
+    candidates.push(sheet.atributos.inteligente);
+  }
+
+  return Math.max(...candidates);
+}
+
+function hasCapabilityAtLevel(sheet: CharacterSheet, capabilityName: string, minimumLevel: "novato" | "adepto" | "maestro"): boolean {
+  const capabilities = [...sheet.habilidades, ...sheet.poderesMisticos, ...sheet.rituales];
+  const normalizedTarget = normalizeCapabilityName(capabilityName);
+  const minimumRank = capabilityRank(minimumLevel);
+
+  return capabilities.some((capability) => normalizeCapabilityName(capability.nombre) === normalizedTarget && capabilityRank(capability.nivel) >= minimumRank);
+}
+
+function capabilityRank(level: string): number {
+  switch (normalizeCapabilityName(level)) {
+    case "maestro":
+      return 3;
+    case "adepto":
+      return 2;
+    case "novato":
+    default:
+      return 1;
+  }
+}
+
+function normalizeCapabilityName(value: string): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
 }
 
 function collectCapabilityModifiers(sheet: CharacterSheet): Record<ModifierKey, number> {

@@ -1,5 +1,6 @@
 ﻿import type { Prisma } from "@prisma/client";
 import { createEmptyCharacterSheet, parseCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CharacterSheet, type UserRole } from "@umbra/shared";
+import { Prisma as PrismaRuntime } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 
 const campaignInclude = {
@@ -373,10 +374,12 @@ export class CampaignModel {
       isGenerated: boolean;
     }
   ): Promise<void> {
+    const normalizedSheet = payload.sheet === null ? PrismaRuntime.JsonNull : payload.sheet;
     await prisma.campaignNpc.create({
       data: {
         campaignId,
-        ...payload
+        ...payload,
+        sheet: normalizedSheet as Prisma.InputJsonValue | typeof PrismaRuntime.JsonNull | undefined
       }
     });
   }
@@ -396,9 +399,15 @@ export class CampaignModel {
       isGenerated: boolean;
     }>
   ): Promise<void> {
+    const normalizedPayload = "sheet" in payload
+      ? {
+          ...payload,
+          sheet: payload.sheet === null ? PrismaRuntime.JsonNull : payload.sheet
+        }
+      : payload;
     await prisma.campaignNpc.update({
       where: { id: npcId },
-      data: payload
+      data: normalizedPayload as Prisma.CampaignNpcUpdateInput
     });
   }
 
@@ -641,10 +650,10 @@ export class CampaignModel {
 
   async findNpcById(
     npcId: string
-  ): Promise<{ id: string; campaignId: string; name: string; race: string; archetype: string; occupation: string; sheet: Prisma.JsonValue | null } | null> {
+  ): Promise<{ id: string; campaignId: string; name: string; race: string; archetype: string; occupation: string; summary: string; notes: string; sheet: Prisma.JsonValue | null } | null> {
     return prisma.campaignNpc.findUnique({
       where: { id: npcId },
-      select: { id: true, campaignId: true, name: true, race: true, archetype: true, occupation: true, sheet: true }
+      select: { id: true, campaignId: true, name: true, race: true, archetype: true, occupation: true, summary: true, notes: true, sheet: true }
     });
   }
 
@@ -691,6 +700,7 @@ export class CampaignModel {
     await prisma.character.update({
       where: { id: characterId },
       data: {
+        name: sheet.identidad.nombrePersonaje || undefined,
         race: String(sheet.identidad.raza),
         culture: String(sheet.identidad.cultura),
         archetype: String(sheet.identidad.arquetipo),
@@ -744,7 +754,7 @@ export class CampaignModel {
   async updateNpcSheet(npcId: string, sheet: CharacterSheet | null): Promise<void> {
     await prisma.campaignNpc.update({
       where: { id: npcId },
-      data: { sheet }
+      data: { sheet: (sheet === null ? PrismaRuntime.JsonNull : sheet) as Prisma.InputJsonValue | typeof PrismaRuntime.JsonNull }
     });
   }
 

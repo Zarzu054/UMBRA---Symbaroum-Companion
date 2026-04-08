@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  ATTRIBUTE_KEYS,
+  ATTRIBUTE_LABELS,
   buildRollRequest,
   createCampaignNpcSchema,
   deriveCharacterActions,
@@ -24,6 +26,7 @@ import {
   type UpdateCampaignReferenceInput,
   type UpdateCampaignSessionInput
 } from "@umbra/shared";
+import { createCustomInventoryItem, createInventoryItemFromTemplate, ITEM_CATALOG } from "../models/itemCatalog";
 import {
   addCampaignMember,
   assignCampaignSessionExperience,
@@ -52,6 +55,7 @@ import {
   dispatchRoll20Request,
   type Roll20Visibility
 } from "../services/rollTransport";
+import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 
 type Props = {
   user: AuthUser;
@@ -405,6 +409,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [isCampaignDetailsModalOpen, setIsCampaignDetailsModalOpen] = useState(false);
   const [isSessionEditorOpen, setIsSessionEditorOpen] = useState(false);
   const [isSessionCloseModalOpen, setIsSessionCloseModalOpen] = useState(false);
+  const [selectedInventoryTemplateId, setSelectedInventoryTemplateId] = useState<string>(ITEM_CATALOG[0]?.templateId ?? "");
+  const [campaignItemDraft, setCampaignItemDraft] = useState<CharacterSheet["inventoryItems"][number]>(createCustomInventoryItem());
 
   useEffect(() => {
     const root = rootRef.current;
@@ -451,6 +457,19 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         : null,
     [selectedCampaign, selectedSheetTarget]
   );
+  const selectedSheet = useMemo(
+    () => selectedCharacterSheetEntry?.sheet ?? selectedNpcSheetEntry?.sheet ?? null,
+    [selectedCharacterSheetEntry, selectedNpcSheetEntry]
+  );
+  const canManageCampaignInventory = useMemo(() => {
+    if (selectedSheetTarget?.kind === "npc") {
+      return isDirector;
+    }
+    if (selectedCharacterSheetEntry) {
+      return isDirector || selectedCharacterSheetEntry.ownerId === user.id;
+    }
+    return false;
+  }, [isDirector, selectedCharacterSheetEntry, selectedSheetTarget, user.id]);
   const availableUnlinkedCharacters = useMemo(
     () => selectedCampaign?.availableCharacters.filter((entry) => !entry.linked) ?? [],
     [selectedCampaign]
@@ -1049,6 +1068,108 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  async function saveSelectedSheet(nextSheet: CharacterSheet): Promise<void> {
+    if (selectedSheetTarget?.kind === "character" && selectedCharacterSheetEntry) {
+      await handleSaveCharacterSheet(selectedCharacterSheetEntry.id, nextSheet);
+      return;
+    }
+    if (selectedSheetTarget?.kind === "npc" && selectedNpcSheetEntry) {
+      await handleSaveNpcSheet(selectedNpcSheetEntry.id, nextSheet);
+    }
+  }
+
+  async function handleAddCatalogItemToSelectedSheet(): Promise<void> {
+    if (!selectedSheet || !canManageCampaignInventory) {
+      return;
+    }
+    const template = ITEM_CATALOG.find((entry) => entry.templateId === selectedInventoryTemplateId);
+    if (!template) {
+      return;
+    }
+    await saveSelectedSheet({
+      ...selectedSheet,
+      inventoryItems: [...selectedSheet.inventoryItems, createInventoryItemFromTemplate(template)]
+    });
+  }
+
+  function updateCampaignItemDraft(
+    field: keyof CharacterSheet["inventoryItems"][number],
+    value: string | number | boolean | undefined
+  ): void {
+    setCampaignItemDraft((current) => ({ ...current, [field]: value }));
+  }
+
+  function addCampaignDraftAction(): void {
+    setCampaignItemDraft((current) => ({
+      ...current,
+      grantedActions: [
+        ...current.grantedActions,
+        { id: `campaign-item-action-${Date.now()}`, label: "Nueva accion", cost: "combat", effectSummary: "" }
+      ]
+    }));
+  }
+
+  function updateCampaignDraftAction(
+    actionIndex: number,
+    field: keyof CharacterSheet["inventoryItems"][number]["grantedActions"][number],
+    value: string | undefined
+  ): void {
+    setCampaignItemDraft((current) => ({
+      ...current,
+      grantedActions: current.grantedActions.map((action, index) => (
+        index === actionIndex ? { ...action, [field]: value } : action
+      ))
+    }));
+  }
+
+  function removeCampaignDraftAction(actionIndex: number): void {
+    setCampaignItemDraft((current) => ({
+      ...current,
+      grantedActions: current.grantedActions.filter((_, index) => index !== actionIndex)
+    }));
+  }
+
+  function addCampaignDraftModifier(): void {
+    setCampaignItemDraft((current) => ({
+      ...current,
+      modifiers: [
+        ...current.modifiers,
+        { id: `campaign-item-modifier-${Date.now()}`, label: "", modifierType: "custom", value: "", notes: "" }
+      ]
+    }));
+  }
+
+  function updateCampaignDraftModifier(
+    modifierIndex: number,
+    field: keyof CharacterSheet["inventoryItems"][number]["modifiers"][number],
+    value: string
+  ): void {
+    setCampaignItemDraft((current) => ({
+      ...current,
+      modifiers: current.modifiers.map((modifier, index) => (
+        index === modifierIndex ? { ...modifier, [field]: value } : modifier
+      ))
+    }));
+  }
+
+  function removeCampaignDraftModifier(modifierIndex: number): void {
+    setCampaignItemDraft((current) => ({
+      ...current,
+      modifiers: current.modifiers.filter((_, index) => index !== modifierIndex)
+    }));
+  }
+
+  async function handleCreateCampaignCustomItem(): Promise<void> {
+    if (!selectedSheet || !canManageCampaignInventory || !campaignItemDraft.name.trim()) {
+      return;
+    }
+    await saveSelectedSheet({
+      ...selectedSheet,
+      inventoryItems: [...selectedSheet.inventoryItems, { ...campaignItemDraft, name: campaignItemDraft.name.trim() }]
+    });
+    setCampaignItemDraft(createCustomInventoryItem());
   }
 
   async function handleCreateReference(): Promise<void> {
@@ -1721,42 +1842,29 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           ) : null}
 
           {activeSection === "sheet" && selectedCharacterSheetEntry?.sheet ? (
-            <section className="panel campaign-sheet-shell">
-              <div className="row-actions">
-                <h3>Hoja de personaje</h3>
-                <button type="button" onClick={() => { setSelectedSheetTarget(null); setActiveSection("characters"); }}>
-                  Cerrar hoja
-                </button>
-              </div>
-              <CampaignSheetEditor
+            <section className="campaign-sheet-shell">
+              <UnifiedCharacterSheet
                 title={selectedCharacterSheetEntry.name}
                 subtitle={`${selectedCharacterSheetEntry.ownerEmail} · Personaje de campaña`}
                 sheet={selectedCharacterSheetEntry.sheet}
-                rollDestination="umbra"
-                editable={false}
-                allowActions={false}
+                editable={selectedCharacterSheetEntry.ownerId === user.id}
                 busy={isSaving}
+                onBack={() => { setSelectedSheetTarget(null); setActiveSection("characters"); }}
                 onSave={async (sheet) => handleSaveCharacterSheet(selectedCharacterSheetEntry.id, sheet)}
               />
             </section>
           ) : null}
 
           {activeSection === "sheet" && selectedSheetTarget?.kind === "npc" && selectedNpcSheetEntry ? (
-            <section className="panel campaign-sheet-shell">
-              <div className="row-actions">
-                <h3>Hoja de PNJ</h3>
-                <button type="button" onClick={() => { setSelectedSheetTarget(null); setActiveSection("npcs"); }}>
-                  Cerrar hoja
-                </button>
-              </div>
+            <section className="campaign-sheet-shell">
               {selectedNpcSheetEntry.sheet ? (
-                <CampaignSheetEditor
+                <UnifiedCharacterSheet
                   title={selectedNpcSheetEntry.name}
                   subtitle={`${selectedNpcSheetEntry.race || "PNJ"} · ${selectedNpcSheetEntry.archetype || selectedNpcSheetEntry.occupation || "Sin arquetipo"}`}
                   sheet={selectedNpcSheetEntry.sheet}
-                  rollDestination="umbra"
                   editable={isDirector}
                   busy={isSaving}
+                  onBack={() => { setSelectedSheetTarget(null); setActiveSection("npcs"); }}
                   onSave={async (sheet) => handleSaveNpcSheet(selectedNpcSheetEntry.id, sheet)}
                 />
               ) : (

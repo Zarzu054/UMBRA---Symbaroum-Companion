@@ -21,9 +21,9 @@ Monorepo skeleton for a TypeScript full-stack app with MVC-oriented structure on
 ## Quick start with Docker
 
 1. Copy env values:
-   - `cp .env.example .env`
+   - create `.env.dev` from `.env.example`, or use the provided local dev values in `.env.dev`
 2. Start stack:
-   - `docker compose -f docker-compose.umbra.dev.yml up --build`
+   - `docker compose --env-file .env.dev -f docker-compose.umbra.dev.yml up --build`
 3. Open app:
    - `http://localhost:5173`
 4. API health check:

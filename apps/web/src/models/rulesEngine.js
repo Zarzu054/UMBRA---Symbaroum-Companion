@@ -7,9 +7,10 @@ export function computeDerivedStats(sheet) {
     const robustezActualTotal = Math.min(Math.max(0, sheet.combate.robustezActual + modifiers.ROBACT), robustezMaximaTotal);
     const umbralDolorTotal = Math.max(0, sheet.combate.umbralDolor + modifiers.UMBDOLOR);
     const umbralCorrupcionTotal = Math.max(0, sheet.corrupcion.umbral + modifiers.UMBCORR);
-    const baseDefensa = Number(sheet.combate.defensaBase || 10);
-    const defensaTotal = baseDefensa + sheet.combate.defensaMod + modifiers.DEF;
-    const iniciativaTotal = sheet.combate.iniciativaMod + modifiers.INI;
+    const iniciativaBase = resolveInitiativeAttribute(sheet);
+    const defensaBase = resolveDefenseAttribute(sheet);
+    const defensaTotal = defensaBase + sheet.combate.defensaMod + modifiers.DEF;
+    const iniciativaTotal = iniciativaBase + sheet.combate.iniciativaMod + modifiers.INI;
     const warnings = [];
     if (corrupcionTotal >= sheet.atributos.tenaz) {
         warnings.push("La corrupción total alcanza o supera Tenaz");
@@ -32,6 +33,50 @@ export function computeDerivedStats(sheet) {
         umbralCorrupcionTotal,
         warnings
     };
+}
+function resolveInitiativeAttribute(sheet) {
+    const candidates = [sheet.atributos.agil];
+    if (hasCapabilityAtLevel(sheet, "Sexto sentido", "adepto")) {
+        candidates.push(sheet.atributos.atento);
+    }
+    if (hasCapabilityAtLevel(sheet, "Tactico", "novato")) {
+        candidates.push(sheet.atributos.inteligente);
+    }
+    return Math.max(...candidates);
+}
+function resolveDefenseAttribute(sheet) {
+    const candidates = [sheet.atributos.agil];
+    if (hasCapabilityAtLevel(sheet, "Sexto sentido", "adepto")) {
+        candidates.push(sheet.atributos.atento);
+    }
+    if (hasCapabilityAtLevel(sheet, "Tactico", "adepto")) {
+        candidates.push(sheet.atributos.inteligente);
+    }
+    return Math.max(...candidates);
+}
+function hasCapabilityAtLevel(sheet, capabilityName, minimumLevel) {
+    const capabilities = [...sheet.habilidades, ...sheet.poderesMisticos, ...sheet.rituales];
+    const normalizedTarget = normalizeCapabilityName(capabilityName);
+    const minimumRank = capabilityRank(minimumLevel);
+    return capabilities.some((capability) => normalizeCapabilityName(capability.nombre) === normalizedTarget && capabilityRank(capability.nivel) >= minimumRank);
+}
+function capabilityRank(level) {
+    switch (normalizeCapabilityName(level)) {
+        case "maestro":
+            return 3;
+        case "adepto":
+            return 2;
+        case "novato":
+        default:
+            return 1;
+    }
+}
+function normalizeCapabilityName(value) {
+    return String(value ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLowerCase();
 }
 function collectCapabilityModifiers(sheet) {
     const result = {
