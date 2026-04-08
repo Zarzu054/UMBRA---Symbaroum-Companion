@@ -116,6 +116,131 @@ test("deriveCharacterActions filtra acciones por el nivel real de la capacidad",
   assert.deepEqual(actions, ["novato", "adepto"]);
 });
 
+test("Combate sin armas se deriva como ataque base y no como accion pasiva separada", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.habilidades = [
+    {
+      nombre: "Combate sin armas",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "adepto",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: [
+        {
+          id: "adepto-combate-sin-armas",
+          label: "Usar Combate sin armas (Adepto)",
+          cost: "combat",
+          requiredLevel: "adepto",
+          damageFormula: "1d6/1d6",
+          effectSummary: "Haz dos ataques desarmados contra el mismo objetivo."
+        }
+      ]
+    }
+  ];
+
+  const actions = deriveCharacterActions(sheet);
+  assert.equal(actions.length, 1);
+  assert.equal(actions[0].label, "Ataque desarmado");
+  assert.equal(actions[0].damageFormula, "1d6");
+  assert.equal(actions[0].rollAttribute, "fuerte");
+});
+
+test("Cuchillo rapido modifica el ataque con cuchillo en vez de aparecer como accion separada", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.inventoryItems = [
+    {
+      id: "knife-1",
+      name: "Cuchillo",
+      category: "weapon",
+      quantity: 1,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "mainHand",
+      attackAttribute: "diestro",
+      damageFormula: "1d6",
+      protectionFormula: "",
+      qualities: "corta",
+      notes: ""
+    }
+  ];
+  sheet.habilidades = [
+    {
+      nombre: "Cuchillo rápido",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "adepto",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: [
+        {
+          id: "adepto-cuchillo-rapido",
+          label: "Usar Cuchillo rápido (Adepto)",
+          cost: "combat",
+          requiredLevel: "adepto",
+          rollAttribute: "agil",
+          effectSummary: "Haz dos ataques con cuchillo en una sola acción."
+        }
+      ]
+    }
+  ];
+
+  const actions = deriveCharacterActions(sheet);
+  assert.equal(actions.length, 1);
+  assert.equal(actions[0].label, "Atacar con Cuchillo");
+  assert.equal(actions[0].rollAttribute, "agil");
+  assert.match(actions[0].effectSummary, /dos ataques separados con cuchillo/i);
+});
+
+test("Armas a dos manos modifica el arma pesada y no aparece como accion separada", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.inventoryItems = [
+    {
+      id: "greatsword-1",
+      name: "Mandoble",
+      category: "weapon",
+      quantity: 1,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "mainHand",
+      attackAttribute: "diestro",
+      damageFormula: "1d10",
+      protectionFormula: "",
+      qualities: "pesada",
+      notes: ""
+    }
+  ];
+  sheet.habilidades = [
+    {
+      nombre: "Armas a dos manos",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "maestro",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: [
+        {
+          id: "maestro-armas-a-dos-manos",
+          label: "Usar Armas a dos manos (Maestro)",
+          cost: "combat",
+          requiredLevel: "maestro",
+          effectSummary: "Haz un ataque con arma pesada que ignora por completo la armadura."
+        }
+      ]
+    }
+  ];
+
+  const actions = deriveCharacterActions(sheet);
+  assert.equal(actions.length, 1);
+  assert.equal(actions[0].label, "Atacar con Mandoble");
+  assert.equal(actions[0].damageFormula, "1d12");
+  assert.match(actions[0].effectSummary, /ignora la armadura/i);
+});
+
 test("executeCharacterAction no tira daño cuando falla la tirada de ataque", () => {
   const sheet = createEmptyCharacterSheet();
   sheet.combate.armaPrincipal = "Espada larga";

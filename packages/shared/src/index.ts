@@ -587,6 +587,10 @@ function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>
     entries: z.infer<typeof ratedEntrySchema>[] | undefined
   ): void => {
     for (const entry of entries ?? []) {
+      if (sourceType === "ability" && normalizeName(entry.nombre) === "combate sin armas") {
+        continue;
+      }
+
       const entryActions = entry.acciones ?? [];
       if (entryActions.length > 0) {
         for (const action of entryActions) {
@@ -627,6 +631,34 @@ function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>
   pushRatedActions("ability", sheet.habilidades);
   pushRatedActions("power", sheet.poderesMisticos);
   pushRatedActions("ritual", sheet.rituales);
+
+  const combateSinArmas = sheet.habilidades.find((entry) => normalizeName(entry.nombre) === "combate sin armas");
+  const hasNaturalWeaponAction = actions.some((action) => {
+    if (action.sourceType !== "weapon") return false;
+    const haystack = `${action.label} ${action.sourceName}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return /(arma natural|garras|garra|colmillos|colmillo|mordisco|cuernos|cuerno|zarpazo|pico)/.test(haystack);
+  });
+
+  if (combateSinArmas && !hasNaturalWeaponAction) {
+    actions.push({
+      id: "ability:combate-sin-armas:base",
+      label: "Ataque desarmado",
+      sourceType: "weapon",
+      sourceName: "Combate sin armas",
+      cost: "combat",
+      requiredLevel: combateSinArmas.nivel,
+      rollAttribute: "fuerte",
+      damageFormula: combateSinArmas.nivel === "maestro" ? "2d6" : "1d6",
+      effectSummary: combateSinArmas.nivel === "adepto"
+        ? "Ataque desarmado base. Combate sin armas permite resolver por separado un segundo ataque contra el mismo objetivo."
+        : combateSinArmas.nivel === "maestro"
+          ? "Ataque desarmado base mejorado por Combate sin armas. Los ataques desarmados infligen 2d6."
+          : "Ataque desarmado base de Combate sin armas.",
+      category: "ability",
+      notes: combateSinArmas.notas,
+      linkedItemId: ""
+    });
+  }
 
   return actions;
 }
