@@ -50,6 +50,15 @@ test("acepta personaje nivel 1 con patron 5 novato", () => {
   assert.equal(parsed.success, true);
 });
 
+test("acepta una raza libre no jugable como texto plano", () => {
+  const payload = buildPayload();
+  payload.race = "Lobo";
+  payload.sheet.identidad.raza = "Lobo";
+
+  const parsed = createCharacterSchema.safeParse(payload);
+  assert.equal(parsed.success, true);
+});
+
 test("acepta personaje nivel 1 con patron 2 novato + 1 adepto", () => {
   const payload = buildPayload();
   payload.sheet.habilidades = makeAbilities([
@@ -112,6 +121,15 @@ test("importCharacterSchema acepta poderes misticos sin habilidad mistica base",
       notas: ""
     }
   ];
+  const parsed = importCharacterSchema.safeParse(payload);
+  assert.equal(parsed.success, true);
+});
+
+test("importCharacterSchema acepta una raza libre no jugable como texto plano", () => {
+  const payload = buildPayload();
+  payload.race = "Bestiaal";
+  payload.sheet.identidad.raza = "Bestiaal";
+
   const parsed = importCharacterSchema.safeParse(payload);
   assert.equal(parsed.success, true);
 });

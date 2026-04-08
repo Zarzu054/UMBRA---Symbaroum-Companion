@@ -756,14 +756,14 @@ function sanitizeImportedRatedEntry(entry) {
         fuente: String(candidate.fuente ?? ""),
         pagina: typeof candidate.pagina === "number" && Number.isInteger(candidate.pagina) ? candidate.pagina : undefined,
         notas: String(candidate.notas ?? ""),
-        acciones
+        acciones: acciones
     };
 }
 function hydrateRatedEntryActions(entries, sourceType) {
     const canonicalEntries = CANONICAL_RATED_ENTRIES[sourceType];
     return (entries ?? [])
         .map((entry) => sanitizeImportedRatedEntry(entry))
-        .filter((entry) => entry !== null && Boolean(entry.nombre))
+        .filter((entry) => entry !== null && Boolean(entry?.nombre))
         .map((entry) => {
         const canonicalEntry = canonicalEntries.get(normalizeName(entry.nombre));
         const actions = Array.isArray(entry.acciones) ? entry.acciones : [];

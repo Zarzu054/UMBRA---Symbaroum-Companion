@@ -392,19 +392,13 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           </label>
           <label className="field">
             <span>Raza</span>
-            <select
+            <input
               value={controller.form.sheet.identidad.raza}
               onChange={(event) => {
                 controller.updateSheet("identidad.raza", event.target.value);
                 controller.updateTopLevel("race", event.target.value);
               }}
-            >
-              {controller.races.map((race) => (
-                <option key={race} value={race}>
-                  {race}
-                </option>
-              ))}
-            </select>
+            />
           </label>
           <label className="field">
             <span>Cultura</span>
