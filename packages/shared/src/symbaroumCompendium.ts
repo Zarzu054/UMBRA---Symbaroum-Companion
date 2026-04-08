@@ -6,6 +6,7 @@ export type SymbaroumCapabilityAction = {
   cost: "free" | "movement" | "combat" | "reaction";
   requiredLevel?: "novato" | "adepto" | "maestro";
   rollAttribute?: "agil" | "atento" | "discreto" | "diestro" | "fuerte" | "inteligente" | "persuasivo" | "tenaz";
+  fixedTarget?: number;
   damageFormula?: string;
   effectSummary: string;
 };
@@ -925,11 +926,25 @@ const BERSERKER_ACTIONS: SymbaroumCapabilityAction[] = [
     { damageFormula: "+1d6" }
   ),
   capabilityAction(
+    "novato-berserker-defensa",
+    "Defender con Berserker (Novato)",
+    "reaction",
+    "Mientras estés en frenesí, tu Defensa se resuelve como si tuvieras Ágil 5.",
+    { rollAttribute: "agil", fixedTarget: 5 }
+  ),
+  capabilityAction(
     "adepto-berserker",
     "Absorber daño con Berserker (Adepto)",
     "reaction",
     "Mientras estás en frenesí, puedes ignorar 1D4 de daño de cada ataque sufrido.",
     { damageFormula: "1d4" }
+  ),
+  capabilityAction(
+    "adepto-berserker-defensa",
+    "Defender con Berserker (Adepto)",
+    "reaction",
+    "Mientras estés en frenesí, tu Defensa se resuelve como si tuvieras Ágil 5.",
+    { rollAttribute: "agil", fixedTarget: 5 }
   ),
   capabilityAction(
     "maestro-berserker",

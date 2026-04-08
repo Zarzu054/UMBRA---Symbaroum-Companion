@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SYMBAROUM_ABILITIES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS } from "./symbaroumCompendium.js";
 export * from "./symbaroumCompendium.js";
 export * from "./campaignActionEngine.js";
 
@@ -91,6 +92,7 @@ const actionMetadataSchema = z.object({
   cost: actionCostSchema.default("combat"),
   requiredLevel: skillLevelSchema.optional(),
   rollAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
+  fixedTarget: z.number().int().min(1).max(20).optional(),
   damageFormula: z.string().max(80).optional(),
   effectSummary: z.string().max(400).default("")
 });
@@ -143,6 +145,7 @@ const canonicalActionEntrySchema = z.object({
   cost: actionCostSchema.default("combat"),
   requiredLevel: skillLevelSchema.optional(),
   rollAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
+  fixedTarget: z.number().int().min(1).max(20).optional(),
   damageFormula: z.string().max(80).optional(),
   effectSummary: z.string().max(800).default(""),
   category: z.string().max(80).default("general"),
@@ -648,6 +651,7 @@ function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>
         cost: action.cost,
         requiredLevel: action.requiredLevel,
         rollAttribute: action.rollAttribute,
+        fixedTarget: action.fixedTarget,
         damageFormula: action.damageFormula,
         effectSummary: action.effectSummary,
         category: item.category,
@@ -669,14 +673,18 @@ function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>
       const entryActions = entry.acciones ?? [];
       if (entryActions.length > 0) {
         for (const action of entryActions) {
+          if (!isRatedActionAvailableForEntryLevel(entry.nivel, action.requiredLevel)) {
+            continue;
+          }
           actions.push({
             id: `${sourceType}:${entry.nombre}:${action.id}`,
             label: action.label,
             sourceType,
             sourceName: entry.nombre,
             cost: action.cost,
-            requiredLevel: action.requiredLevel,
+            requiredLevel: action.requiredLevel ?? inferRatedActionLevel(action.id, action.label, entry.nombre),
             rollAttribute: action.rollAttribute,
+            fixedTarget: action.fixedTarget,
             damageFormula: action.damageFormula,
             effectSummary: action.effectSummary,
             category: sourceType,
@@ -714,28 +722,122 @@ function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>
     return /(arma natural|garras|garra|colmillos|colmillo|mordisco|cuernos|cuerno|zarpazo|pico)/.test(haystack);
   });
 
-  if (combateSinArmas && !hasNaturalWeaponAction) {
+  if (!hasNaturalWeaponAction) {
     actions.push({
       id: "ability:combate-sin-armas:base",
       label: "Ataque desarmado",
       sourceType: "weapon",
-      sourceName: "Combate sin armas",
+      sourceName: combateSinArmas ? "Combate sin armas" : "Ataque basico",
       cost: "combat",
-      requiredLevel: combateSinArmas.nivel,
+      requiredLevel: combateSinArmas?.nivel,
       rollAttribute: "fuerte",
-      damageFormula: combateSinArmas.nivel === "maestro" ? "2d6" : "1d6",
-      effectSummary: combateSinArmas.nivel === "adepto"
-        ? "Ataque desarmado base. Combate sin armas permite resolver por separado un segundo ataque contra el mismo objetivo."
-        : combateSinArmas.nivel === "maestro"
-          ? "Ataque desarmado base mejorado por Combate sin armas. Los ataques desarmados infligen 2d6."
-          : "Ataque desarmado base de Combate sin armas.",
+      damageFormula: !combateSinArmas ? "1d4" : combateSinArmas.nivel === "maestro" ? "2d6" : "1d6",
+      effectSummary: !combateSinArmas
+        ? "Ataque desarmado basico disponible para cualquier personaje."
+        : combateSinArmas.nivel === "adepto"
+          ? "Ataque desarmado base. Combate sin armas permite resolver por separado un segundo ataque contra el mismo objetivo."
+          : combateSinArmas.nivel === "maestro"
+            ? "Ataque desarmado base mejorado por Combate sin armas. Los ataques desarmados infligen 2d6."
+            : "Ataque desarmado base de Combate sin armas.",
       category: "ability",
-      notes: combateSinArmas.notas,
+      notes: combateSinArmas?.notas ?? "",
       linkedItemId: ""
     });
   }
 
   return actions;
+}
+
+function isRatedActionAvailableForEntryLevel(
+  entryLevel: z.infer<typeof skillLevelSchema>,
+  requiredLevel?: z.infer<typeof skillLevelSchema>
+): boolean {
+  if (!requiredLevel) {
+    return true;
+  }
+
+  return entryLevel === requiredLevel;
+}
+
+function inferRatedActionLevel(...values: string[]): z.infer<typeof skillLevelSchema> | undefined {
+  const joined = values.join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (joined.includes("maestro")) return "maestro";
+  if (joined.includes("adepto")) return "adepto";
+  if (joined.includes("novato")) return "novato";
+  return undefined;
+}
+
+function skillLevelRank(level: z.infer<typeof skillLevelSchema>): number {
+  switch (level) {
+    case "maestro":
+      return 2;
+    case "adepto":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+const CANONICAL_RATED_ACTIONS = {
+  ability: new Map(SYMBAROUM_ABILITIES.map((entry) => [normalizeName(entry.nombre), entry.acciones])),
+  power: new Map(SYMBAROUM_MYSTIC_POWERS.map((entry) => [normalizeName(entry.nombre), entry.acciones])),
+  ritual: new Map(SYMBAROUM_RITUALS.map((entry) => [normalizeName(entry.nombre), entry.acciones]))
+} as const;
+
+function hydrateRatedEntryActions(
+  entries: z.infer<typeof ratedEntrySchema>[] | undefined,
+  sourceType: "ability" | "power" | "ritual"
+): z.infer<typeof ratedEntrySchema>[] {
+  const canonicalActions = CANONICAL_RATED_ACTIONS[sourceType];
+  return (entries ?? []).map((entry) => {
+    if (entry.acciones.length > 0) {
+      return entry;
+    }
+
+    const resolvedActions = canonicalActions.get(normalizeName(entry.nombre));
+    if (!resolvedActions || resolvedActions.length === 0) {
+      return entry;
+    }
+
+    return {
+      ...entry,
+      acciones: resolvedActions.map((action) => ({ ...action }))
+    };
+  });
+}
+
+function normalizeRatedEntries(
+  entries: z.infer<typeof ratedEntrySchema>[] | undefined,
+  sourceType: "ability" | "power" | "ritual"
+): z.infer<typeof ratedEntrySchema>[] {
+  const merged = new Map<string, z.infer<typeof ratedEntrySchema>>();
+
+  for (const entry of hydrateRatedEntryActions(entries, sourceType)) {
+    const key = normalizeName(entry.nombre);
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, { ...entry });
+      continue;
+    }
+
+    const useIncoming = skillLevelRank(entry.nivel) >= skillLevelRank(existing.nivel);
+    merged.set(key, {
+      ...existing,
+      ...entry,
+      nombre: existing.nombre || entry.nombre,
+      tipo: existing.tipo || entry.tipo,
+      fuente: useIncoming ? (entry.fuente || existing.fuente) : (existing.fuente || entry.fuente),
+      pagina: useIncoming ? (entry.pagina ?? existing.pagina) : (existing.pagina ?? entry.pagina),
+      nivel: useIncoming ? entry.nivel : existing.nivel,
+      efecto: useIncoming ? (entry.efecto || existing.efecto) : (existing.efecto || entry.efecto),
+      notas: useIncoming ? (entry.notas || existing.notas) : (existing.notas || entry.notas),
+      acciones: useIncoming
+        ? (entry.acciones.length > 0 ? entry.acciones : existing.acciones)
+        : (existing.acciones.length > 0 ? existing.acciones : entry.acciones)
+    });
+  }
+
+  return [...merged.values()];
 }
 
 function migrateCharacterSheetInput(input: unknown): unknown {
@@ -765,10 +867,16 @@ function migrateCharacterSheetInput(input: unknown): unknown {
         campaign: candidate.noteSections.campaign ?? ""
       }
     : buildLegacyNotesSections(candidate);
+  const habilidades = normalizeRatedEntries(candidate.habilidades, "ability");
+  const poderesMisticos = normalizeRatedEntries(candidate.poderesMisticos, "power");
+  const rituales = normalizeRatedEntries(candidate.rituales, "ritual");
   const syncedRobustezMax = candidate.atributos?.fuerte ?? candidate.combate?.robustezMax ?? 10;
 
   return {
     ...candidate,
+    habilidades,
+    poderesMisticos,
+    rituales,
     combate: {
       ...candidate.combate,
       robustezMax: syncedRobustezMax,
@@ -783,6 +891,9 @@ function migrateCharacterSheetInput(input: unknown): unknown {
     noteSections,
     actions: Array.isArray(candidate.actions) && candidate.actions.length > 0 ? candidate.actions : buildCanonicalActions({
       ...candidate,
+      habilidades,
+      poderesMisticos,
+      rituales,
       inventoryItems,
       equipmentSlots,
       conditions: synchronizeAutomaticConditions(
@@ -796,8 +907,14 @@ function migrateCharacterSheetInput(input: unknown): unknown {
 
 function buildSynchronizedCharacterSheet(input: CharacterSheet): CharacterSheet {
   const syncedRobustezMax = input.atributos.fuerte;
+  const habilidades = normalizeRatedEntries(input.habilidades, "ability");
+  const poderesMisticos = normalizeRatedEntries(input.poderesMisticos, "power");
+  const rituales = normalizeRatedEntries(input.rituales, "ritual");
   const legacyCompatible = {
     ...input,
+    habilidades,
+    poderesMisticos,
+    rituales,
     combate: {
       ...input.combate,
       robustezMax: syncedRobustezMax,
@@ -818,6 +935,9 @@ function buildSynchronizedCharacterSheet(input: CharacterSheet): CharacterSheet 
   const manualUtilityActions = input.actions.filter((action) => action.sourceType === "utility");
   return {
     ...input,
+    habilidades,
+    poderesMisticos,
+    rituales,
     noteSections: legacyCompatible.noteSections,
     actions: [...manualUtilityActions, ...autoActions]
   };
@@ -1132,6 +1252,7 @@ export const executeCampaignCharacterActionSchema = z.object({
   characterId: z.string().uuid(),
   actionId: z.string().min(1).max(120),
   phase: z.enum(["attack", "damage"]).default("attack"),
+  damageVariantId: z.string().min(1).max(120).optional(),
   note: z.string().max(1000).default("")
 });
 
@@ -1302,7 +1423,13 @@ export type CharacterActionDefinition = {
   cost: ActionCost;
   requiredLevel?: SkillLevel;
   rollAttribute?: AttributeKey;
+  fixedTarget?: number;
   damageFormula?: string;
+  damageModifiers?: Array<{
+    id: string;
+    label: string;
+    formula: string;
+  }>;
   effectSummary: string;
 };
 
@@ -1320,6 +1447,7 @@ export type RollRequest = {
   sourceName: string;
   sourceType: "weapon" | "ability" | "power" | "ritual";
   formula: string;
+  selectedDamageModifierIds?: string[];
   rollAttribute?: AttributeKey;
   target?: number;
   note?: string;

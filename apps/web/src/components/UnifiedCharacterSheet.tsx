@@ -23,6 +23,7 @@ import {
 } from "../services/rollTransport";
 
 type TabId = "actions" | "inventory" | "abilities" | "background" | "notes";
+type ActionTabId = "all" | "attacks" | "powers" | "actions" | "free" | "reactions" | "other";
 type CapabilityTabId = "traits" | "abilities" | "powers" | "rituals";
 type InventoryTabId = "money" | "weapons" | "armors" | "items" | "slots";
 type RatedEntry = CharacterSheet["habilidades"][number];
@@ -39,9 +40,20 @@ type Props = {
 };
 
 type PendingRollConfirmation = {
-  request: RollRequest;
+  request?: RollRequest;
+  action?: CharacterActionDefinition;
+  phase?: CharacterActionPhase;
   title: string;
   visibility: Roll20Visibility;
+  selectedDamageModifierIds: string[];
+  defenseAlternativeIds?: string[];
+  selectedDefenseAlternativeId?: string;
+};
+
+type ActionDetailModal = {
+  title: string;
+  sourceLabel: string;
+  detail: string;
 };
 
 type InventoryCatalogModalTab = "weapons" | "armors" | "items";
@@ -81,6 +93,76 @@ function parseMoneyCounters(rawValue: string): MoneyCounters {
 
 function formatMoneyCounters(counters: MoneyCounters): string {
   return `${Math.max(0, counters.taleros)} Taleros · ${Math.max(0, counters.chelines)} Chelines · ${Math.max(0, counters.ortegs)} Ortegs`;
+}
+
+function formatActionDisplayLabel(label: string): string {
+  return String(label ?? "")
+    .replace(/^Usar\s+/i, "")
+    .replace(/\s+\((Novato|Adepto|Maestro)\)\s*$/i, "")
+    .trim();
+}
+
+function getActionRollLabel(action: CharacterActionDefinition): string {
+  if (action.sourceType === "weapon") {
+    return "Ataque";
+  }
+
+  const normalized = normalizeCapabilityText(`${action.label} ${action.effectSummary}`);
+  if (/(defender|defensa|parar|desviar)/.test(normalized)) {
+    return "Defensa";
+  }
+
+  return "Tirada";
+}
+
+function getActionDamageVariants(action: CharacterActionDefinition): Array<{ id: string; label: string; formula: string }> {
+  if (action.damageModifiers && action.damageModifiers.length > 0) {
+    return action.damageModifiers;
+  }
+
+  return [];
+}
+
+function isIntegratedDamageBonusAction(action: CharacterActionDefinition): boolean {
+  return action.sourceType !== "weapon" && !action.rollAttribute && String(action.damageFormula ?? "").trim().startsWith("+");
+}
+
+function hasActionRoll(action: CharacterActionDefinition): boolean {
+  if (isIntegratedDamageBonusAction(action)) {
+    return false;
+  }
+
+  return Boolean(action.rollAttribute || action.damageFormula);
+}
+
+function getActionSourceLabel(action: CharacterActionDefinition): string {
+  switch (action.sourceType) {
+    case "weapon":
+      return action.sourceName || "Arma";
+    case "power":
+      return action.sourceName || "Poder mistico";
+    case "ritual":
+      return action.sourceName || "Ritual";
+    case "ability":
+    default:
+      return action.sourceName || (action.fixedTarget ? "Accion especial" : "Habilidad");
+  }
+}
+
+function isDefenseAlternativeAction(action: CharacterActionDefinition): boolean {
+  return Boolean(action.rollAttribute) && getActionRollLabel(action) === "Defensa";
+}
+
+function isDefenseModifierOnlyAction(action: CharacterActionDefinition): boolean {
+  return isDefenseAlternativeAction(action) && Boolean(action.fixedTarget);
+}
+
+function isOtherAction(action: CharacterActionDefinition): boolean {
+  if (action.sourceType === "weapon" || action.sourceType === "power" || action.sourceType === "ritual") {
+    return false;
+  }
+
+  return Boolean(action.fixedTarget);
 }
 
 function parseCapabilityTiers(text: string): { tiers: CapabilityTier[]; reference: string | null; remainder: string | null } {
@@ -146,6 +228,19 @@ function normalizeCapabilityText(text: string): string {
     .toLowerCase();
 }
 
+function capitalizeActionLevel(level: string): "Novato" | "Adepto" | "Maestro" | null {
+  switch (String(level ?? "").toLowerCase()) {
+    case "novato":
+      return "Novato";
+    case "adepto":
+      return "Adepto";
+    case "maestro":
+      return "Maestro";
+    default:
+      return null;
+  }
+}
+
 export function UnifiedCharacterSheet({
   title,
   subtitle,
@@ -164,6 +259,7 @@ export function UnifiedCharacterSheet({
   const canEditNotes = editMode && editable;
   const canEditInventory = editable;
   const [activeTab, setActiveTab] = useState<TabId>("actions");
+  const [activeActionTab, setActiveActionTab] = useState<ActionTabId>("all");
   const [activeCapabilityTab, setActiveCapabilityTab] = useState<CapabilityTabId>("abilities");
   const [activeInventoryTab, setActiveInventoryTab] = useState<InventoryTabId>("weapons");
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>(ITEM_CATALOG[0]?.templateId ?? "");
@@ -171,10 +267,45 @@ export function UnifiedCharacterSheet({
   const [history, setHistory] = useState<Array<{ title: string; detail?: string; rolls: ActionRollResult[] }>>([]);
   const rollDestination: RollDestination = "roll20";
   const [pendingRollConfirmation, setPendingRollConfirmation] = useState<PendingRollConfirmation | null>(null);
+  const [actionDetailModal, setActionDetailModal] = useState<ActionDetailModal | null>(null);
 
   const normalizedSheet = useMemo(() => synchronizeCharacterSheet(draft), [draft]);
   const derived = useMemo(() => computeDerivedStats(normalizedSheet), [normalizedSheet]);
   const actions = useMemo(() => deriveCharacterActions(normalizedSheet), [normalizedSheet]);
+  const defenseAlternativeActions = useMemo(
+    () => actions.filter((action) => isDefenseModifierOnlyAction(action)),
+    [actions]
+  );
+  const visibleActions = useMemo(
+    () => actions.filter((action) => !isDefenseModifierOnlyAction(action)),
+    [actions]
+  );
+  const filteredActions = useMemo(() => {
+    switch (activeActionTab) {
+      case "all":
+        return visibleActions;
+      case "attacks":
+        return visibleActions.filter((action) => action.sourceType === "weapon");
+      case "powers":
+        return visibleActions.filter((action) => action.sourceType === "power" || action.sourceType === "ritual");
+      case "other":
+        return visibleActions.filter((action) => isOtherAction(action));
+      case "free":
+        return visibleActions.filter((action) => action.cost === "free" && !isOtherAction(action));
+      case "reactions":
+        return visibleActions.filter((action) => action.cost === "reaction" && !isOtherAction(action));
+      case "actions":
+      default:
+        return visibleActions.filter((action) =>
+          action.sourceType !== "weapon" &&
+          action.sourceType !== "power" &&
+          action.sourceType !== "ritual" &&
+          !isOtherAction(action) &&
+          action.cost !== "free" &&
+          action.cost !== "reaction"
+        );
+    }
+  }, [visibleActions, activeActionTab]);
   const displayName = normalizedSheet.identidad.nombrePersonaje || title;
   const equippedItems = useMemo(
     () => normalizedSheet.inventoryItems.filter((item) => item.equipped),
@@ -216,17 +347,111 @@ export function UnifiedCharacterSheet({
     setHistory((current) => [{ title: titleText, detail, rolls }, ...current].slice(0, 12));
   }
 
-  function queueRoll20Request(request: RollRequest, requestTitle: string): void {
-    setPendingRollConfirmation({ request, title: requestTitle, visibility: "public" });
-  }
-
-  function runAction(action: CharacterActionDefinition, phase: CharacterActionPhase): void {
-    if (rollDestination !== "umbra") {
-      queueRoll20Request(buildRollRequest(normalizedSheet, displayName, action.id, phase, rollDestination), `${action.label} · ${phase === "damage" ? "Danio" : "Tirada"}`);
+  function openActionDetail(action: CharacterActionDefinition): void {
+    if (action.sourceType === "weapon") {
+      const item = normalizedSheet.inventoryItems.find((entry) => entry.name === action.sourceName || entry.id === action.id.replace(/^weapon:/, ""));
+      const detail = [item?.description, item?.qualities, item?.notes, action.effectSummary].filter(Boolean).join("\n\n").trim() || "Sin descripcion adicional.";
+      setActionDetailModal({
+        title: formatActionDisplayLabel(action.label),
+        sourceLabel: getActionSourceLabel(action),
+        detail
+      });
       return;
     }
 
-    const result = executeCharacterAction(normalizedSheet, action.id, phase);
+    const entries = action.sourceType === "power"
+      ? normalizedSheet.poderesMisticos
+      : action.sourceType === "ritual"
+        ? normalizedSheet.rituales
+        : normalizedSheet.habilidades;
+    const entry = entries.find((candidate) => normalizeCapabilityText(candidate.nombre) === normalizeCapabilityText(action.sourceName));
+    const rawDetail = `${entry?.efecto ?? ""}\n${entry?.notas ?? ""}`.trim() || action.effectSummary;
+    const parsed = parseCapabilityTiers(rawDetail);
+    const currentTierLabel = entry?.nivel ? capitalizeActionLevel(entry.nivel) : null;
+    const tierContent = currentTierLabel ? parsed.tiers.find((tier) => tier.label === currentTierLabel)?.content : null;
+    const detail = [tierContent, parsed.remainder, parsed.reference].filter(Boolean).join("\n\n").trim() || "Sin descripcion adicional.";
+    setActionDetailModal({
+      title: formatActionDisplayLabel(action.label),
+      sourceLabel: getActionSourceLabel(action),
+      detail
+    });
+  }
+
+  function queueRoll20Request(
+    requestOrAction: RollRequest | CharacterActionDefinition,
+    phaseOrTitle: CharacterActionPhase | string,
+    requestTitle?: string,
+    selectedDamageModifierIds: string[] = []
+  ): void {
+    if ("destination" in requestOrAction) {
+      setPendingRollConfirmation({
+        request: requestOrAction,
+        title: String(phaseOrTitle),
+        visibility: "public",
+        selectedDamageModifierIds: [],
+        defenseAlternativeIds: [],
+        selectedDefenseAlternativeId: ""
+      });
+      return;
+    }
+
+    setPendingRollConfirmation({
+      action: requestOrAction,
+      phase: phaseOrTitle as CharacterActionPhase,
+      title: requestTitle ?? "",
+      visibility: "public",
+      selectedDamageModifierIds,
+      defenseAlternativeIds: [],
+      selectedDefenseAlternativeId: ""
+    });
+  }
+
+  function runAction(action: CharacterActionDefinition, phase: CharacterActionPhase, damageVariantId?: string): void {
+    if (rollDestination !== "umbra") {
+      queueRoll20Request(action, phase, `${action.label} - ${phase === "damage" ? "Danio" : "Tirada"}`);
+      return;
+    }
+
+    const result = executeCharacterAction(normalizedSheet, action.id, phase, damageVariantId ? [damageVariantId] : []);
+    pushHistory(result.action.label, result.rolls, result.action.effectSummary);
+  }
+
+  function runDamageVariantAction(
+    action: CharacterActionDefinition,
+    damageVariantId: string,
+    damageLabel: string
+  ): void {
+    if (rollDestination !== "umbra") {
+      queueRoll20Request(
+        action,
+        "damage",
+        `${action.label} - ${damageLabel}`,
+        [damageVariantId]
+      );
+      return;
+    }
+
+    const result = executeCharacterAction(normalizedSheet, action.id, "damage", [damageVariantId]);
+    pushHistory(result.action.label, result.rolls, result.action.effectSummary);
+  }
+
+  function runAttackAction(action: CharacterActionDefinition): void {
+    if (rollDestination !== "umbra") {
+      queueRoll20Request(action, "attack", `${action.label} · Tirada`);
+      return;
+    }
+
+    const result = executeCharacterAction(normalizedSheet, action.id, "attack");
+    pushHistory(result.action.label, result.rolls, result.action.effectSummary);
+  }
+
+  function runDamageAction(action: CharacterActionDefinition): void {
+    if (rollDestination !== "umbra") {
+      queueRoll20Request(action, "damage", `${action.label} · Danio`);
+      return;
+    }
+
+    const result = executeCharacterAction(normalizedSheet, action.id, "damage");
     pushHistory(result.action.label, result.rolls, result.action.effectSummary);
   }
 
@@ -267,8 +492,8 @@ export function UnifiedCharacterSheet({
   function runDefenseRoll(): void {
     const label = "Defensa";
     if (rollDestination !== "umbra") {
-      queueRoll20Request(
-        {
+      setPendingRollConfirmation({
+        request: {
           kind: "check",
           phase: "attack",
           characterName: displayName,
@@ -280,8 +505,12 @@ export function UnifiedCharacterSheet({
           target: derived.defensaTotal,
           destination: rollDestination
         },
-        label
-      );
+        title: label,
+        visibility: "public",
+        selectedDamageModifierIds: [],
+        defenseAlternativeIds: defenseAlternativeActions.map((action) => action.id),
+        selectedDefenseAlternativeId: ""
+      });
       return;
     }
 
@@ -343,7 +572,34 @@ export function UnifiedCharacterSheet({
   async function handleConfirmRoll20Send(visibility: Roll20Visibility): Promise<void> {
     if (!pendingRollConfirmation) return;
     try {
-      await dispatchRoll20Request(pendingRollConfirmation.request, visibility);
+      const selectedDefenseAction = pendingRollConfirmation.selectedDefenseAlternativeId
+        ? defenseAlternativeActions.find((action) => action.id === pendingRollConfirmation.selectedDefenseAlternativeId)
+        : null;
+      const request = selectedDefenseAction
+        ? buildRollRequest(
+            normalizedSheet,
+            displayName,
+            selectedDefenseAction.id,
+            "attack",
+            rollDestination
+          )
+        : pendingRollConfirmation.request ?? (
+        pendingRollConfirmation.action && pendingRollConfirmation.phase
+          ? buildRollRequest(
+              normalizedSheet,
+              displayName,
+              pendingRollConfirmation.action.id,
+              pendingRollConfirmation.phase,
+              rollDestination,
+              "",
+              pendingRollConfirmation.selectedDamageModifierIds
+            )
+          : null
+        );
+      if (!request) {
+        throw new Error("No se pudo preparar la tirada");
+      }
+      await dispatchRoll20Request(request, visibility);
     } catch (error) {
       void error;
     } finally {
@@ -630,42 +886,44 @@ export function UnifiedCharacterSheet({
                 <div className="row-actions">
                   <h3>Acciones disponibles</h3>
                 </div>
+                <nav className="unified-sheet-subtabs unified-sheet-action-subtabs" aria-label="Filtros de acciones">
+                  {([
+                    ["all", "Todas"],
+                    ["attacks", "Ataques"],
+                    ["powers", "Poderes y rituales"],
+                    ["actions", "Acciones"],
+                    ["free", "Acciones gratuitas"],
+                    ["reactions", "Reacciones"],
+                    ["other", "Otras"]
+                  ] as Array<[ActionTabId, string]>).map(([tab, label]) => (
+                    <button key={tab} type="button" className={activeActionTab === tab ? "is-active" : ""} onClick={() => setActiveActionTab(tab)}>
+                      {label}
+                    </button>
+                  ))}
+                </nav>
                 <div className="campaign-sheet-actions">
-                  {actions.map((action, index) => (
-                    <div key={action.id} className="campaign-action-button">
-                      <strong>{action.label}</strong>
-                      <span>{action.sourceName}</span>
-                      <span>{action.cost}{action.rollAttribute ? ` · ${ATTRIBUTE_LABELS[action.rollAttribute]}` : ""}{action.damageFormula ? ` · ${action.damageFormula}` : ""}</span>
-                      <p>{action.effectSummary}</p>
-                      <div className="campaign-action-controls">
-                        {action.rollAttribute ? <button type="button" onClick={() => runAction(action, "attack")}>Tirar</button> : null}
-                        {action.damageFormula ? <button type="button" onClick={() => runAction(action, "damage")}>Danio</button> : null}
+                  {filteredActions.map((action) => (
+                    <div key={action.id} className="campaign-action-button campaign-action-button--row">
+                      <div className="campaign-action-main">
+                        <button type="button" className="campaign-action-name-button" onClick={() => openActionDetail(action)}>
+                          {formatActionDisplayLabel(action.label)}
+                        </button>
+                        <span className="campaign-action-source-note">{getActionSourceLabel(action)}</span>
+                      </div>
+                      <div className="campaign-action-slot">
+                        {action.rollAttribute ? (
+                          <button type="button" onClick={() => runAttackAction(action)}>{getActionRollLabel(action)}</button>
+                        ) : (
+                          <span aria-hidden="true" className="campaign-action-slot-placeholder" />
+                        )}
+                      </div>
+                      <div className="campaign-action-slot is-damage">
+                        {action.damageFormula && !isIntegratedDamageBonusAction(action) ? <button type="button" onClick={() => runDamageAction(action)}>Danio</button> : <span aria-hidden="true" className="campaign-action-slot-placeholder" />}
                       </div>
                     </div>
                   ))}
-                  {actions.length === 0 ? <p className="section-help">Sin acciones registradas.</p> : null}
+                  {filteredActions.length === 0 ? <p className="section-help">Sin acciones registradas en esta categoria.</p> : null}
                 </div>
-              </article>
-
-              <article className="campaign-sheet-card">
-                <h3>Historial</h3>
-                {history.length > 0 ? (
-                  <div className="roll-log">
-                    {history.map((entry, index) => (
-                      <div key={`${entry.title}-${index}`} className="character-action-history-entry">
-                        <strong>{entry.title}</strong>
-                        <div className="campaign-roll-group-lines">
-                          {entry.rolls.map((roll, rollIndex) => (
-                            <span key={`${entry.title}-${rollIndex}`}>{roll.label}: {roll.formula} = {roll.total}{typeof roll.target === "number" ? ` vs ${roll.target} ${roll.success ? "exito" : "fallo"}` : ""}</span>
-                          ))}
-                        </div>
-                        {entry.detail ? <p>{entry.detail}</p> : null}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="section-help">Aun no has lanzado ninguna tirada desde esta hoja.</p>
-                )}
               </article>
             </section>
           ) : null}
@@ -1006,42 +1264,39 @@ export function UnifiedCharacterSheet({
             <div className="row-actions">
               <h3>Acciones disponibles</h3>
             </div>
+            <nav className="unified-sheet-subtabs unified-sheet-action-subtabs" aria-label="Filtros de acciones">
+              {([
+                ["all", "Todas"],
+                ["attacks", "Ataques"],
+                ["powers", "Poderes y rituales"],
+                ["actions", "Acciones"],
+                ["free", "Acciones gratuitas"],
+                ["reactions", "Reacciones"],
+                ["other", "Otras"]
+              ] as Array<[ActionTabId, string]>).map(([tab, label]) => (
+                <button key={tab} type="button" className={activeActionTab === tab ? "is-active" : ""} onClick={() => setActiveActionTab(tab)}>
+                  {label}
+                </button>
+              ))}
+            </nav>
             <div className="campaign-sheet-actions">
-              {actions.map((action, index) => (
-                <div key={action.id} className="campaign-action-button">
-                  <strong>{action.label}</strong>
-                  <span>{action.sourceName}</span>
-                  <span>{action.cost}{action.rollAttribute ? ` · ${ATTRIBUTE_LABELS[action.rollAttribute]}` : ""}{action.damageFormula ? ` · ${action.damageFormula}` : ""}</span>
-                  <p>{action.effectSummary}</p>
-                  <div className="campaign-action-controls">
-                    {action.rollAttribute ? <button type="button" onClick={() => runAction(action, "attack")}>Tirar</button> : null}
-                    {action.damageFormula ? <button type="button" onClick={() => runAction(action, "damage")}>Danio</button> : null}
+              {filteredActions.map((action) => (
+                <div key={action.id} className="campaign-action-button campaign-action-button--row">
+                  <strong>{formatActionDisplayLabel(action.label)}</strong>
+                  <div className="campaign-action-slot">
+                    {action.rollAttribute ? (
+                      <button type="button" onClick={() => runAttackAction(action)}>{getActionRollLabel(action)}</button>
+                    ) : (
+                      <span aria-hidden="true" className="campaign-action-slot-placeholder" />
+                    )}
+                  </div>
+                  <div className="campaign-action-slot is-damage">
+                    {action.damageFormula && !isIntegratedDamageBonusAction(action) ? <button type="button" onClick={() => runDamageAction(action)}>Danio</button> : <span aria-hidden="true" className="campaign-action-slot-placeholder" />}
                   </div>
                 </div>
               ))}
-              {actions.length === 0 ? <p className="section-help">Sin acciones registradas.</p> : null}
+              {filteredActions.length === 0 ? <p className="section-help">Sin acciones registradas en esta categoria.</p> : null}
             </div>
-          </article>
-
-          <article className="campaign-sheet-card">
-            <h3>Historial</h3>
-            {history.length > 0 ? (
-              <div className="roll-log">
-                {history.map((entry, index) => (
-                  <div key={`${entry.title}-${index}`} className="character-action-history-entry">
-                    <strong>{entry.title}</strong>
-                    <div className="campaign-roll-group-lines">
-                      {entry.rolls.map((roll, rollIndex) => (
-                        <span key={`${entry.title}-${rollIndex}`}>{roll.label}: {roll.formula} = {roll.total}{typeof roll.target === "number" ? ` vs ${roll.target} ${roll.success ? "exito" : "fallo"}` : ""}</span>
-                      ))}
-                    </div>
-                    {entry.detail ? <p>{entry.detail}</p> : null}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="section-help">Aun no has lanzado ninguna tirada desde esta hoja.</p>
-            )}
           </article>
         </section>
       ) : null}
@@ -1181,12 +1436,89 @@ export function UnifiedCharacterSheet({
           <div className="panel modal-panel character-roll-confirm-modal">
             <h3>Enviar tirada</h3>
             <p className="section-help">{pendingRollConfirmation.title}</p>
+            {pendingRollConfirmation.action && pendingRollConfirmation.phase === "damage" && getActionDamageVariants(pendingRollConfirmation.action).length > 0 ? (
+              <div className="character-roll-confirm-modifiers">
+                <span>Modificadores de dano</span>
+                {getActionDamageVariants(pendingRollConfirmation.action).map((modifier) => (
+                  <label key={`${pendingRollConfirmation.action?.id}-${modifier.id}`} className="character-roll-confirm-modifier">
+                    <input
+                      type="checkbox"
+                      checked={pendingRollConfirmation.selectedDamageModifierIds.includes(modifier.id)}
+                      onChange={(event) =>
+                        setPendingRollConfirmation((current) => current ? {
+                          ...current,
+                          selectedDamageModifierIds: event.target.checked
+                            ? [...current.selectedDamageModifierIds, modifier.id]
+                            : current.selectedDamageModifierIds.filter((entry) => entry !== modifier.id)
+                        } : current)
+                      }
+                    />
+                    <span>{modifier.label} ({modifier.formula})</span>
+                  </label>
+                ))}
+                <p className="section-help">
+                  Formula final: {
+                    buildRollRequest(
+                      normalizedSheet,
+                      displayName,
+                      pendingRollConfirmation.action.id,
+                      "damage",
+                      rollDestination,
+                      "",
+                      pendingRollConfirmation.selectedDamageModifierIds
+                    ).formula
+                  }
+                </p>
+              </div>
+            ) : null}
+            {(pendingRollConfirmation.defenseAlternativeIds?.length ?? 0) > 0 ? (
+              <div className="character-roll-confirm-modifiers">
+                <span>Defensa</span>
+                <label className="character-roll-confirm-modifier">
+                  <input
+                    type="radio"
+                    name="defense-alternative"
+                    checked={!pendingRollConfirmation.selectedDefenseAlternativeId}
+                    onChange={() => setPendingRollConfirmation((current) => current ? { ...current, selectedDefenseAlternativeId: "" } : current)}
+                  />
+                  <span>Defensa base ({derived.defensaTotal})</span>
+                </label>
+                {pendingRollConfirmation.defenseAlternativeIds?.map((actionId) => {
+                  const action = defenseAlternativeActions.find((entry) => entry.id === actionId);
+                  if (!action) return null;
+                  const label = formatActionDisplayLabel(action.label);
+                  return (
+                    <label key={action.id} className="character-roll-confirm-modifier">
+                      <input
+                        type="radio"
+                        name="defense-alternative"
+                        checked={pendingRollConfirmation.selectedDefenseAlternativeId === action.id}
+                        onChange={() => setPendingRollConfirmation((current) => current ? { ...current, selectedDefenseAlternativeId: action.id } : current)}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            ) : null}
             <div className="row-actions character-roll-confirm-actions">
               <div className="character-roll-confirm-primary">
                 <button type="button" onClick={() => void handleConfirmRoll20Send("public")}>Publico</button>
                 <button type="button" onClick={() => void handleConfirmRoll20Send("gm")}>Solo DJ</button>
               </div>
               <button type="button" className="subtle-button" onClick={() => setPendingRollConfirmation(null)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {actionDetailModal ? (
+        <div className="modal-backdrop" onClick={() => setActionDetailModal(null)}>
+          <div className="panel modal-panel character-roll-confirm-modal unified-sheet-action-detail-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>{actionDetailModal.title}</h3>
+            <p className="section-help">{actionDetailModal.sourceLabel}</p>
+            <p className="unified-sheet-rich-text">{actionDetailModal.detail}</p>
+            <div className="row-actions character-roll-confirm-actions">
+              <button type="button" className="subtle-button" onClick={() => setActionDetailModal(null)}>Cerrar</button>
             </div>
           </div>
         </div>
@@ -1366,3 +1698,4 @@ function CapabilityEditor({ title, entries, editable, onAdd, onRemove, onUpdate,
     </article>
   );
 }
+

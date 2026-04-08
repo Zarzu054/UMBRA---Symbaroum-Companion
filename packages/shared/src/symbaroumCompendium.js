@@ -513,7 +513,9 @@ const ATAQUE_CON_DOS_ARMAS_ACTIONS = [
 ];
 const BERSERKER_ACTIONS = [
     capabilityAction("novato-berserker", "Entrar en frenesí (Novato)", "free", "Entra en frenesí homicida para causar +1D6 de daño en combate cuerpo a cuerpo. Mientras dure, tu Defensa se calcula como si tuvieras Ágil 5.", { damageFormula: "+1d6" }),
+    capabilityAction("novato-berserker-defensa", "Defender con Berserker (Novato)", "reaction", "Mientras estés en frenesí, tu Defensa se resuelve como si tuvieras Ágil 5.", { rollAttribute: "agil", fixedTarget: 5 }),
     capabilityAction("adepto-berserker", "Absorber daño con Berserker (Adepto)", "reaction", "Mientras estás en frenesí, puedes ignorar 1D4 de daño de cada ataque sufrido.", { damageFormula: "1d4" }),
+    capabilityAction("adepto-berserker-defensa", "Defender con Berserker (Adepto)", "reaction", "Mientras estés en frenesí, tu Defensa se resuelve como si tuvieras Ágil 5.", { rollAttribute: "agil", fixedTarget: 5 }),
     capabilityAction("maestro-berserker", "Entrar en frenesí controlado (Maestro)", "free", "Entra en frenesí manteniendo el daño y la protección adicionales de Berserker sin perder tu capacidad normal de defenderte.", { damageFormula: "+1d6" })
 ];
 const COMBATE_SIN_ARMAS_ACTIONS = [
