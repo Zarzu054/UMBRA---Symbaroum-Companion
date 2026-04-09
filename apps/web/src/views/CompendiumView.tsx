@@ -297,8 +297,8 @@ export function CompendiumView({
         <div>
           <h2>Compendio Central</h2>
           <p>
-            Consulta rápida de reglas, habilidades, poderes místicos, rituales y referencias base de personaje desde un
-            único módulo.
+            Consulta rápida de reglas, rasgos de monstruo, habilidades, poderes místicos, rituales y referencias base
+            de personaje desde un único módulo.
           </p>
         </div>
         <div className="toolbar">
