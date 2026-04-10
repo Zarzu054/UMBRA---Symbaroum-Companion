@@ -2,6 +2,7 @@ import { z } from "zod";
 import { SYMBAROUM_ABILITIES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS } from "./symbaroumCompendium.js";
 export * from "./symbaroumCompendium.js";
 export * from "./campaignActionEngine.js";
+export * from "./monsterCodex.js";
 
 export const userRoleSchema = z.enum(["player", "gm", "superadmin"]);
 export const registerRoleSchema = z.enum(["player", "gm"]);

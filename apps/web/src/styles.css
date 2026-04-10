@@ -1155,6 +1155,111 @@ button.subtle-button {
   background: rgba(255, 252, 245, 0.34);
 }
 
+.monster-module,
+.monster-module-layout,
+.monster-section,
+.monster-browser-layout,
+.monster-browser-list,
+.monster-browser-detail,
+.monster-builder-stack,
+.monster-guidance-grid,
+.monster-statblock,
+.monster-stat-grid,
+.monster-detail-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.monster-module-layout {
+  align-items: start;
+}
+
+.monster-browser-layout {
+  grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
+  align-items: start;
+}
+
+.monster-browser-list {
+  max-height: 920px;
+  overflow: auto;
+}
+
+.monster-browser-detail,
+.monster-builder-card {
+  min-width: 0;
+}
+
+.monster-builder-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(139, 109, 77, 0.34);
+  background: rgba(255, 252, 245, 0.38);
+}
+
+.monster-guidance-grid,
+.monster-stat-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.monster-statblock {
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(139, 109, 77, 0.4);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.04)),
+    rgba(255, 251, 245, 0.54);
+}
+
+.monster-statblock-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.monster-statblock-header p {
+  margin: 6px 0 0;
+  color: var(--ink-soft);
+}
+
+.monster-statblock-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.monster-attribute-table {
+  border: 1px solid rgba(139, 109, 77, 0.28);
+  border-radius: 14px;
+  background: rgba(255, 252, 245, 0.46);
+}
+
+.monster-attribute-table th,
+.monster-attribute-table td {
+  text-align: center;
+}
+
+.monster-detail-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.monster-detail-grid .entry-row {
+  align-content: start;
+}
+
+.monster-detail-grid .entry-row p,
+.monster-detail-grid .entry-row strong {
+  margin: 0;
+}
+
+.monster-detail-grid .tag-list {
+  margin-top: 0;
+}
+
 .checkbox-field {
   align-content: center;
 }
@@ -2977,6 +3082,10 @@ td {
 }
 
 @media (max-width: 1100px) {
+  .monster-browser-layout {
+    grid-template-columns: 1fr;
+  }
+
   .unified-sheet {
     height: auto;
     overflow: visible;

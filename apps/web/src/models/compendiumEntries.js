@@ -2,6 +2,7 @@ import { SYMBAROUM_ABILITIES, SYMBAROUM_ARCHETYPES, SYMBAROUM_CAPABILITIES, SYMB
 export const TYPE_LABELS = {
     all: "Todo",
     regla: "Reglas",
+    rasgo: "Rasgos",
     habilidad: "Habilidades",
     poder_mistico: "Poderes",
     ritual: "Rituales",
@@ -222,6 +223,463 @@ function buildTraditionEntries() {
         fuente: "GuÃ­a Avanzada del Jugador",
         tags: ["tradicion", "magia"]
     }));
+}
+function buildMonsterTraitEntries() {
+    const traits = [
+        {
+            nombre: "Abrazo aplastante",
+            pagina: 164,
+            resumen: "Tras dañar con arma natural, la criatura puede apresar y triturar al objetivo.",
+            detalle: "I/II/III: como reacción al causar daño con arma natural, la criatura intenta agarrar. La víctima evita o rompe la presa con [Ágil←Diestro] y [Fuerte←Fuerte]; si falla, queda sin actuar y recibe 2/3/4 daño por turno que ignora armadura mientras la criatura mantiene el agarre.",
+            tags: ["presa", "arma natural"]
+        },
+        {
+            nombre: "Acaparador de corrupción",
+            pagina: 164,
+            resumen: "La criatura acumula corrupción y la gasta para torcer tiradas a su favor.",
+            detalle: "Solo para criaturas consumidas por la corrupción. Puede almacenar hasta Tenaz/2 puntos; drena corrupción permanente de víctimas sometidas y, a niveles altos, también al herir con armas naturales. Esa reserva se gasta para forzar segundas oportunidades de fallar defensas, ataques, tiradas de resistencia o efectos contra la criatura.",
+            tags: ["corrupción", "abominación"]
+        },
+        {
+            nombre: "Aliento mortal",
+            pagina: 164,
+            resumen: "La criatura exhala un torrente devastador de fuego, frío, ácido, rayos u otro efecto.",
+            detalle: "I: un objetivo sufre 3 o 6 daño según supere [Ágil←Diestro]. II: el torrente puede encadenarse a más objetivos mientras fallen. III: la tormenta continúa incluso con un éxito inicial y solo se rompe cuando un segundo objetivo logra resistir. Puede combinarse con Daño alternativo, Ataque de Corrupción o Venenoso.",
+            tags: ["daño", "área"]
+        },
+        {
+            nombre: "Anfibio",
+            pagina: 164,
+            resumen: "La criatura puede respirar aire y agua y combatir bajo el agua sin penalizadores.",
+            detalle: "Permite vivir dentro y fuera del agua, ignorar los penalizadores por combate acuático y no sufrir daño por esfuerzo o falta de oxígeno al luchar sumergida.",
+            tags: ["movilidad", "agua"]
+        },
+        {
+            nombre: "Aparición",
+            pagina: 164,
+            resumen: "La criatura puede poseer cuerpos ajenos de forma mucho más rápida que el ritual Posesión.",
+            detalle: "Requiere Forma espiritual I. I: al tocar, intenta poseer con [Tenaz←Tenaz] y la duración escala de día a permanente. II: al caer a Resistencia 0 puede saltar como reacción al enemigo que le dio el golpe final. III: la posesión lograda pasa a ser permanente hasta Exorcismo o abandono voluntario.",
+            tags: ["espíritu", "posesión"]
+        },
+        {
+            nombre: "Ataque perforante",
+            pagina: 165,
+            resumen: "El ataque no causa daño normal; intenta atravesar la armadura para aplicar otro efecto.",
+            detalle: "El valor de daño del ataque se usa solo para perforar armadura. Si supera la protección del objetivo, entra el efecto secundario del monstruo, como veneno o corrupción. Los niveles fijan un valor de 4/5/6.",
+            tags: ["armadura", "penetración"]
+        },
+        {
+            nombre: "Aura nociva",
+            pagina: 165,
+            resumen: "La criatura daña automáticamente a cualquiera que permanezca a alcance cuerpo a cuerpo.",
+            detalle: "I/II/III: quienes estén trabados con la criatura sufren 2/3/4 daño por turno que ignora armadura. El aura deja un rastro evidente y puede tratarse como fuego, frío, ácido, rayos, corrupción o veneno si combina con otros rasgos.",
+            tags: ["aura", "daño pasivo"]
+        },
+        {
+            nombre: "Caparazón",
+            pagina: 165,
+            resumen: "La armadura natural puede reforzarse en momentos concretos para duplicar su valor.",
+            detalle: "El rasgo representa placas, conchas o quitina extremadamente resistentes. Según el nivel, la criatura puede duplicar su armadura al reaccionar frente a ataques, proyectiles o situaciones definidas por su anatomía y patrón defensivo.",
+            tags: ["armadura", "defensa"]
+        },
+        {
+            nombre: "Compañeros",
+            pagina: 165,
+            resumen: "La criatura combate mejor cuando actúa junto a miembros de su misma especie o grupo.",
+            detalle: "El rasgo modela manadas, bandadas y equipos coordinados. A mayor nivel, más fuertes son los bonos que obtiene la criatura por luchar cerca de aliados compatibles o por concentrarse sobre un mismo objetivo.",
+            tags: ["grupo", "manada"]
+        },
+        {
+            nombre: "Convocante",
+            pagina: 165,
+            resumen: "La criatura llama refuerzos del Ultramundo que desaparecen al final de la escena o con su muerte.",
+            detalle: "Solo para criaturas consumidas por la corrupción. Una vez por escena puede hacer una tirada de Tenaz para convocar intrusos demoníacos; con niveles altos trae refuerzos más fuertes o más numerosos. Los convocados obedecen órdenes audibles, no telepáticas.",
+            tags: ["demonios", "refuerzos"]
+        },
+        {
+            nombre: "Demoledor",
+            pagina: 166,
+            resumen: "Los golpes de la criatura tumban, lanzan por los aires o incluso derriban estructuras.",
+            detalle: "I: al causar daño, el objetivo puede caer al suelo si falla [Fuerte←Fuerte]. II: además puede ser arrojado 1D6 metros y sufrir daño por caída equivalente. III: los ataques ganan la cualidad Demoledora y sirven también contra puertas, torres y muros.",
+            tags: ["derribo", "fortificaciones"]
+        },
+        {
+            nombre: "Descomunal",
+            pagina: 166,
+            resumen: "El tamaño monstruoso reduce movilidad, pero vuelve a la criatura casi imparable.",
+            detalle: "Requiere Robusto III. I: ataca usando ambas acciones, pero obliga a tirar la armadura dos veces y quedarse con el peor resultado. II: al moverse no puede defenderse, pero sus enemigos tienen dos oportunidades de fallar la Defensa. III: añade todavía más presión física y dominio del espacio en combate.",
+            tags: ["tamaño", "jefe"]
+        },
+        {
+            nombre: "Devorador",
+            pagina: 166,
+            resumen: "La criatura inmoviliza, engulle y digiere a sus víctimas dentro de un vientre hostil.",
+            detalle: "Requiere Descomunal I. I: tras un mordisco dañino, la presa queda sujeta y al turno siguiente puede ser tragada si falla [Fuerte←Fuerte], sufriendo 2 daño por turno dentro del vientre. II y III hacen más fácil iniciar el engullir y aumentan el daño y el número de víctimas simultáneas.",
+            tags: ["engullir", "mordisco"]
+        },
+        {
+            nombre: "Diminuto",
+            pagina: 167,
+            resumen: "La criatura es tan pequeña o lastimosa que cuesta tratarla como amenaza prioritaria.",
+            detalle: "Los enemigos deben superar [Tenaz←Discreto] para atacarla mientras existan otros blancos viables. El efecto desaparece si la criatura demuestra claramente que sabe luchar o usa capacidades demasiado peligrosas para seguir pareciendo inofensiva.",
+            tags: ["evasión", "tamaño"]
+        },
+        {
+            nombre: "Embestida",
+            pagina: 167,
+            resumen: "La criatura usa su masa para abrirse paso, aplastar enemigos y derribarlos.",
+            detalle: "Requiere Robusto al mismo nivel. I/II/III: al mover, quienes estén en su trayectoria deben resistir con [Fuerte←Fuerte] o reciben 2/3/4 daño y caen al suelo. Robusto añade +2 por nivel al daño y a la tirada enfrentada. Acróbata permite esquivarlo con [Ágil←Fuerte].",
+            tags: ["movimiento", "derribo"]
+        },
+        {
+            nombre: "Espíritu libre",
+            pagina: 167,
+            resumen: "El alma de la criatura está desligada del destino del mundo y no puede corromperse.",
+            detalle: "La criatura es inmune a la corrupción y suele dejar señales sobrenaturales vinculadas a su naturaleza espiritual. El rasgo representa seres separados del flujo normal de Wratha, Wielda y Wyrtha.",
+            tags: ["espíritu", "inmunidad"]
+        },
+        {
+            nombre: "Garras prensiles",
+            pagina: 167,
+            resumen: "Las garras permiten herir, sujetar y arrastrar presas hacia las fauces o el cuerpo del monstruo.",
+            detalle: "I: la criatura hace dos ataques de garra y, si ambos impactan, intenta apresar con [Fuerte←Fuerte]. II: basta con acertar una sola garra. III: un impacto puede iniciar directamente el arrastre; la víctima no se libera hasta que supere la tirada o la criatura la suelte.",
+            tags: ["presa", "arrastre"]
+        },
+        {
+            nombre: "Infeccioso",
+            pagina: 167,
+            resumen: "Las armas naturales transmiten una enfermedad cuando logran herir.",
+            detalle: "Todo objetivo dañado por las armas naturales debe superar una tirada de Fuerte o contrae una enfermedad débil, moderada o potente según el nivel del rasgo.",
+            tags: ["enfermedad", "arma natural"]
+        },
+        {
+            nombre: "Infestación",
+            pagina: 167,
+            resumen: "La criatura puede introducirse o dejar larvas dentro del cuerpo de una víctima.",
+            detalle: "Tras infligir daño, el parásito necesita tiempo para penetrar. La víctima o un aliado puede intentar extraerlo con una acción de combate, arriesgándose a dañarla. A mayor nivel, más difícil resulta evitar o eliminar la infestación y más peligroso es el efecto parasitario posterior.",
+            tags: ["parásito", "larvas"]
+        },
+        {
+            nombre: "Invisibilidad",
+            pagina: 168,
+            resumen: "La criatura se vuelve invisible, aunque aún puede delatarse por huellas, sonido o polvo.",
+            detalle: "I: no puede ser blanco directo y obliga a localizarla con [Atento←Discreto] o a usar efectos de área y trucos como harina o arena. II: el estado parcialmente visible dura solo un turno. III: la criatura entra y sale de invisibilidad con la máxima soltura táctica.",
+            tags: ["sigilo", "detección"]
+        },
+        {
+            nombre: "Lengua apresadora",
+            pagina: 168,
+            resumen: "La lengua del monstruo ataca a distancia, engancha a la presa y la arrastra hasta el cuerpo a cuerpo.",
+            detalle: "Funciona como un mordisco a hasta dos acciones de movimiento. Si el objetivo tiene menos Robusto, la criatura puede traerlo hacia sí con [Fuerte←Fuerte] y combinar el arrastre con Devorador, Abrazo aplastante u otros rasgos de presa.",
+            tags: ["alcance", "arrastre"]
+        },
+        {
+            nombre: "Lucha a muerte",
+            pagina: 168,
+            resumen: "La criatura descarga un último estallido de violencia al morir.",
+            detalle: "I: al morir, realiza un ataque gratuito contra un enemigo adyacente. II: ese ataque cuenta como acción de combate normal y puede usar capacidades activas. III: puede lanzar hasta cinco ataques finales si alcanza a varios enemigos sin moverse.",
+            tags: ["muerte", "reacción"]
+        },
+        {
+            nombre: "Metamorfosis",
+            pagina: 168,
+            resumen: "La criatura modifica su forma para ganar rasgos adaptativos según la escena.",
+            detalle: "Permite adoptar temporalmente combinaciones de rasgos como Alado, Caparazón, Garras prensiles, Tunelador o Venenoso. I: un rasgo a nivel I. II: dos rasgos a nivel I o uno a nivel II. III: dos rasgos a nivel II o uno a nivel III. Forma verdadera puede anular la adaptación.",
+            tags: ["cambiaformas", "adaptación"]
+        },
+        {
+            nombre: "Múltiples cabezas",
+            pagina: 168,
+            resumen: "La criatura cuenta con varias cabezas o miembros coordinados por mentes separadas.",
+            detalle: "Cada parte actúa con cierta independencia y permite ampliar ataques, reacciones o cobertura sensorial. El daño puede repartirse entre cabezas o extremidades concretas, lo que complica neutralizar por completo a la criatura.",
+            tags: ["multiataque", "hidra"]
+        },
+        {
+            nombre: "Muro de raíces",
+            pagina: 168,
+            resumen: "La criatura levanta barreras de raíces para bloquear movimiento, visión o retirada.",
+            detalle: "El rasgo permite controlar terreno y encerrar enemigos con obstáculos vegetales. A mayor nivel, la barrera es más extensa o resistente y sirve mejor para separar al grupo y fijar víctimas.",
+            tags: ["flora", "control de zona"]
+        },
+        {
+            nombre: "Observador",
+            pagina: 169,
+            resumen: "La criatura percibe su entorno en todas direcciones y no puede ser flanqueada.",
+            detalle: "Los enemigos que la rodean no obtienen ventaja por flanquearla. El rasgo representa sentidos físicos o sobrenaturales capaces de vigilar 360 grados.",
+            tags: ["sentidos", "flanqueo"]
+        },
+        {
+            nombre: "Poder colectivo",
+            pagina: 169,
+            resumen: "Un colectivo de criaturas accede a poderes místicos al reunir suficientes miembros.",
+            detalle: "El grupo puede lanzar un poder místico por turno además de las acciones individuales. La iniciativa usada es la más alta del colectivo y romper la concentración exige afectar a varios miembros en el mismo turno, lo que vuelve muy estable la magia grupal.",
+            tags: ["colectivo", "magia"]
+        },
+        {
+            nombre: "Recio",
+            pagina: 169,
+            resumen: "La criatura posee mucha más Resistencia de la que indica su Fuerte.",
+            detalle: "I/II/III: la Resistencia pasa a ser Fuerte ×1,5 / ×2 / ×3, sin alterar el Umbral de dolor habitual. Representa vitalidad extraordinaria de origen natural o corrupto.",
+            tags: ["resistencia", "durabilidad"]
+        },
+        {
+            nombre: "Resistencia mística",
+            pagina: 169,
+            resumen: "Los poderes místicos tienen muchas más dificultades para afectar a la criatura.",
+            detalle: "I: quien intente herirla o afectarla con magia debe superar dos tiradas de éxito. II: un fallo puede desviar el poder hacia otro objetivo visible al azar. III: la resistencia y el rebote mágico son aún más peligrosos para el lanzador.",
+            tags: ["magia", "resistencia"]
+        },
+        {
+            nombre: "Sed de sangre",
+            pagina: 170,
+            resumen: "La criatura hipnotiza a la víctima y le drena la sangre para dañarla o curarse.",
+            detalle: "I: embelesa con [Tenaz←Tenaz] y extrae 2 Resistencia por turno ignorando armadura mientras mantenga el trance. II: además se cura la misma cantidad. III: el drenaje y la curación suben a 3 por turno y la víctima necesita ayuda externa para romper el control.",
+            tags: ["hipnosis", "drenaje"]
+        },
+        {
+            nombre: "Sensible a la corrupción",
+            pagina: 170,
+            resumen: "La criatura detecta brotes de corrupción y, a altos niveles, puede rastrear su origen.",
+            detalle: "I: con Atento percibe brotes cercanos y la dirección general según la intensidad. II: localiza el punto exacto. III: puede seguir durante un día el rastro etéreo dejado por la fuente del brote.",
+            tags: ["corrupción", "rastreo"]
+        },
+        {
+            nombre: "Sentir vida",
+            pagina: 170,
+            resumen: "La criatura percibe seres vivos incluso a través de obstáculos y tierra.",
+            detalle: "I: detecta vibraciones y obliga a esconderse con [Discreto←Atento]. II: puede atacar objetivos detectados a través de barreras si tiene modo de atravesarlas. III: incluso usa poderes místicos como si esos enemigos estuvieran en línea de visión.",
+            tags: ["sentidos", "rastreo"]
+        },
+        {
+            nombre: "Sucesor vengativo",
+            pagina: 170,
+            resumen: "La muerte de la criatura hace aparecer vengadores ligados a su especie o corrupción.",
+            detalle: "Solo para criaturas al menos complicadas. I/II/III: al morir se manifiestan una, dos o tres criaturas vengadoras, normalmente de un nivel de desafío inferior y coherentes con la naturaleza del monstruo caído.",
+            tags: ["muerte", "refuerzos"]
+        },
+        {
+            nombre: "Tunelador",
+            pagina: 171,
+            resumen: "La criatura se desplaza bajo tierra y usa el subsuelo tanto para moverse como para atacar.",
+            detalle: "I: se mueve bajo tierra a media velocidad y evita ataques gratuitos. II: entra y sale del suelo durante el mismo turno para atacar y esconderse. III: puede crear sumideros que derriban a grupos y le conceden ataques gratuitos contra quienes caen.",
+            tags: ["movilidad", "subsuelo"]
+        },
+        {
+            nombre: "Veloz",
+            pagina: 171,
+            resumen: "La criatura encadena ataques extra como reacción a sus propios impactos.",
+            detalle: "I: al golpear con una acción de combate, hace un ataque gratuito adicional. II: si el ataque inicial causa daño, puede lanzar dos ataques gratuitos. III: siempre puede hacer esos dos ataques extra, incluso si el primero no impacta.",
+            tags: ["multiataque", "velocidad"]
+        },
+        {
+            nombre: "Veneno paralizante",
+            pagina: 171,
+            resumen: "El veneno de la criatura aturde, bloquea reacciones o deja totalmente inmóvil al objetivo.",
+            detalle: "I: cada herida obliga a tirar Fuerte; un fracaso deja al objetivo reducido a reacciones con dos oportunidades de fallar. II: el bloqueo puede durar 1D4 turnos. III: la resistencia pasa a [Fuerte −5] y un fallo paraliza por completo durante 1D8 turnos.",
+            tags: ["veneno", "control"]
+        },
+        {
+            nombre: "Visión nocturna",
+            pagina: 171,
+            resumen: "La criatura percibe el entorno mediante ecolocalización y actúa con normalidad en oscuridad total.",
+            detalle: "Gracias a pulsos acústicos, detecta objetos, seres invisibles y movimiento sin depender de la vista. La oscuridad total no la perjudica mientras conserve esa percepción sonora.",
+            tags: ["sentidos", "oscuridad"]
+        }
+    ];
+    return traits.map((trait) => ({
+        id: `rasgo-${slugify(trait.nombre)}`,
+        tipo: "rasgo",
+        nombre: trait.nombre,
+        resumen: trait.resumen,
+        detalle: trait.detalle,
+        fuente: "Códice de monstruos",
+        pagina: trait.pagina,
+        tags: ["rasgo", "monstruo", "códice de monstruos", ...(trait.tags ?? [])]
+    }));
+}
+function buildMonsterRuleEntries() {
+    return [
+        {
+            id: "regla-monstruos-categorias",
+            tipo: "regla",
+            nombre: "Categorías de monstruo",
+            resumen: "El Códice divide las criaturas en seis categorías: abominaciones, bestias, fenómenos, flora, muertos vivientes y seres civilizados.",
+            detalle: "Las categorías no son solo taxonomía narrativa: también determinan rasgos habituales, interacciones con habilidades como Versado en criaturas y reglas compartidas, como inmunidades, visión en oscuridad o ausencia de Umbral de dolor.",
+            fuente: "Códice de monstruos",
+            pagina: 162,
+            tags: ["monstruos", "categorías", "bestiario"]
+        },
+        {
+            id: "regla-monstruos-abominaciones",
+            tipo: "regla",
+            nombre: "Abominaciones",
+            resumen: "Las abominaciones están consumidas por corrupción y comparten muchos rasgos con los muertos vivientes.",
+            detalle: "Suelen usar rasgos como Ataque ácido, Acaparador de corrupción, Aura nociva, Regeneración, Robusto o Tunelador. No duermen, no comen ni beben, no se ahogan, son inmunes a venenos y enfermedades comunes, ven en oscuridad total y las energías sagradas o curativas las dañan en lugar de sanarlas.",
+            fuente: "Códice de monstruos",
+            pagina: 162,
+            tags: ["monstruos", "abominaciones", "corrupción"]
+        },
+        {
+            id: "regla-monstruos-bestias",
+            tipo: "regla",
+            nombre: "Bestias",
+            resumen: "Las bestias abarcan animales salvajes, domesticados y depredadores guiados sobre todo por el instinto.",
+            detalle: "Todas cuentan con el rasgo Montés y la mayoría ven bien en penumbra. Entre sus rasgos más comunes están Abrazo aplastante, Alado, Caparazón, Devorador, Embestida, Lengua apresadora, Regeneración, Tunelador, Veloz, Veneno paralizante y Venenoso.",
+            fuente: "Códice de monstruos",
+            pagina: 163,
+            tags: ["monstruos", "bestias", "instinto"]
+        },
+        {
+            id: "regla-monstruos-fenomenos",
+            tipo: "regla",
+            nombre: "Fenómenos",
+            resumen: "Los fenómenos son seres o presencias difíciles de clasificar, a veces más cercanos a un estado o lugar maligno que a un animal.",
+            detalle: "Pueden mezclar rasgos muy distintos entre sí y, por esa ambigüedad, no sirven como especialización válida para Versado en criaturas. Son la categoría más libre y extraña del sistema.",
+            fuente: "Códice de monstruos",
+            pagina: 163,
+            tags: ["monstruos", "fenómenos", "clasificación"]
+        },
+        {
+            id: "regla-monstruos-flora",
+            tipo: "regla",
+            nombre: "Flora",
+            resumen: "La flora monstruosa usa control del terreno, raíces, venenos y cuerpos vegetales muy resistentes.",
+            detalle: "Suelen combinar Duro, Descomunal, Abrazo aplastante, Lengua apresadora, Múltiples cabezas, Muro de raíces, Regeneración, Recio y Veneno paralizante. No tienen Umbral de dolor, no duermen y son inmunes a venenos y enfermedades corrientes.",
+            fuente: "Códice de monstruos",
+            pagina: 163,
+            tags: ["monstruos", "flora", "control"]
+        },
+        {
+            id: "regla-monstruos-muertos-vivientes",
+            tipo: "regla",
+            nombre: "Muertos vivientes",
+            resumen: "La categoría incluye tanto espíritus como cadáveres andantes poseídos por un espíritu activo.",
+            detalle: "Todos los muertos vivientes no duermen, no comen, no beben, no se ahogan y no sufren corrupción adicional porque ya están consumidos por ella. Ven en oscuridad total, carecen de Umbral de dolor y la magia sagrada o curativa les daña, mientras la energía impía los sana.",
+            fuente: "Códice de monstruos",
+            pagina: 163,
+            tags: ["monstruos", "muertos vivientes", "espíritus"]
+        },
+        {
+            id: "regla-monstruos-seres-civilizados",
+            tipo: "regla",
+            nombre: "Seres civilizados",
+            resumen: "Humanos, elfos, ogros, trasgos y otras razas inteligentes entran aquí y usan sobre todo habilidades y poderes normales.",
+            detalle: "Sus rasgos de monstruo, cuando existen, dependen de su raza y no de la categoría. Se organizan socialmente y suelen parecerse más a personajes jugadores o PNJ desarrollados que a bestias puras.",
+            fuente: "Códice de monstruos",
+            pagina: 163,
+            tags: ["monstruos", "civilizados", "pnj"]
+        },
+        {
+            id: "regla-monstruos-rasgos",
+            tipo: "regla",
+            nombre: "Rasgos de monstruo",
+            resumen: "Los rasgos de monstruo son talentos extraordinarios, normalmente con tres niveles y redactados desde la perspectiva de PNJ.",
+            detalle: "La sección asume niveles I, II y III para cada rasgo. Si un personaje jugador adquiere uno, el grupo debe reformular su texto igual que hace con habilidades de PNJ. El capítulo también lista qué rasgos nuevos vienen del Códice y cuáles remiten al Libro Básico.",
+            fuente: "Códice de monstruos",
+            pagina: 164,
+            tags: ["monstruos", "rasgos", "niveles"]
+        },
+        {
+            id: "regla-monstruos-modelar-la-carne",
+            tipo: "regla",
+            nombre: "Modelar la carne y rasgos compatibles",
+            resumen: "El ritual Modelar la carne puede esculpir varios rasgos de monstruo concretos.",
+            detalle: "El Códice amplía el ritual para cubrir Alado, Anfibio, Arma natural, Ataque de Corrupción, Caparazón, Duro, Escupitajo venenoso, Lengua apresadora, Regeneración, Robusto, Tunelador y Venenoso.",
+            fuente: "Códice de monstruos",
+            pagina: 164,
+            tags: ["monstruos", "ritual", "modelar la carne"]
+        },
+        {
+            id: "regla-monstruos-creacion",
+            tipo: "regla",
+            nombre: "La creación de monstruos",
+            resumen: "Crear monstruos sigue la lógica de crear personajes, pero priorizando manejo fácil en mesa y una función táctica clara.",
+            detalle: "El capítulo recomienda diseñar criaturas que añadan algo nuevo al juego, tengan al menos una debilidad explotable y usen una estrategia principal fácil de ejecutar por el director de juego durante combates de cinco o seis turnos.",
+            fuente: "Códice de monstruos",
+            pagina: 174,
+            tags: ["monstruos", "diseño", "director de juego"]
+        },
+        {
+            id: "regla-monstruos-creacion-lo-esencial",
+            tipo: "regla",
+            nombre: "Lo esencial al crear monstruos",
+            resumen: "Empieza por debilidad, raza/categoría, nivel de desafío, atributos y mezcla de rasgos y habilidades.",
+            detalle: "El Códice aconseja dar siempre un talón de Aquiles a la criatura, favorecer rasgos pasivos sobre demasiadas acciones reactivas y repartir 80 puntos de atributos igual que un PJ, normalmente usando una plantilla 5, 7, 9, 10, 10, 11, 13, 15. También sugiere centrar el monstruo en una táctica dominante.",
+            fuente: "Códice de monstruos",
+            pagina: 174,
+            tags: ["monstruos", "diseño", "atributos"]
+        },
+        {
+            id: "regla-monstruos-desafio-y-experiencia",
+            tipo: "regla",
+            nombre: "Desafío y experiencia de monstruos",
+            resumen: "El nivel de desafío marca cuánta experiencia gasta la criatura en rasgos y habilidades.",
+            detalle: "La tabla del Códice usa seis niveles: Sencillo 0 XP, Normal 50, Complicado 150, Difícil 300, Mortal 600 y Legendario 1200. Las distribuciones rápidas propuestas van desde sin habilidades hasta veinte capacidades a nivel maestro para criaturas legendarias.",
+            fuente: "Códice de monstruos",
+            pagina: 175,
+            tags: ["monstruos", "desafío", "experiencia"]
+        },
+        {
+            id: "regla-monstruos-creacion-complementos",
+            tipo: "regla",
+            nombre: "Complementos al crear monstruos",
+            resumen: "Tras elegir base y poderes, calcula armas, armadura, defensa y resistencia como control de calidad del diseño.",
+            detalle: "El capítulo recuerda separar efectos pasivos de activos, revisar qué atributo usa cada ataque o defensa y tener presentes interacciones clave como Combate con armadura, Berserker y Robusto al fijar protección, Resistencia y Umbral de dolor.",
+            fuente: "Códice de monstruos",
+            pagina: 176,
+            tags: ["monstruos", "armas", "armadura", "defensa"]
+        },
+        {
+            id: "regla-monstruos-creacion-toques-finales",
+            tipo: "regla",
+            nombre: "Toques finales del monstruo",
+            resumen: "Conducta, botín, sombra y tácticas convierten un bloque mecánico en una criatura memorable.",
+            detalle: "El Códice propone definir cómo se comporta el monstruo, qué objetos o restos valiosos podría portar o haber tragado, qué muestra su sombra a Ojo místico y qué táctica sigue según un papel similar al de cazador, guerrero, místico o maleante.",
+            fuente: "Códice de monstruos",
+            pagina: 177,
+            tags: ["monstruos", "conducta", "tácticas", "sombra"]
+        },
+        {
+            id: "regla-monstruos-combate-equilibrado",
+            tipo: "regla",
+            nombre: "Desafío de combate equilibrado",
+            resumen: "El Códice combina nivel de competencia, dificultad prevista y entorno para estimar encuentros razonables.",
+            detalle: "No es una fórmula exacta: depende del estilo del grupo, de cómo gasten experiencia y de cómo combinen poderes y rasgos. Aun así, ofrece una base práctica para decidir qué oposición usar en cada fase de campaña.",
+            fuente: "Códice de monstruos",
+            pagina: 178,
+            tags: ["monstruos", "encuentros", "equilibrio"]
+        },
+        {
+            id: "regla-monstruos-nivel-de-competencia",
+            tipo: "regla",
+            nombre: "Nivel de competencia",
+            resumen: "El libro divide a los grupos en novatos, experimentados, veteranos y héroes según experiencia, equipo y alcance de sus aventuras.",
+            detalle: "Novatos rondan 50 XP y afrontan aventuras limitadas; experimentados, unas 100 XP y retos locales; veteranos, unas 200 XP y amenazas regionales; héroes, 300 XP o más, con artefactos abundantes y conflictos globales.",
+            fuente: "Códice de monstruos",
+            pagina: 178,
+            tags: ["monstruos", "campaña", "competencia"]
+        },
+        {
+            id: "regla-monstruos-competencia-y-desafio",
+            tipo: "regla",
+            nombre: "Competencia y desafío",
+            resumen: "El Códice ofrece una tabla de encuentros fáciles y difíciles según el nivel del grupo.",
+            detalle: "Un combate fácil debería favorecer a los PJ; uno difícil funciona mejor como clímax incierto. La tabla relaciona cada nivel con cantidades orientativas de enemigos sencillos, normales, complicados, difíciles, mortales o legendarios, además de líderes apropiados.",
+            fuente: "Códice de monstruos",
+            pagina: 180,
+            tags: ["monstruos", "encuentros", "dificultad"]
+        },
+        {
+            id: "regla-monstruos-competencia-y-entorno",
+            tipo: "regla",
+            nombre: "Competencia y entorno",
+            resumen: "El entorno también escala el peligro: Ambria es relativamente segura y Davokar se vuelve letal cuanto más profundo se entra.",
+            detalle: "Las pautas sugieren novatos principalmente en Ambria y Davokar la Luminosa, experimentados con incursiones crecientes en la Oscura, veteranos habituados a la Luminosa pero probados en la Oscura, y héroes enfrentados a zonas completamente consumidas por corrupción.",
+            fuente: "Códice de monstruos",
+            pagina: 180,
+            tags: ["monstruos", "Davokar", "entorno"]
+        }
+    ];
 }
 export const MANUAL_RULES = [
     {
@@ -1114,6 +1572,8 @@ export const RULE_SUMMARY_ENTRIES = [
 export const CORE_RULES = [...MANUAL_RULES, ...RULE_SUMMARY_ENTRIES];
 export const ALL_ENTRIES = [
     ...CORE_RULES,
+    ...buildMonsterRuleEntries(),
+    ...buildMonsterTraitEntries(),
     ...SYMBAROUM_CAPABILITIES.map(buildCapabilityEntry),
     ...buildRaceEntries(),
     ...buildCultureEntries(),
@@ -1122,6 +1582,7 @@ export const ALL_ENTRIES = [
 ];
 export const COMPENDIUM_STATS = {
     totalEntries: ALL_ENTRIES.length,
+    traits: buildMonsterTraitEntries().length,
     abilities: SYMBAROUM_ABILITIES.length,
     powers: SYMBAROUM_MYSTIC_POWERS.length,
     rituals: SYMBAROUM_RITUALS.length

@@ -42,6 +42,7 @@ model User {
   role                UserRole           @default(player)
   createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   characters          Character[]
+  monsters            Monster[]
   refreshTokens       RefreshToken[]
   gmCampaigns         Campaign[]         @relation("CampaignGm")
   campaignMemberships CampaignMember[]
@@ -69,6 +70,23 @@ model Character {
   campaignChatEntries CampaignChatMessage[]
 
   @@map("characters")
+}
+
+model Monster {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId    String   @map("owner_id") @db.Uuid
+  name       String
+  category   String
+  threat     String
+  source     String   @default("")
+  summary    String   @default("")
+  sheet      Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@map("monsters")
 }
 
 model RefreshToken {

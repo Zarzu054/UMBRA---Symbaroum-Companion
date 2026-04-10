@@ -32,6 +32,7 @@ import {
 } from "../services/rollTransport";
 import { CampaignDashboardView } from "./CampaignDashboardView";
 import { CompendiumView } from "./CompendiumView";
+import { MonsterDashboardView } from "./MonsterDashboardView";
 
 
 type Props = {
@@ -40,7 +41,7 @@ type Props = {
   onLogout: () => Promise<void>;
 };
 
-type AppModule = "characters" | "compendium" | "campaigns";
+type AppModule = "characters" | "compendium" | "campaigns" | "monsters";
 
 type CompendiumFocus = {
   entryId: string | null;
@@ -57,6 +58,10 @@ type PendingCharacterRollConfirmation = {
 
 function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token">; sheetId?: string | null } {
   const rawHash = window.location.hash.replace(/^#/, "");
+  if (rawHash.startsWith("monsters")) {
+    return { module: "monsters" };
+  }
+
   if (rawHash.startsWith("campaigns")) {
     return { module: "campaigns" };
   }
@@ -88,7 +93,10 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   const isCampaignManagedLock = false;
   const isCapabilityLocked = controller.isEditing;
   const canAccessCharacters = user.role !== "gm";
-  const [activeModule, setActiveModule] = useState<AppModule>(canAccessCharacters ? "characters" : "campaigns");
+  const canAccessMonsters = user.role === "gm" || user.role === "superadmin";
+  const [activeModule, setActiveModule] = useState<AppModule>(
+    canAccessCharacters ? "characters" : canAccessMonsters ? "monsters" : "campaigns"
+  );
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [compendiumFocus, setCompendiumFocus] = useState<CompendiumFocus>({
     entryId: null,
@@ -106,8 +114,16 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     function syncWithHash(): void {
       const parsed = parseHash();
       if (!canAccessCharacters && parsed.module === "characters") {
-        setActiveModule("campaigns");
-        window.location.hash = "campaigns";
+        const fallbackModule = canAccessMonsters ? "monsters" : "campaigns";
+        setActiveModule(fallbackModule);
+        window.location.hash = fallbackModule;
+        return;
+      }
+
+      if (!canAccessMonsters && parsed.module === "monsters") {
+        const fallbackModule = canAccessCharacters ? "characters" : "campaigns";
+        setActiveModule(fallbackModule);
+        window.location.hash = fallbackModule;
         return;
       }
 
@@ -124,6 +140,9 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         case "campaigns":
           setActiveModule("campaigns");
           return;
+        case "monsters":
+          setActiveModule("monsters");
+          return;
         case "characters":
         default:
           setActiveModule("characters");
@@ -135,7 +154,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     syncWithHash();
     window.addEventListener("hashchange", syncWithHash);
     return () => window.removeEventListener("hashchange", syncWithHash);
-  }, [canAccessCharacters]);
+  }, [canAccessCharacters, canAccessMonsters]);
 
   function openCompendiumCapability(tipo: "habilidad" | "poder_mistico" | "ritual", nombre: string): void {
     const entryId = findCompendiumCapabilityEntryId(tipo, nombre);
@@ -181,6 +200,13 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     }
   }
 
+  function openMonstersModule(): void {
+    setActiveModule("monsters");
+    if (!window.location.hash.startsWith("#monsters")) {
+      window.location.hash = "monsters";
+    }
+  }
+
   return (
     <main className="page">
       <div className={`app-shell${isSidebarOpen ? "" : " is-sidebar-collapsed"}`}>
@@ -207,6 +233,11 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               <button className={activeModule === "campaigns" ? "active-toggle" : ""} onClick={openCampaignsModule}>
                 Campañas
               </button>
+              {canAccessMonsters ? (
+                <button className={activeModule === "monsters" ? "active-toggle" : ""} onClick={openMonstersModule}>
+                  Monstruos
+                </button>
+              ) : null}
               <button className={activeModule === "compendium" ? "active-toggle" : ""} onClick={openCompendiumModule}>
                 Compendio
               </button>
@@ -242,6 +273,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               initialSourceFilter={compendiumFocus.source}
               focusToken={compendiumFocus.token}
             />
+          ) : activeModule === "monsters" ? (
+            <MonsterDashboardView user={user} ensureAccessToken={ensureAccessToken} />
           ) : activeModule === "campaigns" ? (
             <CampaignDashboardView user={user} ensureAccessToken={ensureAccessToken} />
           ) : selectedCharacterSheet ? (

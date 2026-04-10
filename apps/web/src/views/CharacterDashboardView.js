@@ -12,8 +12,12 @@ import { updateCharacter } from "../services/characterService";
 import { dispatchRoll20Request, getRollDestination, pingRoll20Bridge, setRollDestination as persistRollDestination } from "../services/rollTransport";
 import { CampaignDashboardView } from "./CampaignDashboardView";
 import { CompendiumView } from "./CompendiumView";
+import { MonsterDashboardView } from "./MonsterDashboardView";
 function parseHash() {
     const rawHash = window.location.hash.replace(/^#/, "");
+    if (rawHash.startsWith("monsters")) {
+        return { module: "monsters" };
+    }
     if (rawHash.startsWith("campaigns")) {
         return { module: "campaigns" };
     }
@@ -41,7 +45,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
     const isCampaignManagedLock = false;
     const isCapabilityLocked = controller.isEditing;
     const canAccessCharacters = user.role !== "gm";
-    const [activeModule, setActiveModule] = useState(canAccessCharacters ? "characters" : "campaigns");
+    const canAccessMonsters = user.role === "gm" || user.role === "superadmin";
+    const [activeModule, setActiveModule] = useState(canAccessCharacters ? "characters" : canAccessMonsters ? "monsters" : "campaigns");
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [compendiumFocus, setCompendiumFocus] = useState({
         entryId: null,
@@ -55,8 +60,15 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
         function syncWithHash() {
             const parsed = parseHash();
             if (!canAccessCharacters && parsed.module === "characters") {
-                setActiveModule("campaigns");
-                window.location.hash = "campaigns";
+                const fallbackModule = canAccessMonsters ? "monsters" : "campaigns";
+                setActiveModule(fallbackModule);
+                window.location.hash = fallbackModule;
+                return;
+            }
+            if (!canAccessMonsters && parsed.module === "monsters") {
+                const fallbackModule = canAccessCharacters ? "characters" : "campaigns";
+                setActiveModule(fallbackModule);
+                window.location.hash = fallbackModule;
                 return;
             }
             switch (parsed.module) {
@@ -72,6 +84,9 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
                 case "campaigns":
                     setActiveModule("campaigns");
                     return;
+                case "monsters":
+                    setActiveModule("monsters");
+                    return;
                 case "characters":
                 default:
                     setActiveModule("characters");
@@ -82,7 +97,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
         syncWithHash();
         window.addEventListener("hashchange", syncWithHash);
         return () => window.removeEventListener("hashchange", syncWithHash);
-    }, [canAccessCharacters]);
+    }, [canAccessCharacters, canAccessMonsters]);
     function openCompendiumCapability(tipo, nombre) {
         const entryId = findCompendiumCapabilityEntryId(tipo, nombre);
         const params = new URLSearchParams();
@@ -121,7 +136,13 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
             window.location.hash = "campaigns";
         }
     }
-    return (_jsx("main", { className: "page", children: _jsxs("div", { className: `app-shell${isSidebarOpen ? "" : " is-sidebar-collapsed"}`, children: [_jsx("aside", { className: `app-sidebar${isSidebarOpen ? "" : " is-collapsed"}`, children: _jsxs("div", { className: "app-sidebar-inner", children: [_jsxs("div", { className: "app-sidebar-head", children: [_jsx("div", { children: _jsx("h1", { children: "UMBRA" }) }), _jsx("button", { className: "sidebar-toggle", "aria-label": isSidebarOpen ? "Ocultar barra lateral" : "Mostrar barra lateral", onClick: () => setIsSidebarOpen((current) => !current), children: isSidebarOpen ? "<" : ">" })] }), _jsxs("nav", { className: "sidebar-nav", children: [canAccessCharacters ? (_jsx("button", { className: activeModule === "characters" ? "active-toggle" : "", onClick: openCharactersModule, children: "Personajes" })) : null, _jsx("button", { className: activeModule === "campaigns" ? "active-toggle" : "", onClick: openCampaignsModule, children: "Campa\u00F1as" }), _jsx("button", { className: activeModule === "compendium" ? "active-toggle" : "", onClick: openCompendiumModule, children: "Compendio" })] }), _jsxs("div", { className: "sidebar-session", children: [_jsxs("div", { className: "sidebar-session-meta", children: [_jsx("p", { children: user.email }), _jsx("p", { children: getRoleLabel(user.role) })] }), _jsx("button", { onClick: () => void onLogout(), children: "Salir" })] })] }) }), _jsxs("section", { className: "app-content", children: [!isSidebarOpen ? (_jsx("div", { className: "content-topbar", children: _jsx("button", { className: "sidebar-toggle", "aria-label": "Mostrar barra lateral", onClick: () => setIsSidebarOpen(true), children: ">" }) })) : null, activeModule === "compendium" ? (_jsx(CompendiumView, { onBackToCharacters: openCharactersModule, initialEntryId: compendiumFocus.entryId, initialQuery: compendiumFocus.query, initialSourceFilter: compendiumFocus.source, focusToken: compendiumFocus.token })) : activeModule === "campaigns" ? (_jsx(CampaignDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : selectedCharacterSheet ? (_jsx("section", { className: "character-actions-page", children: _jsx(UnifiedCharacterSheet, { title: selectedCharacterSheet.name, subtitle: `${selectedCharacterSheet.culture || "Sin cultura"} · ${selectedCharacterSheet.archetype || "Sin arquetipo"} · ${selectedCharacterSheet.race || "Sin raza"}`, sheet: parseCharacterSheet(selectedCharacterSheet.sheet), editable: true, onBack: closeCharacterSheet, onOpenCompendiumCapability: openCompendiumCapability, onSave: async (nextSheet) => {
+    function openMonstersModule() {
+        setActiveModule("monsters");
+        if (!window.location.hash.startsWith("#monsters")) {
+            window.location.hash = "monsters";
+        }
+    }
+    return (_jsx("main", { className: "page", children: _jsxs("div", { className: `app-shell${isSidebarOpen ? "" : " is-sidebar-collapsed"}`, children: [_jsx("aside", { className: `app-sidebar${isSidebarOpen ? "" : " is-collapsed"}`, children: _jsxs("div", { className: "app-sidebar-inner", children: [_jsxs("div", { className: "app-sidebar-head", children: [_jsx("div", { children: _jsx("h1", { children: "UMBRA" }) }), _jsx("button", { className: "sidebar-toggle", "aria-label": isSidebarOpen ? "Ocultar barra lateral" : "Mostrar barra lateral", onClick: () => setIsSidebarOpen((current) => !current), children: isSidebarOpen ? "<" : ">" })] }), _jsxs("nav", { className: "sidebar-nav", children: [canAccessCharacters ? (_jsx("button", { className: activeModule === "characters" ? "active-toggle" : "", onClick: openCharactersModule, children: "Personajes" })) : null, _jsx("button", { className: activeModule === "campaigns" ? "active-toggle" : "", onClick: openCampaignsModule, children: "Campa\u00F1as" }), canAccessMonsters ? (_jsx("button", { className: activeModule === "monsters" ? "active-toggle" : "", onClick: openMonstersModule, children: "Monstruos" })) : null, _jsx("button", { className: activeModule === "compendium" ? "active-toggle" : "", onClick: openCompendiumModule, children: "Compendio" })] }), _jsxs("div", { className: "sidebar-session", children: [_jsxs("div", { className: "sidebar-session-meta", children: [_jsx("p", { children: user.email }), _jsx("p", { children: getRoleLabel(user.role) })] }), _jsx("button", { onClick: () => void onLogout(), children: "Salir" })] })] }) }), _jsxs("section", { className: "app-content", children: [!isSidebarOpen ? (_jsx("div", { className: "content-topbar", children: _jsx("button", { className: "sidebar-toggle", "aria-label": "Mostrar barra lateral", onClick: () => setIsSidebarOpen(true), children: ">" }) })) : null, activeModule === "compendium" ? (_jsx(CompendiumView, { onBackToCharacters: openCharactersModule, initialEntryId: compendiumFocus.entryId, initialQuery: compendiumFocus.query, initialSourceFilter: compendiumFocus.source, focusToken: compendiumFocus.token })) : activeModule === "monsters" ? (_jsx(MonsterDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : activeModule === "campaigns" ? (_jsx(CampaignDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : selectedCharacterSheet ? (_jsx("section", { className: "character-actions-page", children: _jsx(UnifiedCharacterSheet, { title: selectedCharacterSheet.name, subtitle: `${selectedCharacterSheet.culture || "Sin cultura"} · ${selectedCharacterSheet.archetype || "Sin arquetipo"} · ${selectedCharacterSheet.race || "Sin raza"}`, sheet: parseCharacterSheet(selectedCharacterSheet.sheet), editable: true, onBack: closeCharacterSheet, onOpenCompendiumCapability: openCompendiumCapability, onSave: async (nextSheet) => {
                                     const token = await ensureAccessToken();
                                     await updateCharacter(selectedCharacterSheet.id, {
                                         name: nextSheet.identidad.nombrePersonaje.trim() || selectedCharacterSheet.name,
