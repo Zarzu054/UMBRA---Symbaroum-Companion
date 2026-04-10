@@ -2303,7 +2303,12 @@ const SUMMARY_PDF_PAGE_LOOKUPS = {
     }
 };
 const SOURCE_PDF_PAGE_OFFSETS = {
-    "Gu\u00eda Avanzada del Jugador": 2
+    "Libro B\u00e1sico": 1,
+    "Gu\u00eda Avanzada del Jugador": 2,
+    "Gu\u00eda del Jugador": -68,
+    "Gu\u00eda DM": -162,
+    "Mundo de Symbaroum": -10,
+    "C\u00f3dice de monstruos": 2
 };
 const ADVANCED_GUIDE_ENTRY_PAGE_OVERRIDES = {
     "Arco veloz": 60,
@@ -2384,7 +2389,8 @@ function resolveCompendiumPdfPage(source, page, searchTerm) {
             }
         }
     }
-    return resolvedPage + (SOURCE_PDF_PAGE_OFFSETS[canonicalSource] ?? SOURCE_PDF_PAGE_OFFSETS[source] ?? 0);
+    const pdfPage = resolvedPage + (SOURCE_PDF_PAGE_OFFSETS[canonicalSource] ?? SOURCE_PDF_PAGE_OFFSETS[source] ?? 0);
+    return pdfPage >= 1 ? pdfPage : undefined;
 }
 function buildCompendiumPdfUrl(basePath, page) {
     if (!page) {
