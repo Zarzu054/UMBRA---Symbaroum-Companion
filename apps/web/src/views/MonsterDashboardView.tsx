@@ -17,6 +17,14 @@ type Props = {
 type MonsterTableViewModel = Pick<Monster, "name" | "category" | "threat" | "source" | "summary" | "sheet">;
 type MonsterModuleTab = "codex" | "custom";
 
+function normalizeSearchValue(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 function renderMonsterTable(monster: MonsterTableViewModel) {
   return (
     <div className="monster-statblock">
@@ -328,6 +336,31 @@ export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [detailMonsterId, setDetailMonsterId] = useState<string | null>(null);
   const [sheetPreviewMonsterId, setSheetPreviewMonsterId] = useState<string | null>(null);
+  const [codexSearch, setCodexSearch] = useState("");
+
+  const filteredCodexMonsters = useMemo(() => {
+    const query = normalizeSearchValue(codexSearch);
+    if (!query) return controller.codexMonsters;
+
+    return controller.codexMonsters.filter((monster) => {
+      const haystack = normalizeSearchValue([
+        monster.name,
+        monster.category,
+        monster.threat,
+        monster.source,
+        monster.summary,
+        monster.sheet.traits.join(" "),
+        monster.sheet.actions.join(" ")
+      ].join(" "));
+
+      return haystack.includes(query);
+    });
+  }, [codexSearch, controller.codexMonsters]);
+
+  const visibleCodexMonster = useMemo(
+    () => filteredCodexMonsters.find((monster) => monster.id === controller.selectedCodexId) ?? filteredCodexMonsters[0] ?? null,
+    [filteredCodexMonsters, controller.selectedCodexId]
+  );
 
   const detailMonster = useMemo(
     () => controller.customMonsters.find((monster) => monster.id === detailMonsterId) ?? null,
@@ -390,26 +423,48 @@ export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
                 <h2>Monstruos del códice</h2>
                 <p className="section-help">Selección inicial lista para consulta inmediata en partida.</p>
               </div>
-              {controller.isLoading ? <span className="meta-text">Cargando...</span> : null}
+              <div className="toolbar">
+                {controller.isLoading ? <span className="meta-text">Cargando...</span> : null}
+                <span className="meta-text">{filteredCodexMonsters.length} resultados</span>
+              </div>
+            </div>
+
+            <div className="compendium-filters">
+              <label className="field compendium-search">
+                <span>Buscar en el cÃ³dice</span>
+                <input
+                  type="search"
+                  value={codexSearch}
+                  onChange={(event) => setCodexSearch(event.target.value)}
+                  placeholder="Nombre, rasgo, categorÃ­a, acciÃ³n..."
+                />
+              </label>
             </div>
 
             <div className="monster-browser-layout">
               <div className="monster-browser-list">
-                {controller.codexMonsters.map((monster) => (
-                  <button
-                    key={monster.id}
-                    className={`compendium-list-item${controller.selectedCodexId === monster.id ? " is-active" : ""}`}
-                    onClick={() => controller.setSelectedCodexId(monster.id)}
-                  >
-                    <strong>{monster.name}</strong>
-                    <span>{monster.category} · {monster.threat}</span>
-                    <span className="compendium-list-summary">{monster.summary}</span>
-                  </button>
-                ))}
+                {filteredCodexMonsters.length > 0 ? (
+                  filteredCodexMonsters.map((monster) => (
+                    <button
+                      key={monster.id}
+                      className={`compendium-list-item${visibleCodexMonster?.id === monster.id ? " is-active" : ""}`}
+                      onClick={() => controller.setSelectedCodexId(monster.id)}
+                    >
+                      <strong>{monster.name}</strong>
+                      <span>{monster.category} · {monster.threat}</span>
+                      <span className="compendium-list-summary">{monster.summary}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="entry-row">
+                    <strong>No hay coincidencias.</strong>
+                    <p>Ajusta la búsqueda para localizar otro monstruo del códice.</p>
+                  </div>
+                )}
               </div>
 
               <div className="monster-browser-detail">
-                {controller.selectedCodexMonster ? renderMonsterTable(controller.selectedCodexMonster) : null}
+                {visibleCodexMonster ? renderMonsterTable(visibleCodexMonster) : null}
               </div>
             </div>
           </section>
