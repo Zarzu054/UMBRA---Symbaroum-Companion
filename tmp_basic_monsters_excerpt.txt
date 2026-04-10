@@ -1,0 +1,2699 @@
+
+===== PAGE 195 =====
+Monstruos
+las ruinas de symba roum,  las profundidades de Davokar y los valles de las 
+montañas de los Cuervos son el hogar de multitud de bestias y monstruos. Este 
+capítulo empieza describiendo algunas características generales de varias criaturas, 
+divididas en categorías: bestias, abominaciones o muertos vivientes. También 
+hemos incluido una cuarta categoría: los seres civilizados, aunque técnicamente 
+no son monstruos y a pesar de que sus miembros no se caracterizan por los rasgos 
+que aparecen en la segunda sección de este capítulo.
+Clases de monstruo
+la pertenencia de un monstruo a una categoría 
+particular determina los rasgos que va a poder usar 
+tras su creación, aunque también es posible que 
+todos los miembros de una categoría posean ciertas 
+peculiaridades asociadas a su naturaleza.
+Los monstruos y demás oponentes tienen los 
+mismos atributos y valores que los personajes 
+jugadores, es decir, 80 puntos a distribuir entre sus 
+atributos, con el requisito de que solo uno de estos 
+puede ser igual a 15 y que el máximo y mínimo para 
+los atributos son 15 y 5, respectivamente.
+abominaciones
+Las abominaciones son criaturas que han sucumbido 
+por completo a la corrupción del mundo. Las abo -
+minaciones se reconocen entre sí y no se atacan en 
+un primer momento. Una abominación puede usar 
+Persuasiva sobre otra para manipular su conducta.
+Los personajes con la habilidad Ojo místico pueden 
+tirar [Atento←Discreto] para darse cuenta de que una 
+criatura está corrompida por la oscuridad. Además, 
+las mentes y sentidos aguzados (como los de los niños 
+y animales) sienten un rechazo instintivo por las 
+abominaciones, incluso cuando su apariencia es nor-
+mal; es posible hacer una tirada de [Atento←Discreto] 
+para darse cuenta del comportamiento de dichos 
+niños y animales.
+Los poderes sagrados y sacrílegos tienen un 
+efecto inverso sobre las abominaciones: los poderes 
+benditos dañan a la criatura en vez de curarla, mien-
+tras que los impíos la curan en vez de dañarla. Por 
+último, las abominaciones pueden ver en completa 
+oscuridad, aunque no son inmunes a los efectos de 
+una ceguera mística o mundana.
+Las abominaciones tienen acceso a los rasgos 
+Arma natural, Ataque ácido, Ataque de corrupción, Duro, 
+Regeneración, Robusto y Sangre ácida.
+b estias
+Las bestias están íntimamente conectadas con la 
+naturaleza y la vida salvaje, ya sea el bosque de 
+Davokar, los valles de los Cuervos o el cauce de un 
+río. Esta categoría abarca animales salvajes (tanto 
+herbívoros como carnívoros), domesticados y entre-
+nados por seres civilizados. Las criaturas inteligentes 
+como las lindormas o las arañas gigantes también 
+194
+
+
+===== PAGE 196 =====
+195
+22
+MONSTRUOS
+
+
+===== PAGE 197 =====
+se consideran bestias ya que, aunque pueden ser 
+tan inteligentes como los seres civilizados, siguen 
+estando demasiado sometidas a sus instintos.
+Las bestias tienen rasgos monstruosos como 
+Alado, Arma natural, Duro, Hipnótico, Regeneración, 
+Robusto y Venenoso.
+Todas las bestias tienen el rasgo Montés (ver página 
+107). La mayoría también pueden ver con poca luz, lo que 
+significa que son capaces de ver en zonas sombrías sin 
+la ayuda de luz. Sin embargo, si la oscuridad es absoluta 
+estarán tan indefensas como cualquier otra criatura.
+m uertos vivientes
+La categoría de muertos vivientes incluye a los espí-
+ritus (criaturas sin cuerpo físico) y los cadáveres 
+animados (cuerpos ya fallecidos y poseídos por un 
+espíritu vivo). Los personajes con la habilidad Ojo 
+místico pueden tirar [Atento←Discreto] para darse 
+cuenta de que una criatura es un muerto viviente.
+Los espíritus tienen el rasgo Forma espiritual y , con 
+frecuencia, Daño alternativo, Forma corpórea, Hipnótico y 
+Terrorífico. Los muertos vivientes tienen el rasgo Muerto 
+viviente, además de otros como Frío de ultratumba.
+Todos los muertos vivientes comparten ciertas 
+características: no duermen, no pasan hambre ni sed, 
+no pueden ahogarse y son inmunes a todos los venenos 
+y enfermedades convencionales. Tampoco pueden ser 
+tocados por la Corrupción, ya que se considera que 
+están completamente consumidos por esta. Además, 
+los poderes místicos y de curación les resultan 
+dañinos, mientras que las energías impías restañan 
+sus heridas. Los muertos vivientes pueden ver en 
+completa oscuridad, pero no son inmunes a los efectos 
+de una ceguera mística o mundana. Finalmente, este 
+tipo de criaturas no tiene Umbral de dolor.
+seres civilizados
+La categoría de seres civilizados incluye las criaturas 
+sociales más o menos inteligentes, como los humanos, 
+elfos, trocalengos, ogros, trasgos y trolls. Se trata de 
+razas sin muchos puntos en común, más allá de su 
+tendencia a organizarse socialmente y desarrollar dife-
+rentes culturas dependiendo del lugar donde habiten.
+Los seres civilizados no tienen acceso a rasgos 
+monstruosos aparte de los mencionados en las 
+descripciones de los trocalengos, ogros y trasgos.
+Rasgos de monstruos
+los rasgos son las diferencias físicas y sociales que 
+caracterizan a cada raza. Al contrario que las habilida-
+des, los rasgos se obtienen automáticamente al escoger 
+una raza o como consecuencia de una transformación 
+radical sufrida durante la vida del personaje.
+Los rasgos se dividen en tres niveles (I, II y III). 
+Observa que aunque esta sección repite algunos de 
+los rasgos disponibles para los personajes jugadores, 
+dichos rasgos están redactados desde el punto de vista 
+opuesto, es decir, el de los personajes no jugadores.
+a lado
+La criatura dispone de alas de algún tipo (pájaro o 
+insecto) y ha desarrollado alguna capacidad de vuelo.
+I  Pasiva. L a criatura puede volar durante su acción 
+de movimiento, lo que le permite evitar ataques 
+gratuitos cuando se mueva frente al enemigo.
+II  Pasiv
+a. La criatura puede quedarse suspendida en 
+el aire, fuera del alcance de los ataques cuerpo a 
+cuerpo. Esto no cuenta como una acción.
+III
+  Pasiv
+a. La criatura puede hacer ataques de barrido, 
+es decir, puede dividir su movimiento y usarlo antes 
+y después de atacar. Esto le permite golpear cuer- 
+po a cuerpo sin quedar trabada en combate.
+a rma natural
+La criatura está dotada de un arma natural especial-
+mente desarrollada, como garras o colmillos afilados, 
+o una cola con aguijón. La habilidad de Combate sin 
+armas (ver página 114) permite mejorar el Arma 
+natural de una criatura.
+I  Pasiva. L a criatura está dotada de algún tipo de 
+arma natural que inflige 3 puntos de daño, en vez 
+del daño normal de 2 puntos por ataques sin armas.
+II
+  Pasiv
+a. El arma natural de la criatura causa 4  
+puntos de daño.
+III  Pasiv
+a. El arma natural de la criatura causa 5 puntos 
+de daño y tiene la cualidad Larga, lo que permite  
+a la criatura usar un ataque gratuito al inicio del 
+combat
+e contra enemigos sin armas Largas.
+a taque ácido
+El ataque sin armas o con Arma natural de la criatura 
+está cubierto de ácido, por lo que cada golpe tiene 
+un efecto corrosivo sobre el objetivo. Si la potencia 
+del ácido supera la armadura del enemigo, causa 
+daño completo; en caso contrario, no tiene efecto. 
+Para eliminar el ácido del cuerpo o la armadura es 
+necesario que alguien gaste una acción y supere 
+una tirada de Inteligente. Ataque ácido requiere tener 
+el rasgo Sangre ácida a un nivel igual o superior.
+I  Reacción. El at aque ácido es débil y provoca 3 
+puntos de daño durante 3 turnos.
+II  Re
+acción. El ataque ácido es moderadamente fuerte 
+y provoca 4 puntos de daño durante 4 turnos.
+Rasgos de monstruos:
+Alado
+Arma natural
+Ataque ácido
+Ataque de Corrupción
+Daño alternativo
+Duro
+Enjambre
+Escupitajo venenoso
+Forma corpórea
+Forma espiritual
+Frío de ultratumba
+Hipnótico
+Muerto viviente
+Regeneración
+Robusto
+Sangre ácida
+T elaraña
+T errorífico
+Venenoso
+196
+
+
+===== PAGE 198 =====
+III  Reacción. El ataque ácido es potente y provoca 5 
+puntos de daño dur
+ante 5 turnos.
+a taque de corrupción
+Solo las criaturas más corruptas de Davokar tienen 
+la habilidad de transmitir la mancha oscura a través 
+de sus garras y demás armas naturales.
+I  Pasiva. El at aque de la criatura supura Corrupción: 
+cualquier víctima que sufra al menos 1 punto de 
+daño por uno de sus ataques recibe además 1D4 
+puntos de Corrupción temporal.
+II
+  Pasiv
+a. Cualquier víctima que sufra al menos 1 pun-
+to de daño por uno de sus ataques recibe además 
+1D6 puntos de Corrupción temporal.
+III
+  Pasi
+va. Cualquier víctima que sufra al menos 1 
+punto de daño por uno de sus ataques recibe ade-
+más 1D8 puntos de Corrupción temporal.
+d año a lternativo
+El ataque de la criatura hace daño contra un atributo 
+diferente a Resistencia, como Fuerte o Tenaz, por lo 
+general. Si no viene especificado en la descripción del 
+monstruo, el director de juego elige uno. El tipo de daño 
+sufrido afecta a todas las tiradas hechas con ese atributo.
+El Daño alternativo se cura y puede ser curado 
+de modo normal. Si el atributo llega a cero, el alma 
+o la energía vital de la víctima es devorada por el 
+atacante y muere. Daño alternativo requiere el rasgo 
+de monstruo Forma espiritual.
+I  Pasiva. El arma natur al de la criatura inflige 3 
+puntos de daño alternativo, ignorando armadura.
+II  Pasiv
+a. El arma natural de la criatura inflige 4 
+puntos de daño alternativo, ignorando armadura.
+III  Pa
+siva. El arma natural de la criatura inflige 5 
+puntos de daño alternativo, ignorando armadura.
+d uro
+La criatura tiene una piel, escamas u otro tipo de 
+protección gruesa que la hace más resistente a las 
+heridas. La criatura no puede llevar protección 
+adicional sobre su armadura natural, aunque a dife-
+rencia de las armaduras normales, no es Incómoda. 
+Es posible combinar la habilidad de Combate con 
+armadura y este rasgo para aumentar aún más la 
+protección de la criatura.
+I  Pasiva. L a criatura tiene una protección natural de 2.
+II  Pasiv
+a. La criatura tiene una protección natural de 3.
+III  Pasiv
+a. La criatura tiene una protección natural de 4.
+e njambre
+La criatura es un organismo colectivo que comparte 
+una mente repartida entre un grupo de seres. La 
+criatura no puede ser destruida hasta que se des -
+truyan todos los integrantes del enjambre.
+I  Especial. El enjambre sufre la mitad de daño de 
+todos los ataques. Si recibe daño y cae a la mitad de 
+su Resistencia, el instinto de supervivencia indivi -
+dual del enjambre toma el control y huye. Un ataque 
+mental que obligue al enjambr e a us
+ar su atributo 
+T enaz para defenderse afecta a todas las criaturas 
+que lo forman.
+II
+  Especial.
+ El enjambre sufre la mitad de daño de 
+todos los ataques. Si recibe daño de un único ataque 
+superior a su Umbral de dolor, el instinto de super-
+vivencia individual del enjambre toma el control y 
+huye.
+ El enjambre puede repetir una tirada fallida 
+de T enaz para resistir un ataque mental.
+III  Especial.
+ La mente colmena del enjambre controla a  
+sus componentes de tal modo que solo sufre una  
+cuarta parte del daño de todos los ataques. La coordi-
+nación es completa y el enjambre no tiene que huir 
+a m
+enos que la mente colectiva así lo decida. El en- 
+jambre puede repetir una tirada fallida de Tenaz p ara 
+resistir un ataque mental.
+e scupitajo v enenoso
+Además de ser Venenosa, la criatura es capaz de 
+escupir veneno sobre sus enemigos. El ataque de 
+veneno funciona como un ataque a distancia normal: 
+si tiene éxito, el objetivo resulta envenenado a menos 
+que supere una tirada de [Fuerte←Inteligente]. El 
+veneno continúa haciendo efecto hasta que alguien 
+aplica un antídoto a la víctima y supera una tirada 
+de Inteligente. Escupitajo venenoso requiere el rasgo 
+Venenoso a un nivel igual o superior.
+I  Activa. El v eneno es débil y provoca 2 puntos de 
+daño durante 2 turnos.
+II  Activ
+a. El veneno es moderado y provoca 3 puntos 
+de daño durante 3 turnos.
+III  Activ
+a. El veneno es potente y provoca 4 puntos de 
+daño durante 4 turnos.
+Forma corpórea
+La criatura domina su Forma espiritual hasta tal 
+punto que puede manifestarse físicamente durante 
+un periodo de tiempo.
+I  Gratuita. El e spíritu puede manifestarse física-  
+mente durante un turno y actuar como si tuviera un 
+cuerpo. Si le b
+asta con una acción de movimiento 
+para cruzar una masa de agua, puede hacerlo. El es-
+píritu puede usar sus ataques sin armas o sus armas 
+naturales
+, pero también puede sufrir heridas por 
+cualquier tipo de daño que afecte a criaturas físicas.
+II  Gratuit
+a. El espíritu puede manifestarse y usar cual-
+quier arma o armadura que portara al morir. El espíritu pue-
+197
+22
+MONSTRUOS
+
+
+===== PAGE 199 =====
+de mantener su forma corpórea tanto tiempo como 
+quiera, pero no puede volver a transformarse en mi- 
+tad de un turno: si empieza su turno en forma física, 
+debe acabar igual.
+ Si el espíritu se encuentra en forma 
+física sobre una masa de agua y se ve obligado o elige 
+recuperar su forma espectral, sale proyectado hacia 
+suelo firme, ya que un ente incorpóreo no puede estar 
+sobre ninguna masa de agua (ver Forma espiritual).
+III
+  Especial.
+ El espíritu domina su Forma corpórea por 
+completo y puede interactuar con el mundo físico 
+con sus acciones, al tiempo que continúa siendo 
+inmaterial a todos los demás efectos. Es decir, pue- 
+de atacar físicamente y defenderse como si fuera 
+un espíritu y no puede ser dañado de otr
+a forma que 
+las indicadas en la descripción de su nivel de Forma 
+espiritual. Además, cuando adopta su forma física 
+puede moverse sin limitaciones, incluso hacer un 
+largo viaje en barco, por ejemplo. Si se encuentra  
+en forma física sobre una masa de agua y se ve 
+obligado o elige r
+ecuperar su forma espectral, sale 
+proyectado hacia suelo firme (ver el nivel II).
+Forma espiritual
+La criatura es un espíritu inmaterial que, en su 
+estado más puro, no puede afectar ni ser afectado 
+por la materia física. Un espíritu que caiga a cero 
+puntos de Resistencia resulta expulsado de la zona 
+durante un tiempo. Forma espiritual da acceso a los 
+rasgos Daño alternativo, Forma corpórea y Terrorífico.
+I  Pasiva. L a criatura puede atravesar obstáculos sin 
+problemas, pero no puede pasar sobre el agua, ni 
+siquiera por un puente, barco o por el aire. El espíritu 
+sufre la mitad de daño por ataques con armas. Los 
+poderes místicos, las armas mágicas y los efectos de las 
+armas tratadas con alquimia hacen daño completo.
+II
+  Pasiv
+a. Igual que I, pero los poderes místicos, las 
+armas mágicas y los efectos de las armas tratadas 
+con alquimia solo le infligen la mitad de daño.
+III
+  Gratuit
+a. Igual que II, pero el espíritu es invulnera- 
+ble a los efectos de las armas tratadas con alquimia.
+Frío de ultratumba
+Allá por donde vaya, la criatura proyecta un frío de 
+ultratumba capaz de afectar a cualquiera que haya 
+a su alrededor.
+I  Gratuita. L a criatura está rodeada por un aura de 
+ultratumba. Los personajes jugadores a distancia 
+cuerpo a cuerpo deben superar una tirada de T enaz 
+o quedar paralizados. Las víctimas tienen derecho 
+a realizar una nueva tirada cada turno. En caso de 
+éxito, el personaje puede actuar con normalidad y 
+se vuelve invulnerable a este efecto durante el resto 
+de la escena.
+II  Gratuita. Igual que I, pero el frío causa además 
+2 puntos de daño (ignor
+ando armadura) a las  
+víctimas afectadas.
+III  Gratuit
+a. Igual que II, pero el frío afecta a los per -
+sonajes que fallen una tirada de [T enaz← T enaz].
+Hipnótico
+La criatura puede hipnotizar a sus víctimas, que serán 
+incapaces de actuar hasta que sea demasiado tarde.
+I  Activa. L a mirada de la criatura obliga a su víctima a 
+superar una tirada de [T enaz← T enaz]. Si falla, gasta 
+todas sus acciones del turno en quedarse de pie sin 
+hacer nada.
+II
+  Ac
+tiva. El sonido hipnótico o dulce canto de la  
+criatura obliga a todas sus víctimas a superar una 
+tirada de [ T
+enaz← T enaz] o a gastar todas sus ac-
+ciones en quedarse de pie sin hacer nada.
+III  Activ
+a. Igual que II, pero las víctimas quedan 
+cautivadas hasta que superen una tirada de  
+[T enaz← T enaz]. El efecto se rompe si la víctima 
+recibe cualquier tipo de daño.
+m uerto viviente
+La criatura es un espíritu atrapado en un cadáver. El 
+espíritu controla el cuerpo, que se descompone poco 
+a poco, y queda expulsado si el cuerpo es destruido.
+I  Pasiva. El muerto viviente recibe el daño normal 
+por ataques físicos, pero es inmune al veneno o la 
+enfermedad; además, como no tiene Umbral de do-
+lor, tampoco le afecta el shock o el dolor
+ . El muerto 
+viviente no se cura de manera natural y no puede 
+beneficiarse de ningún elixir curativo. Sin embargo, 
+la carne cruda y recién muerta o la sangre fresca 
+le permiten recuperar 2 puntos de Resistencia por 
+cada punto de Resistencia que consuma.
+II
+  Pasiv
+a. Igual que I, pero el muerto viviente solo sufre 
+la mitad de daño de ataques físicos normales, como 
+las armas o el daño elemental. Los poderes mís-  
+ticos que ignoran armadura hacen el daño habitual.
+III
+  Pasiv
+a. Igual que II, pero el muerto viviente solo su-
+fre la mitad de daño de los efectos místicos y alquími-
+cos. Las armas mágicas y efectos benditos hacen el  
+daño habitual.
+r egeneración
+La criatura se cura de forma espontánea, sin tener 
+que gastar tiempo o poderes en hacerlo. Sin embargo, 
+también es vulnerable a un tipo específico de daño 
+que no puede regenerar (pero del que sí puede curarse 
+con normalidad).
+La criatura puede elegir su punto débil entre la 
+siguiente lista: armas mágicas, energías elemen-
+tales (fuego o ácido), ataques sagrados o ataques 
+impíos.
+198
+
+
+===== PAGE 200 =====
+I  Pasiva. L a criatura regenera 2 puntos de Resis -
+tencia por turno.
+II  Pasiv
+a. La criatura regenera 3 puntos de Resis -
+tencia por turno.
+III  Pasiv
+a. La criatura regenera 4 puntos de Resis -
+tencia por turno.
+r obusto
+La criatura es más grande y fuerte de lo normal y solo 
+puede llevar armadura ligera modificada.
+I  Pasiva. L a criatura ignora 2 puntos de daño por 
+golpe, además de la armadura que lleve. Una vez 
+por turno puede infligir +2 puntos de daño en uno 
+de sus ataques cuerpo a cuerpo. La Defensa  de la 
+criatura se calcula con la base de [Ágil−2].
+II
+  Pasiv
+a. La criatura ignora 3 puntos de daño por gol-
+pe, además de la armadura que lleve. Una vez por 
+turno puede infligir +3 puntos de daño en uno de sus
+ 
+ataques cuerpo a cuerpo. La Defensa de la criatura 
+se calcula con la base de [Ágil−3].
+III  Pasiv
+a. La criatura ignora 4 puntos de daño por gol-
+pe, además de la armadura que lleve. Una vez por 
+turno puede infligir +4 puntos de daño en uno de sus
+ 
+ataques cuerpo a cuerpo. La Defensa de la criatura 
+se calcula con la base de [Ágil−4].
+sangre ácida
+La sangre de la criatura es corrosiva y brota con 
+fuerza cuando sufre una herida, rociando la zona 
+a su alrededor. Un objetivo que logre herir a la 
+criatura en combate cuerpo a cuerpo debe superar 
+una tirada de Defensa o sufrir un ataque de ácido. 
+Para eliminar el ácido del cuerpo o la armadura es 
+necesario que alguien gaste una acción y supere una 
+tirada de Inteligente para lavarlo con agua, tierra o 
+algo similar.
+I  Reacción. L a sangre ácida es débil y provoca 3  
+puntos de daño durante 3 turnos.
+II  Re
+acción. La sangre ácida es moderadamente  
+fuerte y provoca 4 puntos de daño durante 4 turnos.
+III  Re
+acción. La sangre ácida es potente y provoca 5 
+puntos de daño durante 5 turnos.
+t elaraña
+La criatura puede crear una correosa telaraña y 
+usarla de forma activa o pasiva para capturar a su 
+presa.
+I  Pasiva. L as hebras de la telaraña obligan a todo 
+el que las atraviese a superar una tirada de [Ági -
+l← Inteligente]. Si falla, la presa queda atrapada, 
+pero tiene derecho a una tirada de [Fuerte ← In-
+teligente] por turno para librarse. Una criatura 
+atrap ada no puede mo
+verse y debe tirar dos  
+veces para realizar cualquier acción; si falla cual -
+quiera de las dos tiradas, la acción no tiene éxito.
+II  Activ
+a. Además de las hebras del nivel I, la criatu -
+ra puede arrojar una red sobre su enemigo como 
+acción activ
+a. La víctima puede esquivar el ata -
+que con una tirada con éxito de [Ágil ← Diestro]. 
+Si queda atrapada, tiene derecho a una tirada de 
+[Fuerte
+← Inteligente] por turno para librarse. Una 
+criatura atrapada no puede moverse y debe tirar dos 
+veces para realizar cualquier acción; si falla cual-  
+quiera de las dos tiradas, la acción no tiene éxito.
+III
+  Activ
+a. La red es semiconsciente y obedece a su 
+creador: tiene la habilidad pasiva del nivel I, pero  
+también es capaz de golpear con sus hebras tres ve-
+ces por turno, con los mismos efectos que el nivel II.
+t errorí Fico
+La criatura puede infundir terror en el corazón de uno 
+o más objetivos. Terrorífico requiere que la criatura 
+tenga el rasgo Forma espiritual.
+I  Activa. L a mirada de la criatura obliga a una única 
+víctima a superar una tirada de [T enaz ← T enaz] o 
+tendrá que gastar sus dos acciones en retroceder. 
+Si la víctima no puede retroceder se defiende a 
+la desesperada, pero no logra reunir el valor para  
+atacar. La víctima puede intentar librarse del miedo 
+una vez por turno
+, repitiendo la tirada.
+II  Activ
+a. El escalofriante aullido de la criatura obli -
+ga a todas las víctimas en las cercanías a superar 
+una tirada de [T
+enaz← T enaz] o tendrán que gastar 
+sus dos acciones en retroceder. Si las víctimas no 
+pueden retroceder se defienden a la desesperada, 
+pero no logran reunir el valor para atacar. Las vícti-
+mas pueden intentar librarse del miedo una vez por  
+turno, repitiendo la tirada.
+III
+  Gratuit
+a. Igual que II, pero si las víctimas son in -
+capaces de huir se quedan encogidas de miedo en 
+el sitio, sin poder huir
+. Las víctimas pueden intentar 
+librarse del miedo paralizante una vez por turno, re-
+pitiendo la tirada.
+v enenoso
+Todos los ataques de la criatura realizados con Arma 
+natural o sin armas se consideran venenosos, siempre 
+que consigan herir al objetivo y este no supere una 
+tirada de [Fuerte←Inteligente]. El veneno continúa 
+haciendo efecto hasta que alguien aplique un antídoto 
+a la víctima y supere una tirada de Inteligente.
+I  Pasiva. El v eneno es débil y provoca 2 puntos de 
+daño durante 2 turnos.
+II  Pasiv
+a. El veneno es moderado y provoca 3 puntos 
+de daño durante 3 turnos.
+III  Pasiv
+a. El veneno es potente y provoca 4 puntos de 
+daño durante 4 turnos.
+199
+22
+MONSTRUOS
+Un escrito de origen 
+desconocido, tema de 
+debate en la Ordo Mágica 
+de Fuerte Espina: ¿se 
+trata de un mapa o son 
+instrucciones para el cul-
+tivo de lirios argénteos?
+
+
+===== PAGE 201 =====
+Monstruos  y   Adversarios
+Est E  capítulo pr E sE nt a unos treinta monstruos y adversarios que aparecen de 
+forma más o menos frecuente por Ambria y Davokar. Las criaturas están ordenadas 
+por familias (como «elfos», «bestias» y «abominaciones») para ayudar al DJ a ver 
+la relación entre ellas. Por otro lado, cada familia está encuadrada dentro de una 
+de las clases de monstruos descritas en el capítulo anterior.
+Elfos Categoría: Seres civilizados
+sE gún las cr EE ncias bárba ras, los elfos llegaron 
+a la región situada al norte de los Titanes durante la 
+época de la caída de Symbaroum; algunos dicen que 
+fue Eneáno, el príncipe elfo, quien plantó el bosque 
+de Davokar con la esperanza de sepultar el territorio 
+del imperio caído, consumido por la plaga oscura. Sea 
+cual sea la verdad, los elfos que viven en Davokar se 
+consideran los guardianes del bosque y exigen que los 
+bárbaros y ambrios cumplan con los antiguos tratados 
+y se mantengan alejados de las ruinas de Symbaroum y 
+las profundidades del bosque. Para ellos, cada violación 
+de dichos tratados es un acto de guerra.
+Los ambrios sabían muy poco sobre los elfos la 
+primera vez que llegaron a la región; a día de hoy , el 
+hombre común sigue pensando que los elfos en distintas 
+etapas vitales son criaturas diferentes. Sin embargo, las 
+conversaciones con las brujas y los pocos emisarios elfos 
+que han llegado a Yndaros sugieren que la vida de los 
+elfos se divide en varias fases, separadas por periodos 
+de letargo en los que sufren cambios físicos y mentales. 
+También se sabe que solo unos pocos sobreviven a ese 
+letargo y que la mayoría simplemente se marchita 
+y muere. En otras palabras: aunque todavía quedan 
+algunos elfos que ya vivían en tiempos de la caída de 
+Symbaroum, su número es muy reducido y resulta casi 
+imposible comunicase con ellos.
+Este apartado presenta las tres primeras fases de 
+la vida de un elfo. Aunque existen elfos más viejos, 
+los ambrios saben muy poco sobre ellos, e incluso su 
+mera existencia es muy discutida. La mayoría de los 
+expertos opina que el ciclo vital de los elfos incluye 
+una cuarta o incluso una quinta fase más. De ser así, 
+la cuarta fase daría lugar al supuestamente solitario 
+elfo invernal y la quinta incluiría a los escasísimos 
+supervivientes del último letargo, que despertarían 
+transformados en criaturas extremadamente pode-
+rosas, como la sobrecogedora Aloéna de Karvosti. 
+Pero se trata de una teoría que está lejos de aceptarse 
+200
+
+
+===== PAGE 202 =====
+201
+23
+MONSTRUOS Y ADVERSARIOS
+
+
+===== PAGE 203 =====
+E lFo  VE rnal
+Raza Elfo
+Desafío Sencillo
+Rasgos Longevo
+Ágil 13 (−3), Atento 11 (−1), Diestro 10 (0), 
+Discreto 15 (−5), Fuerte 5 (+5), Inteligente 10 (0), 
+Persuasivo 9 (+1), Tenaz 7 (+3) 
+Habilidades Ninguna
+Armas Daga 3 (Corta), Arco 4
+Armadura Ninguna
+Defensa −3
+Resistencia 10 Umbral de dolor 3
+Equipo Nada de valor.
+Sombra Verde brillante, como las hojas 
+de un abedul en su infancia 
+(Corrupción: 0).
+Tácticas: Los elfos vernales se suelen mantener a 
+distancia del enemigo y disparar con el arco. Otra 
+estrategia es provocar a sus víctimas para que los 
+sigan hacia trampas o emboscadas de varios tipos.
+E lFo E sti V al VE rd E
+Raza Elfo
+Desafío Normal
+Rasgos Longevo
+Ágil 13 (−3), Atento 15 (−5), Diestro 10 (0), 
+Discreto 11 (−1), Fuerte 7 (+3), Inteligente 10 (0), 
+Persuasivo 5 (+5), Tenaz 9 (+1) 
+Habilidades Acróbata (principiante), Sexto sen-
+tido (principiante),  Tirador (adepto)
+Armas Arco 5, Lanza 4 (Larga)
+Armadura Hilo de seda 2 (Flexible)
+Defensa −3
+Resistencia 10 Umbral de dolor 4
+Equipo Hierbas curativas, una docena 
+de flechas.
+Sombra Verde exuberante (Corrupción: 0).
+Tácticas: Los elfos estivales verdes confían en sus 
+arcos y solo recurren al uso de la lanza cuando re-
+sulta absolutamente necesario. En combate cuerpo 
+a cuerpo usan A
+cróbata para destrabarse y poder 
+explotar el alcance de su lanza una y otra vez.
+como hecho. Es más, hay muchos que creen que 
+Aloéna y los otros como ella no están relacionados 
+con los elfos, sino que son una raza antigua, como 
+semidioses de la tierra o avatares de las fuerzas de 
+la naturaleza.
+H ada  (ELFO VERNAL)
+La primera fase en la vida de un elfo dura unos cin-
+cuenta años. Los elfos vernales llegan hasta los 1,2 
+metros de altura y se caracterizan por su curiosidad 
+juguetona y comportamiento cauteloso, lo que ha 
+llevado a los expertos en elfos de la Ordo Mágica a 
+compararlos con gatitos, aunque es de justicia añadir 
+que serían las crías de una raza de gatos depredadores 
+tremendamente cruel: a los elfos vernales les gusta 
+gastar bromas crueles tanto a sus hermanos mayores 
+como a los humanos desprevenidos; y cuanto más 
+crueles, más graciosas y divertidas les parecen.
+Las hadas casi nunca abandonan la seguridad 
+del bosque. Hay unos pocos informes que describen 
+encuentros con patrullas de elfos acompañadas de 
+una o dos hadas exploradoras, pero por lo general 
+suelen moverse en grandes grupos y evitar el contacto 
+con sus mayores. Sin embargo, hay quien se pregunta 
+si esa última tendencia no está a punto de cambiar, 
+después de que algunos cazatesoros sin corazón 
+se hayan pasado al negocio de cazar hadas para 
+comerciar con su pelo, orejas y uñas, de propiedades 
+supuestamente milagrosas. Es un trabajo difícil y peli-
+groso, ya que las hadas no dejan mucho rastro sobre 
+sus movimientos y suelen ser lo suficientemente 
+202
+Un solitario elfo estival, 
+armado con un arco, 
+puede bastarse para 
+detener una expedición 
+humana por tierras 
+salvajes y obligar a los 
+supervivientes a huir 
+hasta las afueras del 
+bosque.
+
+
+===== PAGE 204 =====
+E lFo  E sti V al  M adur o
+Raza Elfo
+Desafío Complicado
+Rasgos Longevo
+Ágil 10 (0), Atento 5 (+5), Diestro 15 (−5), 
+Discreto 11 (−1), Fuerte 7 (+3), Inteligente 10 (0), 
+Persuasivo 9 (+1), Tenaz 13 (-3) 
+Habilidades Armas de asta (maestro), Com-
+bate con armadura (adepto), 
+Tirador (maes
+tro)
+Armas Arco 5, Lanza 5 (Larga)
+Armadura Coraza de seda lacada 4 (Flexible)
+Defensa 0
+Resistencia 10 Umbral de dolor 4
+Equipo Hierbas curativas
+Sombra Verde intenso (Corrupción: 0).
+Tácticas: Los elfos estivales maduros prefieren 
+usar sus arcos, pero si el rival se acerca cuerpo 
+a cuerpo no les importa mantener una línea de 
+lanzas para aguantar al enemigo mientras otros 
+elfos le acribilla con sus flechas.
+E lFo  oto Ñ al
+Raza Elfo
+Desafío Difícil
+Rasgos Longevo
+Ágil 5 (+5), Atento 10 (0), Diestro 9 (+1), 
+Discreto 10 (0), Fuerte 7 (+3), Inteligente 13 (−3), 
+Persuasivo 11 (−1), Tenaz 15 (−5)
+Habilidades Estudioso (maestro), Medicus 
+(maestro), Poder místico (Erup-
+ción de larvas, maestro), Poder 
+místico (S
+ometer voluntad, 
+maestro), Rituales (maestro)
+Armas Espada 4
+Armadura Hilo de seda 2 (Flexible)
+Defensa +5
+Resistencia 10 Umbral de dolor 4
+Equipo 10 hierbas curativas
+Sombra Amarilla y roja, como hojas de 
+otoño, con manchas borrosas de 
+marrón óxido (Corrupción: 2*).
+Tácticas: Los elfos otoñales dirigen a sus her-
+manos desde la distancia, mientras les apoyan 
+con sus podere
+s místicos.
+inteligentes como para transformar a una partida 
+de caza en su presa. Por otro lado, cualquiera que 
+logre capturar a un grupo de elfos vernales puede 
+ganar una pequeña fortuna vendiendo su botín a los 
+alquimistas de Fuerte Espina.
+du E nd E  (ELFO  E sti VAL )
+Los que despiertan tras la primera fase de letargo 
+se convierten en elfos estivales, también conocidos 
+como duendes. Aunque siguen siendo de natural 
+curioso, al crecer dejan de ser tan precavidos y se 
+sabe que son irascibles, agresivos e impulsivos, 
+rozando lo temerario. Los duendes pueden medir 
+hasta 1,7 metros de altura y son ágiles como un lobo; 
+además, tras 150 años practicando sus habilidades, 
+están capacitados para enfrentarse a cualquier 
+combatiente humano.
+Los elfos estivales forman la base de la defensa 
+de Davokar y van ataviados con poca armadura pero 
+bien pertrechados de lanzas y arcos. La mayoría 
+sigue las órdenes de un elfo otoñal, pero a veces su 
+impaciencia les hace renunciar a los consejos de sus 
+hermanos mayores. Los grupos de este tipo, formados 
+por entre diez y treinta duendes impulsivos, son muy 
+capaces de asaltar poblados de las tierras bajas, en 
+vez de los objetivos normales: caravanas, puestos 
+fronterizos y comunidades libres.
+El Fo (ELFO  O t O ñ AL )
+Se dice que el periodo de letargo élfico tras su fase 
+estival puede llegar hasta los 50 años. Los elfos que 
+despiertan son mucho más altos y apacibles que sus 
+hermanos pequeños. El maestre Goncai, el experto 
+en elfos residente en Fuerte Espina, ofrece esta des-
+cripción: «El elfo otoñal es lo suficientemente viejo como 
+para apreciar la seriedad del mundo, pero lo bastante 
+joven como para preocuparse por el paso del tiempo». Los 
+elfos de otoño asumen la responsabilidad de liderar 
+a su pueblo y comunicarse con el mundo exterior; 
+ejemplos de esto son el embajador en Yndaros, Elori, 
+o Gealóna, a la que se le permite vivir y trabajar en el 
+capítulo de la Ordo Mágica de Agrella.
+Según los cálculos, los elfos otoñales pueden vivir 
+unos 400 años, superar los dos metros de altura y 
+convertirse en seres tan poderosos como sabios. 
+Resulta evidente que entre su clase hay muchas 
+opiniones sobre Ambria, ya que se ha visto a algunos 
+dirigiendo hordas de duendes en ataques contra 
+asentamientos ambrios, mientras que otros partici-
+pan en relaciones diplomáticas o incluso proyectos 
+de colaboración. Pero al margen de sus sentimientos 
+hacia los humanos, los elfos de otoño son oponentes 
+temibles para cualquiera que los haga enfadar, gra-
+cias en parte a su dominio e íntimo conocimiento de 
+las energías místicas del mundo.
+*Gracias a la protección mística mientras aprenden los rituales.
+203
+23
+MONSTRUOS Y ADVERSARIOS
+
+
+===== PAGE 205 =====
+204
+
+
+===== PAGE 206 =====
+Trolls Categoría: Seres civilizados
+Entr E  los a M brios, los trolls son el epítome de 
+los muchos horrores de Davokar. Si prestáramos 
+oídos a las historias que se cuentan en las tabernas y 
+posadas, los trolls son una raza numerosa de tamaño 
+muy variado, desde bestias de talla humana hasta 
+auténticos mastodontes. Resulta evidente que el 
+hambre está detrás de muchas de sus acciones, pero 
+también que no parecen tener miedo ni recelo de 
+los humanos, circunstancias que les llevan a atacar 
+a viajeros y caravanas que transitan por tierras 
+salvajes, incluso cuando les sobrepasan en número.
+En contraste con las experiencias de los ambrios, 
+las leyendas bárbaras hablan de trolls civilizados, trolls 
+que viven en comunidades y pueblos subterráneos, 
+trolls que excavan las profundidades en busca de joyas 
+y metales con los que tejer prendas mágicas y preparar 
+esencias curativas, etcétera. Sin embargo, el principal 
+experto en trolls de la Ordo Mágica, el maestre de capí-
+tulo Argoi, de Kurun, mantiene que si bien eso pudo 
+haber sido cierto hace uno o dos siglos, la mayoría de 
+los trolls de hoy en día son demasiado agresivos para 
+obedecer, negociar o razonar, habilidades fundamen-
+tales en cualquier comunidad civilizada.
+t roll saqu E ador
+Troll saqueador es el nombre ambrio para el tipo 
+más frecuente de esta raza salvaje. Se trata de bestias 
+parecidas en altura a un humano, pero de constitu-
+ción más similar a la de un oso o, más exactamente, 
+a la de los extraños toros que tiraban de los carros 
+del enemigo durante la Gran Guerra.
+Los trolls saqueadores pueden aparecer en grupo 
+o en solitario. Estos últimos suelen describirse como 
+criaturas extremadamente voraces y agresivas, hasta 
+el punto de que son muy capaces de atacar una aldea 
+fortificada en solitario. Los que viven en grupo son 
+posiblemente tan insaciables y combativos como sus 
+solitarios primos, pero también son cautos; quizás son 
+más sabios o hayan aceptado someterse a las órdenes 
+de un líder. Sea como sea, no hay duda de que hay 
+muchos fuertes fronterizos, colonias y caravanas 
+que han sido masacradas por una patrulla de trolls 
+saqueadores liderados por un cacique de su raza.
+c aciqu E  t roll
+Los caciques troll (término acuñado por los ambrios) 
+son criaturas terroríficas mucho menos frecuentes 
+que los trolls saqueadores, ¡y mejor así! Todas las 
+historias coinciden en que son gigantes de unos tres 
+metros de alto, astutos hasta el extremo y capaces de 
+usar su fuerza con gran inteligencia sobre humanos, 
+bestias y sus propios seguidores por igual. Aparte de 
+algunos informes dudosos, no se tienen noticias de 
+caciques trolls solitarios; es más, su nombre viene 
+troll  saqu E ador , H a M bri E nto
+Raza T roll
+Desafío Normal
+Rasgos Longevo, Arma natural (I), 
+Robusto (I)
+Ágil 11 (−1), Atento 9 (+1), Diestro 13 (−3), 
+Discreto 5 (+5), Fuerte 15 (−5), Inteligente 10 (0), 
+Persuasivo 7 (+3), Tenaz 10 (0)
+Habilidades Berserker (adepto)
+Armas Zarpas 8 (Corta)
+Armadura Piel de troll 4
+Defensa +7
+Resistencia 15 Umbral de dolor 8
+Equipo Ninguno
+Sombra Rojo chillón, como la sangre de 
+un arteria, llena de vida (Corrup-
+ción: 0).
+Tácticas: Lo
+s trolls saqueadores hambrientos atacan 
+a sus objetivos uno por uno, hasta matar a todos.
+troll  saqu E ador , sociabl E
+Raza T roll
+Desafío Complicado
+Rasgos Arma natural (I), Longevo, Rege-
+neración (III), Robus to (I)
+Ágil 10 (0), Atento 9 (+1), Diestro 13 (−3), 
+Discreto 5 (+5), Fuerte 15 (−5), Inteligente 10 (0), 
+Persuasivo 7 (+3), Tenaz 11 (−1)
+Habilidades Berserker (adepto), Combate sin 
+armas (principiante)
+Armas Zarpas 9 (Corta)
+Armadura Piel de troll 4 (regenera 4 
+puntos de Resistencia por turno, 
+excepto si es por daño de fuego 
+o ácido)
+Defensa +7
+Resistencia 15 Umbral de dolor 8
+Equipo Amuleto de la suerte en forma 
+de cráneo humano.
+Sombra Rojo sangre (Corrupción: 0).
+Tácticas: El grupo de trolls saqueadores ataca 
+en manada. Primero rodean a su presa y luego 
+acaban con ella usando su furia berserker.
+205
+23
+MONSTRUOS Y ADVERSARIOS
+Las leyendas bárba-
+ras sobre la madre 
+de trolls,
+ Ognyx, son 
+muy populares, ya 
+que están llenas de 
+momentos emocio-
+nantes y terroríficos 
+y siempre terminan 
+c
+on la muerte cruel 
+y violenta de un hu-
+mano que rompió un 
+tabú.
+
+
+===== PAGE 207 =====
+dado porque siempre se rodean de un séquito de entre 
+cinco y veinte trolls saqueadores leales dispuestos a 
+hacer cualquier cosa por su amo.
+En las leyendas bárbaras los caciques trolls suelen 
+comportarse como líderes tribales: dominantes y 
+primitivos, sí, pero también con capacidad para 
+planear, organizar y dirigir a sus saqueadores. Pero 
+incluso si hay algo de verdad en esas historias, no 
+hay nada que indique que tengan un propósito más 
+elevado que llenarse la barriga. Los caciques troll no 
+construyen comunidades, sino que se aprovechan de 
+sus hermanos pequeños para su beneficio personal y 
+para defenderse de los demás peligros que pueblan 
+el bosque (o al menos, eso apuntan las observaciones 
+realizadas por el maestre Argoi de Kurun).
+a rc H it rolls
+Los architrolls son mastodontes vagabundos que, 
+salvo algunos rasgos faciales, apenas tienen nada en 
+común con los trolls más pequeños. Por otro lado, 
+los pocos registros escritos sobre estas criaturas solo 
+coinciden en que tienen una altura equivalente a 
+la de dos o tres hombres adultos, contradiciéndose 
+en todo lo demás y retratándolos como delgados, 
+gordos, majestuosos, encorvados, estúpidos, sabios, 
+de melena larga y grasienta o con cuernos. 
+Los ambrios y bárbaros que afirman haberse 
+cruzado con un architroll y que viven para contarlo 
+dicen haberlo logrado de dos formas: o dando media 
+vuelta y corriendo por sus vidas, o ganándose su 
+libertad tras realizar algún tipo de servicio. Sobre 
+este último punto, el gran maestre Seldonio ha trans-
+crito una entrevista con un cazatesoros anónimo 
+que afirma haber sobrevivido a dos encuentros con 
+architrolls: la primera vez respondiendo a una serie 
+de acertijos; la segunda, durmiendo con una canción 
+a un architroll exhausto pero muy pesado (a petición 
+del coloso).
+troll , caciqu E
+Raza T roll
+Desafío Difícil
+Rasgos Arma natural (I), Duro (I), Longevo, 
+Regeneración (III), Robusto (II)
+Ágil 9 (+1), Atento 7 (+3), Diestro 13 (−3), 
+Discreto 5 (+5), Fuerte 18 (−8), Inteligente 10 (0), 
+Persuasivo 11 (−1), Tenaz 10 (0)
+Habilidades Alquimista (principiante), 
+Atributo excepcional (Fuerte, 
+maestro), Berserker (maestro), 
+Combate sin armas (maestro)
+Armas Zarpas 13 (Corta, puede hacer 
+un segundo ataque contra el 
+mismo objetivo con un valor de 
+daño 10).
+Armadura Piel de troll 7 (regenera 4 
+puntos de Resistencia por turno, 
+excepto si es por daño de fuego 
+o ácido).
+Defensa +4
+Resistencia 18 Umbral de dolor 9
+Equipo Equipo alquímico básico, veneno 
+débil, antídoto débil, joyas y 
+baratijas (1D10 táleros).
+Sombra Rojo oscuro con manchas borro-
+sas de óxido (Corrupción: 2).
+Tácticas: Lo
+s cacique trolls envían a los saqu-
+eadores para poner a prueba las fuerzas del 
+enemigo y,
+ a continuación, atacar al enemigo más 
+débil (preferiblemente un místico, ya que son 
+frágiles y peligrosos al mismo tiempo).
+arc H itroll
+Raza T roll
+Desafío Mortal
+Rasgos Arma natural (III), Duro (III), 
+Hipnótico (III), Longevo, Regene-
+ración (III), Robus to (III)
+Ágil 7 (+3), Atento 10 (0), Diestro 11 (−1), 
+Discreto 5 (+5), Fuerte 18 (−8), Inteligente 10 (0), 
+Persuasivo 9 (+1), Tenaz 16 (−6)
+Habilidades Alquimista (maestro), Atributo 
+excepcional (Fuerte, maestro), 
+Atributo excepcional (T enaz, 
+maestro), Berserker (maestro), 
+Golpe de hierro (maestro)
+Armas Zarpas 16 (Largas)
+Armadura Piel de troll 10 (regenera 4 
+puntos de Resistencia por turno, 
+excepto si es por daño de fuego 
+o ácido).
+Defensa +7
+Resistencia 18 Umbral de dolor 9
+Equipo Equipo alquímico, 10 panes de 
+viaje, veneno potente, antídoto 
+potente, polvo espectral, lágri-
+mas curativas, elixir de vida.
+Sombra R
+ojo azulado, como la sangre ve-
+nosa de las venas más internas 
+(Corrupción: 0).
+Táctic
+as: El architroll prefiere hipnotizar a su 
+objetivo para aprender más de él. Si no es posible, 
+desata su poder destructivo y acaba a zarpazos 
+con sus oponentes, uno a uno.
+206
+
+
+===== PAGE 208 =====
+207
+23
+MONSTRUOS Y ADVERSARIOS
+Tabla 29: Monstruos y adversarios
+Fa M ilia criatura V ari E da d d E sa Fío cat E goría
+Elfos
+Elfo vernal Sencillo
+Seres civilizadosElfo estival
+Verde Normal
+Maduro Complicado
+Elfo otoñal Difícil
+Trolls
+T roll saqueador
+Hambriento Normal
+Seres civilizados
+Sociable Complicado
+Cacique troll Difícil
+Architroll Mortal
+Adversarios humanos
+Cultista
+Seguidor Sencillo
+Seres civilizados
+Líder Normal
+Bandido
+Salteador Sencillo
+Jefe Normal
+Explorador
+Explorador de la reina Normal
+Capitán Complicado
+Cazamonstruos
+Autodidacta Sencillo
+Manto negro Normal
+Cazatesoros
+Aventurero Sencillo
+Saqueador Normal
+Guerrero bárbaro
+Guerrero de poblado Normal
+Guardia del clan Complicado
+Arañas
+Marañosa Normal
+Bestias
+Araña trampera Normal
+Depredadores
+Gato víbora Normal
+BestiasBaiagorno Normal
+Abojalí Complicado
+Reptiles
+Kanaran Complicado
+Bestias
+Lindorma Difícil
+Criaturas aladas
+Kranka Normal
+Bestias
+Libélula dragón Complicado
+Abominaciones
+Abominación 
+renacida
+Humano renacido Normal
+Abominaciones
+Alce renacido Normal
+Abojalí renacido Difícil
+Abominación 
+ primigenia Mortal
+Muerto
+s vivientes
+Hielo fatuo Sencillo
+Muertos vivientes
+Dragul Normal
+Necromago Complicado
+Moratumbas Difícil
+
+
+===== PAGE 209 =====
+208
+Adversarios humanos  Categoría: Seres civilizados
+la V iol Encia rod Ea a bárbaros y ambrios por igual.  
+El pasado guerrero de los súbditos de Korinthia y su 
+tendencia a valorar al grupo sobre el individuo es 
+equivalente a la cultura bárbara de clan y las duras 
+condiciones de vida de Davokar. Así, el proverbio 
+«Cuando se agota la palabra, habla el acero» resulta 
+apropiado para describir el concepto de diplomacia 
+en ambos grupos, excepto en las situaciones donde 
+nunca hubo espacio para la negociación.
+El comportamiento amistoso o agresivo de un 
+humano depende siempre de las circunstancias. 
+Para una persona que no duda en inmiscuirse con 
+los poderes corruptos de Davokar, los sectarios 
+pueden ser tanto amigos como enemigos; en 
+cambio, siempre tendrán en contra a los caza -
+monstruos. Por lo general, se puede decir que 
+dan igual los valores o la cantidad de aliados que 
+tengas: siempre vas a hacer más enemigos que 
+amigos. La gente de Davokar no suele ser neutral 
+y nadie sobrevive mucho tiempo sin alinearse con 
+una u otra facción.
+c ultista
+En este epígrafe se incluyen todos los humanos 
+que deciden explorar y explotar las energías 
+oscuras de Davokar. Entre los bárbaros siempre 
+han existido individuos así, personas o grupos 
+que violan los tabúes de su clan con el objetivo 
+de ganar poder e influencia. Y en Ambria resulta 
+cada vez más común que la gente se entregue 
+a la oscuridad para lograr alguna ventaja en 
+la carrera por la riqueza, el poder y la gloria.
+Según los rumores, hay cultistas en todos los 
+niveles y regiones del reino de Korinthia, aunque 
+lo más frecuente es que se traten de cazatesoros 
+o colonos libres que viven dentro del bosque o en 
+sus cercanías.
+El culto típico se caracteriza por una estricta 
+jerarquía con un líder absoluto al mando, rodeado 
+y apoyado por un grupo de fieles seguidores. El 
+culto suele reunirse en lugares con cierto tipo de 
+connotación mística, en fechas donde suceden 
+fenómenos naturales señalados. Por ejemplo, el 
+
+
+===== PAGE 210 =====
+cultista , sE guidor
+Raza Humano
+Desafío Sencillo
+Rasgos Montés o Privilegiado
+Ágil 11 (−1), Atento 13 (−3), Diestro 10 (0), 
+Discreto 15 (−5), Fuerte 9 (+1), Inteligente 7 (+3), 
+Persuasivo 10 (0), Tenaz 5 (+5)
+Habilidades Ninguna
+Armas Arma a una mano 4
+Armadura Cuero 2 (Incómoda)
+Defensa +1
+Resistencia 10 Umbral de dolor 5
+Equipo Túnica y máscara, 1D10 chelines.
+Sombra Plata o verde trenzada con algunas 
+hebras negras (Corrupción: 2).
+Tácticas: Un cultista típico huirá si el combate no 
+va bien o si su líder no está presente para obligar-
+le a luchar. Si el líder muere, la mayoría reacciona 
+intentando huir
+, mientras que el resto continúa 
+luchando con fervor fanático.
+bandido , salt E ador
+Raza Humano o T rasgo
+Desafío Sencillo
+Rasgos Montés (humano) o Poco longe-
+vo (trasgo)
+Ágil 1
+0 (0), Atento 15 (−5), Diestro 10 (0), 
+Discreto 13 (−3), Fuerte 11 (−1), Inteligente 5 (+5), 
+Persuasivo 9 (+1), Tenaz 7 (+3)
+Habilidades Ninguna
+Armas Arma a una mano 4, Arma 
+arrojadiza 3
+Armadura Armadura de cuervo 3 (Apara-
+tosa)
+Defen
+sa +4
+Resistencia 11 Umbral de dolor 6
+Equipo 1D6 armas arrojadizas, una bolsa 
+con resina de mascar, 1D10 ortegs.
+Sombra Diferentes tonos de verde (Co-
+rrupción: 0).
+Tácticas: Lo
+s bandidos saben calcular sus 
+posibilidades de éxito y ni el más despiadado de 
+los jefes les puede obligar a atacar a un enemigo 
+superior que les sobrepase en número.
+cultista , líd E r
+Raza Humano
+Desafío Normal
+Rasgos Contactos
+Ágil 5 (+5), Atento 10 (0), Diestro 9 (+1), Discreto 
+11 (−1), Fuerte 7 (+3), Inteligente 13 (−3), 
+Persuasivo 15 (−5), Tenaz 10 (0)
+Habilidades Líder (principiante), Poder místi-
+co (Maldición, adepto
+ ), Rituales 
+(Posesión, principiante)
+Armas Espada 4
+Armadura Hilo de seda 2 (Flexible)
+Defensa +5
+Resistencia 10 Umbral de dolor 4
+Equipo Túnica bordada y una máscara 
+terrorífica, 1D10 táleros.
+Sombra Marrón con reflejos púrpuras, como 
+un charco aceitoso (Corrupción: 4).
+Tácticas: El líder cultista se esconde tras sus 
+seguidores, dando órdenes desde una distancia 
+segura, pero podría enfrentarse al enemigo si el 
+Gran Plan dependiera de ello.
+bandido , JEFE
+Raza Humano
+Desafío Normal
+Rasgos Contactos
+Ágil 13 (−3), Atento 11 (−1), Diestro 5 (+5), 
+Discreto 9 (+1), Fuerte 10 (0), Inteligente 7 (+3), 
+Persuasivo 15 (−5), Tenaz 10 (0)
+Habilidades Acróbata (principiante), Ataque 
+con dos armas (adepto), Domi-
+nación (principiante)
+Armas Hacha y e
+spada 4, dos ataques 
+contra un mismo objetivo.
+Armadura Armadura de cuervo 3 (Aparatosa)
+Defensa 0
+Resistencia 10 Umbral de dolor 5
+Equipo Sombrero de ala ancha con una 
+pluma de muchos colores, 1D10 
+chelines.
+Sombra Verde con lunares cobrizos 
+(Corrupción: 0).
+Tácticas: El líder debe luchar junto a sus com-
+pañeros bandidos, cualquier otra cosa no sería 
+aceptable
+.
+209
+23
+MONSTRUOS Y ADVERSARIOS
+
+
+===== PAGE 211 =====
+culto de la sangre descubierto por los Mantos Negros 
+en Templorrecio, durante el año 19, siempre se reunía 
+en un viejo túmulo funerario durante las noches de 
+luna nueva.
+b andido
+No es fácil conseguir un trabajo en Ambria, especial-
+mente uno bien pagado, lo que explica que haya tanta 
+gente que se dedique al robo. Los bandidos pueden 
+aparecer en cualquier lugar por donde transiten 
+mercancías de valor: en los ríos, en las carreteras 
+de las tierras bajas e incluso en los bosques y pasos 
+de montaña.
+Las dos bandas más temidas de salteadores viven 
+en los valles de los Titanes. Una está al mando de la 
+famosa Bruja de Hielo, la hija del último jefe de Vieja 
+Kadizar; la otra está compuesta por una horda salvaje 
+de trasgos y trolls saqueadores dirigidos por un ogro 
+llamado Montaña. Otro ejemplo de saqueadores son 
+los bandidos de la comunidad libre de Entekka, que 
+atacan principalmente las caravanas que viajan entre 
+Karvosti y Fuerte Espina, o el cruel e infame Capitán 
+Barthel, cuya tripulación de piratas ataca embarca-
+ciones en el lago Volgoma y los ríos Eanor y Eblis.
+Explorador
+Aquel que se aventura en Davokar sin la correspon-
+diente licencia de exploración necesita andarse con 
+ojo. Los Exploradores de la Reina están encargados 
+de patrullar las afueras del bosque e internarse 
+ocasionalmente en sus profundidades. Estas 
+incursiones suelen realizarse por una patrulla o 
+pelotón de exploradores a los que se les asigna 
+investigar la veracidad de algún rumor o rastrear 
+a una bestia que haya atacado Fuerte Espina o 
+algún otro asentamiento fronterizo. Al margen de 
+la misión, los exploradores siempre tienen el deber 
+de comprobar los papeles de todo aquel con quien 
+se encuentren en Davokar y arrestar a cualquiera 
+que no tenga su licencia en regla (o ejecutarlo en 
+el acto, si se resiste).
+Los exploradores son reclutados entre los sol -
+dados del Ejército de la Reina y suelen ser fuertes, 
+experimentados en combate y hábiles a la hora de 
+moverse en silencio por tierras salvajes. Algunos 
+exploradores son especialistas en ciertas áreas 
+(leyendas, criaturas o la lucha contra ciertos tipos 
+de enemigos) y en ocasiones viajan en compañías de 
+expertos, como maestros arquitectos, cartógrafos o 
+magos de batalla de la Ordo Mágica. Una patrulla de 
+exploradores al mando de un curtido capitán es una 
+fuerza realmente temible (como puede atestiguar 
+más de un cazatesoros sin licencia…).
+E xplorador  d E la  r E ina
+Raza Humano
+Desafío Normal
+Rasgos Montés
+Ágil 7 (+3), Atento 15 (−5), Diestro 11 (−1), 
+Discreto 10 (0), Fuerte 10 (0), Inteligente 13 (−3), 
+Persuasivo 5 (+5), Tenaz 9 (+1)
+Habilidades Ataque con dos armas (princi-
+piante), Estudioso o Medicus o 
+Vers
+ado en criaturas (principian-
+te), Táctico (adepto )
+Armas Arco 4, espada 4 y daga 3
+Armadura Hilo de seda 2 (Flexible)
+Defensa −4
+Resistencia 10 Umbral de dolor 5
+Equipo Pergaminos (sobre su especiali-
+dad), una docena de flechas, una 
+dosis de hierbas cur
+ativas (cinco 
+si tiene Medicus), 1D10 chelines.
+Sombra Plata reluciente (Corrupción: 0).
+Tácticas: Los exploradores siempre estudian a 
+sus enemigos y atacan su punto débil. Sin em-
+bargo, su misión es explorar, no luchar, por lo que 
+no atacarán si e
+stán en desventaja. En ese caso, 
+siguen al objetivo hasta que la situación se ponga 
+a su favor o lleguen refuerzos.
+E xplorador  d E la  r E ina , capit án
+Raza Humano
+Desafío Complicado
+Rasgos Montés
+Ágil 7 (+3), Atento 15 (−5), Diestro 11 (−1), 
+Discreto 10 (0), Fuerte 10 (0), Inteligente 13 (−3), 
+Persuasivo 5 (+5), Tenaz 9 (+1)
+Habilidades Ataque con dos armas (maes-
+tro), Líder (adepto), Táctico 
+(maestr
+o)
+Armas Arco largo 4 (Preciso), hoja de es-
+grima 5 (Equilibrada) y espada 4
+Armadura Cor
+aza de seda lacada 3 (Flexible)
+Defensa −4
+Resistencia 10 Umbral de dolor 5
+Equipo Mapa de la zona, pan de viaje, 
+dos dosis de hierbas curativas, 
+1D10 táleros.
+Sombra Plateada con vetas de oro (Co-
+rrupción: 0).
+Tácticas: Es
+tos avezados exploradores luchan en 
+primera línea, marcando el ejemplo a seguir por 
+los demás.
+210
+
+
+===== PAGE 212 =====
+211
+23
+MONSTRUOS Y ADVERSARIOS
+
+
+===== PAGE 213 =====
+ca Z a M onstruos , autodidacta
+Raza Humano
+Desafío Sencillo
+Rasgos Contactos
+Ágil 9 (+1), Atento 13 (−3), Diestro 10 (0), 
+Discreto 5 (+5), Fuerte 11 (−1), Inteligente 10 (0), 
+Persuasivo 7 (+3), Tenaz 15 (−5)
+Habilidades Ninguna
+Armas Ballesta 5, hacha 4
+Armadura Cota de mallas 3 (Incómoda)
+Defensa +3 (escudo)
+Resistencia 11 Umbral de dolor 6
+Equipo Libro de salmos, herramientas 
+de interrogatorio, 1D10 chelines.
+Sombra Cobre brillante con manchas de 
+cardenillo (Corrupción: 1).
+Tácticas: El cazamonstruos dispara un virote 
+y luego ataca con hacha y escudo. El objetivo 
+siempre es una abominación (al menos, según el 
+cazamonstruos…).
+ca Z a M onstruos , M anto  n E gro
+Raza Humano (ambrio)
+Desafío Normal
+Rasgos Contactos
+Ágil 9 (+1), Atento 13 (−3), Diestro 10 (0), 
+Discreto 5 (+5), Fuerte 11 (−1), Inteligente 10 (0), 
+Persuasivo 7 (+3), Tenaz 15 (−5)
+Habilidades Inquebrantable (adepto), 
+Rituales (Humo sagrado, prin-
+cipiante), Versado en criaturas 
+(principiante)
+Armas B
+allesta 5, espada 4
+Armadura Armadura de escamas 3 (Incómoda)
+Defensa +3 (escudo)
+Resistencia 11 Umbral de dolor 6
+Equipo Libro de salmos, herramientas 
+de interrogatorio, inciensos, 
+1D10 táleros.
+Sombra Plateada con manchas oscuras 
+(Corrupción: 3).
+Tácticas: Un manto negro utiliza rituales para 
+desenmascarar a las abominaciones, pero cuan-
+do el tiempo apremia, primero dispara su ballesta 
+y luego remat
+a con la espada. Mejor acabar con 
+un inocente que permitir que una abominación 
+escape, ese es el lema de los Mantos Negros.
+212
+
+
+===== PAGE 214 =====
+ca Z a M onstruos
+Los cazamonstruos están especializados en luchar 
+contra abominaciones, cultistas y cualquier criatura 
+que extraiga su poder de la oscuridad de Davokar. 
+Algunos no son más que charlatanes: matones bru-
+tales y sin escrúpulos que viajan de aldea en aldea 
+cobrando por revelar «el mal» detrás de cada mala 
+cosecha, pozo seco o epidemia de gripe, achacándo-
+selo por lo general a un pobre forastero o cualquier 
+individuo extravagante. Pero hay otros que sí saben 
+lo que hacen…
+Los cazamonstruos pertenecientes o entrenados 
+por los Hermanos del Crepúsculo, para quienes la 
+lucha contra la oscuridad es una vocación, más que 
+un oficio, son temidos y respetados por todos, ya 
+que una de las peores cosas que le puede suceder a 
+un ambrio honrado es que le acusen de «caminar 
+por la senda oscura». Los cazamonstruos suelen 
+aprovecharse de su situación sin pensárselo dos 
+veces: allá por donde viajan comen y viven gratis, 
+y siempre pueden esperar todo tipo de servicios, 
+desde el sastre que zurce su ropa hasta el herrero 
+que afila su espada. Tal y como dijo una vez Edo 
+Adeio, el famoso manto negro: «Yo soy el muro que 
+protege vuestro descanso, la espada que refleja la 
+pureza de Prios. ¿Quién soy pues para rechazar los 
+ofrecimientos de quienes desean servirme?».
+ca Z at E soros
+Igual que nos inventamos multitud de apodos para 
+nuestros seres amados, también lo hacemos con quie-
+nes odiamos. Cazatesoros, aventureros, expoliadores, 
+descubridores, ladrones de tumbas… Son muchos los 
+ambrios que arriesgan la vida con la esperanza de 
+hallar su fortuna en las ruinas de la vieja Symbaroum. 
+Hoy en día la mayoría de la gente se ha dado cuenta 
+de lo insensato que resulta enfrentarse en solitario a 
+Davokar, razón por la que casi todo el mundo viaja con 
+un mínimo de cuatro compañeros. Pero la naturaleza 
+de un grupo puede variar considerablemente, e ir 
+desde un puñado de antiguos campesinos arañando 
+algo de metal precioso a las afueras del bosque, a una 
+expedición profesional bajo las órdenes de la Ordo 
+Mágica o un noble ambicioso.
+Los cazatesoros que describimos a continuación son 
+del peor tipo: gente que ha conseguido reunir el dinero 
+suficiente para comprarse una licencia de exploración 
+y que recorre el bosque en busca de un premio gordo. 
+Comoquiera que han arriesgado todo lo que tienen 
+(e incluso más, si recibieron un préstamo de algún 
+usurero de dudosa reputación), no son del tipo que está 
+dispuesto a abandonar un yacimiento sin pelear. Quizás 
+sea cierto que, en las zonas limítrofes de Davokar, la 
+causa de muerte más común entre los cazatesoros (por 
+delante de elfos, bestias y bárbaros) sean los ataques 
+de sus colegas de profesión.
+a VE ntur E ro
+Raza Humano, trasgo o trocalengo
+Desafío Sencillo
+Rasgos Montés (humano), Longevo 
+(trocalengo), Poco longevo  
+y Paria (trasgo)
+Ágil 10 (0),
+ Atento 13 (−3), Diestro 11 (−1), 
+Discreto 9 (+1), Fuerte 15 (−5), Inteligente 10 (0), 
+Persuasivo 5 (+5), Tenaz 7 (+3)
+Habilidades Ninguna
+Armas Garrote con pinchos 4, cuchillo 
+arrojadizo 3
+Armadura Cuero tachonado 2 (Incómoda)
+Defensa +1 (escudo)
+Resistencia 15 Umbral de dolor 8
+Equipo Amuleto de buena fortuna, 
+juego de dados, tres cuchillos 
+arrojadizos.
+Sombra Verde o cobre (Corrupción: 0).
+Tácticas: Un aventurero lanza sus cuchillos 
+mientras se protege con su escudo. Solo entrará 
+en combate cuerpo a cuerpo si se queda sin 
+cuchillos o su enemigo le obliga a ello.
+213
+23
+MONSTRUOS Y ADVERSARIOS
+ca Z at E soros , saqu E ador
+Raza Ogro
+Desafío Normal
+Rasgos Longevo, Robusto (I)
+Ágil 13 (−3), Atento 7 (+3), Diestro 5 (+5), 
+Discreto 9 (+1), Fuerte 15 (−5), Inteligente 10 (0), 
+Persuasivo 10 (0), Tenaz 11 (−1)
+Habilidades Armas a dos manos (adepto), 
+Golpe de hierro (principiante)
+Armas Martillo a dos manos 8
+Armadura Piel gruesa y cuero 4 (Incómoda)
+Defensa +1
+Resistencia 15 Umbral de dolor 8
+Equipo Saco con comida putrefacta
+Sombra Rojo carmesí (Corrupción: 0).
+Tácticas: Los saqueadores marchan directo ha-
+cia el combate, consumidos por el ansia de botín.
+
+
+===== PAGE 215 =====
+gu E rr E ro  bárbaro
+Para los clanes bárbaros de Davokar, luchar es algo 
+tan natural como respirar. Tanto niños como niñas 
+son entrenados desde la infancia en el uso de las 
+armas del clan, por lo general un hacha o lanza en 
+combinación con un escudo.
+Con la posible excepción del clan de Odaiova 
+(dedicados ahora al comercio), la habilidad más res-
+petada entre los bárbaros es la de combatir, hasta tal 
+punto que los jefes casi siempre obtienen su puesto 
+mostrando su valía en batalla. Cada pueblo cuenta 
+con varios guerreros capaces, pero los mejores de 
+ellos son elegidos para formar parte de la guardia 
+del jefe. Además, casi todos albergan el sueño de ser 
+escogidos para representar a su clan en la Guardia 
+de la Furia Dormida, en Karvosti.
+Gracias a los tabúes, resulta infrecuente cruzarse 
+con guerreros bárbaros más allá de la periferia del 
+bosque. Sin embargo, las excepciones son cada vez 
+más frecuentes. En Fuerte Espina y Brezoscuro hay 
+numerosas espadas de alquiler de origen bárbaro, 
+así como desertores que ignoran las antiguas adver-
+tencias y se internan en los bosques en busca de 
+ruinas que saquear.
+Guerreros de clan
+Quien estudie con detenimiento a los miembros 
+de la Guardia de la Furia podrá ver las diferencias 
+provenientes de cada tradición individual.
+Para los ambrios, las peculiaridades más lla-
+mativas son las de los guerreros de los clanes 
+Baiaga y K
+arohar: los primeros luchan junto 
+a sus baiagornos domesticados y los segun -
+dos van armados con lanzadardos y garras de 
+gran tamaño
+. Pero hay más. Por ejemplo, los  
+guerreros de Gaoia usan veneno con bastante 
+frec
+uencia y algunos poseen la habilidad de  
+lanzar arañas venenosas contra sus enemigos, 
+mientras que el clan Eno
+ai cuenta con los afa-
+mados domadores de trolls, capaces de someter 
+y controlar a tr
+olls saqueadores para usarlos de 
+vigías o como vanguardia en batalla.
+A lo anterior habría que añadir los rumores 
+sobre el llamado Clan Depredador (o Salvaje). 
+A juzgar por los relatos fantásticos que se escu- 
+chan, sus guerreros emplean elixires de gran  
+potencia para alimentar su furia y están dotados 
+de armas naturales cr
+eadas por las artes oscuras 
+del hueso esculpido y la carne forjada: cuernos, 
+colmillos, garras o extremidades retorcidas hasta 
+convertirlas en sierras de hueso.
+gu E rr E ro  bárbaro ,  
+gu E rr E ro  d E poblado
+Raza Humano (bárbaro)
+Desafío Normal
+Rasgos Montés
+Ágil 13 (−3), Atento 10 (0), Diestro 15 (−5), 
+Discreto 10 (0), Fuerte 11 (−1), Inteligente 5 (+5), 
+Persuasivo 7 (+3), Tenaz 9 (+1)
+Habilidades Acróbata (principiante), 
+Combate con escudo (adepto), 
+Viento de acero (principiante).
+Armas Hacha 5, golpe de escudo 2 
+(posibilidad de derribo), lanza 
+arrojadiza 4
+Armadura Piel de oso 2 (Incómoda)
+Defensa −3
+Resistencia 11 Umbral de dolor 6
+Equipo T rampas para caza, equipo de 
+pesca, figurita de madera (el 
+espíritu protector del clan), tres 
+lanzas arrojadizas, 1D10 ortegs.
+Sombra Verde floreciente (Corrupción: 0).
+Tácticas: Los guerreros de poblado están acos-
+tumbrados a las escaramuzas; primero arrojan 
+sus lanzas y luego ag
+arran el hacha. Si la situación 
+se vuelve en su contra, abandonan el combate y 
+cubren su retirada con las lanzas que les queden.
+gu E rr E ro  bárbaro , gu ardia  d E l clan
+Raza Humano (bárbaro)
+Desafío Complicado
+Rasgos Montés
+Ágil 13 (−3), Atento 11 (−1), Diestro 5 (+5), 
+Discreto 10 (0), Fuerte 15 (−5), Inteligente 10 (0), 
+Persuasivo 7 (+3), Tenaz 9 (+1)
+Habilidades Armas a dos manos (maestro), 
+Combate con armadura (adep-
+to), Golpe de hierro (maestro)
+Armas Hacha a dos mano
+s 11 (Impacto 
+agravado), ignora armadura
+Armadura Armadura de escamas 4  
+(Incómoda)
+Defen
+sa −3
+Resistencia 15 Umbral de dolor 8
+Equipo Un tazón de metal o madera, 
+figurita de madera (el espíritu 
+protector del clan), piedra para 
+afilar hachas, 1D10 chelines.
+Sombra Verde intenso (Corrupción: 0).
+Tácticas: Los guerreros de la guardia del jefe 
+dirigen a los demás con su ejemplo: enfrentarse al 
+enemigo cuerpo a cuerpo, derribarlo y aniquilarlo 
+con un par de golpes de hacha.
+214
+
+
+===== PAGE 216 =====
+215
+23
+MONSTRUOS Y ADVERSARIOS
+
+
+===== PAGE 217 =====
+Arañas Categoría: Bestias
+En los cu E ntos de los bárbaros, las arañas son unas 
+de las criaturas más nobles y poderosas de Davokar, 
+al menos desde una perspectiva histórica. Las leyen-
+das del Rey Araña también son conocidas entre los 
+ambrios: un miembro de un monstruoso clan de 
+arañas humanoides y líder de un ejército compuesto 
+por arañas y varios tipos de anfibios monstruosos 
+que dirigía con mano de hierro y con el que gobernó 
+los bosques hace cinco siglos.
+Las historias sugieren que fue la amenaza del 
+Rey Araña lo que provocó que los clanes bárbaros se 
+unieran bajo un gran jefe, y que fue la combinación 
+de sus fuerzas lo que logró aplastar su imperio. La 
+leyenda da a entender que el monstruoso clan sigue 
+viviendo en la profundidad de Davokar y que aún 
+existen arañas gigantes y sapos gigantes descendien-
+tes de las hordas del monarca; y aunque también se 
+la ha relacionado con el esqueleto estatua de Fuerte 
+216
+
+
+===== PAGE 218 =====
+Espina y el mítico Clan Depredador, la Ordo Mágica 
+insiste en que no hay informes fiables donde basar 
+esas creencias. Sin embargo, la mayoría piensa que 
+si hubiera algo de cierto en las leyendas, tanto el 
+clan del Rey Araña como la raza de arañas gigantes 
+debieron ser eliminadas en la guerra contra el primer 
+gran jefe. De hecho, las arañas que aún abundan por 
+Davokar siguen representando un peligro, pero no 
+son especialmente inteligentes ni organizadas.
+M ara Ñ osa
+Las marañosas son arañas del tamaño de un puño que 
+cazan en grupo. Son lo bastante agresivas y su veneno 
+es lo suficientemente venenoso como para matar a un 
+hombre adulto. Cuando el grupo mata a una presa, las 
+arañas depositan sus huevos en el interior del cadáver, 
+que más tarde servirá de alimento a las propias crías. La 
+nueva generación de arañas brotará al exterior cuando 
+estén listas para ver la luz del día, abriéndose paso 
+mientras devoran el cadáver.
+Los bárbaros de los clanes norteños de Gaoia y 
+Enoai llevan años luchando contra esta plaga, pero 
+el problema se ha propagado por todo Davokar. 
+Los ataques a las embarcaciones que viajan por el 
+Doudram, Eanor y Malgomor se han multiplicado 
+en años recientes: las marañosas acechan desde las 
+copas de los árboles junto a los ríos y atacan a las 
+embarcaciones que pasan bajo ellas.
+ara Ñ a  tra M p E ra
+La araña trampera es una criatura venenosa de hábitat 
+subterráneo. Por lo general construyen sus colonias en 
+la frontera entre los territorios de caza de los bárbaros 
+y el bosque más profundo. Se sabe muy poco sobre 
+estas depredadoras tejeredes: parece que pueden llegar 
+al metro de diámetro y son buenas trepadoras, más 
+rápidas que un lobo (en distancias cortas) y capaces de 
+moverse en silencio. Según las brujas, también poseen 
+algún tipo de consciencia primitiva y son capaces de 
+comunicarse entre ellas mediante un lenguaje com-
+puesto de susurros, siseos y chasquidos.
+Las arañas tramperas suelen cazar en grupos de 
+tres o cinco ejemplares, ya sea saltando sobre viajeros 
+solitarios o atrapando a un grupo en sus recias telara-
+ñas. En ocasiones, la red de una trampera está colocada 
+verticalmente, entre árboles, por lo que son más difíciles 
+de detectar en la penumbra del bosque. Otras veces, este 
+tipo de telarañas sirven para conducir a la presa hacia 
+un desvío minado de redes colocadas a ras de suelo y 
+camufladas con hojas y ramas. Por último, las arañas 
+tramperas suelen ir acompañadas de marañosas que 
+aprovechan para atacar a las presas descartadas por 
+sus primas de mayor tamaño.
+M ara Ñ osa
+Raza Araña
+Desafío Normal
+Rasgos Arma natural (I), Enjambre (II), 
+Venenosa (I)
+Ágil 13 (−3), Atenta 10 (0), Diestra 15 (−5), 
+Discreta 11 (−1), Fuerte 5 (+5), Inteligente 10 (0), 
+Persuasiva 7 (+3), Tenaz 9 (+1)
+Habilidades Ninguna
+Armas Picadura 3, veneno 2 durante 2 
+turnos.
+Armadura Ninguna
+Defensa −3
+Resistencia 10 Umbral de dolor 3
+Equipo Ninguno
+Sombra Morado verdoso (Corrupción: 1).
+Tácticas: El enjambre de arañas se cierne sobre 
+su presa y le ataca hasta que muera. A conti-
+nuación pasan al siguiente objetivo y repiten el 
+procedimient
+o.
+ara Ñ a  tra M p E ra
+Raza Araña
+Desafío Normal
+Rasgos Arma natural (I), T elaraña (I), 
+Venenosa (I)
+Ágil 15 (−5), Atenta 10 (0), Diestra 13 (−3), 
+Discreta 11 (−1), Fuerte 9 (+1), Inteligente 10 (0), 
+Persuasiva 5 (+5), Tenaz 7 (+3)
+Habilidades Acróbata (principiante)
+Armas Picadura 3, veneno 2 durante 2 
+turnos
+Armadura Ninguna
+Defensa −5
+Resistencia 10 Umbral de dolor 5
+Equipo Ninguno, pero sus redes pueden 
+contener objetos interesantes 
+de víctimas anteriores (valor: 1 
+tálero por araña)
+Sombra Gris verdoso, como las barbas de 
+líquenes del bosque (Corrupción: 2).
+Tácticas: T ras capturar a sus presas en sus 
+redes, la araña trampera baila a su alrededor, 
+golpeándola por los lados y matándola con su 
+veneno. Cuando acaba con la primera, continúa 
+con la siguiente y la siguiente…
+217
+23
+MONSTRUOS Y ADVERSARIOS
+En las profundidades de 
+Davokar hay redes hi-
+ladas por monstruosas 
+arañas que des
+cienden 
+de la época del Rey 
+Araña (o al menos 
+eso es lo que dicen la 
+tradición).
+
+
+===== PAGE 219 =====
+Depredadores  Categoría: Bestias
+d a V okar bull E  d E  V ida  y abundante caza, razón  
+principal por la que los bárbaros eligen vivir en un 
+lugar tan peligroso. Sin embargo, es un entorno en el 
+que también viven multitud de depredadores: bestias 
+que a su vez se ven convertidas en presa de las garras 
+de los trolls, abominaciones y otras criaturas más 
+grandes que ellas.
+Los bárbaros han desarrollado una cultura culina-
+ria que les hace rechazar alegremente un cervatillo 
+tierno en favor de la carne de depredadores; cuanto 
+más peligroso es el animal, más exquisito el plato. 
+Así, se dice que el gran jefe Maiestikar solo acep -
+taba comidas hechas con carne de abojalís o lobos 
+gigantes.
+gato  V íbora
+El gato víbora es odiado y temido en los pueblos de la 
+frontera sur de Davokar, y con razón. Son bestias que 
+cazan en grupos de unos diez ejemplares y atacan de 
+noche, escurriéndose entre los huecos de las paredes 
+o cavando bajo ellas. A diferencia de otros felinos, 
+como el inmenso kotka o el lince feérico, se trata de 
+una criatura sin pelo y armada con unas glándulas 
+sobre sus colmillos que segregan un mortífero 
+veneno: una toxina altamente concentrada que 
+alcanza un alto precio en el mercado.
+Se han llegado a divisar ejemplares solitarios en 
+zonas tan al sur como Redina, pero el gato víbora caza 
+principalmente en el bosque. Su mayor población 
+fuera de Davokar se encuentra en los bosques de 
+Seragon y Mervidun.
+baiagorno
+El baiagorno es una criatura parecida a un oso. Aunque 
+no es muy grande ni muy fuerte, sí resulta una de las 
+bestias más feroces del bosque; jamás huye del peligro 
+y suele emerger victorioso de las peleas más duras 
+gracias a su fiero temperamento. Por lo general se 
+mueve en solitario, pero no tienen miedo de atacar a 
+presas bastantes más grandes que él.
+El clan Baiaga, que recibe su nombre de esas impe-
+tuosas bestias, ha aprendido a domesticar baiagornos 
+e inculcarles cierto grado de control. Un baiagorno 
+luchando junto a un guerrero humano puede resultar 
+un contrincante letal: la bestia ataca y absorbe los 
+primeros golpes mientras que el bárbaro se mantiene 
+a la espera de que el enemigo deje expuesto un punto 
+débil. Sin embargo, en solitario no representan una 
+amenaza contra un guerrero diestro; para eso haría 
+falta una hembra al cuidado de varias crías.
+baiagorno
+Raza Bestia
+Desafío Normal
+Rasgos Arma natural (I), Robusto (I)
+Ágil 7 (+3), Atento 11 (−1), Diestro 10 (0), 
+Discreto 9 (+1), Fuerte 15 (−5), Inteligente 10 (0), 
+Persuasivo 5 (+5), Tenaz 13 (−3)
+Habilidades Berserker (adepto)
+Armas Garras 8 (Cortas)
+Armadura Piel de oso 4
+Defensa +7
+Resistencia 15 Umbral de dolor 8
+Equipo Ninguno
+Sombra Verde como las agujas de pino del 
+último verano (Corrupción: 0).
+Tácticas: Un baiagorno tranquilo es una cria-
+tura cuidadosa, pero uno nervioso o herido se 
+transf
+orma en un torbellino rugiente de zarpas y 
+espumarajos que ataca sin dudar a su víctima o 
+presa más cercana.
+gato  V íbora
+Raza Bestia
+Desafío Normal
+Rasgos Arma natural (II), Venenoso (I)
+Ágil 13 (−3), Atento 10 (0), Diestro 11 (−1), 
+Discreto 15 (−5), Fuerte 7 (+3), Inteligente 9 
+(+1), Persuasivo 5 (+5), Tenaz 10 (0)
+Habilidades Acróbata (principiante)
+Armas Mordisco 4 (Corta), veneno 2 
+durante 2 turnos.
+Armadura Ninguna
+Defensa −3
+Resistencia 10 Umbral de dolor 4
+Equipo Ninguno
+Sombra Verde oscuro (Corrupción: 4).
+Tácticas: Los gatos víbora se acercan sigilosa-
+mente hacia su presa para sorprenderlas. En 
+combat
+e se mueven sin cesar para no perder la 
+ventaja de flanqueo.
+218
+
+
+===== PAGE 220 =====
+abo Jalí
+Para quien viaja por Davokar no resulta raro cru -
+zarse con jabalís salvajes, especialmente al este, en 
+el territorio del clan Vajvod, donde se les caza por 
+su carne y colmillos. Los vajvodeos también tienen 
+la tradición de mandar cada invierno a un grupo 
+de sus mejores guerreros al interior de Davokar, 
+en busca de un abojalí, aprovechando que la nieve 
+facilita el rastreo.
+Dice la leyenda que este legendario cerdo gigante 
+está emparentado con los caciques trolls y que 
+incluso los supera en astucia y brutalidad. Solo hay 
+un par de informes creíbles de ataques a poblados, 
+viajeros o puestos fronterizos, quizás porque todos 
+los posibles testigos murieron en los demás casos. 
+En cambio, son frecuentes los relatos de granjeros 
+y demás personas que trabajan cerca de Davokar 
+sobre extrañas situaciones en las que de repente se 
+vieron vigilados fijamente por un abojalí, erguido 
+junto al borde del bosque o en algún lugar de su 
+granja. Y a ninguno les cupo la menor duda de que 
+tras la arrugada frente de ese monstruoso jabalí se 
+escondía una mente racional y calculadora.
+abo Jalí
+Raza Bestia
+Desafío Complicado
+Rasgos Arma natural (II), Duro (II) 
+Robusto (III)
+Ágil 13 (−3), Atento 9 (+1), Diestro 10 (0), 
+Discreto 7 (+3), Fuerte 15 (−5), Inteligente 10 (0), 
+Persuasivo 5 (+5), Tenaz 11 (−1)
+Habilidades Golpe de hierro (adepto)
+Armas Colmillos 10 (Cortos)
+Armadura Piel de cerdo 7
+Defensa +1
+Resistencia 15 Umbral de dolor 8
+Equipo Ninguno
+Sombra Rojo oscuro, con manchas páli-
+das de óxido (Corrupción: 3).
+Tácticas: El abojalí simula atac
+ar para espantar 
+al enemigo de su territorio. Si no lo consigue, 
+el jabalí gigante confía en que sus colmillos, 
+reflejos y grueso pellejo basten para acabar con 
+el agresor.
+219
+23
+MONSTRUOS Y ADVERSARIOS
+
+
+===== PAGE 221 =====
+Reptiles Categoría: Bestias
+si H ay o no dragon E s en D avokar es un tema muy 
+discutido. Algunos expertos afirman que las leyendas 
+bárbaras, los informes de expediciones a zonas pro-
+fundas del bosque y (especialmente) algunos adornos 
+de la arquitectura de Symbaroum, prueban que los 
+dragones son una realidad. Del bando opuesto, se 
+argumenta que los cuentos bárbaros en realidad se 
+refieren a las lindormas, que los supuestos testigos 
+están locos de atar y que cualquier adorno de las 
+ruinas de Symbaroum que recuerden a un dragón 
+apenas puede considerarse una prueba; ya en la 
+propia Alberetor había motivos similares sin que los 
+artistas se inspiraran en dragones para su creación.
+Es probable que el debate continúe en el futuro y 
+que mientras tanto los artistas ambrios tengan que 
+crear sus dragones a partir de los abundantes reptiles 
+de la región (bastante más pequeños y primitivos), 
+como las serpientes, los lagartos y las tortugas de 
+río. Muchos de esos reptiles son venenosos y casi 
+todos ellos han sido señalados por la Iglesia de Prios 
+como una encarnación de la oscuridad de Davokar; 
+en palabras del primer padre Jeseebegai, es un 
+hecho que son criaturas especialmente sensibles 
+a la corrupción natural que impregna la tierra y 
+aguas del bosque.
+kanaran
+La serpiente kanaran o restrictora es una criatura 
+de seis metros especializada en atacar humanoides, 
+humanos en particular. Prefiere atacar cuando su 
+presa está dormida y tiene la capacidad de estrangu-
+lar y escabullirse con su víctima de forma tan sigilosa 
+que sus compañeros nunca llegan a enterarse. Son 
+muchas las historias que aconsejan ser precavido y 
+no dormir una noche en Davokar sin dejar alguien 
+de guardia.
+Pero las kanaranas también pueden ser un peligro 
+durante el día. Si la serpiente logra enroscarse a su 
+víctima, esta no podrá usar sus brazos ni armas y 
+tardará poco en morir estrangulada e indefensa. 
+Además, la astuta kanaran es capaz de utilizar a 
+su víctima para protegerse de cualquiera que ose 
+interrumpir su almuerzo.
+lindor M a
+Son muy pocos los ambrios que han visto o luchado 
+con una lindorma y viven para contarlo. Aunque 
+se trata de una criatura sin alas ni piernas, se dice 
+que comparte algunos rasgos con los dragones de 
+las leyendas, como su astucia y su capacidad para 
+utilizar poderes místicos. Sin embargo, las historias 
+difieren entre sí, lo que podría interpretarse como 
+una señal de que cada ejemplar podría ser diferente 
+en cuestiones de inteligencia y capacidades mágicas.
+Un ejemplo muy conocido de su inteligencia es 
+el rumor (sin confirmar) de que hay una serpiente 
+que sirve en ocasiones como guía espiritual de los 
+Gaoia, el clan norteño. Tanto el jefe Rábaiamon como la 
+guardiana del clan mantienen que sus decisiones están 
+guiadas por una lindorma anciana e infinitamente 
+sabia llamada Abuelo Lint. Por desgracia, y pese a 
+sus promesas cada vez mayores de un generoso pago, 
+la Ordo Mágica aún no ha logrado tener acceso al 
+oráculo, lo que ha llevado a los magos más escépticos 
+a poner en duda la existencia de la serpiente.
+ASÍ HABLÓ AROALETA
+«…y bajo el musgo 
+y las raíces, bajo el 
+rastro de gusanos 
+y larvas, hay 
+cavernas bañadas 
+por la penumbra 
+del inframundo; allí 
+medran demonios y 
+criaturas pálidas como 
+el hueso; allí crece la 
+depravación, sobre 
+paredes rocosas y cas-
+carones monstruosos; 
+allí caminan los plañi-
+deros, en los Salones 
+de las Mil Lágrimas, 
+rodeando sin parar 
+un pozo a punto de 
+desbordarse…».
+220
+
+
+===== PAGE 222 =====
+kanaran
+Raza Reptiles
+Desafío Complicado
+Rasgos Dura (III)
+Ágil 14 (−4), Atenta 10 (0), Diestra 5 (+5), 
+Discreta 11 (−1), Fuerte 10 (0), Inteligente 16 (−6), 
+Persuasiva 7 (+3), Tenaz 9 (+1)
+Habilidades Acróbata (maestro), Atributo 
+excepcional (Ágil, principiante), 
+Atributo excepcional (Inteligente, 
+principiante), Estrangulador 
+(principiante)
+Armas Ninguna
+Armadura Piel de serpiente 4
+Defensa −4
+Resistencia 10 Umbral de dolor 5
+Equipo Ninguno
+Sombra Verde luminoso, como la copa de 
+un árbol iluminada por el sol de 
+verano (Corrupción: 0).
+Tácticas: La kanaran se desliza sigilosamente hacia 
+una víctima solitaria y la estrangula. Una serpiente 
+desesperada puede atacar a un individuo acom-
+pañado de un grupo y usar al objetivo como escudo 
+de protec
+ción; en esos casos, la kanaran acaba con 
+todo el grupo antes de empezar a alimentarse.
+lindor M a
+Raza Reptiles
+Desafío Difícil
+Rasgos Dura (III), Hipnótica (III), 
+Longeva, Robusta (III)
+Ágil 10 (0), Atenta 10 (0), Diestra 7 (+3), 
+Discreta 5 (+5), Fuerte 13 (−3), Inteligente 9 (+1), 
+Persuasiva 11 (−1), Tenaz 15 (−5)
+Habilidades Combate sin armas (maestro), 
+Golpe de hierro (maestro)
+Armas Mordisco 14 (Corta), o dos 
+ataques al mismo objetivo con 
+daño 12 y 8
+Armadura Escamas 8
+Defensa +4
+Resistencia 13 Umbral de dolor 7
+Equipo Ninguno
+Sombra Verde esmeralda, como las hojas 
+de un roble centenario mecién-
+dose hipnóticamente en una 
+brisa de ver
+ano (Corrupción: 0).
+Tácticas: Las lindormas son viejas y taimadas, por 
+lo que no lucharán si saben que no pueden vencer o 
+si no hay nada que ganar. Prefieren hipnotizar a sus 
+víctimas para aprender más sobre ellas y averiguar 
+quién es la más fuerte. T ras terminar, no tienen 
+miedo de terminar la conversación a dentelladas.
+221
+23
+MONSTRUOS Y ADVERSARIOS
+
+
+===== PAGE 223 =====
+Criaturas aladas  Categoría: Bestias
+El batir d E unas alas puede significar cosas muy  
+diferentes dependiendo del lugar de Davokar donde 
+estés: en las afueras, las copas de los árboles están 
+llenas de hermosos y coloridos pájaros, apreciados 
+por su canto, sus huevos y su tierna carne; pero en 
+el interior del bosque hay que tener cuidado para no 
+acabar siendo un trozo de carne regurgitada en la boca 
+de alguna pequeña bestia recién salida del cascarón.
+Y no es solo que haya que tener cuidado de los 
+diferentes pájaros monstruosos: así como Davokar 
+es el hogar de numerosos anfibios y arañas gigantes, 
+también da cobijo a varios insectos alados capaces de 
+arrancarle la cabeza a un humano o un ogro. Según 
+las leyendas, las plagas como la libélula dragón o la 
+mariposa enjambrera fueron creadas por los magos 
+de Symbaroum. Pero la versión oficial de la Ordo 
+Mágica y la Iglesia de Prios es que son criaturas que 
+evolucionaron a partir de insectos normales tras 
+una larga exposición a la naturaleza corrupta de 
+Davokar. Al margen de quién lleve razón, su exis -
+tencia basta para explicar por qué muchos viajeros 
+que han visitado el interior de Davokar se sienten 
+enfermar con el sonido de unas alas, incluso años 
+después de la experiencia.
+kranka
+Los pájaros conocidos como krankas o mancilleros 
+son cuervos de gran tamaño que forman bandadas 
+Aunque pueden ser 
+pequeños e inofensivos 
+en solitario, sobrevivir 
+a una bandada de kran-
+kas no es cosa fácil.
+222
+
+
+===== PAGE 224 =====
+que sobrevuelan tanto Davokar como las tierras bajas 
+o las montañas. Normalmente se les puede escuchar 
+desde muy lejos, mientras descansan sobre las copas 
+de los árboles, graznándose entre ellos. Hay muchos 
+cazatesoros que juran haber sufrido un ataque de 
+trolls saqueadores precedido de los graznidos de 
+unos krankas, y que el rugido de los trolls comenzó 
+tan pronto como callaron los pájaros. También se 
+dice que las brujas pueden leer los graznidos de una 
+bandada para vaticinar una batalla o un combate, 
+ya que los pájaros tienen la habilidad de predecir los 
+estallidos de violencia. Quizás es como dicen algunos: 
+un mancillero no es más que un cuervo común lo 
+suficientemente necio y hambriento como para comer 
+carne de una abominación…
+Y no es que los chillidos de los krankas deban 
+tomarse como señal de mal augurio, porque lo mismo 
+podría decirse de su silencio. Cuando se deciden a 
+cazar algo vivo, la única advertencia que recibe su 
+víctima es un silencio sepulcral, mientras las copas 
+de los árboles se van llenando de figuras oscuras e 
+inmóviles que vigilan con ojos inyectados en sangre 
+los movimientos de su presa. También hay historias 
+de bandadas de pájaros que se unieron para atacar 
+asentamientos más grandes en las tierras bajas; 
+el propio Brezoscuro sufrió un ataque así hace un 
+par de años. Incluso dicen los testigos que el cielo 
+sobre Fuerte Espina se oscureció una vez con miles 
+de krankas, que bailaron en el aire durante unos 
+segundos, antes de lanzarse al ataque.
+lib É lula  drag Ó n
+La traicionera y hermosa libélula dragón es, posi-
+blemente, la asesina más retorcida del bosque. Los 
+ejemplares adultos son tan grandes como un humano 
+fornido, mientras que sus mandíbulas (llenas de dientes 
+afilados como agujas) pueden abrirse lo suficiente como 
+para devorar un trasgo de un solo bocado. Sus dos pares 
+de alas emiten un zumbido suave fácilmente confundi-
+ble con el ruido de hojas, por lo que una víctima poco 
+atenta no detectará al depredador hasta tenerlo casi 
+encima, si bien ya será demasiado tarde: los veloces 
+ataques y repliegues de la libélula dragón pueden agotar 
+hasta al guerrero más duro.
+Aquel que ose internarse en el bosque por primera 
+vez y sea lo suficientemente sabio como para pedir con-
+sejo recibirá siempre la misma advertencia: «Cuando 
+oigas un grito de ayuda, recuerda que podría tratarse 
+de una llamada de reclamo». En Davokar hay multitud 
+de criaturas que emplean esa técnica, la libélula dragón 
+entre ella, ya que es capaz de modificar su voz para imitar 
+a un niño humano llorando o suplicando ayuda. Sin 
+embargo, aún no han aprendido a pronunciar palabras 
+humanas, por lo que solo hay que tener cuidado con 
+lamentos donde no se articule palabra alguna.
+kranka
+Raza Criatura alada
+Desafío Normal
+Rasgos Alado (I), Enjambre (I)
+Ágil 15 (−5), Atento 11 (−1), Diestro 13 (−3), 
+Discreto 5 (+5), Fuerte 9 (+1), Inteligente 10 (0), 
+Persuasivo 7 (+3), Tenaz 10 (0)
+Habilidades Combate sin armas (adepto)
+Armas Pico 3, dos ataques contra el 
+mismo objetivo.
+Armadura Ninguna
+Defensa −5
+Resistencia 10 Umbral de dolor 5
+Equipo Ninguno
+Sombra Verde turbio, como burbujas de 
+alquitrán en la superficie de una 
+charca (Corrupción: 6).
+Tácticas: La bandada de krankas rodea a su obje-
+tivo y lo picotean hasta derribarlo, aunque pueden 
+retirar
+se si sufren demasiadas bajas. Cuando dos 
+o más bandadas se reúnen, se coordinan para 
+atacar a la misma víctima.
+lib É lula  drag Ó n
+Raza Criatura alada
+Desafío Complicado
+Rasgos Alada (III), Arma natural (II)
+Ágil 13 (−3), Atenta 9 (+1), Diestra 15 (−5), 
+Discreta 7 (+3), Fuerte 11 (−1), Inteligente 5 (+5), 
+Persuasiva 10 (0), Tenaz 10 (0)
+Habilidades Combate sin armas (adepto)
+Armas Colmillos 8, dos ataques contra 
+el mismo objetivo.
+Armadura Ninguna
+Defensa −3
+Resistencia 11 Umbral de dolor 6
+Equipo Ninguno
+Sombra Verde reluciente (Corrupción: 0).
+Tácticas: La libélula dragón explota al máximo 
+su gran capacidad de vuelo para pasar junto a su 
+objetivo, morderlo y seguir volando hasta ponerse 
+fuera del alcance de cualquier contraataque. 
+Aunque no es muy inteligente, es lo bastante 
+astuta como para empezar atacando a personas 
+con armas a distancia.
+223
+23
+MONSTRUOS Y ADVERSARIOS
+
+
+===== PAGE 225 =====
+alc E r E nacido
+Raza Abominación (bestia)
+Desafío Complicado
+Rasgos Arma natural (II), Ataque de 
+corrupción (I), Robusto (II)
+Ágil 13 (−3), Atento 10 (0), Discreto 10 (0), 
+Diestro 11 (−1), Fuerte 15 (−5), Inteligente 7 (+3), 
+Persuasivo 5 (+5), Tenaz 9 (+1)
+Habilidades Combate sin armas (principian-
+te), Golpe de hierro (adept
+ o)
+Armas Cuernos 10, +1d4 de Corrupción 
+temporal.
+Armadura Piel de alce 3
+Defensa 0
+Resistencia 15 Umbral de dolor 8
+Equipo Ninguno
+Sombra Marrón ennegrecido, como la 
+piel de un cadáver putrefacto 
+(consumido por la corrupción)
+Tácticas: Ninguna. El olor a criaturas vivientes 
+empuja a la bestia a atacar, con el hocico cubierto 
+de espuma por la corrupción.
+H u M ano  r E nacido
+Raza Abominación (humano)
+Desafío Normal
+Rasgos Arma natural (I), Robusto (I), 
+Sangre ácida (I)
+Ágil 7 (+3), Atento 10 (0), Diestro 15 (−5), 
+Discreto 10 (0), Fuerte 11 (−1), Inteligente 9 (+1), 
+Persuasivo 5 (+5), Tenaz 13 (−3)
+Habilidades Berserker (principiante), Com-
+bate sin armas (principiante)
+Armas Garras 9 (C
+ortas)
+Armadura Peto de cuero 4 (Incómodo)
+Defensa +9, sangre corrosiva 3 durante 
+tres turnos.
+Resistencia 11 Umbral de dolor 6
+Equipo Objetos y herramientas relacio-
+nados con su antigua ocupación, 
+1D10 orteg
+s.
+Sombra Cobre totalmente corroído (con-
+sumido por la Corrupción)
+Tácticas: La abominación s
+e aproxima a su vícti-
+ma y ataca con un hambre despiadada.
+224
+
+
+===== PAGE 226 =====
+Abominación Categoría: Abominación
+los aM brios usan  el término abominación para lo  
+que los bárbaros llaman bestias de la plaga: criaturas 
+vinculadas de algún modo con la oscuridad corruptora 
+de Davokar. No está claro si todas las abominaciones 
+están relacionadas o si resultaría más exacto clasifi-
+carlas en tipos diferentes, pero la Ordo Mágica y los 
+Hermanos del Crepúsculo hacen todo lo que está en su 
+poder para aprender más sobre el fenómeno.
+En cualquier caso, el término abarca una gran 
+cantidad de criaturas con un rasgo en común: su 
+sed de dolor humano, su ansia de hacerles padecer, 
+sufrir y (preferiblemente) acabar con su vida. Y lo 
+desean con tanta pasión que todo lo demás es irre-
+levante. No se puede razonar, negociar ni asustar 
+a una abominación; al parecer su único objetivo es 
+aniquilar a la humanidad, persona a persona, y no 
+dudarán en destruir cualquier cosa o ser vivo que 
+se interponga en su camino.
+abo M inacion E s r E nacidas
+Se sabe que una persona o criatura consumida por 
+la corrupción acaba desapareciendo, sepultada por 
+la enfermedad, aunque el momento exacto continúa 
+bajo debate. Al cruzar ese límite, la apariencia física del 
+individuo comienza a transformarse. Aquel que haya 
+ojeado Las hordas de la Noche Eterna, escrito e ilustrado 
+por el manto negro Almagast, habrá visto ejemplos 
+muy diferentes de estigmas físicos: deshidratación 
+extrema, ampollas susurrantes, apéndices en forma 
+de cuernos o colas, membranas mucosas sanguino-
+lentas, miembros ajados o deformados, piel albina o 
+ennegrecida y ausencia de pelo o pelaje, según se trate 
+de humanos o bestias. La transformación es absoluta 
+cuando se trata de la personalidad y el temperamento 
+de la abominación, que se ve reducida a sentimientos 
+destructivos: envidia, ira, hambre, arrogancia y odio.
+Las bestias y animales consumidas por la corrupción 
+merodean en solitario por tierras salvajes, matando 
+todo lo que se cruza a su lado, creciendo en tamaño y 
+fuerza y esparciendo la corrupción con sus mordiscos 
+y arañazos. Las abominaciones humanas parecen rete-
+ner parte de su capacidad intelectual y pueden vivir 
+en zonas pobladas si son cuidadosas y se mantienen 
+ocultas, usando a personas infectadas como guardias 
+y mensajeros; con el tiempo pueden rodearse con toda 
+una corte de cultistas que siguen sus órdenes ciega-
+mente. A veces, como en el famoso caso de la baronesa 
+viuda de la Casa de Elsbet, pueden pasar años antes de 
+que se descubra el origen de la corrupción.
+225
+23
+MONSTRUOS Y ADVERSARIOS
+
+
+===== PAGE 227 =====
+abo M inaci Ó n  pri M ig E nia
+Raza Abominación
+Desafío Mortal
+Rasgos Arma natural (III), Ataque  
+de Corrupción (III), Dura (III), 
+Regener
+ación (III), Robusta (III), 
+Sangre ácida (III)
+Ágil 11 (−1), Atenta 10 (0), Diestra 13 (−3), 
+Discreta 5 (+5), Fuerte 18 (−8), Inteligente 9 
+(+1), Persuasiva 7 (+3), Tenaz 10 (0)
+Habilidades Atributo excepcional (Fuerte, 
+maestro), Berserker (maestro), 
+Combate sin armas (maestro), 
+Golpe de hierro (maestro)
+Armas Garras 20 (Largas), o dos 
+ataques contra el mismo obje-
+tivo con daño 18 y 14. +1D8 de 
+Corrupción tempor
+al.
+Armadura Piel endurecida por la Corrupción 
+10, regenera 4 puntos de Resis-
+tencia por turno.
+Defen
+sa +3
+Resistencia 18 Umbral de dolor 9
+Sombra El negro más oscuro, una man-
+cha que absorbe la luz en el cielo 
+de la medianoche (consumida 
+por la C
+orrupción).
+Tácticas: Ninguna. Su odio concentrado contra 
+todos los seres vivientes le empuja a actuar sin con-
+sideraciones tácticas; solo le interesa la destrucción.
+abo Jalí  r E nacido
+Raza Abominación (bestia)
+Desafío Difícil
+Rasgos Arma natural (III), Ataque  
+de Corrupción (II), Duro (III), 
+Robust
+o (III), Sangre ácida (III)
+Ágil 13 (−3), Atento 9 (+1), Diestro 7 (+3), 
+Discreto 7 (+3), Fuerte 15 (−5), Inteligente 10 (0), 
+Persuasivo 5 (+5), Tenaz 11 (−1)
+Habilidades Golpe de hierro (adepto)
+Armas Colmillos 11 (Largos), +1D6 
+Corrupción temporal.
+Armadura Piel de cerdo 8
+Defensa +1
+Resistencia 15 Umbral de dolor 8
+Equipo Ninguno
+Sombra Una masa negra y púrpura 
+que sangra lágrimas negras de 
+Corrupción pura (consumido por 
+la Corrupción).
+Tácticas: Un abojalí consumido por la corrupción 
+gruñe de ansias por enterrar sus colmillos en 
+carne viva, y nunca duda en atacar.
+226
+
+
+===== PAGE 228 =====
+abo M inaci Ó n  pri M ig E nia
+Por muy corrupta que esté una abominación rena-
+cida, siempre será posible reconocer su anterior 
+naturaleza: humano, ogro, troll, gato víbora… Pero 
+también hay un puñado de historias sobre algo dife-
+rente, algo peor y mucho más antinatural: criaturas 
+tan grotescas y llenas de odio que parecen personifi-
+car lo opuesto al orden natural. No se sabe a ciencia 
+cierta si existen tales engendros y si, de hacerlo, se 
+tratan de encarnaciones de la propia corrupción, 
+avatares de su hambre, odio e ira.
+Entre los bárbaros corre una larga lista de leyen-
+das sobre las abominaciones primigenias y sus oríge-
+nes. La mayoría dicen que nacieron del espinazo de 
+una criatura mítica, la Serpiente Madre, que según 
+algunas historias fue la creadora de Symbaroum. 
+Otras leyendas dicen que fue asesinada por el primer 
+emperador de Symbaroum o que yace bajo el trono 
+de Symbar, a la espera de su momento. Una versión 
+completamente diferente sobre estos horrores primi-
+genios apunta a que aparecen de forma espontánea 
+en los lugares donde la corrupción está más presente: 
+en las inquietantes ruinas olvidadas donde aún 
+quedan charcas de magia corrosiva, producto de 
+las prácticas prohibidas de Symbaroum. Sea cual 
+sea la verdad, tanto ambrios como bárbaros pueden 
+considerarse afortunados de que las abominaciones 
+primigenias prefieran la espesa oscuridad del bosque 
+a las tierras bajas anegadas de luz.
+Sobre las abominaciones y el inframundo
+Hay innumerables historias que se contradicen a la hora de señalar el 
+verdadero origen de las abominaciones. Unas mantienen que son parte 
+de una antigua raza que ya existía cuando los Pueblos Antiguos vieron la 
+luz del día; otras aseguran que fueron creadas o criadas por los elfos o 
+los hombres, por accidente o a sabiendas, con algún propósito malévolo.
+Al parecer, entre los Pueblos Antiguos se comparte la creencia de que 
+el origen de las abominaciones está directamente relacionado con la  
+caída de Symbaroum. Por supuesto, uno debe tener en cuenta que esas 
+historias suelen lleg
+ar a oídos ambrios a través de bárbaros y trasgos, 
+principalmente. Aclarado ese punto, muchas de esas antiguas historias 
+describen los horribles experimentos realizados por los brujos y alqui-  
+mistas de Symbaroum, utilizando (supuestamente) Magia Pura para alte -
+rar el orden natural, lo que produjo el nacimiento de las abominaciones.
+Sea c
+omo sea, la mayoría de las leyendas de antaño también se refieren 
+a algo conocido como el Inframundo, la Inframontaña o (en ocasiones) el 
+Abismo. En teoría se trata de todo un mundo que yace bajo las raíces de 
+Davokar, lleno de túneles, ruinas hundidas, lagos de magia corrosiva o 
+fenómenos aún peores. De hecho, hay algunos exploradores ambrios que 
+aseguran haber visitado este reino oculto tras descender por un túnel u 
+otro. Pero aunque las propias autoridades de la Ordo Mágica admiten la 
+existencia de algunos complejos subterráneos de pequeño tamaño, no hay 
+nadie que apoye la existencia de un inmenso «inframundo» que abarque 
+todo el bosque. Como en una ocasión dijo el propio Seldonio: «¡Absurdo, 
+mi querido barón! ¡Esas afirmaciones no son más que tonterías!».
+227
+23
+MONSTRUOS Y ADVERSARIOS
+
+
+===== PAGE 229 =====
+Muertos vivientes 
+los aM brios son conscientes de que lo que está  
+muerto puede regresar: la Gran Guerra supuso dos 
+décadas de lucha contra los muertos vivientes y espíri-
+tus esclavizados por los Señores Oscuros. Sin embargo, 
+la región al norte de los Titanes ha demostrado superar 
+todas las experiencias previas en términos de oscuridad 
+y maldad, así como de fertilidad y vitalidad.
+Los muertos vivientes no siempre se muestran 
+hostiles hacia los vivos, aunque tienden a ser irritables 
+y propensos a una envidia rabiosa. Se dice que algunos 
+muertos vivientes son capaces de comunicarse con 
+los vivos; tanto es así, que la Iglesia del Sol ha llegado 
+a acusar directamente a la Ordo Mágica de tener una 
+rama herética especializada en atrapar y conversar 
+con los muertos. Aunque los miembros de la Ordo lo 
+han negado categóricamente, Seldonio ha agradecido 
+pública e irónicamente al primer padre el haberle dado 
+esa información: si realmente existe la posibilidad de 
+comunicarse con espíritus de aquellos que vivieron en 
+tiempos de Symbaroum, eso podría llevar sin duda a 
+recuperar conocimientos vitales y antiguos secretos 
+sobre la verdadera naturaleza de la magia.
+H iE lo  Fatuo
+Los fuegos fatuos aparecen suspendidos en el aire 
+cuando la noche cae sobre las regiones limítrofes 
+de Davokar: pequeñas luces amorfas de color azul 
+pálido a la caza del calor de los vivos. En ocasiones 
+vagabundean en grandes grupos, sin muralla o 
+empalizada que pueda detenerlos.
+Los bárbaros afirman que los hielos fatuos son 
+almas de niños muertos durante el parto que buscan 
+desesperadamente algo de calor, sin darse cuenta de 
+que su toque es mortífero. Lo sucedido en Yndaros 
+hace un año viene a apoyar esta creencia, cuando las 
+víctimas de hielos fatuos (escasas hasta el momento) 
+se multiplicaron tras una epidemia de fiebre pálida 
+que provocó el aborto en muchas mujeres.
+d ragul
+Los ambrios se enfrentaron a miles de criaturas 
+no muertas durante la Gran Guerra y saben a la 
+perfección que los muertos resucitan. Los Señores 
+Oscuros empleaban sus tenebrosos poderes místicos 
+para levantar a los guerreros caídos y obligarles a 
+combatir contra sus antiguos aliados.
+A pesar de que las criaturas de la Tierra Prometida 
+no son iguales a aquellos horrores, los ambrios siguen 
+usando el nombre que los Señores Oscuros le daban 
+a esos muertos vivientes, dragules. Durante la Gran 
+Guerra, los pansars y teúrgos se enfrentaban en el 
+campo de batalla a muertos vivientes que siempre 
+habían sido animados por algún místico de corazón 
+malvado. Pero hoy en día parece como si pudiera 
+suceder en cualquier parte, tan pronto como alguien 
+dragul
+Raza Muerto viviente
+Desafío Normal
+Rasgos Muerto viviente (I)
+Ágil 10 (0), Atento 11 (−1), Diestro 9 (+1), 
+Discreto 10 (0), Fuerte 15 (−5), Inteligente 7 (+3), 
+Persuasivo 5 (+5), Tenaz 13 (−3)
+Habilidades Combate con escudo (princi-
+piante), Golpe de hierro (adept o)
+Armas Espada oxidada 7
+Armadura Cuero tachonado 2 (Incómoda)
+Defensa 0 (escudo)
+Resistencia 15 Umbral de dolor —
+Equipo 1D10 ortegs
+Sombra Gris amarillento como la piel 
+muerta, con manchas oscuras 
+que van creciendo a medida que 
+el cadáver no muerto se pudre 
+(consumido por la Corrupción).
+Tácticas: Los muertos vivientes viven siguiendo 
+la voluntad de su creador o la suya propia, siem-
+pre a la caza de sangre fresca y carne caliente.
+H iE lo  Fatuo
+Raza Espíritu
+Desafío Sencillo
+Rasgos Daño alternativo (I), Forma 
+espiritual (I)
+Ágil 13 (−3), Atento 10 (0), Diestro 10 (0), 
+Discreto 11 (−1), Fuerte 7 (+3), Inteligente 9 (+1), 
+Persuasivo 5 (+5), Tenaz 15 (−5)
+Habilidades Ninguna
+Armas T oque de muerte 3, ignora arma-
+dura, daño igual a Fuerte.
+Armadura Ninguna, per
+o las armas norma-
+les solo le hacen la mitad de daño.
+Defen
+sa −3
+Resistencia 10 Umbral de dolor —
+Equipo Ninguno
+Sombra Gris ceniza, con copos negros 
+(consumido por la Corrupción).
+Tácticas: Los hielos fatuos se ven atraídos por el 
+calor y absorben la fuerza de cualquier criatura 
+que toquen. Cuando van en busca de calidez y 
+alivio no siguen ninguna táctica ni estrategia.
+Categoría:  
+Muertos vivientes
+228
+
+
+===== PAGE 230 =====
+229
+23
+MONSTRUOS Y ADVERSARIOS
+
+
+===== PAGE 231 =====
+n E cro M ago
+Raza Espíritu
+Desafío Complicado
+Rasgos Daño alternativo (III), Forma 
+espiritual (III), T errorífico (II),
+Ágil 13 (−3), Atento 10 (0), Diestro 10 (0), 
+Discreto 11 (−1), Fuerte 7 (+3), Inteligente 9 (+1), 
+Persuasivo 5 (+5), Tenaz 15 (−5)
+Habilidades Poder místico (Someter 
+voluntad, adepto)
+Armas Garras espectrales 5, ignoran 
+armadura, daño igual a T enaz.
+Armadura Ninguna, pero solo sufre daño 
+por armas mágicas (la mitad) y 
+poderes místicos (completo).
+Defensa −3
+Resistencia 10 Umbral de dolor —
+Equipo Ninguno
+Sombra Gris oscuro, como nubes de 
+tormenta en un cielo helado 
+(consumido por la Corrupción).
+Tácticas: Los necromagos someten la voluntad 
+de sus víctimas para que se acerquen voluntaria-
+mente. A continuación, les hielan el corazón de 
+terror y lo
+s aniquilan con sus garras.
+expira: un hombre en su lecho de muerte, una víctima 
+de un robo en un callejón o un grupo de guerreros de 
+clan recién aniquilados bajo los árboles de Davokar.
+Estos horribles episodios son, afortunadamente, 
+infrecuentes, pero el hecho de que ocurran ha llevado a 
+algunos teúrgos a anunciar insistentemente que el fin de 
+los días está próximo. Para los bárbaros, los dragules son 
+un nuevo tipo de horror y , por tanto, algo en cierta forma 
+más terrorífico que las abominaciones que conocen y han 
+aprendido a combatir. Por otro lado, como los dragules 
+aparecieron poco después de las primeras exploraciones 
+ambrias en Davokar, los clanes culpan a los sureños de 
+este nuevo peligro, algo que hay que sumar a una vida 
+en los bosques ya de por sí peligrosa.
+n E cro M ago
+Según los mitos de la antigua Symbaroum, los necro-
+magos son hechiceros asesinados que no fueron 
+enterrados debidamente. Sea cierto o no, hay muchos 
+exploradores ambrios y bárbaros que pueden dar fe 
+de la existencia de estos seres espectrales, a menudo 
+con la voz temblando de miedo.
+Los necromagos son seres espectrales, medio trans-
+lúcidos y capaces de cambiar de forma: al parecer les 
+gusta duplicar el aspecto de su víctima, como si esta 
+se reflejara en un espejo incoloro. Se dice que cazan 
+principalmente para tener compañía y que intentan 
+230
+
+
+===== PAGE 232 =====
+atraer a los viajeros hacia su guarida con la esperanza 
+de compartir su soledad durante un tiempo… hasta 
+que se aburren y devoran el alma de su invitado. Otras 
+historias dicen que, cuando no logran embrujar a su 
+víctima, atacan sin piedad e intentan volverla loca con 
+sus aullidos de ultratumba antes de emplear sus garras 
+para arrancarle la piel y triturar su espíritu.
+M oratu M bas
+Las ruinas de Symbaroum se encuentran por doquier. 
+Igualmente, también es posible encontrar tumbas, 
+mausoleos y cementerios en cualquier punto de 
+Davokar. Lo que muchos cazatesoros no descubren 
+a tiempo es que hay muchas sepulturas protegidas 
+por moratumbas, sombras que siguen atadas a un 
+cuerpo putrefacto o embalsamado y que reaccionan 
+con ira a cualquier intento de profanación.
+También hay ejemplos de moratumbas que han 
+abandonado su cuerpo y vagado por aldeas y ciudades, 
+ya sea porque se han perdido o porque van tras el rastro 
+de un cazatesoros que saqueó su lugar de descanso. Un 
+caso así provocó la tragedia del año 15 en Kastor, en la que 
+más de cien personas murieron cuando algo conocido 
+como el «Rey Espectral» atrapó a un profanador de 
+tumbas en mitad del mercado de la fiesta de la cosecha.
+M oratu M bas
+Raza Espíritu
+Desafío Difícil
+Rasgos Forma corpórea (III), Forma 
+espiritual (III), Frío de ultratumba (III)
+Ágil 11 (−1), Atento 9 (+1), Diestro 5 (+5), 
+Discreto 7 (+3), Fuerte 15 (−5), Inteligente 10 (0), 
+Persuasivo 10 (0), Tenaz 13 (−3)
+Habilidades Ataque con dos armas (maestro), 
+Golpe de hierro (maestro)
+Armas Dos espadas 7/6 (Equilibradas), dos 
+ataque contra el mismo objetivo.
+Armadura Ninguna, pero solo sufre daño 
+por armas mágicas y poderes 
+místicos, y solo la mitad.
+Defensa −3 (dos armas)
+Resistencia 15 Umbral de dolor —
+Equipo Dos espadas espectrales (Cuali-
+dad: Equilibradas)
+Sombra C
+omo una noche despejada, con 
+una pequeña luz que solo sirve 
+para realzar aún más su oscuridad 
+(consumido por la Corrupción).
+Tácticas: El moratumbas confía en que el ene-
+migo tendrá dificultades para infligirle daño, pero 
+sea c
+omo sea, empieza atacando con su ataque 
+paralizante y, si tiene éxito, usa sus espadas para 
+acabar con su víctima.
+231
+23
+MONSTRUOS Y ADVERSARIOS
+

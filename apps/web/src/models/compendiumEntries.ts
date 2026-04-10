@@ -288,6 +288,7 @@ function buildTraditionEntries(): CompendiumEntry[] {
 
 type MonsterTraitDefinition = {
   nombre: string;
+  fuente?: string;
   pagina: number;
   resumen: string;
   detalle: string;
@@ -296,6 +297,177 @@ type MonsterTraitDefinition = {
 
 function buildMonsterTraitEntries(): CompendiumEntry[] {
   const traits: MonsterTraitDefinition[] = [
+    {
+      nombre: "Alado",
+      fuente: "Libro Básico",
+      pagina: 197,
+      resumen: "La criatura domina el aire y gana maniobras de vuelo cada vez más agresivas.",
+      detalle:
+        "I: puede volar y reposicionarse con ventaja táctica. II: el vuelo le permite evitar parte del combate trabado y castigar desde ángulos difíciles. III: combina velocidad, altura y control del espacio para convertir la movilidad aérea en una ventaja constante.",
+      tags: ["movilidad", "vuelo"]
+    },
+    {
+      nombre: "Arma natural",
+      fuente: "Libro Básico",
+      pagina: 197,
+      resumen: "Garras, colmillos o cuernos convierten el cuerpo de la criatura en un arma siempre lista.",
+      detalle:
+        "El rasgo representa ataques corporales integrados en la anatomía del monstruo. Sus distintos niveles mejoran el valor ofensivo y sirven de base para muchos otros rasgos, como Venenoso, Ataque de corrupción o Abrazo aplastante.",
+      tags: ["ataque", "cuerpo a cuerpo"]
+    },
+    {
+      nombre: "Ataque ácido",
+      fuente: "Libro Básico",
+      pagina: 197,
+      resumen: "La criatura cubre a su objetivo con ácido persistente que sigue dañando tras el impacto.",
+      detalle:
+        "I/II/III: como reacción, el ácido es débil, moderado o potente y provoca 3/4/5 puntos de daño durante 3/4/5 turnos. Hace falta gastar una acción y superar una tirada de Inteligente para lavar el ácido con agua, tierra o algo similar.",
+      tags: ["ácido", "daño persistente"]
+    },
+    {
+      nombre: "Ataque de corrupción",
+      fuente: "Libro Básico",
+      pagina: 198,
+      resumen: "Las armas naturales de la criatura transmiten Corrupción temporal además del daño normal.",
+      detalle:
+        "I/II/III: cualquier víctima que sufra al menos 1 punto de daño de uno de sus ataques recibe además 1D4/1D6/1D8 de Corrupción temporal. Representa bestias o abominaciones tan contaminadas que su mera herida ya infecta.",
+      tags: ["corrupción", "abominación"]
+    },
+    {
+      nombre: "Daño alternativo",
+      fuente: "Libro Básico",
+      pagina: 198,
+      resumen: "La criatura hiere atributos distintos de Resistencia y puede devorar directamente alma o vigor.",
+      detalle:
+        "Requiere Forma espiritual. I/II/III: el arma natural inflige 3/4/5 puntos de daño alternativo que ignoran armadura, normalmente contra Fuerte o Tenaz. Si el atributo llega a cero, la víctima muere.",
+      tags: ["espíritu", "atributos"]
+    },
+    {
+      nombre: "Duro",
+      fuente: "Libro Básico",
+      pagina: 198,
+      resumen: "Piel, escamas o quitina conceden protección natural sin las penalizaciones de una armadura incómoda.",
+      detalle:
+        "I/II/III: la criatura obtiene una protección natural de 2/3/4. No puede llevar protección adicional sobre esa armadura natural, pero sí combinarla con Combate con armadura.",
+      tags: ["armadura", "durabilidad"]
+    },
+    {
+      nombre: "Enjambre",
+      fuente: "Libro Básico",
+      pagina: 198,
+      resumen: "La criatura es una mente colmena repartida entre muchos cuerpos y resiste el daño de forma anómala.",
+      detalle:
+        "I/II/III: el enjambre sufre la mitad, la mitad o una cuarta parte del daño de todos los ataques. Sus niveles también ajustan cuándo huye por instinto de supervivencia y cómo resiste ataques mentales.",
+      tags: ["grupo", "durabilidad"]
+    },
+    {
+      nombre: "Escupitajo venenoso",
+      fuente: "Libro Básico",
+      pagina: 198,
+      resumen: "Además de ser venenosa, la criatura puede proyectar su toxina a distancia.",
+      detalle:
+        "Requiere Venenoso al mismo nivel o superior. I/II/III: como acción activa, el veneno provoca 2/3/4 puntos de daño durante 2/3/4 turnos si la víctima no supera [Fuerte←Inteligente]. Se neutraliza con antídoto y una tirada de Inteligente.",
+      tags: ["veneno", "distancia"]
+    },
+    {
+      nombre: "Forma corpórea",
+      fuente: "Libro Básico",
+      pagina: 198,
+      resumen: "Un espíritu puede manifestarse físicamente para combatir o manipular el mundo material.",
+      detalle:
+        "I: se vuelve corpóreo durante un turno y puede actuar con ataques físicos. II: puede mantenerse así todo el tiempo que quiera y usar equipo que portara al morir. III: interactúa con el mundo físico sin perder la mayoría de ventajas de su estado espiritual.",
+      tags: ["espíritu", "manifestación"]
+    },
+    {
+      nombre: "Forma espiritual",
+      fuente: "Libro Básico",
+      pagina: 199,
+      resumen: "La criatura existe como espíritu inmaterial y solo ciertos efectos pueden dañarla con normalidad.",
+      detalle:
+        "I/II/III: puede atravesar obstáculos y sufre la mitad de daño de armas físicas; a niveles altos también reduce el daño de armas mágicas o alquímicas. El rasgo da acceso a Daño alternativo, Forma corpórea y Terrorífico.",
+      tags: ["espíritu", "intangibilidad"]
+    },
+    {
+      nombre: "Frío de ultratumba",
+      fuente: "Libro Básico",
+      pagina: 199,
+      resumen: "La criatura paraliza y hiere con un aura de muerte helada a quienes se acercan demasiado.",
+      detalle:
+        "I: los personajes a distancia cuerpo a cuerpo deben superar Tenaz o quedan paralizados. II: además sufren 2 de daño que ignora armadura. III: el aura aprieta aún más la tirada enfrentada y multiplica el riesgo para quienes se acerquen.",
+      tags: ["aura", "parálisis"]
+    },
+    {
+      nombre: "Hipnótico",
+      fuente: "Libro Básico",
+      pagina: 199,
+      resumen: "La criatura deja sin acciones a sus víctimas mediante mirada, canto o fascinación sobrenatural.",
+      detalle:
+        "I: afecta a una víctima con [Tenaz←Tenaz]. II: puede afectar a todas las víctimas de su canto o sonido. III: el efecto persiste hasta superar la tirada o recibir daño.",
+      tags: ["control", "mente"]
+    },
+    {
+      nombre: "Muerto viviente",
+      fuente: "Libro Básico",
+      pagina: 199,
+      resumen: "El cuerpo ya no vive: ignora dolor, no se cura normalmente y gana resistencias propias de los no muertos.",
+      detalle:
+        "I: es inmune a veneno, enfermedad, shock y dolor, pero no se cura de forma natural. II: además solo sufre la mitad de daño de ataques físicos normales. III: también reduce magia y alquimia, mientras armas mágicas o benditas siguen siendo plenamente efectivas.",
+      tags: ["muerto viviente", "durabilidad"]
+    },
+    {
+      nombre: "Regeneración",
+      fuente: "Libro Básico",
+      pagina: 199,
+      resumen: "La criatura recupera Resistencia cada turno, aunque mantiene una vulnerabilidad concreta.",
+      detalle:
+        "I/II/III: regenera 2/3/4 puntos de Resistencia por turno. Cada monstruo debe tener un punto débil definido, como fuego, ácido, armas mágicas, ataques sagrados o impíos.",
+      tags: ["curación", "durabilidad"]
+    },
+    {
+      nombre: "Robusto",
+      fuente: "Libro Básico",
+      pagina: 200,
+      resumen: "El tamaño y la masa del monstruo absorben daño y vuelven sus golpes mucho más demoledores.",
+      detalle:
+        "I/II/III: ignora 2/3/4 puntos de daño por golpe además de su armadura, puede añadir +2/+3/+4 daño una vez por turno y su Defensa se calcula sobre [Ágil−2/−3/−4].",
+      tags: ["tamaño", "durabilidad"]
+    },
+    {
+      nombre: "Sangre ácida",
+      fuente: "Libro Básico",
+      pagina: 200,
+      resumen: "Herir a la criatura en combate cuerpo a cuerpo puede bañar al atacante en sangre corrosiva.",
+      detalle:
+        "I/II/III: quien la hiera a cuerpo a cuerpo debe superar Defensa o sufrir 3/4/5 puntos de daño durante 3/4/5 turnos. Se limpia gastando una acción y superando una tirada de Inteligente.",
+      tags: ["ácido", "reacción"]
+    },
+    {
+      nombre: "Telaraña",
+      fuente: "Libro Básico",
+      pagina: 200,
+      resumen: "La criatura puede tender hebras pegajosas o lanzar redes vivas para inmovilizar a sus presas.",
+      detalle:
+        "I: cruzar la telaraña exige [Ágil←Inteligente] o se queda atrapado. II: además puede lanzar una red como acción activa. III: la red es semiconsciente y golpea hasta tres veces por turno con los mismos efectos.",
+      tags: ["control", "presa"]
+    },
+    {
+      nombre: "Terrorífico",
+      fuente: "Libro Básico",
+      pagina: 200,
+      resumen: "El monstruo fuerza a retroceder o paraliza de miedo a quienes no soportan su presencia.",
+      detalle:
+        "Requiere Forma espiritual. I: obliga a una víctima a gastar sus acciones retrocediendo si falla [Tenaz←Tenaz]. II: extiende el efecto a todos los cercanos. III: quienes no puedan huir quedan encogidos de miedo en el sitio.",
+      tags: ["miedo", "control"]
+    },
+    {
+      nombre: "Venenoso",
+      fuente: "Libro Básico",
+      pagina: 200,
+      resumen: "Los ataques sin armas o con arma natural inoculan veneno al herir al objetivo.",
+      detalle:
+        "I/II/III: si el ataque consigue herir y la víctima falla [Fuerte←Inteligente], sufre 2/3/4 puntos de daño durante 2/3/4 turnos hasta que reciba antídoto y una tirada de Inteligente.",
+      tags: ["veneno", "ataque"]
+    },
     {
       nombre: "Abrazo aplastante",
       pagina: 164,
@@ -600,9 +772,9 @@ function buildMonsterTraitEntries(): CompendiumEntry[] {
     nombre: trait.nombre,
     resumen: trait.resumen,
     detalle: trait.detalle,
-    fuente: "Códice de monstruos",
+    fuente: trait.fuente ?? "Códice de monstruos",
     pagina: trait.pagina,
-    tags: ["rasgo", "monstruo", "códice de monstruos", ...(trait.tags ?? [])]
+    tags: ["rasgo", "monstruo", trait.fuente === "Libro Básico" ? "libro básico" : "código de monstruos", ...(trait.tags ?? [])]
   }));
 }
 
