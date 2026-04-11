@@ -565,7 +565,11 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           <div className="info-box">Robustez actual total: {controller.derived.robustezActualTotal}</div>
           <div className="info-box">Umbral de dolor total: {controller.derived.umbralDolorTotal}</div>
           <div className="info-box">Umbral de corrupción total: {controller.derived.umbralCorrupcionTotal}</div>
+          <div className="info-box">Armadura activa: {controller.derived.armaduraActiva || "-"}</div>
         </div>
+        <p className="section-help">
+          Las bendiciones suman <code>5 PX</code> gastados cada una y las cargas aportan <code>5 PX</code> extra disponibles cada una.
+        </p>
         {controller.derived.warnings.length > 0 ? (
           <div className="warning-block">
             {controller.derived.warnings.map((warning) => (
@@ -1077,11 +1081,49 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         </div>
         </fieldset>
 
-        <div className="section-title">Rasgos, equipo y contactos</div>
+        <div className="section-title">Bendiciones, cargas, rasgos, equipo y contactos</div>
         <p className="section-help">Elementos narrativos y de inventario que impactan la partida y la hoja.</p>
         {isCampaignManagedLock ? <p className="section-help">Inventario, contactos y recursos vivos se editan desde la hoja de campaña.</p> : null}
         <fieldset disabled={isCampaignManagedLock} className="campaign-managed-fieldset">
         <div className="triple-columns">
+          <div>
+            <div className="inline-row">
+              <label className="field">
+                <span>Nueva bendición</span>
+                <input
+                  value={controller.listInput.bendiciones}
+                  onChange={(event) => controller.setListInput((prev) => ({ ...prev, bendiciones: event.target.value }))}
+                />
+              </label>
+              <button onClick={() => controller.addSimpleItem("bendiciones")}>Agregar</button>
+            </div>
+            <ul className="tag-list">
+              {controller.form.sheet.bendiciones.map((item, index) => (
+                <li key={`ben-${index}`}>
+                  {item}
+                  <button onClick={() => controller.removeSimpleItem("bendiciones", index)}>x</button>
+                </li>
+              ))}
+            </ul>
+            <div className="inline-row">
+              <label className="field">
+                <span>Nueva carga</span>
+                <input
+                  value={controller.listInput.cargas}
+                  onChange={(event) => controller.setListInput((prev) => ({ ...prev, cargas: event.target.value }))}
+                />
+              </label>
+              <button onClick={() => controller.addSimpleItem("cargas")}>Agregar</button>
+            </div>
+            <ul className="tag-list">
+              {controller.form.sheet.cargas.map((item, index) => (
+                <li key={`car-${index}`}>
+                  {item}
+                  <button onClick={() => controller.removeSimpleItem("cargas", index)}>x</button>
+                </li>
+              ))}
+            </ul>
+          </div>
           <div>
             <div className="inline-row">
               <label className="field">
@@ -1654,15 +1696,15 @@ function CharacterActionSheet({ character }: CharacterActionSheetProps) {
                 <button type="button" onClick={runDefenseRoll}>Tirar prueba</button>
               </div>
             </div>
-            {sheet.combate.armaduraProteccion ? (
+            {derived.armaduraActiva ? (
               <div className="campaign-action-button">
-                <strong>{sheet.combate.armadura || "Armadura principal"}</strong>
-                <span>{sheet.combate.armaduraProteccion}</span>
+                <strong>{sheet.combate.armadura || (derived.armaduraNatural ? "Armadura natural" : "Armadura principal")}</strong>
+                <span>{derived.armaduraActiva}</span>
                 <div className="character-action-roll-grid">
                   <div className="character-action-roll-block">
                     <span className="character-action-roll-title">Protección</span>
-                    <span className="character-action-roll-meta">{sheet.combate.armaduraProteccion}</span>
-                    <button type="button" onClick={() => runArmorRoll("Protección principal", sheet.combate.armaduraProteccion)}>
+                    <span className="character-action-roll-meta">{derived.armaduraActiva}</span>
+                    <button type="button" onClick={() => runArmorRoll("Protección principal", derived.armaduraActiva)}>
                       Tirar daño
                     </button>
                   </div>

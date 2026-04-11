@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { SYMBAROUM_ABILITIES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS } from "./symbaroumCompendium.js";
+import { getCharacterMonsterTraitEffects } from "./monsterTraitRules.js";
 export * from "./symbaroumCompendium.js";
 export * from "./campaignActionEngine.js";
 export * from "./monsterCodex.js";
+export * from "./monsterTraitRules.js";
 export const userRoleSchema = z.enum(["player", "gm", "superadmin"]);
 export const registerRoleSchema = z.enum(["player", "gm"]);
 export const skillLevelSchema = z.enum(["novato", "adepto", "maestro"]);
@@ -238,6 +240,8 @@ const characterSheetObjectSchema = z.object({
         umbral: z.number().int().min(0).max(999).default(5),
         notas: z.string().max(1000).default("")
     }),
+    bendiciones: z.array(z.string().min(1).max(120)).max(40).default([]),
+    cargas: z.array(z.string().min(1).max(120)).max(40).default([]),
     rasgos: z.array(z.string().min(1).max(120)).max(40).default([]),
     habilidades: z.array(ratedEntrySchema).max(120).default([]),
     poderesMisticos: z.array(ratedEntrySchema).max(120).default([]),
@@ -286,14 +290,14 @@ const characterSheetObjectSchema = z.object({
     notas: z.string().max(8000).default("")
 });
 export const characterSheetSchema = characterSheetObjectSchema.superRefine((sheet, ctx) => {
-    if (sheet.progreso.experienciaGastada > sheet.progreso.experienciaTotal) {
+    if (sheet.progreso.experienciaGastada > getEffectiveExperienceTotal(sheet)) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["progreso", "experienciaGastada"],
-            message: "La experiencia gastada no puede ser mayor que la experiencia total"
+            message: "La experiencia gastada no puede ser mayor que la experiencia total ajustada por cargas"
         });
     }
-    const robustezMax = sheet.atributos.fuerte;
+    const robustezMax = getEffectiveCharacterRobustezMax(sheet);
     if (sheet.combate.robustezActual > robustezMax) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -353,6 +357,14 @@ function normalizeName(value) {
         .replace(/[\u0300-\u036f]/g, "")
         .trim()
         .toLowerCase();
+}
+function getEffectiveExperienceTotal(sheet) {
+    return Number(sheet.progreso?.experienciaTotal ?? 0) + (Array.isArray(sheet.cargas) ? sheet.cargas.length * 5 : 0);
+}
+export function getEffectiveCharacterRobustezMax(sheet) {
+    const automaticMax = getCharacterMonsterTraitEffects(sheet).robustezMaxima;
+    const explicitMax = Number(sheet.combate?.robustezMax ?? 0);
+    return Math.max(explicitMax, automaticMax);
 }
 function slugify(value) {
     return normalizeName(value).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "item";
@@ -621,21 +633,11 @@ function buildCanonicalActions(sheet) {
                     });
                 }
             }
-            else if ((entry.efecto || entry.notas).trim()) {
-                actions.push({
-                    id: `${sourceType}:${entry.nombre}:fallback`,
-                    label: `Usar ${entry.nombre}`,
-                    sourceType,
-                    sourceName: entry.nombre,
-                    cost: "combat",
-                    requiredLevel: entry.nivel,
-                    rollAttribute: undefined,
-                    damageFormula: undefined,
-                    effectSummary: entry.efecto || entry.notas,
-                    category: sourceType,
-                    notes: entry.notas,
-                    linkedItemId: ""
-                });
+            else {
+                const fallbackAction = inferCanonicalFallbackAction(sourceType, entry.nombre, entry.nivel, entry.efecto || entry.notas, entry.notas);
+                if (fallbackAction) {
+                    actions.push(fallbackAction);
+                }
             }
         }
     };
@@ -681,6 +683,12 @@ function getTraitLevelForCanonicalActions(sheet, traitName) {
         if (!normalized.startsWith(target)) {
             continue;
         }
+        if (/\bmaestro\b/.test(normalized))
+            return 3;
+        if (/\badepto\b/.test(normalized))
+            return 2;
+        if (/\bnovato\b/.test(normalized))
+            return 1;
         if (/\biii\b|\b3\b/.test(normalized))
             return 3;
         if (/\bii\b|\b2\b/.test(normalized))
@@ -708,6 +716,40 @@ function combineCanonicalDamageFormula(base, bonus) {
     return normalizedBonus.startsWith("+") || normalizedBonus.startsWith("-")
         ? `${normalizedBase}${normalizedBonus}`
         : `${normalizedBase}+${normalizedBonus}`;
+}
+function inferCanonicalFallbackAction(sourceType, sourceName, entryLevel, text, notes) {
+    const trimmedText = String(text ?? "").trim();
+    const normalized = normalizeName(trimmedText);
+    if (!trimmedText || normalized.startsWith("pasiva.")) {
+        return null;
+    }
+    let cost = null;
+    if (normalized.startsWith("reaccion.") || normalized.startsWith("reaccion ")) {
+        cost = "reaction";
+    }
+    else if (normalized.startsWith("activa.") || normalized.startsWith("activa ") || normalized.includes("accion de combate") || normalized.includes("accion de combate")) {
+        cost = "combat";
+    }
+    else if (normalized.includes("accion de movimiento") || normalized.includes("accion de movimiento")) {
+        cost = "movement";
+    }
+    if (!cost) {
+        return null;
+    }
+    return {
+        id: `${sourceType}:${sourceName}:fallback`,
+        label: `Usar ${sourceName}`,
+        sourceType,
+        sourceName,
+        cost,
+        requiredLevel: entryLevel,
+        rollAttribute: undefined,
+        damageFormula: undefined,
+        effectSummary: trimmedText,
+        category: sourceType,
+        notes,
+        linkedItemId: ""
+    };
 }
 function isRatedActionAvailableForEntryLevel(entryLevel, requiredLevel) {
     if (!requiredLevel) {
@@ -836,7 +878,7 @@ function migrateCharacterSheetInput(input) {
     const habilidades = normalizeRatedEntries(candidate.habilidades, "ability");
     const poderesMisticos = normalizeRatedEntries(candidate.poderesMisticos, "power");
     const rituales = normalizeRatedEntries(candidate.rituales, "ritual");
-    const syncedRobustezMax = candidate.atributos?.fuerte ?? candidate.combate?.robustezMax ?? 10;
+    const syncedRobustezMax = getEffectiveCharacterRobustezMax(candidate);
     return {
         ...candidate,
         habilidades,
@@ -864,7 +906,7 @@ function migrateCharacterSheetInput(input) {
     };
 }
 function buildSynchronizedCharacterSheet(input) {
-    const syncedRobustezMax = input.atributos.fuerte;
+    const syncedRobustezMax = getEffectiveCharacterRobustezMax(input);
     const habilidades = normalizeRatedEntries(input.habilidades, "ability");
     const poderesMisticos = normalizeRatedEntries(input.poderesMisticos, "power");
     const rituales = normalizeRatedEntries(input.rituales, "ritual");
@@ -901,14 +943,14 @@ function buildSynchronizedCharacterSheet(input) {
     };
 }
 export const importedCharacterSheetSchema = characterSheetObjectSchema.superRefine((sheet, ctx) => {
-    if (sheet.progreso.experienciaGastada > sheet.progreso.experienciaTotal) {
+    if (sheet.progreso.experienciaGastada > getEffectiveExperienceTotal(sheet)) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["progreso", "experienciaGastada"],
-            message: "La experiencia gastada no puede ser mayor que la experiencia total"
+            message: "La experiencia gastada no puede ser mayor que la experiencia total ajustada por cargas"
         });
     }
-    const robustezMax = sheet.atributos.fuerte;
+    const robustezMax = getEffectiveCharacterRobustezMax(sheet);
     if (sheet.combate.robustezActual > robustezMax) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -993,6 +1035,8 @@ export function createEmptyCharacterSheet() {
             umbral: 5,
             notas: ""
         },
+        bendiciones: [],
+        cargas: [],
         rasgos: [],
         habilidades: [],
         poderesMisticos: [],

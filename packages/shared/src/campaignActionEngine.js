@@ -398,6 +398,12 @@ function getTraitLevel(sheet, traitName) {
         if (!normalized.startsWith(target)) {
             continue;
         }
+        if (/\bmaestro\b/.test(normalized))
+            return 3;
+        if (/\badepto\b/.test(normalized))
+            return 2;
+        if (/\bnovato\b/.test(normalized))
+            return 1;
         if (/\biii\b|\b3\b/.test(normalized))
             return 3;
         if (/\bii\b|\b2\b/.test(normalized))

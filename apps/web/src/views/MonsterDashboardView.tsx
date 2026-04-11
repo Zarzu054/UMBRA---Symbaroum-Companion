@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  getDerivedMonsterSheetStats,
   MONSTER_ATTRIBUTE_KEYS,
   MONSTER_ATTRIBUTE_LABELS,
   MONSTER_CATEGORIES,
@@ -26,6 +27,8 @@ function normalizeSearchValue(value: string): string {
 }
 
 function renderMonsterTable(monster: MonsterTableViewModel) {
+  const derivedSheet = getDerivedMonsterSheetStats(monster.sheet);
+
   return (
     <div className="monster-statblock">
       <div className="monster-statblock-header">
@@ -43,10 +46,10 @@ function renderMonsterTable(monster: MonsterTableViewModel) {
       <div className="monster-stat-grid">
         <div className="info-box"><strong>Ataque:</strong>&nbsp;{monster.sheet.attack}</div>
         <div className="info-box"><strong>Daño:</strong>&nbsp;{monster.sheet.damage}</div>
-        <div className="info-box"><strong>Defensa:</strong>&nbsp;{monster.sheet.defense}</div>
-        <div className="info-box"><strong>Armadura:</strong>&nbsp;{monster.sheet.armor}</div>
-        <div className="info-box"><strong>Robustez:</strong>&nbsp;{monster.sheet.toughness}</div>
-        <div className="info-box"><strong>Umbral:</strong>&nbsp;{monster.sheet.painThreshold}</div>
+        <div className="info-box"><strong>Defensa:</strong>&nbsp;{derivedSheet.defense}</div>
+        <div className="info-box"><strong>Armadura:</strong>&nbsp;{derivedSheet.armor}</div>
+        <div className="info-box"><strong>Robustez:</strong>&nbsp;{derivedSheet.toughness}</div>
+        <div className="info-box"><strong>Umbral:</strong>&nbsp;{derivedSheet.painThreshold}</div>
         <div className="info-box"><strong>Movimiento:</strong>&nbsp;{monster.sheet.movement}</div>
       </div>
 

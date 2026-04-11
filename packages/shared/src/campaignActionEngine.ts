@@ -500,6 +500,9 @@ function getTraitLevel(sheet: CharacterSheet, traitName: string): number {
       continue;
     }
 
+    if (/\bmaestro\b/.test(normalized)) return 3;
+    if (/\badepto\b/.test(normalized)) return 2;
+    if (/\bnovato\b/.test(normalized)) return 1;
     if (/\biii\b|\b3\b/.test(normalized)) return 3;
     if (/\bii\b|\b2\b/.test(normalized)) return 2;
     return 1;

@@ -24,9 +24,10 @@ import {
 
 type TabId = "actions" | "inventory" | "abilities" | "background" | "notes";
 type ActionTabId = "all" | "attacks" | "powers" | "actions" | "free" | "reactions" | "other";
-type CapabilityTabId = "traits" | "abilities" | "powers" | "rituals";
+type CapabilityTabId = "traits" | "blessings" | "burdens" | "abilities" | "powers" | "rituals";
 type InventoryTabId = "money" | "weapons" | "armors" | "items" | "slots";
 type RatedEntry = CharacterSheet["habilidades"][number];
+type SimpleSheetListSection = "bendiciones" | "cargas" | "rasgos";
 
 type Props = {
   title: string;
@@ -45,6 +46,7 @@ type PendingRollConfirmation = {
   phase?: CharacterActionPhase;
   title: string;
   visibility: Roll20Visibility;
+  selectedAttackModifierIds: string[];
   selectedDamageModifierIds: string[];
   defenseAlternativeIds?: string[];
   selectedDefenseAlternativeId?: string;
@@ -67,6 +69,16 @@ type MoneyCounters = {
   taleros: number;
   chelines: number;
   ortegs: number;
+};
+
+type AttackRollModifier = {
+  id: string;
+  label: string;
+  bonus: number;
+};
+
+type RollModalAttackModifier = AttackRollModifier & {
+  source: "trait" | "ability";
 };
 
 function parseMoneyCounters(rawValue: string): MoneyCounters {
@@ -121,6 +133,44 @@ function getActionDamageVariants(action: CharacterActionDefinition): Array<{ id:
   }
 
   return [];
+}
+
+function getAttackRollModifiers(action: CharacterActionDefinition, sheet: CharacterSheet): RollModalAttackModifier[] {
+  if (!action.rollAttribute) {
+    return [];
+  }
+
+  const robustLevel = getSheetTraitLevel(sheet, "robusto");
+  if (robustLevel <= 0 || getActionRollLabel(action) === "Defensa") {
+    return [];
+  }
+
+  const bonus = robustLevel === 1 ? 2 : robustLevel === 2 ? 4 : 8;
+  return [{
+    id: `trait:robusto-attack:${robustLevel}`,
+    label: `Robusto (+${bonus}, una vez por turno)`,
+    bonus,
+    source: "trait"
+  }];
+}
+
+function getPendingAttackTarget(
+  sheet: CharacterSheet,
+  characterName: string,
+  action: CharacterActionDefinition,
+  destination: RollDestination,
+  selectedAttackModifierIds: string[]
+): number | null {
+  const request = buildRollRequest(sheet, characterName, action.id, "attack", destination);
+  if (typeof request.target !== "number") {
+    return null;
+  }
+
+  const selectedBonus = getAttackRollModifiers(action, sheet)
+    .filter((modifier) => selectedAttackModifierIds.includes(modifier.id))
+    .reduce((sum, modifier) => sum + modifier.bonus, 0);
+
+  return request.target + selectedBonus;
 }
 
 function isIntegratedDamageBonusAction(action: CharacterActionDefinition): boolean {
@@ -226,6 +276,37 @@ function normalizeCapabilityText(text: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
+}
+
+function getSheetTraitLevel(sheet: CharacterSheet, traitName: string): number {
+  const target = normalizeCapabilityText(traitName);
+  const traitSources = [
+    ...(sheet.rasgos ?? []),
+    ...String(sheet.noteSections?.traits ?? "")
+      .split(/[,\n;]/)
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+  ];
+
+  for (const rawTrait of traitSources) {
+    const normalized = normalizeCapabilityText(rawTrait);
+    if (!new RegExp(`\\b${target}\\b`).test(normalized)) {
+      continue;
+    }
+    if (/\bmaestro\b/.test(normalized)) return 3;
+    if (/\badepto\b/.test(normalized)) return 2;
+    if (/\bnovato\b/.test(normalized)) return 1;
+    if (/\biii\b|\b3\b/.test(normalized)) return 3;
+    if (/\bii\b|\b2\b/.test(normalized)) return 2;
+    return 1;
+  }
+
+  return 0;
+}
+
+function isMeleeLikeAction(action: CharacterActionDefinition): boolean {
+  const normalized = normalizeCapabilityText(`${action.label} ${action.sourceName} ${action.effectSummary}`);
+  return !/(arco|ballesta|proyectil|disparo|a distancia|arrojadiza|jabalina|venablo)/.test(normalized);
 }
 
 function normalizeInventoryItemText(text: string): string {
@@ -336,6 +417,14 @@ export function UnifiedCharacterSheet({
         );
     }
   }, [visibleActions, activeActionTab]);
+  const pendingAttackModifiers = useMemo(
+    () => (
+      pendingRollConfirmation?.action && pendingRollConfirmation.phase === "attack"
+        ? getAttackRollModifiers(pendingRollConfirmation.action, normalizedSheet)
+        : []
+    ),
+    [pendingRollConfirmation, normalizedSheet]
+  );
   const displayName = normalizedSheet.identidad.nombrePersonaje || title;
   const equippedItems = useMemo(
     () => normalizedSheet.inventoryItems.filter((item) => item.equipped),
@@ -411,6 +500,7 @@ export function UnifiedCharacterSheet({
     requestOrAction: RollRequest | CharacterActionDefinition,
     phaseOrTitle: CharacterActionPhase | string,
     requestTitle?: string,
+    selectedAttackModifierIds: string[] = [],
     selectedDamageModifierIds: string[] = []
   ): void {
     if ("destination" in requestOrAction) {
@@ -418,6 +508,7 @@ export function UnifiedCharacterSheet({
         request: requestOrAction,
         title: String(phaseOrTitle),
         visibility: "public",
+        selectedAttackModifierIds: [],
         selectedDamageModifierIds: [],
         defenseAlternativeIds: [],
         selectedDefenseAlternativeId: ""
@@ -430,6 +521,7 @@ export function UnifiedCharacterSheet({
       phase: phaseOrTitle as CharacterActionPhase,
       title: requestTitle ?? "",
       visibility: "public",
+      selectedAttackModifierIds,
       selectedDamageModifierIds,
       defenseAlternativeIds: [],
       selectedDefenseAlternativeId: ""
@@ -437,10 +529,10 @@ export function UnifiedCharacterSheet({
   }
 
   function runAction(action: CharacterActionDefinition, phase: CharacterActionPhase, damageVariantId?: string): void {
-    if (rollDestination !== "umbra") {
+      if (rollDestination !== "umbra") {
       queueRoll20Request(action, phase, `${action.label} - ${phase === "damage" ? "Danio" : "Tirada"}`);
-      return;
-    }
+        return;
+      }
 
     const result = executeCharacterAction(normalizedSheet, action.id, phase, damageVariantId ? [damageVariantId] : []);
     pushHistory(result.action.label, result.rolls, result.action.effectSummary);
@@ -456,6 +548,7 @@ export function UnifiedCharacterSheet({
         action,
         "damage",
         `${action.label} - ${damageLabel}`,
+        [],
         [damageVariantId]
       );
       return;
@@ -537,6 +630,7 @@ export function UnifiedCharacterSheet({
         },
         title: label,
         visibility: "public",
+        selectedAttackModifierIds: [],
         selectedDamageModifierIds: [],
         defenseAlternativeIds: defenseAlternativeActions.map((action) => action.id),
         selectedDefenseAlternativeId: ""
@@ -557,9 +651,9 @@ export function UnifiedCharacterSheet({
   }
 
   function runArmorRoll(): void {
-    const formula = equippedArmor?.protectionFormula || normalizedSheet.combate.armaduraProteccion;
+    const formula = equippedArmor?.protectionFormula || derived.armaduraActiva;
     if (!formula) return;
-    const label = equippedArmor?.name || normalizedSheet.combate.armadura || "Armadura";
+    const label = equippedArmor?.name || normalizedSheet.combate.armadura || (derived.armaduraNatural ? "Armadura natural" : "Armadura");
     if (rollDestination !== "umbra") {
       queueRoll20Request(
         {
@@ -605,31 +699,41 @@ export function UnifiedCharacterSheet({
       const selectedDefenseAction = pendingRollConfirmation.selectedDefenseAlternativeId
         ? defenseAlternativeActions.find((action) => action.id === pendingRollConfirmation.selectedDefenseAlternativeId)
         : null;
-      const request = selectedDefenseAction
-        ? buildRollRequest(
-            normalizedSheet,
-            displayName,
-            selectedDefenseAction.id,
-            "attack",
-            rollDestination
-          )
-        : pendingRollConfirmation.request ?? (
-        pendingRollConfirmation.action && pendingRollConfirmation.phase
+        const request = selectedDefenseAction
           ? buildRollRequest(
               normalizedSheet,
+              displayName,
+              selectedDefenseAction.id,
+            "attack",
+            rollDestination
+            )
+          : pendingRollConfirmation.request ?? (
+          pendingRollConfirmation.action && pendingRollConfirmation.phase
+            ? buildRollRequest(
+                normalizedSheet,
               displayName,
               pendingRollConfirmation.action.id,
               pendingRollConfirmation.phase,
               rollDestination,
-              "",
-              pendingRollConfirmation.selectedDamageModifierIds
-            )
-          : null
-        );
-      if (!request) {
-        throw new Error("No se pudo preparar la tirada");
-      }
-      await dispatchRoll20Request(request, visibility);
+                "",
+                pendingRollConfirmation.selectedDamageModifierIds
+              )
+            : null
+          );
+        if (!request) {
+          throw new Error("No se pudo preparar la tirada");
+        }
+        if (pendingRollConfirmation.action && pendingRollConfirmation.phase === "attack" && typeof request.target === "number") {
+          const selectedAttackModifiers = getAttackRollModifiers(pendingRollConfirmation.action, normalizedSheet)
+            .filter((modifier) => pendingRollConfirmation.selectedAttackModifierIds.includes(modifier.id));
+          const totalAttackBonus = selectedAttackModifiers.reduce((sum, modifier) => sum + modifier.bonus, 0);
+          if (totalAttackBonus !== 0) {
+            request.target += totalAttackBonus;
+            const modifierNote = `Modificadores de ataque: ${selectedAttackModifiers.map((modifier) => modifier.label).join(", ")}`;
+            request.note = request.note ? `${request.note} | ${modifierNote}` : modifierNote;
+          }
+        }
+        await dispatchRoll20Request(request, visibility);
     } catch (error) {
       void error;
     } finally {
@@ -653,6 +757,30 @@ export function UnifiedCharacterSheet({
 
   function removeRatedEntry(section: "habilidades" | "poderesMisticos" | "rituales", index: number): void {
     setDraft({ ...draft, [section]: draft[section].filter((_, entryIndex) => entryIndex !== index) });
+  }
+
+  function updateSimpleSheetList(section: SimpleSheetListSection, rawValue: string): void {
+    setDraft({
+      ...draft,
+      [section]: rawValue
+        .split("\n")
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+    });
+  }
+
+  function addSimpleSheetEntry(section: SimpleSheetListSection): void {
+    setDraft({
+      ...draft,
+      [section]: [...draft[section], ""]
+    });
+  }
+
+  function removeSimpleSheetEntry(section: SimpleSheetListSection, index: number): void {
+    setDraft({
+      ...draft,
+      [section]: draft[section].filter((_, entryIndex) => entryIndex !== index)
+    });
   }
 
   function updateInventoryItem(index: number, field: keyof CharacterSheet["inventoryItems"][number], value: string | number | boolean | undefined): void {
@@ -1066,6 +1194,8 @@ export function UnifiedCharacterSheet({
                 <nav className="unified-sheet-subtabs" aria-label="Tipos de capacidades">
                   {([
                     ["traits", "Rasgos"],
+                    ["blessings", "Bendiciones"],
+                    ["burdens", "Cargas"],
                     ["abilities", "Habilidades"],
                     ["powers", "Poderes"],
                     ["rituals", "Rituales"]
@@ -1077,12 +1207,15 @@ export function UnifiedCharacterSheet({
                 </nav>
 
                 {activeCapabilityTab === "traits" ? (
-                  <div className="unified-sheet-capability-card">
-                    <h3>Rasgos</h3>
-                    <p className="unified-sheet-rich-text">
-                      {normalizedSheet.noteSections.traits.trim() || "Sin rasgos registrados."}
-                    </p>
-                  </div>
+                  <SimpleStringList title="Rasgos" entries={normalizedSheet.rasgos} emptyText="Sin rasgos registrados." />
+                ) : null}
+
+                {activeCapabilityTab === "blessings" ? (
+                  <SimpleStringList title="Bendiciones" entries={normalizedSheet.bendiciones} emptyText="Sin bendiciones registradas." />
+                ) : null}
+
+                {activeCapabilityTab === "burdens" ? (
+                  <SimpleStringList title="Cargas" entries={normalizedSheet.cargas} emptyText="Sin cargas registradas." />
                 ) : null}
 
                 {activeCapabilityTab === "abilities" ? (
@@ -1247,11 +1380,11 @@ export function UnifiedCharacterSheet({
                 <article className="unified-sheet-quick-card">
                   <div className="row-actions">
                     <h3>Armadura</h3>
-                    <strong>{equippedArmor?.protectionFormula || normalizedSheet.combate.armaduraProteccion || "-"}</strong>
+                    <strong>{equippedArmor?.protectionFormula || derived.armaduraActiva || "-"}</strong>
                   </div>
-                  <strong>{equippedArmor?.name || normalizedSheet.combate.armadura || "Sin armadura"}</strong>
+                  <strong>{equippedArmor?.name || normalizedSheet.combate.armadura || (derived.armaduraNatural ? "Armadura natural" : "Sin armadura")}</strong>
                   <div className="unified-sheet-vital-actions">
-                    <button type="button" className="vital-action subtle" onClick={runArmorRoll} disabled={!(equippedArmor?.protectionFormula || normalizedSheet.combate.armaduraProteccion)}>Tirar Armadura</button>
+                    <button type="button" className="vital-action subtle" onClick={runArmorRoll} disabled={!(equippedArmor?.protectionFormula || derived.armaduraActiva)}>Tirar Armadura</button>
                   </div>
                 </article>
               </div>
@@ -1417,11 +1550,69 @@ export function UnifiedCharacterSheet({
       {activeTab === "abilities" ? (
         <section className="unified-sheet-panel">
           <article className="campaign-sheet-card">
-            <Field label="Rasgos"><textarea disabled={!editMode} rows={2} value={normalizedSheet.noteSections.traits} onChange={(event) => updateField("noteSections.traits", event.target.value)} /></Field>
+            <nav className="unified-sheet-subtabs" aria-label="Tipos de capacidades">
+              {([
+                ["traits", "Rasgos"],
+                ["blessings", "Bendiciones"],
+                ["burdens", "Cargas"],
+                ["abilities", "Habilidades"],
+                ["powers", "Poderes"],
+                ["rituals", "Rituales"]
+              ] as Array<[CapabilityTabId, string]>).map(([tab, label]) => (
+                <button key={tab} type="button" className={activeCapabilityTab === tab ? "is-active" : ""} onClick={() => setActiveCapabilityTab(tab)}>
+                  {label}
+                </button>
+              ))}
+            </nav>
+
+            {activeCapabilityTab === "traits" ? (
+              <SimpleStringListEditor
+                title="Rasgos"
+                entries={normalizedSheet.rasgos}
+                editable={editMode}
+                rows={6}
+                helpText="Rasgos de personaje como Contactos se guardan aqui y se exportan/importan como tipo Rasgo."
+                onChange={(value) => updateSimpleSheetList("rasgos", value)}
+                onAdd={() => addSimpleSheetEntry("rasgos")}
+                onRemove={(index) => removeSimpleSheetEntry("rasgos", index)}
+              />
+            ) : null}
+
+            {activeCapabilityTab === "blessings" ? (
+              <SimpleStringListEditor
+                title="Bendiciones"
+                entries={normalizedSheet.bendiciones}
+                editable={editMode}
+                rows={6}
+                helpText="Cada bendicion cuenta como 5 PX gastados."
+                onChange={(value) => updateSimpleSheetList("bendiciones", value)}
+                onAdd={() => addSimpleSheetEntry("bendiciones")}
+                onRemove={(index) => removeSimpleSheetEntry("bendiciones", index)}
+              />
+            ) : null}
+
+            {activeCapabilityTab === "burdens" ? (
+              <SimpleStringListEditor
+                title="Cargas"
+                entries={normalizedSheet.cargas}
+                editable={editMode}
+                rows={6}
+                helpText="Cada carga aporta 5 PX extra disponibles."
+                onChange={(value) => updateSimpleSheetList("cargas", value)}
+                onAdd={() => addSimpleSheetEntry("cargas")}
+                onRemove={(index) => removeSimpleSheetEntry("cargas", index)}
+              />
+            ) : null}
           </article>
-          <CapabilityEditor title="Habilidades" entries={normalizedSheet.habilidades} editable={editMode} onAdd={() => addRatedEntry("habilidades")} onRemove={(index) => removeRatedEntry("habilidades", index)} onUpdate={(index, field, value) => updateRatedEntry("habilidades", index, field, value)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("habilidad", name) : undefined} />
-          <CapabilityEditor title="Poderes misticos" entries={normalizedSheet.poderesMisticos} editable={editMode} onAdd={() => addRatedEntry("poderesMisticos")} onRemove={(index) => removeRatedEntry("poderesMisticos", index)} onUpdate={(index, field, value) => updateRatedEntry("poderesMisticos", index, field, value)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("poder_mistico", name) : undefined} />
-          <CapabilityEditor title="Rituales" entries={normalizedSheet.rituales} editable={editMode} onAdd={() => addRatedEntry("rituales")} onRemove={(index) => removeRatedEntry("rituales", index)} onUpdate={(index, field, value) => updateRatedEntry("rituales", index, field, value)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("ritual", name) : undefined} />
+          {activeCapabilityTab === "abilities" ? (
+            <CapabilityEditor title="Habilidades" entries={normalizedSheet.habilidades} editable={editMode} onAdd={() => addRatedEntry("habilidades")} onRemove={(index) => removeRatedEntry("habilidades", index)} onUpdate={(index, field, value) => updateRatedEntry("habilidades", index, field, value)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("habilidad", name) : undefined} />
+          ) : null}
+          {activeCapabilityTab === "powers" ? (
+            <CapabilityEditor title="Poderes misticos" entries={normalizedSheet.poderesMisticos} editable={editMode} onAdd={() => addRatedEntry("poderesMisticos")} onRemove={(index) => removeRatedEntry("poderesMisticos", index)} onUpdate={(index, field, value) => updateRatedEntry("poderesMisticos", index, field, value)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("poder_mistico", name) : undefined} />
+          ) : null}
+          {activeCapabilityTab === "rituals" ? (
+            <CapabilityEditor title="Rituales" entries={normalizedSheet.rituales} editable={editMode} onAdd={() => addRatedEntry("rituales")} onRemove={(index) => removeRatedEntry("rituales", index)} onUpdate={(index, field, value) => updateRatedEntry("rituales", index, field, value)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("ritual", name) : undefined} />
+          ) : null}
         </section>
       ) : null}
 
@@ -1474,11 +1665,42 @@ export function UnifiedCharacterSheet({
       ) : null}
       {pendingRollConfirmation ? (
         <div className="modal-backdrop">
-          <div className="panel modal-panel character-roll-confirm-modal">
-            <h3>Enviar tirada</h3>
-            <p className="section-help">{pendingRollConfirmation.title}</p>
-            {pendingRollConfirmation.action && pendingRollConfirmation.phase === "damage" && getActionDamageVariants(pendingRollConfirmation.action).length > 0 ? (
-              <div className="character-roll-confirm-modifiers">
+            <div className="panel modal-panel character-roll-confirm-modal">
+              <h3>Enviar tirada</h3>
+              <p className="section-help">{pendingRollConfirmation.title}</p>
+              {pendingAttackModifiers.length > 0 ? (
+                <div className="character-roll-confirm-modifiers">
+                  <span>Modificadores de ataque</span>
+                  {pendingAttackModifiers.map((modifier) => (
+                    <label key={`${pendingRollConfirmation.action?.id}-${modifier.id}`} className="character-roll-confirm-modifier">
+                      <input
+                        type="checkbox"
+                        checked={pendingRollConfirmation.selectedAttackModifierIds.includes(modifier.id)}
+                        onChange={(event) =>
+                          setPendingRollConfirmation((current) => current ? {
+                            ...current,
+                            selectedAttackModifierIds: event.target.checked
+                              ? [...current.selectedAttackModifierIds, modifier.id]
+                              : current.selectedAttackModifierIds.filter((entry) => entry !== modifier.id)
+                          } : current)
+                        }
+                      />
+                      <span>{modifier.label}</span>
+                    </label>
+                  ))}
+                  <p className="section-help">
+                    Objetivo final: {getPendingAttackTarget(
+                      normalizedSheet,
+                      displayName,
+                      pendingRollConfirmation.action!,
+                      rollDestination,
+                      pendingRollConfirmation.selectedAttackModifierIds
+                    ) ?? "-"}
+                  </p>
+                </div>
+              ) : null}
+              {pendingRollConfirmation.action && pendingRollConfirmation.phase === "damage" && getActionDamageVariants(pendingRollConfirmation.action).length > 0 ? (
+                <div className="character-roll-confirm-modifiers">
                 <span>Modificadores de dano</span>
                 {getActionDamageVariants(pendingRollConfirmation.action).map((modifier) => (
                   <label key={`${pendingRollConfirmation.action?.id}-${modifier.id}`} className="character-roll-confirm-modifier">
@@ -1696,6 +1918,85 @@ function CapabilityTextList({
         <p className="unified-sheet-capability-empty">Sin entradas.</p>
       )}
     </div>
+  );
+}
+
+function SimpleStringList({
+  title,
+  entries,
+  emptyText
+}: {
+  title: string;
+  entries: string[];
+  emptyText: string;
+}) {
+  return (
+    <div className="unified-sheet-list">
+      {entries.length > 0 ? (
+        entries.map((entry, index) => (
+          <article key={`${title}-${index}-${entry}`} className="unified-sheet-capability-card">
+            <h3>{entry}</h3>
+            <div className="unified-sheet-capability-meta">
+              <span>{title}</span>
+            </div>
+          </article>
+        ))
+      ) : (
+        <p className="unified-sheet-capability-empty">{emptyText}</p>
+      )}
+    </div>
+  );
+}
+
+function SimpleStringListEditor({
+  title,
+  entries,
+  editable,
+  rows,
+  helpText,
+  onChange,
+  onAdd,
+  onRemove
+}: {
+  title: string;
+  entries: string[];
+  editable: boolean;
+  rows: number;
+  helpText?: string;
+  onChange: (value: string) => void;
+  onAdd: () => void;
+  onRemove: (index: number) => void;
+}) {
+  return (
+    <article className="campaign-sheet-card">
+      <div className="row-actions">
+        <h3>{title}</h3>
+        {editable ? <button type="button" onClick={onAdd}>Agregar linea</button> : null}
+      </div>
+      {helpText ? <p className="section-help">{helpText}</p> : null}
+      <Field label={title}>
+        <textarea
+          disabled={!editable}
+          rows={rows}
+          value={entries.join("\n")}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </Field>
+      <div className="unified-sheet-list">
+        {entries.length > 0 ? (
+          entries.map((entry, index) => (
+            <article key={`${title}-editor-${index}-${entry}`} className="campaign-structured-card">
+              <div className="row-actions">
+                <strong>{entry || `${title} ${index + 1}`}</strong>
+                {editable ? <button type="button" className="subtle-button" onClick={() => onRemove(index)}>Quitar</button> : null}
+              </div>
+            </article>
+          ))
+        ) : (
+          <p className="section-help">Sin entradas.</p>
+        )}
+      </div>
+    </article>
   );
 }
 
