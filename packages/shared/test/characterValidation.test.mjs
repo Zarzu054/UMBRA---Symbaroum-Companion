@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createCharacterSchema, createEmptyCharacterSheet, parseCharacterSheet } from "../dist/index.js";
+import { createCharacterSchema, createEmptyCharacterSheet, importCharacterSchema, parseCharacterSheet, synchronizeCharacterSheet } from "../dist/index.js";
 
 function buildPayload() {
   const sheet = createEmptyCharacterSheet();
@@ -50,6 +50,15 @@ test("acepta personaje nivel 1 con patron 5 novato", () => {
   assert.equal(parsed.success, true);
 });
 
+test("acepta una raza libre no jugable como texto plano", () => {
+  const payload = buildPayload();
+  payload.race = "Lobo";
+  payload.sheet.identidad.raza = "Lobo";
+
+  const parsed = createCharacterSchema.safeParse(payload);
+  assert.equal(parsed.success, true);
+});
+
 test("acepta personaje nivel 1 con patron 2 novato + 1 adepto", () => {
   const payload = buildPayload();
   payload.sheet.habilidades = makeAbilities([
@@ -82,29 +91,8 @@ test("rechaza habilidades maestro en nivel 1", () => {
   expectIssue(payload, "nivel maestro");
 });
 
-test("rechaza poderes misticos sin habilidad mistica base", () => {
+test("acepta poderes misticos sin habilidad mistica base", () => {
   const payload = buildPayload();
-  payload.sheet.poderesMisticos = [
-    {
-      nombre: "Confusión",
-      tipo: "Poder místico",
-      efecto: "",
-      nivel: "novato",
-      fuente: "Guía Avanzada del Jugador",
-      pagina: 81,
-      notas: ""
-    }
-  ];
-  expectIssue(payload, "habilidad mistica base");
-});
-
-test("acepta poderes misticos con habilidad mistica base", () => {
-  const payload = buildPayload();
-  payload.sheet.habilidades = makeAbilities([
-    ["Magia", "novato"],
-    ["Acróbata", "novato"],
-    ["Alquimista", "adepto"]
-  ]);
   payload.sheet.poderesMisticos = [
     {
       nombre: "Confusión",
@@ -118,6 +106,104 @@ test("acepta poderes misticos con habilidad mistica base", () => {
   ];
   const parsed = createCharacterSchema.safeParse(payload);
   assert.equal(parsed.success, true);
+});
+
+test("importCharacterSchema acepta poderes misticos sin habilidad mistica base", () => {
+  const payload = buildPayload();
+  payload.sheet.poderesMisticos = [
+    {
+      nombre: "Confusión",
+      tipo: "Poder místico",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Guía Avanzada del Jugador",
+      pagina: 81,
+      notas: ""
+    }
+  ];
+  const parsed = importCharacterSchema.safeParse(payload);
+  assert.equal(parsed.success, true);
+});
+
+test("importCharacterSchema acepta una raza libre no jugable como texto plano", () => {
+  const payload = buildPayload();
+  payload.race = "Bestiaal";
+  payload.sheet.identidad.raza = "Bestiaal";
+
+  const parsed = importCharacterSchema.safeParse(payload);
+  assert.equal(parsed.success, true);
+});
+
+test("importCharacterSchema acepta habilidades importadas sin descripcion valida y las hidrata por nombre", () => {
+  const payload = buildPayload();
+  payload.sheet.habilidades = [
+    {
+      nombre: "Berserker",
+      tipo: "Habilidad",
+      efecto: null,
+      nivel: "novato",
+      fuente: "",
+      pagina: undefined,
+      notas: null
+    }
+  ];
+  const parsed = importCharacterSchema.safeParse(payload);
+  assert.equal(parsed.success, true);
+});
+
+test("synchronizeCharacterSheet hidrata efecto y acciones canonicas cuando una habilidad importada llega sin descripcion", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.habilidades = [
+    {
+      nombre: "Berserker",
+      tipo: "Habilidad",
+      efecto: null,
+      nivel: "novato",
+      fuente: "",
+      pagina: undefined,
+      notas: null
+    }
+  ];
+
+  const normalized = synchronizeCharacterSheet(sheet);
+  assert.match(normalized.habilidades[0].efecto, /frenesi|frenes/i);
+  assert.ok(normalized.habilidades[0].acciones.length > 0);
+  assert.equal(normalized.habilidades[0].fuente.length > 0, true);
+  assert.equal(typeof normalized.habilidades[0].pagina, "number");
+});
+
+test("synchronizeCharacterSheet reemplaza el texto importado por el canon interno cuando la habilidad existe por nombre", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.habilidades = [
+    {
+      nombre: "Berserker",
+      tipo: "Texto importado",
+      efecto: "DESCRIPCION PDF ERRONEA",
+      nivel: "novato",
+      fuente: "PDF",
+      pagina: 999,
+      notas: "NOTA ERRONEA",
+      acciones: [{ id: "fake", label: "Fake", cost: "combat", effectSummary: "Fake" }]
+    }
+  ];
+
+  const normalized = synchronizeCharacterSheet(sheet);
+  assert.equal(normalized.habilidades[0].tipo, "habilidad");
+  assert.doesNotMatch(normalized.habilidades[0].efecto, /ERRONEA|PDF/i);
+  assert.notEqual(normalized.habilidades[0].pagina, 999);
+  assert.notEqual(normalized.habilidades[0].acciones[0]?.label, "Fake");
+});
+
+test("synchronizeCharacterSheet migra rasgos monstruosos del PDF a habilidades canonicas por nombre", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.rasgos = ["Arma natural I", "Duro II", "Contactos"];
+
+  const normalized = synchronizeCharacterSheet(sheet);
+  assert.deepEqual(normalized.rasgos, ["Contactos"]);
+  assert.equal(normalized.habilidades.some((entry) => entry.nombre === "Arma natural" && entry.nivel === "novato"), true);
+  assert.equal(normalized.habilidades.some((entry) => entry.nombre === "Duro" && entry.nivel === "adepto"), true);
+  assert.match(normalized.habilidades.find((entry) => entry.nombre === "Arma natural")?.efecto ?? "", /1D6/i);
+  assert.match(normalized.habilidades.find((entry) => entry.nombre === "Duro")?.efecto ?? "", /1D6/i);
 });
 
 test("rechaza rituales sin habilidad Rituales", () => {

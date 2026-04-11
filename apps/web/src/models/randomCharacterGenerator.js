@@ -63,6 +63,7 @@ function buildRandomCharacter() {
     const profession = pickRandom(PROFESSIONS_BY_ARCHETYPE[archetype]);
     const name = pickRandom(NAMES);
     const sheet = createEmptyCharacterSheet();
+    sheet.identidad.nombrePersonaje = name;
     sheet.identidad.raza = race;
     sheet.identidad.cultura = culture;
     sheet.identidad.arquetipo = archetype;

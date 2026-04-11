@@ -23,6 +23,8 @@ export function useCharacterController(ensureAccessToken) {
     const [form, setForm] = useState(defaultForm);
     const [selectedCharacterId, setSelectedCharacterId] = useState(null);
     const [listInput, setListInput] = useState({
+        bendiciones: "",
+        cargas: "",
         rasgos: "",
         equipo: "",
         contactos: "",

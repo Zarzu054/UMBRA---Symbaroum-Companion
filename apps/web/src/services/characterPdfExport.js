@@ -1,5 +1,7 @@
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { SYMBAROUM_ABILITIES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS, importCharacterSchema, createEmptyCharacterSheet } from "@umbra/shared";
+import { ALL_ENTRIES } from "../models/compendiumEntries";
+import { getCharacterExperienceSummary } from "../models/characterExperience";
 const TEMPLATE_PATH = "/templates/symbaroum-sheet.pdf";
 export async function exportCharacterSheetPdf(character) {
     const bytes = await fetchTemplate();
@@ -8,7 +10,7 @@ export async function exportCharacterSheetPdf(character) {
     const font = await pdf.embedFont(StandardFonts.Helvetica);
     const fieldNames = new Set(form.getFields().map((field) => field.getName()));
     let writtenFields = 0;
-    const availableXp = Math.max(0, character.sheet.progreso.experienciaTotal - character.sheet.progreso.experienciaGastada);
+    const availableXp = getCharacterExperienceSummary(character.sheet).effectiveAvailable;
     const corruptionTotal = character.sheet.corrupcion.temporal + character.sheet.corrupcion.permanente;
     writtenFields += setText(form, fieldNames, "Jugador", character.sheet.identidad.nombreJugador);
     writtenFields += setText(form, fieldNames, "Nombre", character.name);
@@ -187,6 +189,9 @@ export async function importCharacterSheetPdf(file) {
     sheet.habilidades = importedCapabilities.habilidades;
     sheet.poderesMisticos = importedCapabilities.poderesMisticos;
     sheet.rituales = importedCapabilities.rituales;
+    sheet.bendiciones = importedCapabilities.bendiciones;
+    sheet.cargas = importedCapabilities.cargas;
+    sheet.rasgos = importedCapabilities.rasgos;
     const inferredArchetype = inferArchetype(sheet, profession);
     sheet.identidad.arquetipo = inferredArchetype;
     const payload = {
@@ -196,7 +201,7 @@ export async function importCharacterSheetPdf(file) {
         culture: sheet.identidad.cultura,
         profession,
         level: 1,
-        sheet
+        sheet: sanitizeImportSheetForValidation(sheet)
     };
     const validation = importCharacterSchema.safeParse(payload);
     if (!validation.success) {
@@ -232,7 +237,25 @@ function buildCapabilities(character) {
         efecto: item.efecto || item.notas || "",
         nivel: item.nivel
     }));
-    return [...fromHabilidades, ...fromPowers, ...fromRituals];
+    const fromBlessings = (character.sheet.bendiciones ?? []).map((item) => ({
+        nombre: item,
+        tipo: "Bendición",
+        efecto: "",
+        nivel: "novato"
+    }));
+    const fromBurdens = (character.sheet.cargas ?? []).map((item) => ({
+        nombre: item,
+        tipo: "Carga",
+        efecto: "",
+        nivel: "novato"
+    }));
+    const fromTraits = (character.sheet.rasgos ?? []).map((item) => ({
+        nombre: item,
+        tipo: "Rasgo",
+        efecto: "",
+        nivel: "novato"
+    }));
+    return [...fromHabilidades, ...fromPowers, ...fromRituals, ...fromBlessings, ...fromBurdens, ...fromTraits];
 }
 function buildContactCards(character) {
     const structured = character.sheet.contactosHoja.map((entry) => ({
@@ -262,9 +285,15 @@ function importCapabilities(fields) {
     const abilityCatalog = new Map(SYMBAROUM_ABILITIES.map((entry) => [normalizeCapabilityName(entry.nombre), entry]));
     const powerCatalog = new Map(SYMBAROUM_MYSTIC_POWERS.map((entry) => [normalizeCapabilityName(entry.nombre), entry]));
     const ritualCatalog = new Map(SYMBAROUM_RITUALS.map((entry) => [normalizeCapabilityName(entry.nombre), entry]));
+    const traitCatalog = new Map(ALL_ENTRIES
+        .filter((entry) => entry.tipo === "rasgo")
+        .map((entry) => [normalizeCapabilityName(entry.nombre), entry.nombre]));
     const habilidades = [];
     const poderesMisticos = [];
     const rituales = [];
+    const bendiciones = [];
+    const cargas = [];
+    const rasgos = [];
     for (let row = 1; row <= 4; row += 1) {
         for (let col = 1; col <= 3; col += 1) {
             const slot = `${row}${col}`;
@@ -282,14 +311,30 @@ function importCapabilities(fields) {
             const resolvedType = explicitType ??
                 (power ? "poder_mistico" : ritual ? "ritual" : "habilidad");
             const fromCatalog = resolvedType === "poder_mistico" ? power : resolvedType === "ritual" ? ritual : ability;
+            if (resolvedType === "bendicion") {
+                bendiciones.push(nombre);
+                continue;
+            }
+            if (resolvedType === "carga") {
+                cargas.push(nombre);
+                continue;
+            }
+            if (resolvedType === "rasgo") {
+                rasgos.push(resolveImportedTraitName(nombre, traitCatalog));
+                continue;
+            }
+            const canonicalEffect = truncateImportedCapabilityText(fromCatalog?.efectoResumen || "", 1200);
+            const canonicalNotes = truncateImportedCapabilityText(fromCatalog?.efectoResumen || "", 800);
+            const importedEffect = truncateImportedCapabilityText(efecto, 1200);
+            const importedNotes = truncateImportedCapabilityText(efecto, 800);
             const entry = {
-                nombre,
+                nombre: fromCatalog?.nombre ?? nombre,
                 tipo: resolvedType === "poder_mistico" ? "Poder místico" : resolvedType === "ritual" ? "Ritual" : "Habilidad",
-                efecto: efecto || fromCatalog?.efectoResumen || "",
+                efecto: canonicalEffect || importedEffect,
                 nivel,
                 fuente: fromCatalog?.libro ?? "",
                 pagina: fromCatalog?.pagina,
-                notas: efecto || fromCatalog?.efectoResumen || "",
+                notas: canonicalNotes || importedNotes,
                 acciones: fromCatalog?.acciones ?? []
             };
             if (resolvedType === "poder_mistico") {
@@ -303,7 +348,56 @@ function importCapabilities(fields) {
             }
         }
     }
-    return { habilidades, poderesMisticos, rituales };
+    return { habilidades, poderesMisticos, rituales, bendiciones, cargas, rasgos };
+}
+function truncateImportedCapabilityText(value, maxLength) {
+    const text = String(value ?? "").trim();
+    if (!text)
+        return "";
+    return text.length > maxLength ? text.slice(0, maxLength) : text;
+}
+function sanitizeImportSheetForValidation(sheet) {
+    const sanitizeEntries = (entries) => entries.map((entry) => ({
+        ...entry,
+        efecto: truncateImportedCapabilityText(entry.efecto ?? "", 1200),
+        notas: truncateImportedCapabilityText(entry.notas ?? "", 800)
+    }));
+    return {
+        ...sheet,
+        habilidades: sanitizeEntries(sheet.habilidades),
+        poderesMisticos: sanitizeEntries(sheet.poderesMisticos),
+        rituales: sanitizeEntries(sheet.rituales)
+    };
+}
+function resolveImportedTraitName(rawName, traitCatalog) {
+    const trimmedName = String(rawName ?? "").trim();
+    if (!trimmedName)
+        return "";
+    const { baseName, levelSuffix } = splitTraitLevelSuffix(trimmedName);
+    const canonicalName = traitCatalog.get(normalizeCapabilityName(baseName)) ?? trimmedName;
+    if (!levelSuffix) {
+        return canonicalName;
+    }
+    return `${canonicalName} ${levelSuffix}`;
+}
+function splitTraitLevelSuffix(value) {
+    const match = String(value ?? "").trim().match(/^(.*?)(?:\s*[\(\[]?\s*(I{1,3}|1|2|3)\s*[\)\]]?)$/i);
+    if (!match) {
+        return { baseName: String(value ?? "").trim(), levelSuffix: "" };
+    }
+    const baseName = String(match[1] ?? "").trim();
+    const rawLevel = normalizeCapabilityName(match[2] ?? "");
+    const normalizedLevel = rawLevel === "1" || rawLevel === "i"
+        ? "I"
+        : rawLevel === "2" || rawLevel === "ii"
+            ? "II"
+            : rawLevel === "3" || rawLevel === "iii"
+                ? "III"
+                : "";
+    return {
+        baseName: baseName || String(value ?? "").trim(),
+        levelSuffix: normalizedLevel ? `(${normalizedLevel})` : ""
+    };
 }
 function inferArchetype(sheet, profession) {
     if (sheet.poderesMisticos.length > 0) {
@@ -350,6 +444,12 @@ function normalizeCapabilityType(value) {
     const normalized = normalizeCapabilityName(value);
     if (!normalized)
         return null;
+    if (normalized.includes("rasgo"))
+        return "rasgo";
+    if (normalized.includes("bendicion"))
+        return "bendicion";
+    if (normalized.includes("carga"))
+        return "carga";
     if (normalized.includes("ritual"))
         return "ritual";
     if (normalized.includes("poder"))

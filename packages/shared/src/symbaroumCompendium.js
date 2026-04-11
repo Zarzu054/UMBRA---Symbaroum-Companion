@@ -341,7 +341,7 @@ const FORMA_VERDADERA_ACTIONS = [
     capabilityAction("general-forma-verdadera", "Lanzar Forma verdadera", "combat", "Revela o fuerza la verdadera forma de un objetivo según el nivel del poder y su resistencia mástica.", { rollAttribute: "tenaz" })
 ];
 const GLIFO_VAMPIRICO_ACTIONS = [
-    capabilityAction("general-glifo-vampirico", "Activar Glifo vampírico", "combat", "Activa un glifo que drena Resistencia del objetivo y la transfiere según el nivel del símbolo.", { rollAttribute: "tenaz" })
+    capabilityAction("general-glifo-vampirico", "Activar Glifo vampírico", "combat", "Activa un glifo que drena Resistencia del objetivo y la transfiere según el nivel del símbolo.", { rollAttribute: "tenaz", damageFormula: "1d4" })
 ];
 const HERIDA_COMPARTIDA_ACTIONS = [
     capabilityAction("novato-herida-compartida", "Lanzar Herida compartida (Novato)", "free", "Supera una tirada de Tenaz para curar 1D6 de Resistencia a otra criatura y sufrir tú la misma cantidad de daño.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
@@ -504,7 +504,7 @@ function resolveMysticPowerActions(nombre, resumen) {
 const ARCO_VELOZ_ACTIONS = [
     capabilityAction("novato-arco-veloz", "Usar Arco veloz (Novato)", "combat", "Sacrifica tu acción de movimiento para disparar una segunda flecha este turno. Ambas flechas se resuelven por separado y pueden dirigirse al mismo objetivo o a dos distintos.", { rollAttribute: "diestro" }),
     capabilityAction("adepto-arco-veloz", "Usar Arco veloz (Adepto)", "combat", "Dispara dos flechas con una sola acción de combate, contra uno o dos objetivos.", { rollAttribute: "diestro" }),
-    capabilityAction("maestro-arco-veloz", "Usar Arco veloz (Maestro)", "reaction", "Resuelve tres disparos con una sola acción de combate, contra uno o varios objetivos.", { rollAttribute: "diestro" })
+    capabilityAction("maestro-arco-veloz", "Usar Arco veloz (Maestro)", "combat", "Resuelve tres disparos con una sola acción de combate, contra uno o varios objetivos.", { rollAttribute: "diestro" })
 ];
 const ATAQUE_CON_DOS_ARMAS_ACTIONS = [
     capabilityAction("novato-ataque-con-dos-armas", "Usar Ataque con dos armas (Novato)", "combat", "Haz dos ataques contra el mismo objetivo: el arma principal causa 1D8 y la secundaria 1D6. El enemigo debe defenderse por separado de cada ataque.", { damageFormula: "1d8/1d6" }),
@@ -513,7 +513,9 @@ const ATAQUE_CON_DOS_ARMAS_ACTIONS = [
 ];
 const BERSERKER_ACTIONS = [
     capabilityAction("novato-berserker", "Entrar en frenesí (Novato)", "free", "Entra en frenesí homicida para causar +1D6 de daño en combate cuerpo a cuerpo. Mientras dure, tu Defensa se calcula como si tuvieras Ágil 5.", { damageFormula: "+1d6" }),
+    capabilityAction("novato-berserker-defensa", "Defender con Berserker (Novato)", "reaction", "Mientras estés en frenesí, tu Defensa se resuelve como si tuvieras Ágil 5.", { rollAttribute: "agil", fixedTarget: 5 }),
     capabilityAction("adepto-berserker", "Absorber daño con Berserker (Adepto)", "reaction", "Mientras estás en frenesí, puedes ignorar 1D4 de daño de cada ataque sufrido.", { damageFormula: "1d4" }),
+    capabilityAction("adepto-berserker-defensa", "Defender con Berserker (Adepto)", "reaction", "Mientras estés en frenesí, tu Defensa se resuelve como si tuvieras Ágil 5.", { rollAttribute: "agil", fixedTarget: 5 }),
     capabilityAction("maestro-berserker", "Entrar en frenesí controlado (Maestro)", "free", "Entra en frenesí manteniendo el daño y la protección adicionales de Berserker sin perder tu capacidad normal de defenderte.", { damageFormula: "+1d6" })
 ];
 const COMBATE_SIN_ARMAS_ACTIONS = [
@@ -874,8 +876,10 @@ export const SYMBAROUM_ABILITIES = [
     makeCapability("habilidad", "Poder místico", LIBRO_BASICO, 116),
     makeCapability("habilidad", "Puño de flecha", GUIA_AVANZADA, 67),
     makeCapability("habilidad", "Recuperación", LIBRO_BASICO, 116),
+    makeCapability("habilidad", "Recio", "Códice de monstruos", 1, [], "Novato: tu Robustez se calcula como Fuerte x1,5. Adepto: tu Robustez se calcula como Fuerte x2. Maestro: tu Robustez se calcula como Fuerte x3. Ref: Códice de monstruos, p.1."),
     makeCapability("habilidad", "Reflejos rápidos", GUIA_AVANZADA, 67),
     makeCapability("habilidad", "Rituales", LIBRO_BASICO, 115),
+    makeCapability("habilidad", "Robusto", "Códice de monstruos", 1, [], "Novato: tu Defensa se reduce en 2 y una vez por turno puedes añadir +1D4 al daño de un ataque cuerpo a cuerpo. Adepto: tu Defensa se reduce en 3 y el bono pasa a +1D6. Maestro: tu Defensa se reduce en 4 y el bono pasa a +1D8. Ref: Códice de monstruos, p.1."),
     makeCapability("habilidad", "Sexto sentido", LIBRO_BASICO, 116),
     makeCapability("habilidad", "Simbolismo", GUIA_AVANZADA, 67),
     makeCapability("habilidad", "Táctico", LIBRO_BASICO, 116),
@@ -884,6 +888,8 @@ export const SYMBAROUM_ABILITIES = [
     makeCapability("habilidad", "Teúrgia", LIBRO_BASICO, 116),
     makeCapability("habilidad", "Tirador", LIBRO_BASICO, 116, [], undefined, TIRADOR_ACTIONS),
     makeCapability("habilidad", "Trampero", GUIA_AVANZADA, 67),
+    makeCapability("habilidad", "Arma natural", "Códice de monstruos", 1, [], "Novato: ganas un ataque de Arma natural que inflige 1D6. Adepto: el ataque de Arma natural inflige 1D8. Maestro: el ataque de Arma natural inflige 1D10. Ref: Códice de monstruos, p.1."),
+    makeCapability("habilidad", "Duro", "Códice de monstruos", 1, [], "Novato: obtienes armadura natural 1D4. Adepto: obtienes armadura natural 1D6. Maestro: obtienes armadura natural 1D8. Ref: Códice de monstruos, p.1."),
     makeCapability("habilidad", "Venenos", LIBRO_BASICO, 113),
     makeCapability("habilidad", "Versado en criaturas", LIBRO_BASICO, 116),
     makeCapability("habilidad", "Viento de acero", LIBRO_BASICO, 116)

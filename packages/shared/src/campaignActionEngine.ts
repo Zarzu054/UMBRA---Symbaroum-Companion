@@ -9,6 +9,8 @@
   SkillLevel
 } from "./index.js";
 
+type FormulaBreakdownEntry = NonNullable<CharacterActionDefinition["damageBreakdown"]>[number];
+
 const LEGACY_WEAPON_SLOTS = [
   {
     id: "weapon:primary",
@@ -38,23 +40,90 @@ const LEGACY_WEAPON_SLOTS = [
 
 export function deriveCharacterActions(sheet: CharacterSheet): CharacterActionDefinition[] {
   if (sheet.actions.length > 0) {
-    return applyPassiveActionRules(
-      sheet,
-      sheet.actions.map((action) => ({
-      id: action.id,
-      label: action.label,
-      sourceType: action.sourceType === "utility" ? "ability" : action.sourceType,
-      sourceName: action.sourceName,
-      cost: action.cost,
-      requiredLevel: action.requiredLevel,
-      rollAttribute: action.rollAttribute,
-      damageFormula: normalizeFormula(action.damageFormula ?? ""),
-      effectSummary: action.effectSummary
+    const storedActions = sheet.actions
+      .filter((action) => isStoredSheetActionStillLinked(sheet, action))
+      .map((action) => ({
+        id: action.id,
+        label: action.label,
+        sourceType: action.sourceType === "utility" ? "ability" : action.sourceType,
+        sourceName: action.sourceName,
+        cost: action.cost,
+        requiredLevel: action.requiredLevel ?? inferActionLevel(action.id, action.label, action.sourceName),
+        rollAttribute: action.rollAttribute,
+        fixedTarget: action.fixedTarget,
+        damageFormula: normalizeFormula(action.damageFormula ?? ""),
+        damageBreakdown: action.damageFormula
+          ? [{ label: action.sourceName, formula: normalizeFormula(action.damageFormula ?? "") }]
+          : undefined,
+        effectSummary: action.effectSummary
       }))
+      .filter((action) => isSheetActionAvailableForCharacter(sheet, action));
+
+    const derivedActions = deriveLegacyCharacterActions(sheet);
+    const filteredStoredActions = storedActions.filter(
+      (action) => !hasDerivedCombatOverride(action, derivedActions)
     );
+    const filteredDerivedActions = derivedActions.filter(
+      (action) => !hasStoredWeaponEquivalent(action, filteredStoredActions)
+    );
+    return applyPassiveActionRules(sheet, dedupeActions([...filteredStoredActions, ...filteredDerivedActions]));
   }
 
   return deriveLegacyCharacterActions(sheet);
+}
+
+function isStoredSheetActionStillLinked(sheet: CharacterSheet, action: CharacterSheet["actions"][number]): boolean {
+  const inventoryItemIds = new Set(sheet.inventoryItems.map((item) => item.id));
+  if (action.linkedItemId) {
+    return inventoryItemIds.has(action.linkedItemId);
+  }
+
+  if (action.id.startsWith("inventory:")) {
+    return inventoryItemIds.has(action.id.slice("inventory:".length));
+  }
+
+  if (action.id.startsWith("item:")) {
+    const rawItemId = action.id.slice("item:".length).split(":")[0] ?? "";
+    return inventoryItemIds.has(rawItemId);
+  }
+
+  return true;
+}
+
+function hasDerivedCombatOverride(
+  action: CharacterActionDefinition,
+  derivedActions: CharacterActionDefinition[]
+): boolean {
+  if (action.sourceType !== "weapon") {
+    return false;
+  }
+
+  return derivedActions.some((derivedAction) =>
+    derivedAction.sourceType === "weapon" &&
+    normalizeName(derivedAction.sourceName) === normalizeName(action.sourceName) &&
+    normalizeName(derivedAction.label) === normalizeName(action.label) &&
+    derivedAction.cost === action.cost &&
+    (normalizeFormula(derivedAction.damageFormula ?? "") ?? "") === (normalizeFormula(action.damageFormula ?? "") ?? "")
+  );
+}
+
+function hasStoredWeaponEquivalent(
+  action: CharacterActionDefinition,
+  storedActions: CharacterActionDefinition[]
+): boolean {
+  if (action.sourceType !== "weapon") {
+    return false;
+  }
+
+  return storedActions.some((storedAction) =>
+    storedAction.sourceType === "weapon" &&
+    normalizeName(storedAction.sourceName) === normalizeName(action.sourceName) &&
+    normalizeName(storedAction.label) === normalizeName(action.label) &&
+    storedAction.cost === action.cost &&
+    storedAction.rollAttribute === action.rollAttribute &&
+    (storedAction.fixedTarget ?? null) === (action.fixedTarget ?? null) &&
+    (normalizeFormula(storedAction.damageFormula ?? "") ?? "") === (normalizeFormula(action.damageFormula ?? "") ?? "")
+  );
 }
 
 function deriveLegacyCharacterActions(sheet: CharacterSheet): CharacterActionDefinition[] {
@@ -70,6 +139,9 @@ function deriveLegacyCharacterActions(sheet: CharacterSheet): CharacterActionDef
       cost: "combat",
       rollAttribute: weapon.attackAttribute ?? "diestro",
       damageFormula: normalizeFormula(weapon.damageFormula),
+      damageBreakdown: normalizeFormula(weapon.damageFormula)
+        ? [{ label: weapon.name, formula: normalizeFormula(weapon.damageFormula) }]
+        : undefined,
       effectSummary: weapon.qualities || weapon.description || "Tirada de ataque y, si procede, da\u00f1o del arma."
     });
   }
@@ -78,6 +150,8 @@ function deriveLegacyCharacterActions(sheet: CharacterSheet): CharacterActionDef
     for (const slot of LEGACY_WEAPON_SLOTS) {
       const weaponName = slot.sourceName(sheet).trim();
       if (!weaponName) continue;
+      const normalizedWeaponName = normalizeName(weaponName);
+      if (normalizedWeaponName === "natural" || normalizedWeaponName === "arma natural" || normalizedWeaponName === "armas naturales") continue;
 
       actions.push({
         id: slot.id,
@@ -87,6 +161,9 @@ function deriveLegacyCharacterActions(sheet: CharacterSheet): CharacterActionDef
         cost: "combat",
         rollAttribute: slot.attribute(sheet),
         damageFormula: normalizeFormula(slot.damage(sheet)),
+        damageBreakdown: normalizeFormula(slot.damage(sheet))
+          ? [{ label: weaponName, formula: normalizeFormula(slot.damage(sheet)) }]
+          : undefined,
         effectSummary: "Tirada de ataque y, si procede, da\u00f1o del arma."
       });
     }
@@ -124,14 +201,16 @@ function mapRatedEntryActions(
         cost: action.cost,
         requiredLevel: action.requiredLevel ?? inferActionLevel(action.id, action.label),
         rollAttribute: action.rollAttribute,
+        fixedTarget: action.fixedTarget,
         damageFormula: action.damageFormula,
+        damageBreakdown: action.damageFormula ? [{ label: sourceName, formula: normalizeFormula(action.damageFormula) ?? action.damageFormula }] : undefined,
         effectSummary: action.effectSummary
       }))
-      .filter((action) => canUseActionAtLevel(entryLevel, action.requiredLevel));
+      .filter((action) => isActionAvailableForEntryLevel(entryLevel, action.requiredLevel));
   }
 
   const fallbackAction = inferFallbackAction(sourceType, sourceName, fallbackText);
-  return fallbackAction && canUseActionAtLevel(entryLevel, fallbackAction.requiredLevel) ? [fallbackAction] : [];
+  return fallbackAction && isActionAvailableForEntryLevel(entryLevel, fallbackAction.requiredLevel) ? [fallbackAction] : [];
 }
 
 function inferFallbackAction(
@@ -189,7 +268,8 @@ export function buildRollRequest(
   actionId: string,
   phase: CharacterActionPhase,
   destination: RollDestination,
-  note = ""
+  note = "",
+  selectedDamageModifierIds: string[] = []
 ): RollRequest {
   const action = deriveCharacterActions(sheet).find((entry) => entry.id === actionId);
   if (!action) {
@@ -213,12 +293,13 @@ export function buildRollRequest(
       sourceType: action.sourceType,
       formula: "1d20",
       rollAttribute: action.rollAttribute,
-      target: sheet.atributos[action.rollAttribute],
+      target: action.fixedTarget ?? sheet.atributos[action.rollAttribute],
       note: note.trim() || undefined
     };
   }
 
-  if (!action.damageFormula) {
+  const damageRoll = resolveDamageRoll(action, selectedDamageModifierIds);
+  if (!damageRoll) {
     throw new Error("Esta accion no tiene tirada de da\u00f1o");
   }
 
@@ -231,15 +312,18 @@ export function buildRollRequest(
     actionLabel: action.label,
     sourceName: action.sourceName,
     sourceType: action.sourceType,
-    formula: action.damageFormula,
-    note: note.trim() || undefined
+    formula: damageRoll.formula,
+    selectedDamageModifierIds: damageRoll.selectedModifierIds,
+    formulaBreakdown: damageRoll.breakdown,
+    note: buildDamageRollNote(damageRoll, note)
   };
 }
 
 export function executeCharacterAction(
   sheet: CharacterSheet,
   actionId: string,
-  phase: CharacterActionPhase = "attack"
+  phase: CharacterActionPhase = "attack",
+  selectedDamageModifierIds: string[] = []
 ): { action: CharacterActionDefinition; rolls: ActionRollResult[] } {
   const action = deriveCharacterActions(sheet).find((entry) => entry.id === actionId);
   if (!action) {
@@ -253,7 +337,7 @@ export function executeCharacterAction(
     }
 
     const die = rollDie(20);
-    const target = sheet.atributos[action.rollAttribute];
+    const target = action.fixedTarget ?? sheet.atributos[action.rollAttribute];
     const isWeaponAttack = action.sourceType === "weapon";
     rolls.push({
       kind: isWeaponAttack ? "attack_check" : "attribute_check",
@@ -265,15 +349,16 @@ export function executeCharacterAction(
       success: die <= target
     });
   } else {
-    if (!action.damageFormula) {
+    const damageRoll = resolveDamageRoll(action, selectedDamageModifierIds);
+    if (!damageRoll) {
       throw new Error("Esta accion no tiene tirada de da\u00f1o");
     }
 
-    const damage = rollFormula(action.damageFormula);
+    const damage = rollFormula(damageRoll.formula);
     if (damage) {
       rolls.push({
         kind: "damage",
-        label: "Da\u00f1o",
+        label: damageRoll.label,
         dice: damage.dice,
         total: damage.total,
         formula: damage.formula
@@ -292,18 +377,46 @@ function inferActionLevel(...values: string[]): SkillLevel | undefined {
   return undefined;
 }
 
-function canUseActionAtLevel(entryLevel: SkillLevel, requiredLevel?: SkillLevel): boolean {
+function isActionAvailableForEntryLevel(entryLevel: SkillLevel, requiredLevel?: SkillLevel): boolean {
   if (!requiredLevel) {
     return true;
   }
+  return entryLevel === requiredLevel;
+}
 
-  const levelOrder: Record<SkillLevel, number> = {
-    novato: 0,
-    adepto: 1,
-    maestro: 2
-  };
+function isSheetActionAvailableForCharacter(
+  sheet: CharacterSheet,
+  action: CharacterActionDefinition
+): boolean {
+  if (
+    action.sourceType !== "ability" &&
+    action.sourceType !== "power" &&
+    action.sourceType !== "ritual"
+  ) {
+    return true;
+  }
 
-  return levelOrder[requiredLevel] <= levelOrder[entryLevel];
+  const entryLevel = getSourceEntryLevel(sheet, action.sourceType, action.sourceName);
+  if (!entryLevel) {
+    return true;
+  }
+
+  return isActionAvailableForEntryLevel(entryLevel, action.requiredLevel);
+}
+
+function getSourceEntryLevel(
+  sheet: CharacterSheet,
+  sourceType: "ability" | "power" | "ritual",
+  sourceName: string
+): SkillLevel | undefined {
+  const target = normalizeName(sourceName);
+  const entries = sourceType === "ability"
+    ? sheet.habilidades
+    : sourceType === "power"
+      ? sheet.poderesMisticos
+      : sheet.rituales;
+
+  return entries.find((entry) => normalizeName(entry.nombre) === target)?.nivel;
 }
 
 function normalizeAttribute(value: string): AttributeKey | undefined {
@@ -338,21 +451,272 @@ function normalizeFormula(value: string): string | undefined {
 function applyPassiveActionRules(sheet: CharacterSheet, actions: CharacterActionDefinition[]): CharacterActionDefinition[] {
   const filteredActions = actions.filter((action) => !shouldSuppressStandaloneStyleAction(action));
   const styleAdjustedActions = applyIntegratedCombatStyles(sheet, filteredActions);
+  ensureBerserkerDefenseAction(sheet, styleAdjustedActions);
+  const visibleActions = styleAdjustedActions;
   const unarmedCombatLevel = getRatedEntryLevel(sheet, "Combate sin armas");
-  if (!unarmedCombatLevel) {
-    return dedupeActions(styleAdjustedActions);
-  }
-
-  if (styleAdjustedActions.some((action) => isNaturalWeaponAction(action))) {
-    return dedupeActions(styleAdjustedActions);
-  }
-
-  const hasUnarmedAction = styleAdjustedActions.some((action) => action.id === "ability:combate-sin-armas:base");
+  const hasUnarmedAction = visibleActions.some((action) => action.id === "ability:combate-sin-armas:base");
   if (!hasUnarmedAction) {
-    styleAdjustedActions.push(createUnarmedAttackAction(unarmedCombatLevel));
+    const [unarmedAction] = applyIntegratedCombatStyles(sheet, [createUnarmedAttackAction(sheet, unarmedCombatLevel)]);
+    visibleActions.push(unarmedAction);
+  }
+  const naturalWeaponAction = createNaturalWeaponAttackAction(sheet);
+  if (naturalWeaponAction && !visibleActions.some((action) => action.id === naturalWeaponAction.id)) {
+    const [styledNaturalWeaponAction] = applyIntegratedCombatStyles(sheet, [naturalWeaponAction]);
+    visibleActions.push(styledNaturalWeaponAction);
   }
 
-  return dedupeActions(styleAdjustedActions);
+  applyConditionalDamageVariants(sheet, visibleActions);
+  return dedupeActions(visibleActions);
+}
+
+function applyConditionalDamageVariants(sheet: CharacterSheet, actions: CharacterActionDefinition[]): void {
+  const bonuses = collectConditionalDamageBonuses(sheet, actions);
+  if (bonuses.length === 0) {
+    return;
+  }
+
+  for (const action of actions) {
+    if (action.sourceType !== "weapon" || !action.damageFormula) {
+      continue;
+    }
+
+    const applicableBonuses = bonuses.filter((bonus) => doesBonusApplyToWeaponAction(bonus, action));
+    if (applicableBonuses.length === 0) {
+      continue;
+    }
+
+    action.damageModifiers = applicableBonuses
+      .map((bonus) => ({
+        id: bonus.id,
+        label: bonus.label,
+        formula: bonus.formula
+      }))
+      .filter((modifier, index, modifiers) => modifiers.findIndex((entry) => entry.id === modifier.id) === index);
+  }
+}
+
+type ConditionalDamageBonus = {
+  id: string;
+  label: string;
+  formula: string;
+  appliesTo: "melee" | "ranged" | "any";
+};
+
+function collectConditionalDamageBonuses(sheet: CharacterSheet, actions: CharacterActionDefinition[]): ConditionalDamageBonus[] {
+  const bonuses: ConditionalDamageBonus[] = [];
+  const robustBonus = getRobustDamageBonus(sheet);
+  if (robustBonus) {
+    bonuses.push(robustBonus);
+  }
+
+  for (const action of actions) {
+    if (action.sourceType === "weapon" || !action.damageFormula) {
+      continue;
+    }
+
+    const normalizedDamage = normalizeFormula(action.damageFormula);
+    if (!normalizedDamage?.startsWith("+")) {
+      continue;
+    }
+
+    const normalizedText = normalizeName(`${action.label} ${action.effectSummary}`);
+
+    bonuses.push({
+      id: action.id,
+      label: action.sourceName,
+      formula: normalizedDamage,
+      appliesTo: inferConditionalBonusApplicability(normalizedText)
+    });
+  }
+
+  return bonuses.filter((bonus, index, entries) => entries.findIndex((entry) => entry.id === bonus.id) === index);
+}
+
+function getRobustDamageBonus(sheet: CharacterSheet): ConditionalDamageBonus | null {
+  const robustLevel = getRobustLevel(sheet);
+  if (robustLevel <= 0) {
+    return null;
+  }
+
+  const flatBonus = robustLevel === 1 ? 2 : robustLevel === 2 ? 3 : 4;
+  const formula = convertMonsterFlatBonusToPlayerRoll(flatBonus);
+  return {
+    id: `trait:robusto:${robustLevel}`,
+    label: "Robusto",
+    formula,
+    appliesTo: "melee"
+  };
+}
+
+function getNaturalWeaponDamageBonus(sheet: CharacterSheet): ConditionalDamageBonus | null {
+  const naturalWeaponLevel = getTraitLevel(sheet, ["arma natural", "armas naturales"]);
+  if (naturalWeaponLevel <= 0) {
+    return null;
+  }
+
+  return {
+    id: `trait:arma-natural:${naturalWeaponLevel}`,
+    label: "Arma natural",
+    formula: convertMonsterFlatBonusToPlayerRoll(naturalWeaponLevel),
+    appliesTo: "melee"
+  };
+}
+
+function getRobustLevel(sheet: CharacterSheet): number {
+  return getTraitLevel(sheet, ["robusto", "robusta"]);
+}
+
+function getTraitLevel(sheet: CharacterSheet, traitNames: string | string[]): number {
+  const aliases = (Array.isArray(traitNames) ? traitNames : [traitNames]).map((entry) => normalizeName(entry));
+  const ratedAbilityLevel = getRatedAbilityLevelByAliases(sheet, aliases);
+  if (ratedAbilityLevel > 0) {
+    return ratedAbilityLevel;
+  }
+
+  const traitSources = [
+    ...sheet.rasgos,
+    ...String(sheet.noteSections?.traits ?? "")
+      .split(/[,\n;]/)
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+  ];
+
+  for (const rawTrait of traitSources) {
+    const normalized = normalizeName(rawTrait);
+    if (!aliases.some((alias) => normalized.startsWith(alias))) {
+      continue;
+    }
+
+    if (/\bmaestro\b/.test(normalized)) return 3;
+    if (/\badepto\b/.test(normalized)) return 2;
+    if (/\bnovato\b/.test(normalized)) return 1;
+    if (/\biii\b|\b3\b/.test(normalized)) return 3;
+    if (/\bii\b|\b2\b/.test(normalized)) return 2;
+    return 1;
+  }
+
+  return 0;
+}
+
+function getRatedAbilityLevelByAliases(sheet: CharacterSheet, aliases: string[]): number {
+  let highest = 0;
+
+  for (const entry of sheet.habilidades) {
+    const normalized = normalizeName(entry.nombre);
+    if (!aliases.some((alias) => normalized === alias || normalized.startsWith(`${alias} `) || normalized.startsWith(`${alias} (`))) {
+      continue;
+    }
+
+    highest = Math.max(highest, skillLevelToNumber(entry.nivel));
+  }
+
+  return highest;
+}
+
+function skillLevelToNumber(level?: SkillLevel): number {
+  switch (level) {
+    case "maestro":
+      return 3;
+    case "adepto":
+      return 2;
+    case "novato":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function convertMonsterFlatBonusToPlayerRoll(value: number): string {
+  switch (value) {
+    case 2:
+      return "+1d4";
+    case 3:
+      return "+1d6";
+    case 4:
+      return "+1d8";
+    case 5:
+      return "+1d10";
+    case 6:
+      return "+1d12";
+    default:
+      return value >= 0 ? `+${value}` : String(value);
+  }
+}
+
+function inferConditionalBonusApplicability(text: string): "melee" | "ranged" | "any" {
+  if (/(combate cuerpo a cuerpo|cuerpo a cuerpo|ataque cuerpo a cuerpo)/.test(text)) {
+    return "melee";
+  }
+  if (/(ataque a distancia|disparo|proyectil|arco|ballesta)/.test(text)) {
+    return "ranged";
+  }
+  return "any";
+}
+
+function doesBonusApplyToWeaponAction(bonus: ConditionalDamageBonus, action: CharacterActionDefinition): boolean {
+  if (bonus.appliesTo === "any") {
+    return true;
+  }
+  if (bonus.appliesTo === "melee") {
+    return !isBowOrCrossbowAction(action) && !isThrownWeaponAction(action);
+  }
+  return isBowOrCrossbowAction(action) || isThrownWeaponAction(action);
+}
+
+function combineDamageFormulas(base: string, bonus: string): string {
+  const normalizedBase = normalizeFormula(base) ?? base.trim().toLowerCase();
+  const normalizedBonus = normalizeFormula(bonus) ?? bonus.trim().toLowerCase();
+  if (!normalizedBonus) {
+    return normalizedBase;
+  }
+  return normalizedBonus.startsWith("+") || normalizedBonus.startsWith("-")
+    ? `${normalizedBase}${normalizedBonus}`
+    : `${normalizedBase}+${normalizedBonus}`;
+}
+
+function resolveDamageRoll(
+  action: CharacterActionDefinition,
+  selectedDamageModifierIds: string[] = []
+): { label: string; formula: string; selectedModifierIds: string[]; selectedModifierLabels: string[]; breakdown: FormulaBreakdownEntry[] } | null {
+  const baseFormula = action.damageFormula;
+  if (!baseFormula) {
+    return null;
+  }
+
+  const modifiers = action.damageModifiers ?? [];
+  const selectedModifiers = modifiers.filter((modifier) => selectedDamageModifierIds.includes(modifier.id));
+  const formula = selectedModifiers.reduce((currentFormula, modifier) => combineDamageFormulas(currentFormula, modifier.formula), baseFormula);
+  const selectedModifierLabels = selectedModifiers.map((modifier) => modifier.label);
+  const breakdown = [...(action.damageBreakdown ?? [{ label: action.sourceName, formula: baseFormula }])];
+
+  for (const modifier of selectedModifiers) {
+    breakdown.push({
+      label: modifier.label,
+      formula: modifier.formula
+    });
+  }
+
+  return {
+    label: selectedModifierLabels.length > 0 ? `Danio (${selectedModifierLabels.join(", ")})` : "Danio",
+    formula,
+    selectedModifierIds: selectedModifiers.map((modifier) => modifier.id),
+    selectedModifierLabels,
+    breakdown
+  };
+}
+
+function buildDamageRollNote(
+  damageRoll: { selectedModifierLabels: string[] },
+  note: string
+): string | undefined {
+  const parts = [];
+  if (damageRoll.selectedModifierLabels.length > 0) {
+    parts.push(`Modificadores: ${damageRoll.selectedModifierLabels.join(", ")}`);
+  }
+  if (note.trim()) {
+    parts.push(note.trim());
+  }
+  return parts.length > 0 ? parts.join(" | ") : undefined;
 }
 
 function shouldSuppressStandaloneStyleAction(action: CharacterActionDefinition): boolean {
@@ -369,21 +733,84 @@ function getRatedEntryLevel(sheet: CharacterSheet, name: string): SkillLevel | u
   return sheet.habilidades.find((entry) => normalizeName(entry.nombre) === target)?.nivel;
 }
 
-function createUnarmedAttackAction(level: SkillLevel): CharacterActionDefinition {
+function createUnarmedAttackAction(sheet: CharacterSheet, level?: SkillLevel): CharacterActionDefinition {
+  const baseDamage = !level ? "1d4" : level === "maestro" ? "2d6" : "1d6";
   return {
     id: "ability:combate-sin-armas:base",
     label: "Ataque desarmado",
     sourceType: "weapon",
-    sourceName: "Combate sin armas",
+    sourceName: level ? "Combate sin armas" : "Ataque basico",
     cost: "combat",
-    rollAttribute: "fuerte",
-    damageFormula: level === "maestro" ? "2d6" : "1d6",
-    effectSummary: level === "adepto"
-      ? "Ataque desarmado base. Combate sin armas permite resolver por separado un segundo ataque contra el mismo objetivo."
-      : level === "maestro"
-        ? "Ataque desarmado base mejorado por Combate sin armas. Los ataques desarmados infligen 2d6."
-        : "Ataque desarmado base de Combate sin armas."
+    rollAttribute: "diestro",
+    damageFormula: baseDamage,
+    damageBreakdown: [{ label: level ? "Combate sin armas" : "Ataque basico", formula: baseDamage }],
+    effectSummary: !level
+      ? "Ataque desarmado basico disponible para cualquier personaje."
+      : level === "adepto"
+        ? "Ataque desarmado base. Combate sin armas permite resolver por separado un segundo ataque contra el mismo objetivo."
+        : level === "maestro"
+          ? "Ataque desarmado base mejorado por Combate sin armas. Los ataques desarmados infligen 2d6."
+          : "Ataque desarmado base de Combate sin armas."
   };
+}
+
+function createNaturalWeaponAttackAction(sheet: CharacterSheet): CharacterActionDefinition | null {
+  const naturalWeaponLevel = getTraitLevel(sheet, ["arma natural", "armas naturales"]);
+  if (naturalWeaponLevel <= 0) {
+    return null;
+  }
+
+  const damageFormula = naturalWeaponLevel === 3 ? "1d10" : naturalWeaponLevel === 2 ? "1d8" : "1d6";
+  return {
+    id: `trait:arma-natural:${naturalWeaponLevel}`,
+    label: "Ataque con Arma natural",
+    sourceType: "weapon",
+    sourceName: "Arma natural",
+    cost: "combat",
+    rollAttribute: "diestro",
+    damageFormula,
+    damageBreakdown: [
+      { label: "Arma natural", formula: damageFormula }
+    ],
+    effectSummary: "Ataque cuerpo a cuerpo realizado con las armas naturales del personaje."
+  };
+}
+
+function ensureBerserkerDefenseAction(sheet: CharacterSheet, actions: CharacterActionDefinition[]): void {
+  const berserkerLevel = getRatedEntryLevel(sheet, "Berserker");
+  if (!berserkerLevel || berserkerLevel === "maestro") {
+    return;
+  }
+
+  const defenseId = `ability:Berserker:${berserkerLevel}-berserker-defensa`;
+  const hasDefenseAction = actions.some((action) => action.id === defenseId || (action.sourceName === "Berserker" && action.fixedTarget === 5));
+  if (hasDefenseAction) {
+    return;
+  }
+
+  actions.push({
+    id: defenseId,
+    label: `Defender con Berserker (${capitalizeSkillLevel(berserkerLevel)})`,
+    sourceType: "ability",
+    sourceName: "Berserker",
+    cost: "reaction",
+    requiredLevel: berserkerLevel,
+    rollAttribute: "agil",
+    fixedTarget: 5,
+    effectSummary: "Mientras estés en frenesí, tu Defensa se resuelve como si tuvieras Ágil 5."
+  });
+}
+
+function capitalizeSkillLevel(level: SkillLevel): "Novato" | "Adepto" | "Maestro" {
+  switch (level) {
+    case "maestro":
+      return "Maestro";
+    case "adepto":
+      return "Adepto";
+    case "novato":
+    default:
+      return "Novato";
+  }
 }
 
 const INTEGRATED_COMBAT_STYLE_ABILITIES = new Set([
@@ -396,6 +823,8 @@ const INTEGRATED_COMBAT_STYLE_ABILITIES = new Set([
   "combate con armas de cadena",
   "combate sin armas",
   "cuchillo rapido",
+  "golpe de hierro",
+  "sexto sentido",
   "tirador",
   "viento de acero"
 ]);
@@ -406,11 +835,19 @@ function applyIntegratedCombatStyles(sheet: CharacterSheet, actions: CharacterAc
       return action;
     }
 
-    let next = { ...action };
+    let next = {
+      ...action,
+      damageBreakdown: action.damageBreakdown
+        ? [...action.damageBreakdown]
+        : action.damageFormula
+          ? [{ label: action.sourceName, formula: action.damageFormula }]
+          : undefined
+    };
     const twoHandedLevel = getRatedEntryLevel(sheet, "Armas a dos manos");
     if (twoHandedLevel && isHeavyWeaponAction(next)) {
       if (next.damageFormula) {
         next.damageFormula = normalizeFormula(increaseDamageDie(next.damageFormula) ?? next.damageFormula);
+        appendDamageBreakdownDetail(next, "Armas a dos manos", `Mejora el dado base (${capitalizeSkillLevel(twoHandedLevel)}).`);
       }
       next.effectSummary = appendSummary(next.effectSummary, buildTwoHandedSummary(twoHandedLevel));
     }
@@ -419,6 +856,7 @@ function applyIntegratedCombatStyles(sheet: CharacterSheet, actions: CharacterAc
     if (polearmLevel && isPolearmAction(next)) {
       if (next.damageFormula) {
         next.damageFormula = normalizeFormula(increaseDamageDie(next.damageFormula) ?? next.damageFormula);
+        appendDamageBreakdownDetail(next, "Armas de asta", `Mejora el dado base (${capitalizeSkillLevel(polearmLevel)}).`);
       }
       next.effectSummary = appendSummary(next.effectSummary, buildPolearmSummary(polearmLevel));
     }
@@ -436,6 +874,14 @@ function applyIntegratedCombatStyles(sheet: CharacterSheet, actions: CharacterAc
     const shieldLevel = getRatedEntryLevel(sheet, "Combate con escudo");
     if (shieldLevel && hasEquippedShield(sheet) && isMeleeWeaponAction(next)) {
       next.effectSummary = appendSummary(next.effectSummary, buildShieldSummary(shieldLevel));
+    }
+
+    const ironFistLevel = getRatedEntryLevel(sheet, "Golpe de hierro");
+    if (ironFistLevel && isMeleeWeaponAction(next)) {
+      if (isAttributeEligibleForIronFist(next.rollAttribute)) {
+        next.rollAttribute = "fuerte";
+      }
+      next.effectSummary = appendSummary(next.effectSummary, buildIronFistSummary(ironFistLevel));
     }
 
     const chainLevel = getRatedEntryLevel(sheet, "Combate con armas de cadena");
@@ -460,14 +906,24 @@ function applyIntegratedCombatStyles(sheet: CharacterSheet, actions: CharacterAc
     if (marksmanLevel && isBowOrCrossbowAction(next)) {
       if (next.damageFormula) {
         next.damageFormula = normalizeFormula(increaseDamageDie(next.damageFormula) ?? next.damageFormula);
+        appendDamageBreakdownDetail(next, "Tirador", `Mejora el dado base (${capitalizeSkillLevel(marksmanLevel)}).`);
       }
       next.effectSummary = appendSummary(next.effectSummary, buildMarksmanSummary(marksmanLevel));
+    }
+
+    const sixthSenseLevel = getRatedEntryLevel(sheet, "Sexto sentido");
+    if (sixthSenseLevel && isRangedWeaponAction(next)) {
+      if (!next.rollAttribute || next.rollAttribute === "diestro") {
+        next.rollAttribute = "atento";
+      }
+      next.effectSummary = appendSummary(next.effectSummary, buildSixthSenseSummary(sixthSenseLevel));
     }
 
     const steelWindLevel = getRatedEntryLevel(sheet, "Viento de acero");
     if (steelWindLevel && isThrownWeaponAction(next)) {
       if (next.damageFormula) {
         next.damageFormula = normalizeFormula(increaseDamageDie(next.damageFormula) ?? next.damageFormula);
+        appendDamageBreakdownDetail(next, "Viento de acero", `Mejora el dado base (${capitalizeSkillLevel(steelWindLevel)}).`);
       }
       next.effectSummary = appendSummary(next.effectSummary, buildSteelWindSummary(steelWindLevel));
     }
@@ -489,18 +945,43 @@ function appendSummary(base: string, extra: string): string {
 
 function increaseDamageDie(formula: string): string | null {
   const normalized = formula.trim().toLowerCase();
-  const match = normalized.match(/^(\d+)d(4|6|8|10)([+-]\d+)?$/);
+  const match = normalized.match(/^(\d+)d(4|6|8|10|12)([+-]\d+)?$/);
   if (!match) return null;
 
   const count = Number(match[1]);
   const sides = Number(match[2]);
-  const modifier = match[3] ?? "";
+  const modifier = Number(match[3] ?? 0);
+
+  if (sides >= 12) {
+    if (count === 1) {
+      const nextModifier = modifier + 1;
+      return `1d12${nextModifier > 0 ? `+${nextModifier}` : nextModifier < 0 ? String(nextModifier) : ""}`;
+    }
+    return `${count}d12${modifier > 0 ? `+${modifier}` : modifier < 0 ? String(modifier) : ""}`;
+  }
+
   const nextSides = sides === 4 ? 6 : sides === 6 ? 8 : sides === 8 ? 10 : 12;
-  return `${count}d${nextSides}${modifier}`;
+  return `${count}d${nextSides}${modifier > 0 ? `+${modifier}` : modifier < 0 ? String(modifier) : ""}`;
+}
+
+function appendDamageBreakdownDetail(action: CharacterActionDefinition, label: string, detail: string): void {
+  if (!action.damageBreakdown) {
+    action.damageBreakdown = [];
+  }
+
+  if (action.damageBreakdown.some((entry) => normalizeName(entry.label) === normalizeName(label) && normalizeName(entry.detail ?? "") === normalizeName(detail))) {
+    return;
+  }
+
+  action.damageBreakdown.push({ label, detail });
 }
 
 function isAttributeEligibleForAgileKnife(attribute: AttributeKey | undefined): boolean {
   return !attribute || attribute === "diestro" || attribute === "agil";
+}
+
+function isAttributeEligibleForIronFist(attribute: AttributeKey | undefined): boolean {
+  return !attribute || attribute === "diestro";
 }
 
 function hasEquippedShield(sheet: CharacterSheet): boolean {
@@ -545,6 +1026,12 @@ function buildShieldSummary(level: SkillLevel): string {
   return "Combate con escudo: mientras lleves escudo mejoras la defensa y el dano de armas compatibles.";
 }
 
+function buildIronFistSummary(level: SkillLevel): string {
+  if (level === "maestro") return "Golpe de hierro: tus ataques cuerpo a cuerpo usan Fuerte en vez de Diestro y el bono de dano se resuelve desde el modal de dano.";
+  if (level === "adepto") return "Golpe de hierro: tus ataques cuerpo a cuerpo usan Fuerte en vez de Diestro y pueden beneficiarse del bono de dano de la habilidad.";
+  return "Golpe de hierro: tus ataques cuerpo a cuerpo usan Fuerte en vez de Diestro.";
+}
+
 function buildChainSummary(level: SkillLevel): string {
   if (level === "maestro") return "Combate con armas de cadena: puedes barrer y atacar a todos los oponentes a tu alcance.";
   if (level === "adepto") return "Combate con armas de cadena: el golpe secundario del arma de cadena inflige 1d8.";
@@ -567,6 +1054,12 @@ function buildMarksmanSummary(level: SkillLevel): string {
   if (level === "maestro") return "Tirador: el ataque a distancia puede ignorar completamente la armadura.";
   if (level === "adepto") return "Tirador: si hieres al objetivo, puedes inmovilizar su movimiento con [Diestro<-Fuerte].";
   return "Tirador: el dano de arcos y ballestas aumenta un nivel.";
+}
+
+function buildSixthSenseSummary(level: SkillLevel): string {
+  if (level === "maestro") return "Sexto sentido: puedes combatir a distancia guiandote por otros sentidos incluso en oscuridad o ceguera.";
+  if (level === "adepto") return "Sexto sentido: tu intuicion mejora tambien la iniciativa y la Defensa.";
+  return "Sexto sentido: tus ataques a distancia usan Atento en vez de Diestro.";
 }
 
 function buildSteelWindSummary(level: SkillLevel): string {
@@ -596,7 +1089,11 @@ function isLongWeaponAction(action: CharacterActionDefinition): boolean {
 }
 
 function isMeleeWeaponAction(action: CharacterActionDefinition): boolean {
-  return !isBowOrCrossbowAction(action) && !isThrownWeaponAction(action) && !isNaturalWeaponAction(action);
+  return !isRangedWeaponAction(action);
+}
+
+function isRangedWeaponAction(action: CharacterActionDefinition): boolean {
+  return isBowOrCrossbowAction(action) || isThrownWeaponAction(action) || isWeaponTextMatch(action, /(honda|tirachinas|onda)/);
 }
 
 function isChainWeaponAction(action: CharacterActionDefinition): boolean {
@@ -636,12 +1133,27 @@ function normalizeName(value: string): string {
 function dedupeActions(actions: CharacterActionDefinition[]): CharacterActionDefinition[] {
   const seen = new Set<string>();
   return actions.filter((action) => {
-    if (seen.has(action.id)) {
+    const signature = buildActionDedupeSignature(action);
+    if (seen.has(signature)) {
       return false;
     }
-    seen.add(action.id);
+    seen.add(signature);
     return true;
   });
+}
+
+function buildActionDedupeSignature(action: CharacterActionDefinition): string {
+  return [
+    action.sourceType,
+    normalizeName(action.sourceName),
+    normalizeName(action.label),
+    action.cost,
+    action.requiredLevel ?? "",
+    action.rollAttribute ?? "",
+    action.fixedTarget ?? "",
+    normalizeFormula(action.damageFormula ?? "") ?? "",
+    normalizeName(action.effectSummary ?? "")
+  ].join("|");
 }
 
 function rollDie(sides: number): number {
@@ -650,16 +1162,35 @@ function rollDie(sides: number): number {
 
 function rollFormula(input: string): { formula: string; dice: number[]; total: number } | null {
   const normalized = input.replace(/\s+/g, "").toLowerCase();
-  const match = normalized.match(/^(\d*)d(\d+)([+-]\d+)?$/);
-  if (!match) {
+  const terms = normalized.match(/[+-]?[^+-]+/g);
+  if (!terms || terms.length === 0 || terms.join("") !== normalized) {
     return null;
   }
 
-  const count = Number(match[1] || 1);
-  const sides = Number(match[2]);
-  const modifier = Number(match[3] || 0);
-  const dice = Array.from({ length: Math.max(1, count) }, () => rollDie(sides));
-  const total = dice.reduce((sum, value) => sum + value, 0) + modifier;
+  const dice: number[] = [];
+  let total = 0;
+
+  for (const term of terms) {
+    const sign = term.startsWith("-") ? -1 : 1;
+    const body = term.replace(/^[+-]/, "");
+    const diceMatch = body.match(/^(\d*)d(\d+)$/);
+    if (diceMatch) {
+      const count = Number(diceMatch[1] || 1);
+      const sides = Number(diceMatch[2]);
+      const rolls = Array.from({ length: Math.max(1, count) }, () => rollDie(sides));
+      for (const die of rolls) {
+        dice.push(sign * die);
+        total += sign * die;
+      }
+      continue;
+    }
+
+    const flatValue = Number(body);
+    if (!Number.isFinite(flatValue)) {
+      return null;
+    }
+    total += sign * flatValue;
+  }
 
   return {
     formula: normalized,

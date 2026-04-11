@@ -1,4 +1,5 @@
-﻿import type { CharacterSheet } from "@umbra/shared";
+import { getCharacterMonsterTraitEffects, getEffectiveCharacterRobustezMax, type CharacterSheet } from "@umbra/shared";
+import { getCharacterExperienceSummary } from "./characterExperience";
 
 type ModifierKey = "DEF" | "INI" | "ROBMAX" | "ROBACT" | "UMBDOLOR" | "UMBCORR" | "CORRTEMP" | "CORRPERM";
 
@@ -12,6 +13,13 @@ type DerivedStats = {
   iniciativaTotal: number;
   umbralDolorTotal: number;
   umbralCorrupcionTotal: number;
+  armaduraNatural: string;
+  armaduraActiva: string;
+  armaduraNaturalBreakdown: Array<{
+    label: string;
+    formula?: string;
+    detail?: string;
+  }>;
   warnings: string[];
 };
 
@@ -19,20 +27,38 @@ const MODIFIER_REGEX = /\b(DEF|INI|ROBMAX|ROBACT|UMBDOLOR|UMBCORR|CORRTEMP|CORRP
 
 export function computeDerivedStats(sheet: CharacterSheet): DerivedStats {
   const modifiers = collectCapabilityModifiers(sheet);
+  const monsterTraitEffects = getCharacterMonsterTraitEffects(sheet);
+  const experienceSummary = getCharacterExperienceSummary(sheet);
 
-  const xpDisponible = Math.max(0, sheet.progreso.experienciaTotal - sheet.progreso.experienciaGastada);
+  const xpDisponible = experienceSummary.effectiveAvailable;
   const corrupcionTotal =
     Math.max(0, sheet.corrupcion.temporal + modifiers.CORRTEMP) + Math.max(0, sheet.corrupcion.permanente + modifiers.CORRPERM);
-  const robustezBase = sheet.atributos.fuerte;
+  const robustezBase = getEffectiveCharacterRobustezMax(sheet);
   const robustezMaximaTotal = Math.max(0, robustezBase + modifiers.ROBMAX);
   const robustezActualTotal = Math.min(Math.max(0, sheet.combate.robustezActual + modifiers.ROBACT), robustezMaximaTotal);
   const umbralDolorTotal = Math.max(0, sheet.combate.umbralDolor + modifiers.UMBDOLOR);
   const umbralCorrupcionTotal = Math.max(0, sheet.corrupcion.umbral + modifiers.UMBCORR);
 
   const iniciativaBase = resolveInitiativeAttribute(sheet);
-  const defensaBase = resolveDefenseAttribute(sheet);
+  const defensaBase = resolveDefenseAttribute(sheet) - monsterTraitEffects.defenseModifier;
   const defensaTotal = defensaBase + sheet.combate.defensaMod + modifiers.DEF;
   const iniciativaTotal = iniciativaBase + sheet.combate.iniciativaMod + modifiers.INI;
+  const armaduraNatural = monsterTraitEffects.armorFormula;
+  const armaduraActiva = sheet.combate.armaduraProteccion || armaduraNatural;
+  const armaduraNaturalBreakdown = [
+    monsterTraitEffects.duroLevel > 0
+      ? {
+          label: "Duro",
+          formula: monsterTraitEffects.duroLevel === 3 ? "1d8" : monsterTraitEffects.duroLevel === 2 ? "1d6" : "1d4"
+        }
+      : null,
+    monsterTraitEffects.robustoLevel > 0
+      ? {
+          label: "Robusto",
+          formula: monsterTraitEffects.robustoLevel === 3 ? "1d8" : monsterTraitEffects.robustoLevel === 2 ? "1d6" : "1d4"
+        }
+      : null
+  ].filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
 
   const warnings: string[] = [];
   if (corrupcionTotal >= sheet.atributos.tenaz) {
@@ -40,6 +66,9 @@ export function computeDerivedStats(sheet: CharacterSheet): DerivedStats {
   }
   if (sheet.progreso.experienciaGastada > sheet.progreso.experienciaTotal) {
     warnings.push("La experiencia gastada supera la experiencia total");
+  }
+  if (experienceSummary.computedSpent > experienceSummary.effectiveTotal) {
+    warnings.push("Las capacidades, bendiciones y cargas dejan la experiencia por debajo de cero");
   }
   if (sheet.combate.robustezActual > robustezMaximaTotal) {
     warnings.push("La robustez actual supera la robustez máxima");
@@ -55,6 +84,9 @@ export function computeDerivedStats(sheet: CharacterSheet): DerivedStats {
     iniciativaTotal,
     umbralDolorTotal,
     umbralCorrupcionTotal,
+    armaduraNatural,
+    armaduraActiva,
+    armaduraNaturalBreakdown,
     warnings
   };
 }
@@ -142,4 +174,3 @@ function collectCapabilityModifiers(sheet: CharacterSheet): Record<ModifierKey, 
 
   return result;
 }
-

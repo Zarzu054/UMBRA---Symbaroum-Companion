@@ -10,6 +10,8 @@ import {
   type ImportCharacterInput,
   type SkillLevel
 } from "@umbra/shared";
+import { ALL_ENTRIES } from "../models/compendiumEntries";
+import { getCharacterExperienceSummary } from "../models/characterExperience";
 
 const TEMPLATE_PATH = "/templates/symbaroum-sheet.pdf";
 
@@ -43,7 +45,7 @@ export async function exportCharacterSheetPdf(character: Character): Promise<voi
   const fieldNames = new Set(form.getFields().map((field) => field.getName()));
   let writtenFields = 0;
 
-  const availableXp = Math.max(0, character.sheet.progreso.experienciaTotal - character.sheet.progreso.experienciaGastada);
+  const availableXp = getCharacterExperienceSummary(character.sheet).effectiveAvailable;
   const corruptionTotal = character.sheet.corrupcion.temporal + character.sheet.corrupcion.permanente;
 
   writtenFields += setText(form, fieldNames, "Jugador", character.sheet.identidad.nombreJugador);
@@ -247,6 +249,9 @@ export async function importCharacterSheetPdf(file: File): Promise<ImportCharact
   sheet.habilidades = importedCapabilities.habilidades;
   sheet.poderesMisticos = importedCapabilities.poderesMisticos;
   sheet.rituales = importedCapabilities.rituales;
+  sheet.bendiciones = importedCapabilities.bendiciones;
+  sheet.cargas = importedCapabilities.cargas;
+  sheet.rasgos = importedCapabilities.rasgos;
 
   const inferredArchetype = inferArchetype(sheet, profession);
   sheet.identidad.arquetipo = inferredArchetype;
@@ -258,7 +263,7 @@ export async function importCharacterSheetPdf(file: File): Promise<ImportCharact
     culture: sheet.identidad.cultura,
     profession,
     level: 1,
-    sheet
+    sheet: sanitizeImportSheetForValidation(sheet)
   };
 
   const validation = importCharacterSchema.safeParse(payload);
@@ -300,7 +305,25 @@ function buildCapabilities(character: Character): CapabilityItem[] {
     efecto: item.efecto || item.notas || "",
     nivel: item.nivel
   }));
-  return [...fromHabilidades, ...fromPowers, ...fromRituals];
+  const fromBlessings = (character.sheet.bendiciones ?? []).map((item) => ({
+    nombre: item,
+    tipo: "Bendición",
+    efecto: "",
+    nivel: "novato" as const
+  }));
+  const fromBurdens = (character.sheet.cargas ?? []).map((item) => ({
+    nombre: item,
+    tipo: "Carga",
+    efecto: "",
+    nivel: "novato" as const
+  }));
+  const fromTraits = (character.sheet.rasgos ?? []).map((item) => ({
+    nombre: item,
+    tipo: "Rasgo",
+    efecto: "",
+    nivel: "novato" as const
+  }));
+  return [...fromHabilidades, ...fromPowers, ...fromRituals, ...fromBlessings, ...fromBurdens, ...fromTraits];
 }
 
 function buildContactCards(character: Character): ContactCard[] {
@@ -335,14 +358,25 @@ function importCapabilities(fields: PdfFieldMap): {
   habilidades: Character["sheet"]["habilidades"];
   poderesMisticos: Character["sheet"]["poderesMisticos"];
   rituales: Character["sheet"]["rituales"];
+  bendiciones: Character["sheet"]["bendiciones"];
+  cargas: Character["sheet"]["cargas"];
+  rasgos: Character["sheet"]["rasgos"];
 } {
   const abilityCatalog = new Map(SYMBAROUM_ABILITIES.map((entry) => [normalizeCapabilityName(entry.nombre), entry]));
   const powerCatalog = new Map(SYMBAROUM_MYSTIC_POWERS.map((entry) => [normalizeCapabilityName(entry.nombre), entry]));
   const ritualCatalog = new Map(SYMBAROUM_RITUALS.map((entry) => [normalizeCapabilityName(entry.nombre), entry]));
+  const traitCatalog = new Map(
+    ALL_ENTRIES
+      .filter((entry) => entry.tipo === "rasgo")
+      .map((entry) => [normalizeCapabilityName(entry.nombre), entry.nombre] as const)
+  );
 
   const habilidades: Character["sheet"]["habilidades"] = [];
   const poderesMisticos: Character["sheet"]["poderesMisticos"] = [];
   const rituales: Character["sheet"]["rituales"] = [];
+  const bendiciones: Character["sheet"]["bendiciones"] = [];
+  const cargas: Character["sheet"]["cargas"] = [];
+  const rasgos: Character["sheet"]["rasgos"] = [];
 
   for (let row = 1; row <= 4; row += 1) {
     for (let col = 1; col <= 3; col += 1) {
@@ -365,14 +399,33 @@ function importCapabilities(fields: PdfFieldMap): {
         (power ? "poder_mistico" : ritual ? "ritual" : "habilidad");
       const fromCatalog = resolvedType === "poder_mistico" ? power : resolvedType === "ritual" ? ritual : ability;
 
+      if (resolvedType === "bendicion") {
+        bendiciones.push(nombre);
+        continue;
+      }
+
+      if (resolvedType === "carga") {
+        cargas.push(nombre);
+        continue;
+      }
+
+      if (resolvedType === "rasgo") {
+        rasgos.push(resolveImportedTraitName(nombre, traitCatalog));
+        continue;
+      }
+
+      const canonicalEffect = truncateImportedCapabilityText(fromCatalog?.efectoResumen || "", 1200);
+      const canonicalNotes = truncateImportedCapabilityText(fromCatalog?.efectoResumen || "", 800);
+      const importedEffect = truncateImportedCapabilityText(efecto, 1200);
+      const importedNotes = truncateImportedCapabilityText(efecto, 800);
       const entry = {
-        nombre,
+        nombre: fromCatalog?.nombre ?? nombre,
         tipo: resolvedType === "poder_mistico" ? "Poder místico" : resolvedType === "ritual" ? "Ritual" : "Habilidad",
-        efecto: efecto || fromCatalog?.efectoResumen || "",
+        efecto: canonicalEffect || importedEffect,
         nivel,
         fuente: fromCatalog?.libro ?? "",
         pagina: fromCatalog?.pagina,
-        notas: efecto || fromCatalog?.efectoResumen || "",
+        notas: canonicalNotes || importedNotes,
         acciones: fromCatalog?.acciones ?? []
       };
 
@@ -386,7 +439,65 @@ function importCapabilities(fields: PdfFieldMap): {
     }
   }
 
-  return { habilidades, poderesMisticos, rituales };
+  return { habilidades, poderesMisticos, rituales, bendiciones, cargas, rasgos };
+}
+
+function truncateImportedCapabilityText(value: string, maxLength: number): string {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  return text.length > maxLength ? text.slice(0, maxLength) : text;
+}
+
+function sanitizeImportSheetForValidation(sheet: ImportCharacterInput["sheet"]): ImportCharacterInput["sheet"] {
+  const sanitizeEntries = <T extends Array<{ efecto?: string; notas?: string }>>(entries: T): T =>
+    entries.map((entry) => ({
+      ...entry,
+      efecto: truncateImportedCapabilityText(entry.efecto ?? "", 1200),
+      notas: truncateImportedCapabilityText(entry.notas ?? "", 800)
+    })) as T;
+
+  return {
+    ...sheet,
+    habilidades: sanitizeEntries(sheet.habilidades),
+    poderesMisticos: sanitizeEntries(sheet.poderesMisticos),
+    rituales: sanitizeEntries(sheet.rituales)
+  };
+}
+
+function resolveImportedTraitName(rawName: string, traitCatalog: Map<string, string>): string {
+  const trimmedName = String(rawName ?? "").trim();
+  if (!trimmedName) return "";
+
+  const { baseName, levelSuffix } = splitTraitLevelSuffix(trimmedName);
+  const canonicalName = traitCatalog.get(normalizeCapabilityName(baseName)) ?? trimmedName;
+
+  if (!levelSuffix) {
+    return canonicalName;
+  }
+
+  return `${canonicalName} ${levelSuffix}`;
+}
+
+function splitTraitLevelSuffix(value: string): { baseName: string; levelSuffix: string } {
+  const match = String(value ?? "").trim().match(/^(.*?)(?:\s*[\(\[]?\s*(I{1,3}|1|2|3)\s*[\)\]]?)$/i);
+  if (!match) {
+    return { baseName: String(value ?? "").trim(), levelSuffix: "" };
+  }
+
+  const baseName = String(match[1] ?? "").trim();
+  const rawLevel = normalizeCapabilityName(match[2] ?? "");
+  const normalizedLevel = rawLevel === "1" || rawLevel === "i"
+    ? "I"
+    : rawLevel === "2" || rawLevel === "ii"
+      ? "II"
+      : rawLevel === "3" || rawLevel === "iii"
+        ? "III"
+        : "";
+
+  return {
+    baseName: baseName || String(value ?? "").trim(),
+    levelSuffix: normalizedLevel ? `(${normalizedLevel})` : ""
+  };
 }
 
 function inferArchetype(sheet: ImportCharacterInput["sheet"], profession: string): (typeof SYMBAROUM_ARCHETYPES)[number] {
@@ -441,9 +552,12 @@ function readLevel(fields: PdfFieldMap, row: number, col: number): SkillLevel {
   return "novato";
 }
 
-function normalizeCapabilityType(value: string): "habilidad" | "poder_mistico" | "ritual" | null {
+function normalizeCapabilityType(value: string): "habilidad" | "poder_mistico" | "ritual" | "bendicion" | "carga" | "rasgo" | null {
   const normalized = normalizeCapabilityName(value);
   if (!normalized) return null;
+  if (normalized.includes("rasgo")) return "rasgo";
+  if (normalized.includes("bendicion")) return "bendicion";
+  if (normalized.includes("carga")) return "carga";
   if (normalized.includes("ritual")) return "ritual";
   if (normalized.includes("poder")) return "poder_mistico";
   if (normalized.includes("habilidad")) return "habilidad";

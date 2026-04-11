@@ -45,6 +45,8 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
   const [form, setForm] = useState<CharacterFormState>(defaultForm);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [listInput, setListInput] = useState({
+    bendiciones: "",
+    cargas: "",
     rasgos: "",
     equipo: "",
     contactos: "",
@@ -112,7 +114,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     });
   }
 
-  function addSimpleItem(section: "rasgos" | "equipo" | "contactos"): void {
+  function addSimpleItem(section: "bendiciones" | "cargas" | "rasgos" | "equipo" | "contactos"): void {
     const text = listInput[section].trim();
     if (!text) return;
     setForm((prev) => {
@@ -123,7 +125,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     setListInput((prev) => ({ ...prev, [section]: "" }));
   }
 
-  function removeSimpleItem(section: "rasgos" | "equipo" | "contactos", index: number): void {
+  function removeSimpleItem(section: "bendiciones" | "cargas" | "rasgos" | "equipo" | "contactos", index: number): void {
     setForm((prev) => {
       const next = structuredClone(prev);
       next.sheet[section] = next.sheet[section].filter((_, i) => i !== index);

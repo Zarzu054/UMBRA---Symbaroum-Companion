@@ -3,11 +3,15 @@ import assert from "node:assert/strict";
 import {
   deriveCharacterActions,
   assignCampaignSessionExperienceSchema,
+  buildRollRequest,
   createEmptyCharacterSheet,
   createCampaignReferenceSchema,
   createCampaignSessionSchema,
   executeCharacterAction,
-  grantCampaignExperienceSchema
+  grantCampaignExperienceSchema,
+  getCharacterMonsterTraitEffects,
+  synchronizeCharacterSheet,
+  SYMBAROUM_ABILITIES
 } from "../dist/index.js";
 
 test("createCampaignSessionSchema acepta una sesion valida", () => {
@@ -79,14 +83,14 @@ test("deriveCharacterActions genera accion de arma y executeCharacterAction sepa
   sheet.atributos.fuerte = 20;
 
   const actions = deriveCharacterActions(sheet);
-  assert.equal(actions.length, 1);
-  assert.equal(actions[0].label, "Atacar con Espada larga");
+  const weaponAction = actions.find((action) => action.label === "Atacar con Espada larga");
+  assert.ok(weaponAction);
 
-  const attack = executeCharacterAction(sheet, actions[0].id, "attack");
+  const attack = executeCharacterAction(sheet, weaponAction.id, "attack");
   assert.equal(attack.rolls.length, 1);
   assert.equal(attack.rolls[0].formula, "1d20");
 
-  const damage = executeCharacterAction(sheet, actions[0].id, "damage");
+  const damage = executeCharacterAction(sheet, weaponAction.id, "damage");
   assert.equal(damage.rolls.length, 1);
   assert.equal(damage.rolls[0].formula, "1d8");
 });
@@ -113,7 +117,560 @@ test("deriveCharacterActions filtra acciones por el nivel real de la capacidad",
     .filter((action) => action.sourceName === "Tormenta de flechas")
     .map((action) => action.requiredLevel);
 
-  assert.deepEqual(actions, ["novato", "adepto"]);
+  assert.deepEqual(actions, ["adepto"]);
+});
+
+test("Glifo vampirico deriva tirada y dano", () => {
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    poderesMisticos: [
+      {
+        nombre: "Glifo vampírico",
+        tipo: "Poder místico",
+        efecto: "",
+        nivel: "novato",
+        fuente: "Guía Avanzada del Jugador",
+        notas: "",
+        acciones: []
+      }
+    ]
+  });
+
+  const action = deriveCharacterActions(sheet).find((entry) => entry.sourceName === "Glifo vampírico");
+  assert.ok(action);
+  assert.equal(action.rollAttribute, "tenaz");
+  assert.equal(action.damageFormula, "1d4");
+});
+
+test("Berserker novato agrega una defensa con objetivo fijo de Agil 5", () => {
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    habilidades: [
+      {
+        nombre: "Berserker",
+        tipo: "Habilidad",
+        efecto: "",
+        nivel: "novato",
+        fuente: "Libro basico",
+        notas: "",
+        acciones: [
+          {
+            id: "novato-berserker",
+            label: "Entrar en frenesi (Novato)",
+            cost: "free",
+            requiredLevel: "novato",
+            damageFormula: "+1d6",
+            effectSummary: ""
+          },
+          {
+            id: "novato-berserker-defensa",
+            label: "Defender con Berserker (Novato)",
+            cost: "reaction",
+            requiredLevel: "novato",
+            rollAttribute: "agil",
+            fixedTarget: 5,
+            effectSummary: ""
+          },
+          {
+            id: "adepto-berserker",
+            label: "Absorber dano con Berserker (Adepto)",
+            cost: "reaction",
+            requiredLevel: "adepto",
+            damageFormula: "1d4",
+            effectSummary: ""
+          }
+        ]
+      }
+    ]
+  });
+
+  const actions = deriveCharacterActions(sheet).filter((action) => action.sourceName === "Berserker");
+
+  assert.deepEqual(
+    actions.map((action) => action.id),
+    ["ability:Berserker:novato-berserker", "ability:Berserker:novato-berserker-defensa"]
+  );
+
+  const defenseAction = actions.find((action) => action.id === "ability:Berserker:novato-berserker-defensa");
+  assert.ok(defenseAction);
+  assert.equal(defenseAction.rollAttribute, "agil");
+  assert.equal(defenseAction.fixedTarget, 5);
+
+  const rollRequest = buildRollRequest(sheet, "Kael", defenseAction.id, "attack", "umbra");
+  assert.equal(rollRequest.target, 5);
+
+  const executed = executeCharacterAction(sheet, defenseAction.id, "attack");
+  assert.equal(executed.rolls.length, 1);
+  assert.equal(executed.rolls[0].target, 5);
+});
+
+test("synchronizeCharacterSheet hidrata acciones canonicas para Berserker aunque la hoja las tenga vacias", () => {
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    habilidades: [
+      {
+        nombre: "Berserker",
+        tipo: "Habilidad",
+        efecto: "",
+        nivel: "novato",
+        fuente: "Libro basico",
+        notas: "",
+        acciones: []
+      }
+    ]
+  });
+
+  const actions = deriveCharacterActions(sheet).filter((action) => action.sourceName === "Berserker");
+
+  assert.deepEqual(
+    actions.map((action) => action.id),
+    ["ability:Berserker:novato-berserker", "ability:Berserker:novato-berserker-defensa"]
+  );
+
+  const defenseAction = actions.find((action) => action.id === "ability:Berserker:novato-berserker-defensa");
+  assert.ok(defenseAction);
+  assert.equal(defenseAction.fixedTarget, 5);
+});
+
+test("Robusto agrega una variante de dano extra solo a ataques cuerpo a cuerpo", () => {
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    habilidades: [
+      {
+        nombre: "Robusto",
+        tipo: "Rasgo monstruoso",
+        efecto: "",
+        nivel: "adepto",
+        fuente: "Codice de monstruos",
+        notas: "",
+        acciones: []
+      }
+    ],
+    inventoryItems: [
+      {
+        id: "espada",
+        name: "Espada larga",
+        category: "weapon",
+        quantity: 1,
+        stackable: false,
+        isCustom: false,
+        description: "",
+        weight: "",
+        value: "",
+        equipped: true,
+        slot: "mainHand",
+        attackAttribute: "diestro",
+        damageFormula: "1d8",
+        protectionFormula: "",
+        qualities: "",
+        notes: "",
+        grantedActions: [],
+        modifiers: []
+      },
+      {
+        id: "arco",
+        name: "Arco corto",
+        category: "weapon",
+        quantity: 1,
+        stackable: false,
+        isCustom: false,
+        description: "",
+        weight: "",
+        value: "",
+        equipped: true,
+        slot: "ranged",
+        attackAttribute: "diestro",
+        damageFormula: "1d6",
+        protectionFormula: "",
+        qualities: "",
+        notes: "",
+        grantedActions: [],
+        modifiers: []
+      }
+    ]
+  });
+
+  const meleeAttack = deriveCharacterActions(sheet).find((action) => action.sourceName === "Espada larga");
+  const rangedAttack = deriveCharacterActions(sheet).find((action) => action.sourceName === "Arco corto");
+
+  assert.ok(meleeAttack);
+  assert.deepEqual(
+    meleeAttack.damageModifiers?.map((modifier) => [modifier.label, modifier.formula]),
+    [["Robusto", "+1d6"]]
+  );
+
+  assert.ok(rangedAttack);
+  assert.equal(rangedAttack.damageModifiers, undefined);
+
+  const robustRequest = buildRollRequest(sheet, "Kael", meleeAttack.id, "damage", "umbra", "", ["trait:robusto:2"]);
+  assert.equal(robustRequest.formula, "1d8+1d6");
+  assert.match(robustRequest.note ?? "", /Robusto/);
+});
+
+test("Robusta tambien funciona como bono de dano seleccionable cuando se guarda como habilidad", () => {
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    habilidades: [
+      {
+        nombre: "Robusta",
+        tipo: "Rasgo monstruoso",
+        efecto: "",
+        nivel: "novato",
+        fuente: "Codice de monstruos",
+        notas: "",
+        acciones: []
+      }
+    ],
+    inventoryItems: [
+      {
+        id: "garrote",
+        name: "Garrote",
+        category: "weapon",
+        quantity: 1,
+        stackable: false,
+        isCustom: false,
+        description: "",
+        weight: "",
+        value: "",
+        equipped: true,
+        slot: "mainHand",
+        attackAttribute: "fuerte",
+        damageFormula: "1d6",
+        protectionFormula: "",
+        qualities: "",
+        notes: "",
+        grantedActions: [],
+        modifiers: []
+      }
+    ]
+  });
+
+  const meleeAttack = deriveCharacterActions(sheet).find((action) => action.sourceName === "Garrote");
+  assert.ok(meleeAttack);
+  assert.deepEqual(
+    meleeAttack.damageModifiers?.map((modifier) => [modifier.label, modifier.formula]),
+    [["Robusto", "+1d4"]]
+  );
+});
+
+test("Robusto como habilidad aplica su penalizador pasivo de Defensa", () => {
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    habilidades: [
+      {
+        nombre: "Robusto",
+        tipo: "Rasgo monstruoso",
+        efecto: "",
+        nivel: "adepto",
+        fuente: "Codice de monstruos",
+        notas: "",
+        acciones: []
+      }
+    ]
+  });
+
+  const traitEffects = getCharacterMonsterTraitEffects(sheet);
+  assert.equal(traitEffects.robustoLevel, 2);
+  assert.equal(traitEffects.defenseModifier, 3);
+});
+
+test("bonos de dano de una vez por turno generan una variante extra en ataques de arma", () => {
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    inventoryItems: [
+      {
+        id: "daga",
+        name: "Daga",
+        category: "weapon",
+        quantity: 1,
+        stackable: false,
+        isCustom: false,
+        description: "",
+        weight: "",
+        value: "",
+        equipped: true,
+        slot: "mainHand",
+        attackAttribute: "diestro",
+        damageFormula: "1d6",
+        protectionFormula: "",
+        qualities: "",
+        notes: "",
+        grantedActions: [],
+        modifiers: []
+      }
+    ],
+    habilidades: [
+      {
+        nombre: "Ataque traicionero",
+        tipo: "Habilidad",
+        efecto: "",
+        nivel: "novato",
+        fuente: "Libro basico",
+        notas: "",
+        acciones: []
+      }
+    ]
+  });
+
+  const weaponAttack = deriveCharacterActions(sheet).find((action) => action.sourceName === "Daga");
+  assert.ok(weaponAttack);
+  assert.deepEqual(
+    weaponAttack.damageModifiers?.map((modifier) => [modifier.label, modifier.formula]),
+    [["Ataque traicionero", "+1d4"]]
+  );
+
+  const damage = executeCharacterAction(sheet, weaponAttack.id, "damage", ["ability:Ataque traicionero:novato-ataque-traicionero"]);
+  assert.equal(damage.rolls.length, 1);
+  assert.equal(damage.rolls[0].formula, "1d6+1d4");
+});
+
+test("Berserker aparece como modificador seleccionable de dano para ataques cuerpo a cuerpo", () => {
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    inventoryItems: [
+      {
+        id: "hacha",
+        name: "Hacha",
+        category: "weapon",
+        quantity: 1,
+        stackable: false,
+        isCustom: false,
+        description: "",
+        weight: "",
+        value: "",
+        equipped: true,
+        slot: "mainHand",
+        attackAttribute: "fuerte",
+        damageFormula: "1d8",
+        protectionFormula: "",
+        qualities: "",
+        notes: "",
+        grantedActions: [],
+        modifiers: []
+      }
+    ],
+    habilidades: [
+      {
+        nombre: "Berserker",
+        tipo: "Habilidad",
+        efecto: "",
+        nivel: "novato",
+        fuente: "Libro basico",
+        notas: "",
+        acciones: []
+      }
+    ]
+  });
+
+  const weaponAttack = deriveCharacterActions(sheet).find((action) => action.sourceName === "Hacha");
+  assert.ok(weaponAttack);
+  assert.deepEqual(
+    weaponAttack.damageModifiers?.map((modifier) => [modifier.label, modifier.formula]),
+    [["Berserker", "+1d6"]]
+  );
+
+  const request = buildRollRequest(
+    sheet,
+    "Kael",
+    weaponAttack.id,
+    "damage",
+    "umbra",
+    "",
+    ["ability:Berserker:novato-berserker"]
+  );
+  assert.equal(request.formula, "1d8+1d6");
+  assert.match(request.note ?? "", /Berserker/);
+
+  const berserkerStandalone = deriveCharacterActions(sheet).find((action) => action.id === "ability:Berserker:novato-berserker");
+  assert.ok(berserkerStandalone);
+});
+
+test("deriveCharacterActions tambien filtra acciones precalculadas de la hoja segun el nivel real", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.habilidades = [
+    {
+      nombre: "Guardaespaldas",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "adepto",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: []
+    }
+  ];
+  sheet.actions = [
+    {
+      id: "ability:Guardaespaldas:novato",
+      label: "Usar Guardaespaldas (Novato)",
+      sourceType: "ability",
+      sourceName: "Guardaespaldas",
+      cost: "reaction",
+      requiredLevel: "novato",
+      effectSummary: ""
+    },
+    {
+      id: "ability:Guardaespaldas:adepto",
+      label: "Usar Guardaespaldas (Adepto)",
+      sourceType: "ability",
+      sourceName: "Guardaespaldas",
+      cost: "reaction",
+      requiredLevel: "adepto",
+      effectSummary: ""
+    },
+    {
+      id: "ability:Guardaespaldas:maestro",
+      label: "Usar Guardaespaldas (Maestro)",
+      sourceType: "ability",
+      sourceName: "Guardaespaldas",
+      cost: "reaction",
+      requiredLevel: "maestro",
+      effectSummary: ""
+    }
+  ];
+
+  const actions = deriveCharacterActions(sheet)
+    .filter((action) => action.sourceName === "Guardaespaldas")
+    .map((action) => action.requiredLevel);
+
+  assert.deepEqual(actions, ["adepto"]);
+});
+
+test("deriveCharacterActions infiere el nivel de acciones precalculadas antiguas cuando falta requiredLevel", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.habilidades = [
+    {
+      nombre: "Guardaespaldas",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "adepto",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: []
+    }
+  ];
+  sheet.actions = [
+    {
+      id: "ability:Guardaespaldas:novato",
+      label: "Usar Guardaespaldas (Novato)",
+      sourceType: "ability",
+      sourceName: "Guardaespaldas",
+      cost: "reaction",
+      effectSummary: ""
+    },
+    {
+      id: "ability:Guardaespaldas:adepto",
+      label: "Usar Guardaespaldas (Adepto)",
+      sourceType: "ability",
+      sourceName: "Guardaespaldas",
+      cost: "reaction",
+      effectSummary: ""
+    },
+    {
+      id: "ability:Guardaespaldas:maestro",
+      label: "Usar Guardaespaldas (Maestro)",
+      sourceType: "ability",
+      sourceName: "Guardaespaldas",
+      cost: "reaction",
+      effectSummary: ""
+    }
+  ];
+
+  const actions = deriveCharacterActions(sheet)
+    .filter((action) => action.sourceName === "Guardaespaldas")
+    .map((action) => action.label);
+
+  assert.deepEqual(actions, ["Usar Guardaespaldas (Adepto)"]);
+});
+
+test("deriveCharacterActions colapsa acciones de arma duplicadas entre hoja precalculada e inventario equipado", () => {
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    inventoryItems: [
+      {
+        id: "bow-1",
+        name: "Arco",
+        category: "weapon",
+        quantity: 1,
+        stackable: false,
+        isCustom: false,
+        description: "",
+        weight: "",
+        value: "",
+        equipped: true,
+        slot: "ranged",
+        attackAttribute: "diestro",
+        damageFormula: "1d8",
+        protectionFormula: "",
+        qualities: "",
+        notes: "",
+        grantedActions: [],
+        modifiers: []
+      },
+      {
+        id: "crossbow-1",
+        name: "Ballesta",
+        category: "weapon",
+        quantity: 1,
+        stackable: false,
+        isCustom: false,
+        description: "",
+        weight: "",
+        value: "",
+        equipped: true,
+        slot: "ranged",
+        attackAttribute: "diestro",
+        damageFormula: "1d10",
+        protectionFormula: "",
+        qualities: "",
+        notes: "",
+        grantedActions: [],
+        modifiers: []
+      }
+    ]
+  });
+
+  const actions = deriveCharacterActions(sheet).filter((action) => action.sourceType === "weapon");
+  assert.equal(actions.filter((action) => action.sourceName === "Arco").length, 1);
+  assert.equal(actions.filter((action) => action.sourceName === "Ballesta").length, 1);
+});
+
+test("synchronizeCharacterSheet colapsa capacidades duplicadas y conserva el nivel mas alto", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.habilidades = [
+    {
+      nombre: "Guardaespaldas",
+      tipo: "Habilidad",
+      efecto: "novato",
+      nivel: "novato",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: []
+    },
+    {
+      nombre: "Guardaespaldas",
+      tipo: "Habilidad",
+      efecto: "adepto",
+      nivel: "adepto",
+      fuente: "Libro basico",
+      notas: "nota",
+      acciones: []
+    },
+    {
+      nombre: "Guardaespaldas",
+      tipo: "Habilidad",
+      efecto: "maestro",
+      nivel: "maestro",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: []
+    }
+  ];
+
+  const normalized = synchronizeCharacterSheet(sheet);
+
+  assert.equal(normalized.habilidades.length, 1);
+  assert.equal(normalized.habilidades[0].nivel, "maestro");
+  assert.equal(normalized.habilidades[0].efecto, "maestro");
 });
 
 test("Combate sin armas se deriva como ataque base y no como accion pasiva separada", () => {
@@ -143,7 +700,67 @@ test("Combate sin armas se deriva como ataque base y no como accion pasiva separ
   assert.equal(actions.length, 1);
   assert.equal(actions[0].label, "Ataque desarmado");
   assert.equal(actions[0].damageFormula, "1d6");
-  assert.equal(actions[0].rollAttribute, "fuerte");
+  assert.equal(actions[0].rollAttribute, "diestro");
+});
+
+test("todo personaje tiene un ataque desarmado base de 1d4 aunque no tenga Combate sin armas", () => {
+  const sheet = createEmptyCharacterSheet();
+
+  const unarmedAction = deriveCharacterActions(sheet).find((action) => action.label === "Ataque desarmado");
+  assert.ok(unarmedAction);
+  assert.equal(unarmedAction.damageFormula, "1d4");
+  assert.equal(unarmedAction.rollAttribute, "diestro");
+});
+
+test("Arma natural crea un ataque separado y no modifica el ataque desarmado base", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.habilidades = [
+    {
+      nombre: "Arma natural",
+      tipo: "Rasgo monstruoso",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Codice de monstruos",
+      notas: "",
+      acciones: []
+    }
+  ];
+
+  const actions = deriveCharacterActions(sheet);
+  const unarmedAction = actions.find((action) => action.label === "Ataque desarmado");
+  const naturalWeaponAction = actions.find((action) => action.label === "Ataque con Arma natural");
+  assert.ok(unarmedAction);
+  assert.ok(naturalWeaponAction);
+  assert.equal(unarmedAction.damageFormula, "1d4");
+  assert.equal(naturalWeaponAction.damageFormula, "1d6");
+});
+
+test("las armas heredadas llamadas Natural no generan un arma equipada falsa", () => {
+  const baseSheet = createEmptyCharacterSheet();
+  const sheet = synchronizeCharacterSheet({
+    ...baseSheet,
+    combate: {
+      ...baseSheet.combate,
+      armaPrincipal: "Natural",
+      danioPrincipal: "1d6",
+      armaPrincipalAtributo: "diestro"
+    },
+    habilidades: [
+      {
+        nombre: "Arma natural",
+        tipo: "Rasgo monstruoso",
+        efecto: "",
+        nivel: "novato",
+        fuente: "Codice de monstruos",
+        notas: "",
+        acciones: []
+      }
+    ]
+  });
+
+  const actions = deriveCharacterActions(sheet);
+  assert.equal(actions.some((action) => action.label === "Atacar con Natural"), false);
+  assert.equal(actions.some((action) => action.label === "Ataque con Arma natural"), true);
 });
 
 test("Cuchillo rapido modifica el ataque con cuchillo en vez de aparecer como accion separada", () => {
@@ -188,10 +805,89 @@ test("Cuchillo rapido modifica el ataque con cuchillo en vez de aparecer como ac
   ];
 
   const actions = deriveCharacterActions(sheet);
-  assert.equal(actions.length, 1);
-  assert.equal(actions[0].label, "Atacar con Cuchillo");
-  assert.equal(actions[0].rollAttribute, "agil");
-  assert.match(actions[0].effectSummary, /dos ataques separados con cuchillo/i);
+  const knifeAction = actions.find((action) => action.label === "Atacar con Cuchillo");
+  assert.ok(knifeAction);
+  assert.equal(knifeAction.rollAttribute, "agil");
+  assert.match(knifeAction.effectSummary, /dos ataques separados con cuchillo/i);
+});
+
+test("Golpe de hierro cambia automaticamente a Fuerte los ataques cuerpo a cuerpo", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.atributos.diestro = 9;
+  sheet.atributos.fuerte = 15;
+  sheet.inventoryItems = [
+    {
+      id: "sword-1",
+      name: "Espada larga",
+      category: "weapon",
+      quantity: 1,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "mainHand",
+      attackAttribute: "diestro",
+      damageFormula: "1d8",
+      protectionFormula: "",
+      qualities: "larga",
+      notes: ""
+    }
+  ];
+  sheet.habilidades = [
+    {
+      nombre: "Golpe de hierro",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: [
+        {
+          id: "novato-golpe-de-hierro",
+          label: "Usar Golpe de hierro (Novato)",
+          cost: "combat",
+          requiredLevel: "novato",
+          rollAttribute: "fuerte",
+          effectSummary: "Puedes usar Fuerte en vez de Diestro para atacar cuerpo a cuerpo."
+        }
+      ]
+    }
+  ];
+
+  const actions = deriveCharacterActions(sheet);
+  const weaponAction = actions.find((action) => action.label === "Atacar con Espada larga");
+  assert.ok(weaponAction);
+  assert.equal(weaponAction.rollAttribute, "fuerte");
+  assert.match(weaponAction.effectSummary, /golpe de hierro/i);
+
+  const rollRequest = buildRollRequest(sheet, "Kael", weaponAction.id, "attack", "roll20");
+  assert.equal(rollRequest.rollAttribute, "fuerte");
+  assert.equal(rollRequest.target, 15);
+});
+
+test("Golpe de hierro tambien modifica el ataque desarmado", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.atributos.fuerte = 14;
+  sheet.atributos.diestro = 9;
+  sheet.habilidades = [
+    {
+      nombre: "Golpe de hierro",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: []
+    }
+  ];
+
+  const unarmedAction = deriveCharacterActions(sheet).find((action) => action.label === "Ataque desarmado");
+  assert.ok(unarmedAction);
+  assert.equal(unarmedAction.rollAttribute, "fuerte");
+
+  const rollRequest = buildRollRequest(sheet, "Kael", unarmedAction.id, "attack", "roll20");
+  assert.equal(rollRequest.rollAttribute, "fuerte");
+  assert.equal(rollRequest.target, 14);
 });
 
 test("Armas a dos manos modifica el arma pesada y no aparece como accion separada", () => {
@@ -235,10 +931,161 @@ test("Armas a dos manos modifica el arma pesada y no aparece como accion separad
   ];
 
   const actions = deriveCharacterActions(sheet);
-  assert.equal(actions.length, 1);
-  assert.equal(actions[0].label, "Atacar con Mandoble");
-  assert.equal(actions[0].damageFormula, "1d12");
-  assert.match(actions[0].effectSummary, /ignora la armadura/i);
+  const weaponAction = actions.find((action) => action.label === "Atacar con Mandoble");
+  assert.ok(weaponAction);
+  assert.equal(weaponAction.damageFormula, "1d12");
+  assert.match(weaponAction.effectSummary, /ignora la armadura/i);
+});
+
+test("Tirador mejora automaticamente arcos y ballestas equipados", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.inventoryItems = [
+    {
+      id: "bow-1",
+      name: "Arco largo",
+      category: "weapon",
+      quantity: 1,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "ranged",
+      attackAttribute: "diestro",
+      damageFormula: "1d8",
+      protectionFormula: "",
+      qualities: "",
+      notes: ""
+    },
+    {
+      id: "crossbow-1",
+      name: "Ballesta",
+      category: "weapon",
+      quantity: 1,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "ranged",
+      attackAttribute: "diestro",
+      damageFormula: "1d10",
+      protectionFormula: "",
+      qualities: "",
+      notes: ""
+    }
+  ];
+  sheet.habilidades = [
+    {
+      nombre: "Tirador",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: []
+    }
+  ];
+
+  const actions = deriveCharacterActions(sheet);
+  assert.equal(actions.find((action) => action.label === "Atacar con Arco largo")?.damageFormula, "1d10");
+  assert.equal(actions.find((action) => action.label === "Atacar con Ballesta")?.damageFormula, "1d12");
+});
+
+test("Sexto sentido cambia a Atento los ataques a distancia disponibles", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.atributos.atento = 13;
+  sheet.inventoryItems = [
+    {
+      id: "bow-1",
+      name: "Arco largo",
+      category: "weapon",
+      quantity: 1,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "ranged",
+      attackAttribute: "diestro",
+      damageFormula: "1d8",
+      protectionFormula: "",
+      qualities: "",
+      notes: ""
+    }
+  ];
+  sheet.habilidades = [
+    {
+      nombre: "Sexto sentido",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: []
+    }
+  ];
+
+  const bowAction = deriveCharacterActions(sheet).find((action) => action.label === "Atacar con Arco largo");
+  assert.ok(bowAction);
+  assert.equal(bowAction.rollAttribute, "atento");
+  assert.match(bowAction.effectSummary, /sexto sentido/i);
+
+  const rollRequest = buildRollRequest(sheet, "Kael", bowAction.id, "attack", "roll20");
+  assert.equal(rollRequest.rollAttribute, "atento");
+  assert.equal(rollRequest.target, 13);
+});
+
+test("Arco veloz maestro se guarda como accion de combate en el compendio canonico", () => {
+  const fastBow = SYMBAROUM_ABILITIES.find((entry) => entry.nombre === "Arco veloz");
+  const masterAction = fastBow?.acciones.find((action) => action.label === "Usar Arco veloz (Maestro)");
+
+  assert.ok(masterAction);
+  assert.equal(masterAction.cost, "combat");
+  assert.equal(masterAction.label, "Usar Arco veloz (Maestro)");
+});
+
+test("las subidas acumuladas de nivel de dado se topan en 1d12 y el exceso pasa a +1", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.inventoryItems = [
+    {
+      id: "halberd-1",
+      name: "Alabarda",
+      category: "weapon",
+      quantity: 1,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "mainHand",
+      attackAttribute: "diestro",
+      damageFormula: "1d10",
+      protectionFormula: "",
+      qualities: "pesada larga",
+      notes: ""
+    }
+  ];
+  sheet.habilidades = [
+    {
+      nombre: "Armas a dos manos",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: []
+    },
+    {
+      nombre: "Armas de asta",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: []
+    }
+  ];
+
+  const weaponAction = deriveCharacterActions(sheet).find((action) => action.label === "Atacar con Alabarda");
+  assert.ok(weaponAction);
+  assert.equal(weaponAction.damageFormula, "1d12+1");
 });
 
 test("executeCharacterAction no tira daño cuando falla la tirada de ataque", () => {

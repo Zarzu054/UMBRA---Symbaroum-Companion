@@ -11,6 +11,7 @@ import {
 
 export type EntryType =
   | "regla"
+  | "rasgo"
   | "habilidad"
   | "poder_mistico"
   | "ritual"
@@ -28,11 +29,23 @@ export type CompendiumEntry = {
   fuente: string;
   pagina?: number;
   tags: string[];
+  media?: Array<{
+    src: string;
+    alt: string;
+    caption?: string;
+  }>;
+};
+
+export type CompendiumSummaryLink = {
+  url: string;
+  documentLabel: string;
+  sectionLabel: string;
 };
 
 export const TYPE_LABELS: Record<"all" | EntryType, string> = {
   all: "Todo",
   regla: "Reglas",
+  rasgo: "Rasgos",
   habilidad: "Habilidades",
   poder_mistico: "Poderes",
   ritual: "Rituales",
@@ -75,7 +88,7 @@ function buildSimpleEntries(
     tipo,
     nombre: item,
     resumen: resumenBase,
-    detalle: `${resumenBase} Úsalo como referencia rápida dentro del creador y la ficha. Si necesitas reglas extendidas o variantes, consulta el libro correspondiente.`,
+    detalle: `${resumenBase} Ãšsalo como referencia rÃ¡pida dentro del creador y la ficha. Si necesitas reglas extendidas o variantes, consulta el libro correspondiente.`,
     fuente,
     tags: [tipo]
   }));
@@ -266,11 +279,706 @@ function buildTraditionEntries(): CompendiumEntry[] {
       id: `tradicion-${slugify(name)}`,
       tipo: "tradicion",
       nombre: name,
-      resumen: `${counts.powers} poderes místicos, ${counts.rituals} rituales.`,
-      detalle: `Tradición listada en el compendio central de UMBRA. Actualmente enlaza ${counts.powers} poderes místicos y ${counts.rituals} rituales del catálogo cargado.`,
-      fuente: "Guía Avanzada del Jugador",
+      resumen: `${counts.powers} poderes mÃ­sticos, ${counts.rituals} rituales.`,
+      detalle: `TradiciÃ³n listada en el compendio central de UMBRA. Actualmente enlaza ${counts.powers} poderes mÃ­sticos y ${counts.rituals} rituales del catÃ¡logo cargado.`,
+      fuente: "GuÃ­a Avanzada del Jugador",
       tags: ["tradicion", "magia"]
     }));
+}
+
+type MonsterTraitDefinition = {
+  nombre: string;
+  fuente?: string;
+  pagina: number;
+  resumen: string;
+  detalle: string;
+  tags?: string[];
+};
+
+function buildMonsterTraitEntries(): CompendiumEntry[] {
+  const traits: MonsterTraitDefinition[] = [
+    {
+      nombre: "Alado",
+      fuente: "Libro Básico",
+      pagina: 197,
+      resumen: "La criatura domina el aire y gana maniobras de vuelo cada vez más agresivas.",
+      detalle:
+        "I: puede volar y reposicionarse con ventaja táctica. II: el vuelo le permite evitar parte del combate trabado y castigar desde ángulos difíciles. III: combina velocidad, altura y control del espacio para convertir la movilidad aérea en una ventaja constante.",
+      tags: ["movilidad", "vuelo"]
+    },
+    {
+      nombre: "Arma natural",
+      fuente: "Libro Básico",
+      pagina: 197,
+      resumen: "Garras, colmillos o cuernos convierten el cuerpo de la criatura en un arma siempre lista.",
+      detalle:
+        "El rasgo representa ataques corporales integrados en la anatomía del monstruo. Sus distintos niveles mejoran el valor ofensivo y sirven de base para muchos otros rasgos, como Venenoso, Ataque de corrupción o Abrazo aplastante.",
+      tags: ["ataque", "cuerpo a cuerpo"]
+    },
+    {
+      nombre: "Ataque ácido",
+      fuente: "Libro Básico",
+      pagina: 197,
+      resumen: "La criatura cubre a su objetivo con ácido persistente que sigue dañando tras el impacto.",
+      detalle:
+        "I/II/III: como reacción, el ácido es débil, moderado o potente y provoca 3/4/5 puntos de daño durante 3/4/5 turnos. Hace falta gastar una acción y superar una tirada de Inteligente para lavar el ácido con agua, tierra o algo similar.",
+      tags: ["ácido", "daño persistente"]
+    },
+    {
+      nombre: "Ataque de corrupción",
+      fuente: "Libro Básico",
+      pagina: 198,
+      resumen: "Las armas naturales de la criatura transmiten Corrupción temporal además del daño normal.",
+      detalle:
+        "I/II/III: cualquier víctima que sufra al menos 1 punto de daño de uno de sus ataques recibe además 1D4/1D6/1D8 de Corrupción temporal. Representa bestias o abominaciones tan contaminadas que su mera herida ya infecta.",
+      tags: ["corrupción", "abominación"]
+    },
+    {
+      nombre: "Daño alternativo",
+      fuente: "Libro Básico",
+      pagina: 198,
+      resumen: "La criatura hiere atributos distintos de Resistencia y puede devorar directamente alma o vigor.",
+      detalle:
+        "Requiere Forma espiritual. I/II/III: el arma natural inflige 3/4/5 puntos de daño alternativo que ignoran armadura, normalmente contra Fuerte o Tenaz. Si el atributo llega a cero, la víctima muere.",
+      tags: ["espíritu", "atributos"]
+    },
+    {
+      nombre: "Duro",
+      fuente: "Libro Básico",
+      pagina: 198,
+      resumen: "Piel, escamas o quitina conceden protección natural sin las penalizaciones de una armadura incómoda.",
+      detalle:
+        "I/II/III: la criatura obtiene una protección natural de 2/3/4. No puede llevar protección adicional sobre esa armadura natural, pero sí combinarla con Combate con armadura.",
+      tags: ["armadura", "durabilidad"]
+    },
+    {
+      nombre: "Enjambre",
+      fuente: "Libro Básico",
+      pagina: 198,
+      resumen: "La criatura es una mente colmena repartida entre muchos cuerpos y resiste el daño de forma anómala.",
+      detalle:
+        "I/II/III: el enjambre sufre la mitad, la mitad o una cuarta parte del daño de todos los ataques. Sus niveles también ajustan cuándo huye por instinto de supervivencia y cómo resiste ataques mentales.",
+      tags: ["grupo", "durabilidad"]
+    },
+    {
+      nombre: "Escupitajo venenoso",
+      fuente: "Libro Básico",
+      pagina: 198,
+      resumen: "Además de ser venenosa, la criatura puede proyectar su toxina a distancia.",
+      detalle:
+        "Requiere Venenoso al mismo nivel o superior. I/II/III: como acción activa, el veneno provoca 2/3/4 puntos de daño durante 2/3/4 turnos si la víctima no supera [Fuerte←Inteligente]. Se neutraliza con antídoto y una tirada de Inteligente.",
+      tags: ["veneno", "distancia"]
+    },
+    {
+      nombre: "Forma corpórea",
+      fuente: "Libro Básico",
+      pagina: 198,
+      resumen: "Un espíritu puede manifestarse físicamente para combatir o manipular el mundo material.",
+      detalle:
+        "I: se vuelve corpóreo durante un turno y puede actuar con ataques físicos. II: puede mantenerse así todo el tiempo que quiera y usar equipo que portara al morir. III: interactúa con el mundo físico sin perder la mayoría de ventajas de su estado espiritual.",
+      tags: ["espíritu", "manifestación"]
+    },
+    {
+      nombre: "Forma espiritual",
+      fuente: "Libro Básico",
+      pagina: 199,
+      resumen: "La criatura existe como espíritu inmaterial y solo ciertos efectos pueden dañarla con normalidad.",
+      detalle:
+        "I/II/III: puede atravesar obstáculos y sufre la mitad de daño de armas físicas; a niveles altos también reduce el daño de armas mágicas o alquímicas. El rasgo da acceso a Daño alternativo, Forma corpórea y Terrorífico.",
+      tags: ["espíritu", "intangibilidad"]
+    },
+    {
+      nombre: "Frío de ultratumba",
+      fuente: "Libro Básico",
+      pagina: 199,
+      resumen: "La criatura paraliza y hiere con un aura de muerte helada a quienes se acercan demasiado.",
+      detalle:
+        "I: los personajes a distancia cuerpo a cuerpo deben superar Tenaz o quedan paralizados. II: además sufren 2 de daño que ignora armadura. III: el aura aprieta aún más la tirada enfrentada y multiplica el riesgo para quienes se acerquen.",
+      tags: ["aura", "parálisis"]
+    },
+    {
+      nombre: "Hipnótico",
+      fuente: "Libro Básico",
+      pagina: 199,
+      resumen: "La criatura deja sin acciones a sus víctimas mediante mirada, canto o fascinación sobrenatural.",
+      detalle:
+        "I: afecta a una víctima con [Tenaz←Tenaz]. II: puede afectar a todas las víctimas de su canto o sonido. III: el efecto persiste hasta superar la tirada o recibir daño.",
+      tags: ["control", "mente"]
+    },
+    {
+      nombre: "Muerto viviente",
+      fuente: "Libro Básico",
+      pagina: 199,
+      resumen: "El cuerpo ya no vive: ignora dolor, no se cura normalmente y gana resistencias propias de los no muertos.",
+      detalle:
+        "I: es inmune a veneno, enfermedad, shock y dolor, pero no se cura de forma natural. II: además solo sufre la mitad de daño de ataques físicos normales. III: también reduce magia y alquimia, mientras armas mágicas o benditas siguen siendo plenamente efectivas.",
+      tags: ["muerto viviente", "durabilidad"]
+    },
+    {
+      nombre: "Regeneración",
+      fuente: "Libro Básico",
+      pagina: 199,
+      resumen: "La criatura recupera Resistencia cada turno, aunque mantiene una vulnerabilidad concreta.",
+      detalle:
+        "I/II/III: regenera 2/3/4 puntos de Resistencia por turno. Cada monstruo debe tener un punto débil definido, como fuego, ácido, armas mágicas, ataques sagrados o impíos.",
+      tags: ["curación", "durabilidad"]
+    },
+    {
+      nombre: "Robusto",
+      fuente: "Libro Básico",
+      pagina: 200,
+      resumen: "El tamaño y la masa del monstruo absorben daño y vuelven sus golpes mucho más demoledores.",
+      detalle:
+        "I/II/III: ignora 2/3/4 puntos de daño por golpe además de su armadura, puede añadir +2/+3/+4 daño una vez por turno y su Defensa se calcula sobre [Ágil−2/−3/−4].",
+      tags: ["tamaño", "durabilidad"]
+    },
+    {
+      nombre: "Sangre ácida",
+      fuente: "Libro Básico",
+      pagina: 200,
+      resumen: "Herir a la criatura en combate cuerpo a cuerpo puede bañar al atacante en sangre corrosiva.",
+      detalle:
+        "I/II/III: quien la hiera a cuerpo a cuerpo debe superar Defensa o sufrir 3/4/5 puntos de daño durante 3/4/5 turnos. Se limpia gastando una acción y superando una tirada de Inteligente.",
+      tags: ["ácido", "reacción"]
+    },
+    {
+      nombre: "Telaraña",
+      fuente: "Libro Básico",
+      pagina: 200,
+      resumen: "La criatura puede tender hebras pegajosas o lanzar redes vivas para inmovilizar a sus presas.",
+      detalle:
+        "I: cruzar la telaraña exige [Ágil←Inteligente] o se queda atrapado. II: además puede lanzar una red como acción activa. III: la red es semiconsciente y golpea hasta tres veces por turno con los mismos efectos.",
+      tags: ["control", "presa"]
+    },
+    {
+      nombre: "Terrorífico",
+      fuente: "Libro Básico",
+      pagina: 200,
+      resumen: "El monstruo fuerza a retroceder o paraliza de miedo a quienes no soportan su presencia.",
+      detalle:
+        "Requiere Forma espiritual. I: obliga a una víctima a gastar sus acciones retrocediendo si falla [Tenaz←Tenaz]. II: extiende el efecto a todos los cercanos. III: quienes no puedan huir quedan encogidos de miedo en el sitio.",
+      tags: ["miedo", "control"]
+    },
+    {
+      nombre: "Venenoso",
+      fuente: "Libro Básico",
+      pagina: 200,
+      resumen: "Los ataques sin armas o con arma natural inoculan veneno al herir al objetivo.",
+      detalle:
+        "I/II/III: si el ataque consigue herir y la víctima falla [Fuerte←Inteligente], sufre 2/3/4 puntos de daño durante 2/3/4 turnos hasta que reciba antídoto y una tirada de Inteligente.",
+      tags: ["veneno", "ataque"]
+    },
+    {
+      nombre: "Abrazo aplastante",
+      pagina: 164,
+      resumen: "Tras dañar con arma natural, la criatura puede apresar y triturar al objetivo.",
+      detalle:
+        "I/II/III: como reacción al causar daño con arma natural, la criatura intenta agarrar. La víctima evita o rompe la presa con [Ágil←Diestro] y [Fuerte←Fuerte]; si falla, queda sin actuar y recibe 2/3/4 daño por turno que ignora armadura mientras la criatura mantiene el agarre.",
+      tags: ["presa", "arma natural"]
+    },
+    {
+      nombre: "Acaparador de corrupción",
+      pagina: 164,
+      resumen: "La criatura acumula corrupción y la gasta para torcer tiradas a su favor.",
+      detalle:
+        "Solo para criaturas consumidas por la corrupción. Puede almacenar hasta Tenaz/2 puntos; drena corrupción permanente de víctimas sometidas y, a niveles altos, también al herir con armas naturales. Esa reserva se gasta para forzar segundas oportunidades de fallar defensas, ataques, tiradas de resistencia o efectos contra la criatura.",
+      tags: ["corrupción", "abominación"]
+    },
+    {
+      nombre: "Aliento mortal",
+      pagina: 164,
+      resumen: "La criatura exhala un torrente devastador de fuego, frío, ácido, rayos u otro efecto.",
+      detalle:
+        "I: un objetivo sufre 3 o 6 daño según supere [Ágil←Diestro]. II: el torrente puede encadenarse a más objetivos mientras fallen. III: la tormenta continúa incluso con un éxito inicial y solo se rompe cuando un segundo objetivo logra resistir. Puede combinarse con Daño alternativo, Ataque de Corrupción o Venenoso.",
+      tags: ["daño", "área"]
+    },
+    {
+      nombre: "Anfibio",
+      pagina: 164,
+      resumen: "La criatura puede respirar aire y agua y combatir bajo el agua sin penalizadores.",
+      detalle:
+        "Permite vivir dentro y fuera del agua, ignorar los penalizadores por combate acuático y no sufrir daño por esfuerzo o falta de oxígeno al luchar sumergida.",
+      tags: ["movilidad", "agua"]
+    },
+    {
+      nombre: "Aparición",
+      pagina: 164,
+      resumen: "La criatura puede poseer cuerpos ajenos de forma mucho más rápida que el ritual Posesión.",
+      detalle:
+        "Requiere Forma espiritual I. I: al tocar, intenta poseer con [Tenaz←Tenaz] y la duración escala de día a permanente. II: al caer a Resistencia 0 puede saltar como reacción al enemigo que le dio el golpe final. III: la posesión lograda pasa a ser permanente hasta Exorcismo o abandono voluntario.",
+      tags: ["espíritu", "posesión"]
+    },
+    {
+      nombre: "Ataque perforante",
+      pagina: 165,
+      resumen: "El ataque no causa daño normal; intenta atravesar la armadura para aplicar otro efecto.",
+      detalle:
+        "El valor de daño del ataque se usa solo para perforar armadura. Si supera la protección del objetivo, entra el efecto secundario del monstruo, como veneno o corrupción. Los niveles fijan un valor de 4/5/6.",
+      tags: ["armadura", "penetración"]
+    },
+    {
+      nombre: "Aura nociva",
+      pagina: 165,
+      resumen: "La criatura daña automáticamente a cualquiera que permanezca a alcance cuerpo a cuerpo.",
+      detalle:
+        "I/II/III: quienes estén trabados con la criatura sufren 2/3/4 daño por turno que ignora armadura. El aura deja un rastro evidente y puede tratarse como fuego, frío, ácido, rayos, corrupción o veneno si combina con otros rasgos.",
+      tags: ["aura", "daño pasivo"]
+    },
+    {
+      nombre: "Caparazón",
+      pagina: 165,
+      resumen: "La armadura natural puede reforzarse en momentos concretos para duplicar su valor.",
+      detalle:
+        "El rasgo representa placas, conchas o quitina extremadamente resistentes. Según el nivel, la criatura puede duplicar su armadura al reaccionar frente a ataques, proyectiles o situaciones definidas por su anatomía y patrón defensivo.",
+      tags: ["armadura", "defensa"]
+    },
+    {
+      nombre: "Compañeros",
+      pagina: 165,
+      resumen: "La criatura combate mejor cuando actúa junto a miembros de su misma especie o grupo.",
+      detalle:
+        "El rasgo modela manadas, bandadas y equipos coordinados. A mayor nivel, más fuertes son los bonos que obtiene la criatura por luchar cerca de aliados compatibles o por concentrarse sobre un mismo objetivo.",
+      tags: ["grupo", "manada"]
+    },
+    {
+      nombre: "Convocante",
+      pagina: 165,
+      resumen: "La criatura llama refuerzos del Ultramundo que desaparecen al final de la escena o con su muerte.",
+      detalle:
+        "Solo para criaturas consumidas por la corrupción. Una vez por escena puede hacer una tirada de Tenaz para convocar intrusos demoníacos; con niveles altos trae refuerzos más fuertes o más numerosos. Los convocados obedecen órdenes audibles, no telepáticas.",
+      tags: ["demonios", "refuerzos"]
+    },
+    {
+      nombre: "Demoledor",
+      pagina: 166,
+      resumen: "Los golpes de la criatura tumban, lanzan por los aires o incluso derriban estructuras.",
+      detalle:
+        "I: al causar daño, el objetivo puede caer al suelo si falla [Fuerte←Fuerte]. II: además puede ser arrojado 1D6 metros y sufrir daño por caída equivalente. III: los ataques ganan la cualidad Demoledora y sirven también contra puertas, torres y muros.",
+      tags: ["derribo", "fortificaciones"]
+    },
+    {
+      nombre: "Descomunal",
+      pagina: 166,
+      resumen: "El tamaño monstruoso reduce movilidad, pero vuelve a la criatura casi imparable.",
+      detalle:
+        "Requiere Robusto III. I: ataca usando ambas acciones, pero obliga a tirar la armadura dos veces y quedarse con el peor resultado. II: al moverse no puede defenderse, pero sus enemigos tienen dos oportunidades de fallar la Defensa. III: añade todavía más presión física y dominio del espacio en combate.",
+      tags: ["tamaño", "jefe"]
+    },
+    {
+      nombre: "Devorador",
+      pagina: 166,
+      resumen: "La criatura inmoviliza, engulle y digiere a sus víctimas dentro de un vientre hostil.",
+      detalle:
+        "Requiere Descomunal I. I: tras un mordisco dañino, la presa queda sujeta y al turno siguiente puede ser tragada si falla [Fuerte←Fuerte], sufriendo 2 daño por turno dentro del vientre. II y III hacen más fácil iniciar el engullir y aumentan el daño y el número de víctimas simultáneas.",
+      tags: ["engullir", "mordisco"]
+    },
+    {
+      nombre: "Diminuto",
+      pagina: 167,
+      resumen: "La criatura es tan pequeña o lastimosa que cuesta tratarla como amenaza prioritaria.",
+      detalle:
+        "Los enemigos deben superar [Tenaz←Discreto] para atacarla mientras existan otros blancos viables. El efecto desaparece si la criatura demuestra claramente que sabe luchar o usa capacidades demasiado peligrosas para seguir pareciendo inofensiva.",
+      tags: ["evasión", "tamaño"]
+    },
+    {
+      nombre: "Embestida",
+      pagina: 167,
+      resumen: "La criatura usa su masa para abrirse paso, aplastar enemigos y derribarlos.",
+      detalle:
+        "Requiere Robusto al mismo nivel. I/II/III: al mover, quienes estén en su trayectoria deben resistir con [Fuerte←Fuerte] o reciben 2/3/4 daño y caen al suelo. Robusto añade +2 por nivel al daño y a la tirada enfrentada. Acróbata permite esquivarlo con [Ágil←Fuerte].",
+      tags: ["movimiento", "derribo"]
+    },
+    {
+      nombre: "Espíritu libre",
+      pagina: 167,
+      resumen: "El alma de la criatura está desligada del destino del mundo y no puede corromperse.",
+      detalle:
+        "La criatura es inmune a la corrupción y suele dejar señales sobrenaturales vinculadas a su naturaleza espiritual. El rasgo representa seres separados del flujo normal de Wratha, Wielda y Wyrtha.",
+      tags: ["espíritu", "inmunidad"]
+    },
+    {
+      nombre: "Garras prensiles",
+      pagina: 167,
+      resumen: "Las garras permiten herir, sujetar y arrastrar presas hacia las fauces o el cuerpo del monstruo.",
+      detalle:
+        "I: la criatura hace dos ataques de garra y, si ambos impactan, intenta apresar con [Fuerte←Fuerte]. II: basta con acertar una sola garra. III: un impacto puede iniciar directamente el arrastre; la víctima no se libera hasta que supere la tirada o la criatura la suelte.",
+      tags: ["presa", "arrastre"]
+    },
+    {
+      nombre: "Infeccioso",
+      pagina: 167,
+      resumen: "Las armas naturales transmiten una enfermedad cuando logran herir.",
+      detalle:
+        "Todo objetivo dañado por las armas naturales debe superar una tirada de Fuerte o contrae una enfermedad débil, moderada o potente según el nivel del rasgo.",
+      tags: ["enfermedad", "arma natural"]
+    },
+    {
+      nombre: "Infestación",
+      pagina: 167,
+      resumen: "La criatura puede introducirse o dejar larvas dentro del cuerpo de una víctima.",
+      detalle:
+        "Tras infligir daño, el parásito necesita tiempo para penetrar. La víctima o un aliado puede intentar extraerlo con una acción de combate, arriesgándose a dañarla. A mayor nivel, más difícil resulta evitar o eliminar la infestación y más peligroso es el efecto parasitario posterior.",
+      tags: ["parásito", "larvas"]
+    },
+    {
+      nombre: "Invisibilidad",
+      pagina: 168,
+      resumen: "La criatura se vuelve invisible, aunque aún puede delatarse por huellas, sonido o polvo.",
+      detalle:
+        "I: no puede ser blanco directo y obliga a localizarla con [Atento←Discreto] o a usar efectos de área y trucos como harina o arena. II: el estado parcialmente visible dura solo un turno. III: la criatura entra y sale de invisibilidad con la máxima soltura táctica.",
+      tags: ["sigilo", "detección"]
+    },
+    {
+      nombre: "Lengua apresadora",
+      pagina: 168,
+      resumen: "La lengua del monstruo ataca a distancia, engancha a la presa y la arrastra hasta el cuerpo a cuerpo.",
+      detalle:
+        "Funciona como un mordisco a hasta dos acciones de movimiento. Si el objetivo tiene menos Robusto, la criatura puede traerlo hacia sí con [Fuerte←Fuerte] y combinar el arrastre con Devorador, Abrazo aplastante u otros rasgos de presa.",
+      tags: ["alcance", "arrastre"]
+    },
+    {
+      nombre: "Lucha a muerte",
+      pagina: 168,
+      resumen: "La criatura descarga un último estallido de violencia al morir.",
+      detalle:
+        "I: al morir, realiza un ataque gratuito contra un enemigo adyacente. II: ese ataque cuenta como acción de combate normal y puede usar capacidades activas. III: puede lanzar hasta cinco ataques finales si alcanza a varios enemigos sin moverse.",
+      tags: ["muerte", "reacción"]
+    },
+    {
+      nombre: "Metamorfosis",
+      pagina: 168,
+      resumen: "La criatura modifica su forma para ganar rasgos adaptativos según la escena.",
+      detalle:
+        "Permite adoptar temporalmente combinaciones de rasgos como Alado, Caparazón, Garras prensiles, Tunelador o Venenoso. I: un rasgo a nivel I. II: dos rasgos a nivel I o uno a nivel II. III: dos rasgos a nivel II o uno a nivel III. Forma verdadera puede anular la adaptación.",
+      tags: ["cambiaformas", "adaptación"]
+    },
+    {
+      nombre: "Múltiples cabezas",
+      pagina: 168,
+      resumen: "La criatura cuenta con varias cabezas o miembros coordinados por mentes separadas.",
+      detalle:
+        "Cada parte actúa con cierta independencia y permite ampliar ataques, reacciones o cobertura sensorial. El daño puede repartirse entre cabezas o extremidades concretas, lo que complica neutralizar por completo a la criatura.",
+      tags: ["multiataque", "hidra"]
+    },
+    {
+      nombre: "Muro de raíces",
+      pagina: 168,
+      resumen: "La criatura levanta barreras de raíces para bloquear movimiento, visión o retirada.",
+      detalle:
+        "El rasgo permite controlar terreno y encerrar enemigos con obstáculos vegetales. A mayor nivel, la barrera es más extensa o resistente y sirve mejor para separar al grupo y fijar víctimas.",
+      tags: ["flora", "control de zona"]
+    },
+    {
+      nombre: "Observador",
+      pagina: 169,
+      resumen: "La criatura percibe su entorno en todas direcciones y no puede ser flanqueada.",
+      detalle:
+        "Los enemigos que la rodean no obtienen ventaja por flanquearla. El rasgo representa sentidos físicos o sobrenaturales capaces de vigilar 360 grados.",
+      tags: ["sentidos", "flanqueo"]
+    },
+    {
+      nombre: "Poder colectivo",
+      pagina: 169,
+      resumen: "Un colectivo de criaturas accede a poderes místicos al reunir suficientes miembros.",
+      detalle:
+        "El grupo puede lanzar un poder místico por turno además de las acciones individuales. La iniciativa usada es la más alta del colectivo y romper la concentración exige afectar a varios miembros en el mismo turno, lo que vuelve muy estable la magia grupal.",
+      tags: ["colectivo", "magia"]
+    },
+    {
+      nombre: "Recio",
+      pagina: 169,
+      resumen: "La criatura posee mucha más Resistencia de la que indica su Fuerte.",
+      detalle:
+        "I/II/III: la Resistencia pasa a ser Fuerte ×1,5 / ×2 / ×3, sin alterar el Umbral de dolor habitual. Representa vitalidad extraordinaria de origen natural o corrupto.",
+      tags: ["resistencia", "durabilidad"]
+    },
+    {
+      nombre: "Resistencia mística",
+      pagina: 169,
+      resumen: "Los poderes místicos tienen muchas más dificultades para afectar a la criatura.",
+      detalle:
+        "I: quien intente herirla o afectarla con magia debe superar dos tiradas de éxito. II: un fallo puede desviar el poder hacia otro objetivo visible al azar. III: la resistencia y el rebote mágico son aún más peligrosos para el lanzador.",
+      tags: ["magia", "resistencia"]
+    },
+    {
+      nombre: "Sed de sangre",
+      pagina: 170,
+      resumen: "La criatura hipnotiza a la víctima y le drena la sangre para dañarla o curarse.",
+      detalle:
+        "I: embelesa con [Tenaz←Tenaz] y extrae 2 Resistencia por turno ignorando armadura mientras mantenga el trance. II: además se cura la misma cantidad. III: el drenaje y la curación suben a 3 por turno y la víctima necesita ayuda externa para romper el control.",
+      tags: ["hipnosis", "drenaje"]
+    },
+    {
+      nombre: "Sensible a la corrupción",
+      pagina: 170,
+      resumen: "La criatura detecta brotes de corrupción y, a altos niveles, puede rastrear su origen.",
+      detalle:
+        "I: con Atento percibe brotes cercanos y la dirección general según la intensidad. II: localiza el punto exacto. III: puede seguir durante un día el rastro etéreo dejado por la fuente del brote.",
+      tags: ["corrupción", "rastreo"]
+    },
+    {
+      nombre: "Sentir vida",
+      pagina: 170,
+      resumen: "La criatura percibe seres vivos incluso a través de obstáculos y tierra.",
+      detalle:
+        "I: detecta vibraciones y obliga a esconderse con [Discreto←Atento]. II: puede atacar objetivos detectados a través de barreras si tiene modo de atravesarlas. III: incluso usa poderes místicos como si esos enemigos estuvieran en línea de visión.",
+      tags: ["sentidos", "rastreo"]
+    },
+    {
+      nombre: "Sucesor vengativo",
+      pagina: 170,
+      resumen: "La muerte de la criatura hace aparecer vengadores ligados a su especie o corrupción.",
+      detalle:
+        "Solo para criaturas al menos complicadas. I/II/III: al morir se manifiestan una, dos o tres criaturas vengadoras, normalmente de un nivel de desafío inferior y coherentes con la naturaleza del monstruo caído.",
+      tags: ["muerte", "refuerzos"]
+    },
+    {
+      nombre: "Tunelador",
+      pagina: 171,
+      resumen: "La criatura se desplaza bajo tierra y usa el subsuelo tanto para moverse como para atacar.",
+      detalle:
+        "I: se mueve bajo tierra a media velocidad y evita ataques gratuitos. II: entra y sale del suelo durante el mismo turno para atacar y esconderse. III: puede crear sumideros que derriban a grupos y le conceden ataques gratuitos contra quienes caen.",
+      tags: ["movilidad", "subsuelo"]
+    },
+    {
+      nombre: "Veloz",
+      pagina: 171,
+      resumen: "La criatura encadena ataques extra como reacción a sus propios impactos.",
+      detalle:
+        "I: al golpear con una acción de combate, hace un ataque gratuito adicional. II: si el ataque inicial causa daño, puede lanzar dos ataques gratuitos. III: siempre puede hacer esos dos ataques extra, incluso si el primero no impacta.",
+      tags: ["multiataque", "velocidad"]
+    },
+    {
+      nombre: "Veneno paralizante",
+      pagina: 171,
+      resumen: "El veneno de la criatura aturde, bloquea reacciones o deja totalmente inmóvil al objetivo.",
+      detalle:
+        "I: cada herida obliga a tirar Fuerte; un fracaso deja al objetivo reducido a reacciones con dos oportunidades de fallar. II: el bloqueo puede durar 1D4 turnos. III: la resistencia pasa a [Fuerte −5] y un fallo paraliza por completo durante 1D8 turnos.",
+      tags: ["veneno", "control"]
+    },
+    {
+      nombre: "Visión nocturna",
+      pagina: 171,
+      resumen: "La criatura percibe el entorno mediante ecolocalización y actúa con normalidad en oscuridad total.",
+      detalle:
+        "Gracias a pulsos acústicos, detecta objetos, seres invisibles y movimiento sin depender de la vista. La oscuridad total no la perjudica mientras conserve esa percepción sonora.",
+      tags: ["sentidos", "oscuridad"]
+    }
+  ];
+
+  return traits.map((trait) => ({
+    id: `rasgo-${slugify(trait.nombre)}`,
+    tipo: "rasgo",
+    nombre: trait.nombre,
+    resumen: trait.resumen,
+    detalle: trait.detalle,
+    fuente: trait.fuente ?? "Códice de monstruos",
+    pagina: trait.pagina,
+    tags: ["rasgo", "monstruo", trait.fuente === "Libro Básico" ? "libro básico" : "código de monstruos", ...(trait.tags ?? [])]
+  }));
+}
+
+function buildMonsterRuleEntries(): CompendiumEntry[] {
+  return [
+    {
+      id: "regla-monstruos-categorias",
+      tipo: "regla",
+      nombre: "Categorías de monstruo",
+      resumen: "El Códice divide las criaturas en seis categorías: abominaciones, bestias, fenómenos, flora, muertos vivientes y seres civilizados.",
+      detalle:
+        "Las categorías no son solo taxonomía narrativa: también determinan rasgos habituales, interacciones con habilidades como Versado en criaturas y reglas compartidas, como inmunidades, visión en oscuridad o ausencia de Umbral de dolor.",
+      fuente: "Códice de monstruos",
+      pagina: 162,
+      tags: ["monstruos", "categorías", "bestiario"]
+    },
+    {
+      id: "regla-monstruos-abominaciones",
+      tipo: "regla",
+      nombre: "Abominaciones",
+      resumen: "Las abominaciones están consumidas por corrupción y comparten muchos rasgos con los muertos vivientes.",
+      detalle:
+        "Suelen usar rasgos como Ataque ácido, Acaparador de corrupción, Aura nociva, Regeneración, Robusto o Tunelador. No duermen, no comen ni beben, no se ahogan, son inmunes a venenos y enfermedades comunes, ven en oscuridad total y las energías sagradas o curativas las dañan en lugar de sanarlas.",
+      fuente: "Códice de monstruos",
+      pagina: 162,
+      tags: ["monstruos", "abominaciones", "corrupción"]
+    },
+    {
+      id: "regla-monstruos-bestias",
+      tipo: "regla",
+      nombre: "Bestias",
+      resumen: "Las bestias abarcan animales salvajes, domesticados y depredadores guiados sobre todo por el instinto.",
+      detalle:
+        "Todas cuentan con el rasgo Montés y la mayoría ven bien en penumbra. Entre sus rasgos más comunes están Abrazo aplastante, Alado, Caparazón, Devorador, Embestida, Lengua apresadora, Regeneración, Tunelador, Veloz, Veneno paralizante y Venenoso.",
+      fuente: "Códice de monstruos",
+      pagina: 163,
+      tags: ["monstruos", "bestias", "instinto"]
+    },
+    {
+      id: "regla-monstruos-fenomenos",
+      tipo: "regla",
+      nombre: "Fenómenos",
+      resumen: "Los fenómenos son seres o presencias difíciles de clasificar, a veces más cercanos a un estado o lugar maligno que a un animal.",
+      detalle:
+        "Pueden mezclar rasgos muy distintos entre sí y, por esa ambigüedad, no sirven como especialización válida para Versado en criaturas. Son la categoría más libre y extraña del sistema.",
+      fuente: "Códice de monstruos",
+      pagina: 163,
+      tags: ["monstruos", "fenómenos", "clasificación"]
+    },
+    {
+      id: "regla-monstruos-flora",
+      tipo: "regla",
+      nombre: "Flora",
+      resumen: "La flora monstruosa usa control del terreno, raíces, venenos y cuerpos vegetales muy resistentes.",
+      detalle:
+        "Suelen combinar Duro, Descomunal, Abrazo aplastante, Lengua apresadora, Múltiples cabezas, Muro de raíces, Regeneración, Recio y Veneno paralizante. No tienen Umbral de dolor, no duermen y son inmunes a venenos y enfermedades corrientes.",
+      fuente: "Códice de monstruos",
+      pagina: 163,
+      tags: ["monstruos", "flora", "control"]
+    },
+    {
+      id: "regla-monstruos-muertos-vivientes",
+      tipo: "regla",
+      nombre: "Muertos vivientes",
+      resumen: "La categoría incluye tanto espíritus como cadáveres andantes poseídos por un espíritu activo.",
+      detalle:
+        "Todos los muertos vivientes no duermen, no comen, no beben, no se ahogan y no sufren corrupción adicional porque ya están consumidos por ella. Ven en oscuridad total, carecen de Umbral de dolor y la magia sagrada o curativa les daña, mientras la energía impía los sana.",
+      fuente: "Códice de monstruos",
+      pagina: 163,
+      tags: ["monstruos", "muertos vivientes", "espíritus"]
+    },
+    {
+      id: "regla-monstruos-seres-civilizados",
+      tipo: "regla",
+      nombre: "Seres civilizados",
+      resumen: "Humanos, elfos, ogros, trasgos y otras razas inteligentes entran aquí y usan sobre todo habilidades y poderes normales.",
+      detalle:
+        "Sus rasgos de monstruo, cuando existen, dependen de su raza y no de la categoría. Se organizan socialmente y suelen parecerse más a personajes jugadores o PNJ desarrollados que a bestias puras.",
+      fuente: "Códice de monstruos",
+      pagina: 163,
+      tags: ["monstruos", "civilizados", "pnj"]
+    },
+    {
+      id: "regla-monstruos-rasgos",
+      tipo: "regla",
+      nombre: "Rasgos de monstruo",
+      resumen: "Los rasgos de monstruo son talentos extraordinarios, normalmente con tres niveles y redactados desde la perspectiva de PNJ.",
+      detalle:
+        "La sección asume niveles I, II y III para cada rasgo. Si un personaje jugador adquiere uno, el grupo debe reformular su texto igual que hace con habilidades de PNJ. El capítulo también lista qué rasgos nuevos vienen del Códice y cuáles remiten al Libro Básico.",
+      fuente: "Códice de monstruos",
+      pagina: 164,
+      tags: ["monstruos", "rasgos", "niveles"]
+    },
+    {
+      id: "regla-monstruos-modelar-la-carne",
+      tipo: "regla",
+      nombre: "Modelar la carne y rasgos compatibles",
+      resumen: "El ritual Modelar la carne puede esculpir varios rasgos de monstruo concretos.",
+      detalle:
+        "El Códice amplía el ritual para cubrir Alado, Anfibio, Arma natural, Ataque de Corrupción, Caparazón, Duro, Escupitajo venenoso, Lengua apresadora, Regeneración, Robusto, Tunelador y Venenoso.",
+      fuente: "Códice de monstruos",
+      pagina: 164,
+      tags: ["monstruos", "ritual", "modelar la carne"]
+    },
+    {
+      id: "regla-monstruos-creacion",
+      tipo: "regla",
+      nombre: "La creación de monstruos",
+      resumen: "Crear monstruos sigue la lógica de crear personajes, pero priorizando manejo fácil en mesa y una función táctica clara.",
+      detalle:
+        "El capítulo recomienda diseñar criaturas que añadan algo nuevo al juego, tengan al menos una debilidad explotable y usen una estrategia principal fácil de ejecutar por el director de juego durante combates de cinco o seis turnos.",
+      fuente: "Códice de monstruos",
+      pagina: 174,
+      tags: ["monstruos", "diseño", "director de juego"]
+    },
+    {
+      id: "regla-monstruos-creacion-lo-esencial",
+      tipo: "regla",
+      nombre: "Lo esencial al crear monstruos",
+      resumen: "Empieza por debilidad, raza/categoría, nivel de desafío, atributos y mezcla de rasgos y habilidades.",
+      detalle:
+        "El Códice aconseja dar siempre un talón de Aquiles a la criatura, favorecer rasgos pasivos sobre demasiadas acciones reactivas y repartir 80 puntos de atributos igual que un PJ, normalmente usando una plantilla 5, 7, 9, 10, 10, 11, 13, 15. También sugiere centrar el monstruo en una táctica dominante.",
+      fuente: "Códice de monstruos",
+      pagina: 174,
+      tags: ["monstruos", "diseño", "atributos"]
+    },
+    {
+      id: "regla-monstruos-desafio-y-experiencia",
+      tipo: "regla",
+      nombre: "Desafío y experiencia de monstruos",
+      resumen: "El nivel de desafío marca cuánta experiencia gasta la criatura en rasgos y habilidades.",
+      detalle:
+        "La tabla del Códice usa seis niveles: Sencillo 0 XP, Normal 50, Complicado 150, Difícil 300, Mortal 600 y Legendario 1200. Las distribuciones rápidas propuestas van desde sin habilidades hasta veinte capacidades a nivel maestro para criaturas legendarias.",
+      fuente: "Códice de monstruos",
+      pagina: 175,
+      tags: ["monstruos", "desafío", "experiencia"]
+    },
+    {
+      id: "regla-monstruos-creacion-complementos",
+      tipo: "regla",
+      nombre: "Complementos al crear monstruos",
+      resumen: "Tras elegir base y poderes, calcula armas, armadura, defensa y resistencia como control de calidad del diseño.",
+      detalle:
+        "El capítulo recuerda separar efectos pasivos de activos, revisar qué atributo usa cada ataque o defensa y tener presentes interacciones clave como Combate con armadura, Berserker y Robusto al fijar protección, Resistencia y Umbral de dolor.",
+      fuente: "Códice de monstruos",
+      pagina: 176,
+      tags: ["monstruos", "armas", "armadura", "defensa"]
+    },
+    {
+      id: "regla-monstruos-creacion-toques-finales",
+      tipo: "regla",
+      nombre: "Toques finales del monstruo",
+      resumen: "Conducta, botín, sombra y tácticas convierten un bloque mecánico en una criatura memorable.",
+      detalle:
+        "El Códice propone definir cómo se comporta el monstruo, qué objetos o restos valiosos podría portar o haber tragado, qué muestra su sombra a Ojo místico y qué táctica sigue según un papel similar al de cazador, guerrero, místico o maleante.",
+      fuente: "Códice de monstruos",
+      pagina: 177,
+      tags: ["monstruos", "conducta", "tácticas", "sombra"]
+    },
+    {
+      id: "regla-monstruos-combate-equilibrado",
+      tipo: "regla",
+      nombre: "Desafío de combate equilibrado",
+      resumen: "El Códice combina nivel de competencia, dificultad prevista y entorno para estimar encuentros razonables.",
+      detalle:
+        "No es una fórmula exacta: depende del estilo del grupo, de cómo gasten experiencia y de cómo combinen poderes y rasgos. Aun así, ofrece una base práctica para decidir qué oposición usar en cada fase de campaña.",
+      fuente: "Códice de monstruos",
+      pagina: 178,
+      tags: ["monstruos", "encuentros", "equilibrio"]
+    },
+    {
+      id: "regla-monstruos-nivel-de-competencia",
+      tipo: "regla",
+      nombre: "Nivel de competencia",
+      resumen: "El libro divide a los grupos en novatos, experimentados, veteranos y héroes según experiencia, equipo y alcance de sus aventuras.",
+      detalle:
+        "Novatos rondan 50 XP y afrontan aventuras limitadas; experimentados, unas 100 XP y retos locales; veteranos, unas 200 XP y amenazas regionales; héroes, 300 XP o más, con artefactos abundantes y conflictos globales.",
+      fuente: "Códice de monstruos",
+      pagina: 178,
+      tags: ["monstruos", "campaña", "competencia"]
+    },
+    {
+      id: "regla-monstruos-competencia-y-desafio",
+      tipo: "regla",
+      nombre: "Competencia y desafío",
+      resumen: "El Códice ofrece una tabla de encuentros fáciles y difíciles según el nivel del grupo.",
+      detalle:
+        "Un combate fácil debería favorecer a los PJ; uno difícil funciona mejor como clímax incierto. La tabla relaciona cada nivel con cantidades orientativas de enemigos sencillos, normales, complicados, difíciles, mortales o legendarios, además de líderes apropiados.",
+      fuente: "Códice de monstruos",
+      pagina: 180,
+      tags: ["monstruos", "encuentros", "dificultad"]
+    },
+    {
+      id: "regla-monstruos-competencia-y-entorno",
+      tipo: "regla",
+      nombre: "Competencia y entorno",
+      resumen: "El entorno también escala el peligro: Ambria es relativamente segura y Davokar se vuelve letal cuanto más profundo se entra.",
+      detalle:
+        "Las pautas sugieren novatos principalmente en Ambria y Davokar la Luminosa, experimentados con incursiones crecientes en la Oscura, veteranos habituados a la Luminosa pero probados en la Oscura, y héroes enfrentados a zonas completamente consumidas por corrupción.",
+      fuente: "Códice de monstruos",
+      pagina: 180,
+      tags: ["monstruos", "Davokar", "entorno"]
+    }
+  ];
 }
 
 export const MANUAL_RULES: CompendiumEntry[] = [
@@ -1167,6 +1875,8 @@ export const CORE_RULES: CompendiumEntry[] = [...MANUAL_RULES, ...RULE_SUMMARY_E
 
 export const ALL_ENTRIES: CompendiumEntry[] = [
   ...CORE_RULES,
+  ...buildMonsterRuleEntries(),
+  ...buildMonsterTraitEntries(),
   ...SYMBAROUM_CAPABILITIES.map(buildCapabilityEntry),
   ...buildRaceEntries(),
   ...buildCultureEntries(),
@@ -1176,6 +1886,7 @@ export const ALL_ENTRIES: CompendiumEntry[] = [
 
 export const COMPENDIUM_STATS = {
   totalEntries: ALL_ENTRIES.length,
+  traits: buildMonsterTraitEntries().length,
   abilities: SYMBAROUM_ABILITIES.length,
   powers: SYMBAROUM_MYSTIC_POWERS.length,
   rituals: SYMBAROUM_RITUALS.length
@@ -1221,6 +1932,792 @@ const SOURCE_PDF_PATHS: Record<string, string> = {
   "Symbaroum Errata v1.14": "/books/symbaroum-errata-v1-14.pdf",
 };
 
+const SUMMARY_DOC_PATHS = {
+  rules: "/summaries/Reglas.pdf",
+  capabilities: "/summaries/Habilidades, poderes y rituales.pdf",
+  market: "/summaries/Mercado.pdf",
+  materials: "/summaries/Materiales.pdf",
+  tools: "/summaries/Guía de Utensilios.pdf",
+  errata: "/summaries/Errata Sueca Traducida.pdf"
+} as const;
+
+const SUMMARY_PDF_PAGE_OVERRIDES = {
+  rules: {
+    "Reglas b?sicas": 4,
+    "Combate": 4,
+    "Acciones especiales de combate": 5,
+    "Luchar a ciegas": 5,
+    "Destrabarse del combate": 5,
+    "Usar/aplicar un elixir": 5,
+    "Primeros auxilios": 5,
+    "Levantarse": 5,
+    "L?nea de visi?n": 5,
+    "Escudo": 6,
+    "Flanquear": 6,
+    "Sorpresa": 6,
+    "Ventaja": 6,
+    "Da?o y curaci?n": 7,
+    "Umbral de dolor": 7,
+    "Personajes moribundos": 7,
+    "Reglas especiales": 7,
+    "Conflictos entre personajes jugadores": 7,
+    "Da?o por veneno o ?cido": 8,
+    "Da?o por ca?da": 8,
+    "Reglas alternativas: (a discutir por el grupo)": 8,
+    "Modificaciones a la corrupci?n": 8,
+    "Umbral de corrupci?n": 8,
+    "Corrupci?n m?xima": 8,
+    "Cambio a las tradiciones": 9,
+    "Cambio a Talento m?stico superior": 9,
+    "Muerte instant?nea": 9,
+    "Modificadores por da?o cr?tico": 9,
+    "Tiradas a cambio de experiencia": 9,
+    "Tiradas a cambio de corrupci?n": 9,
+    "Cr?ticos y pifias en combate": 10,
+    "Objetivos vitales": 10,
+    "Ejemplos de objetivos vitales": 10,
+    "El camino de la misericordia": 10,
+    "Movimiento a escala": 12,
+    "Tiradas para atributos": 12,
+    "Usar Persuasivo entre jugadores": 12,
+    "Armas alqu?micas": 13,
+    "Tubo de fuego alqu?mico (port?til)": 13,
+    "Tubo de fuego alqu?mico (fijo)": 13,
+    "Granada alqu?mica": 13,
+    "Olla explosiva": 13,
+    "Categor?as de distancia": 13,
+    "Convertirse en muerto viviente en vez de abominaci?n por corrupci?n": 14,
+    "Haza?as": 14,
+    "Golpe limpio": 14,
+    "Sin miedo": 14,
+    "Ignorar la corrupci?n": 14,
+    "Defensa perfecta": 14,
+    "Golpe r?pido": 14,
+    "Resistencia": 22,
+    "Mirada de acero": 15,
+    "Ataque torbellino": 15,
+    "Categor?as de marcha": 15,
+    "Carga": 15,
+    "Investigaci?n en archivos": 16,
+    "Experiencia inicial": 16,
+    "Rituales m?ximos a nivel maestro": 16,
+    "Persecuciones": 17,
+    "Trampas": 17,
+    "Poner una trampa": 17,
+    "Descubrir una trampa": 17,
+    "Evitar una trampa": 17,
+    "Desactivar una trampa": 18,
+    "Liberarse de una trampa": 18,
+    "Venta de bienes usados": 18,
+    "Ingresos por bendiciones": 18,
+    "Maniobras de combate (combates m?s t?cticos)": 18,
+    "Apuntar con cuidado": 19,
+    "Embestir": 19,
+    "Retrasar la iniciativa": 19,
+    "Desarmar": 19,
+    "Defensa completa": 19,
+    "Ofensiva total": 19,
+    "Presa": 19,
+    "Dejar inconsciente": 20,
+    "Veneno en las armas": 20,
+    "Hacer retroceder": 20,
+    "Placaje": 20,
+    "Tomar la iniciativa": 20,
+    "Monstruos y trofeos": 20,
+    "Objetos magistrales": 21,
+    "Pactos": 21,
+    "Ventajas del pacto": 22,
+    "Precio del pacto": 22,
+    "Romper un pacto": 22,
+    "Da?o a edificios": 22,
+    "Punto cr?tico": 23,
+    "Fortificaci?n": 23,
+    "Incendiar edificios": 23,
+    "Recuperar virotes o flechas": 24,
+    "Los secretos de las tradiciones": 24,
+    "Golpes localizados": 25,
+    "Apuntar alto o bajo": 25,
+    "Apuntar a una parte del cuerpo": 25,
+    "Partes de la armadura": 25,
+    "Reputaci?n": 26,
+    "Cambios en la reputaci?n": 26,
+    "Tipo de reputaci?n": 26,
+    "Superposici?n de efectos": 27
+  },
+  capabilities: {
+    "Habilidades para todos": 1,
+    "Acr?bata": 1,
+    "Alquimista": 1,
+    "Arco veloz": 2,
+    "Armas a dos manos": 2,
+    "Armas de asta": 2,
+    "Armas de presa": 3,
+    "Ataque con dos armas": 3,
+    "Ataque traicionero": 4,
+    "Atributo excepcional": 4,
+    "Berserker": 4,
+    "Brujer?a": 5,
+    "Canalizaci?n": 5,
+    "Canto troll": 6,
+    "Combate con armadura": 6,
+    "Combate con arma larga": 7,
+    "Combate con armas de cadena": 7,
+    "Combate con escudo": 7,
+    "Combate sin armas": 8,
+    "Cuchillo r?pido": 8,
+    "Disparo Magistral": 9,
+    "Dominaci?n": 10,
+    "Esgrima sagrada": 10,
+    "Esp?ritu combativo": 11,
+    "Estrangulador": 11,
+    "Estudioso": 12,
+    "Experto en asedios": 12,
+    "Finta": 13,
+    "Golpe bajo": 13,
+    "Golpe de hierro": 14,
+    "Guardaespaldas": 14,
+    "Hechicer?a": 14,
+    "Herrero": 15,
+    "Inquebrantable": 15,
+    "Instinto de cazador": 16,
+    "Jinete": 16,
+    "L?der": 17,
+    "Lucha": 17,
+    "Maestro del hacha": 18,
+    "Magia": 19,
+    "Mano veloz": 19,
+    "Martillo ariete": 19,
+    "Medicus": 20,
+    "Ojo m?stico": 20,
+    "Oportunista": 21,
+    "Pu?o de flecha": 21,
+    "Recuperaci?n": 22,
+    "Reflejos r?pidos": 22,
+    "Sexto sentido": 22,
+    "Simbolismo": 23,
+    "T?ctico": 24,
+    "Talento m?stico superior": 24,
+    "Tatuaje r?nico": 25,
+    "Teurgia": 25,
+    "Tirador": 25,
+    "Trampero": 26,
+    "Venenos": 27,
+    "Versado en criaturas": 27,
+    "Viento de acero": 28,
+    "Poderes m?sticos": 29,
+    "Tradiciones de los poderes": 29,
+    "Aliento negro": 29,
+    "Anatema": 30,
+    "Arma danzante": 30,
+    "Aura imp?a": 30,
+    "Aura sagrada": 31,
+    "Cambiaformas": 31,
+    "Cascada de azufre": 31,
+    "Confusi?n": 32,
+    "Empuje mental": 32,
+    "Enredadera veloz": 33,
+    "Erupci?n de larvas": 33,
+    "Escudo bendito": 34,
+    "Esfera de protecci?n": 34,
+    "Forma verdadera": 35,
+    "Glifo vamp?rico": 35,
+    "Golpe espectral": 36,
+    "Herida compartida": 36,
+    "Himno de batalla": 37,
+    "Himno debilitante": 37,
+    "Himno heroico": 38,
+    "Imperceptible": 38,
+    "Imposici?n de manos": 38,
+    "Levitaci?n": 39,
+    "Maldici?n": 39,
+    "Martillo de monstruos": 40,
+    "Modificaci?n ilusoria": 40,
+    "Muro de llamas": 40,
+    "Nube de venganza": 41,
+    "Prisma ardiente de prios": 42,
+    "Rayo negro": 42,
+    "Refugio terrestre": 43,
+    "Runas de protecci?n": 43,
+    "Sello de expulsi?n": 43,
+    "S?mbolo cegador": 44,
+    "Someter voluntad": 44,
+    "Tormenta de flechas": 45,
+    "Transformaci?n regresiva": 45,
+    "Rituales": 46,
+    "Tradiciones de los rituales": 46,
+    "Adivinaci?n": 46,
+    "Alzar muertos vivientes": 47,
+    "Cadenas de juicio": 47,
+    "C?rculo de bruja": 47,
+    "C?rculo m?gico": 48,
+    "Conjurar terreno vengativo": 48,
+    "Clarividencia": 48,
+    "Crecimiento acelerado": 49,
+    "Decretar confesi?n": 49,
+    "Esclavizar": 49,
+    "Escritura lejana": 49,
+    "Esp?ritu protector": 49,
+    "Exorcismo": 50,
+    "Familiar": 50,
+    "Forma ilusoria": 51,
+    "Fuego purificador": 51,
+    "Grilletes del destino": 51,
+    "Guardi?n r?nico": 52,
+    "Humo sagrado": 52,
+    "Ilusi?n": 52,
+    "Intercambiar sombra": 52,
+    "Interrogatorio mental": 53,
+    "Invocaci?n": 53,
+    "Manipulaci?n atmosf?rica": 53,
+    "Moldear la carne": 53,
+    "Nana del bosque": 54,
+    "Nigromancia": 54,
+    "Or?culo": 54,
+    "Paisaje hipn?tico": 54,
+    "Piedra de esp?ritu": 54,
+    "Posesi?n": 55,
+    "Pr?stamo animal": 55,
+    "Prisi?n espiritual": 56,
+    "Prolongar la vida": 56,
+    "Rastro her?tico": 56,
+    "Rastro invisible": 56,
+    "Recipiente vital": 56,
+    "Recuperar objeto": 57,
+    "Relato de cenizas": 57,
+    "Reparar": 57,
+    "Rito de bendici?n": 57,
+    "Rito de profanaci?n": 57,
+    "Rito de sellado/apertura": 58,
+    "Romper conexi?n": 58,
+    "Santuario": 58,
+    "Siervo flam?gero": 58,
+    "Tatuar runa": 59,
+    "Terreno ilusorio": 59,
+    "Tormento": 59,
+    "Tortura resonante": 59,
+    "Trampa m?stica": 60,
+    "Ungir": 60,
+    "Vida falsa": 60,
+    "V?nculo de sangre": 60,
+    "Zancada de siete leguas": 61,
+    "Profesiones y sus habilidades": 61,
+    "Ladr?n de guante blanco": 61,
+    "Capa danzante": 61,
+    "Guardia de la Furia": 61,
+    "Combate sangriento": 62,
+    "Juramentado de hierro": 62,
+    "Danza de batalla": 62,
+    "Artesano de artefactos": 63,
+    "Elaboraci?n de artefactos": 63,
+    "Mago del b?culo": 63,
+    "Magia del b?culo": 63,
+    "B?culo arrojadizo": 64,
+    "Terremoto": 65,
+    "Tormenta de sangre": 65,
+    "Templario": 66,
+    "M?stico acorazado": 66,
+    "Esp?a de la reina": 66,
+    "Pirotecnia": 66,
+    "N?mada de la sangre - El camino rojo de las brujas": 67,
+    "Cacer?a salvaje": 67,
+    "Compa?ero bestial": 68,
+    "Espiritista - El camino blanco de las brujas": 68,
+    "Adivinaci?n nigrom?ntica": 68,
+    "Nigromante": 68,
+    "Esp?ritus atormentadores": 69,
+    "Forma espiritual": 69,
+    "Se?or de la muerte": 70,
+    "Demon?logo": 70,
+    "Expulsar a los abismos": 70,
+    "Teletransportaci?n": 71,
+    "Invocar demonio": 72,
+    "Siervo demon?aco": 75,
+    "Ilusionista": 75,
+    "Imagen especular": 75,
+    "Fata morgana": 75,
+    "Confesor": 76,
+    "Manantial de vida": 76,
+    "Expiaci?n": 76,
+    "Tejedora verde": 76,
+    "Manto de espinas": 76,
+    "Fortaleza viviente": 77,
+    "Inquisidor": 77,
+    "Purgatorio": 77,
+    "Mirada penetrante": 78,
+    "Piromante": 78,
+    "Esp?ritu ?gneo": 78,
+    "Gemelos flam?geros": 78,
+    "Mentalista": 78,
+    "Golpe ps?quico": 79,
+    "T?nel m?stico": 79
+  },
+  errata: {
+    "Armadura (valores de los monstruos)": 1,
+    "Armas (valores de los monstruos)": 1,
+    "V?nculo de sangre (Ritual)": 2,
+    "Berserker (Habilidad)": 2,
+    "Experiencia": 2,
+    "Sirviente Flam?gero (Ritual)": 2,
+    "Habilidades que sustituyen un rasgo por otro": 2,
+    "Defensa (Valores de monstruos)": 2,
+    "Cambiaformas (Poder m?stico)": 3,
+    "Renta": 3,
+    "Golpe de Hierro (Habilidad)": 3,
+    "Arma arrojadiza": 3,
+    "L?der (Habilidad)": 3,
+    "Elixir de vida (Elixir alqu?mico)": 3,
+    "Larga (Cualidad)": 4,
+    "Concentrado m?gico (Elixir alqu?mico)": 4,
+    "Material para usar poderes": 4,
+    "Versado en criaturas (Habilidad)": 4,
+    "Ataque de monstruos": 4,
+    "Tabla": 5,
+    "Fuego purificador (Ritual)": 6,
+    "Jefe ladr?n": 6,
+    "Piedra de alma (Ritual)": 7,
+    "Da?o de dados superiores a 1D12": 7
+  }
+} as const;
+
+const SUMMARY_PDF_PAGE_LOOKUPS: Partial<Record<keyof typeof SUMMARY_DOC_PATHS, Record<string, number>>> = {
+  rules: {
+    "acciones-especiales-de-combate": 5,
+    "apuntar-a-una-parte-del-cuerpo": 25,
+    "apuntar-alto-o-bajo": 25,
+    "apuntar-con-cuidado": 19,
+    "armas-alquimicas": 13,
+    "ataque-torbellino": 15,
+    "cambio-a-las-tradiciones": 9,
+    "cambio-a-talento-mistico-superior": 9,
+    "cambios-en-la-reputacion": 26,
+    "carga": 15,
+    "categorias-de-distancia": 13,
+    "categorias-de-marcha": 15,
+    "combate": 4,
+    "conflictos-entre-personajes-jugadores": 7,
+    "convertirse-en-muerto-viviente-en-vez-de-abominacion-por-corrupcion": 14,
+    "corrupcion-maxima": 8,
+    "criticos-y-pifias-en-combate": 10,
+    "dano-a-edificios": 22,
+    "dano-por-caida": 8,
+    "dano-por-veneno-o-acido": 8,
+    "dano-y-curacion": 7,
+    "defensa-completa": 19,
+    "defensa-perfecta": 14,
+    "dejar-inconsciente": 20,
+    "desactivar-una-trampa": 18,
+    "desarmar": 19,
+    "descubrir-una-trampa": 17,
+    "destrabarse-del-combate": 5,
+    "ejemplos-de-objetivos-vitales": 10,
+    "el-camino-de-la-misericordia": 10,
+    "embestir": 19,
+    "escudo": 6,
+    "evitar-una-trampa": 17,
+    "experiencia-inicial": 16,
+    "flanquear": 6,
+    "fortificacion": 23,
+    "golpe-limpio": 14,
+    "golpe-rapido": 14,
+    "golpes-localizados": 25,
+    "granada-alquimica": 13,
+    "hacer-retroceder": 20,
+    "hazanas": 14,
+    "ignorar-la-corrupcion": 14,
+    "incendiar-edificios": 23,
+    "ingresos-por-bendiciones": 18,
+    "investigacion-en-archivos": 16,
+    "levantarse": 5,
+    "liberarse-de-una-trampa": 18,
+    "linea-de-vision": 5,
+    "los-secretos-de-las-tradiciones": 24,
+    "luchar-a-ciegas": 5,
+    "maniobras-de-combate-combates-mas-tacticos": 18,
+    "mirada-de-acero": 15,
+    "modificaciones-a-la-corrupcion": 8,
+    "modificadores-por-dano-critico": 9,
+    "monstruos-y-trofeos": 20,
+    "movimiento-a-escala": 12,
+    "muerte-instantanea": 9,
+    "objetivos-vitales": 10,
+    "objetos-magistrales": 21,
+    "ofensiva-total": 19,
+    "olla-explosiva": 13,
+    "pactos": 21,
+    "partes-de-la-armadura": 25,
+    "persecuciones": 17,
+    "personajes-moribundos": 7,
+    "placaje": 20,
+    "poner-una-trampa": 17,
+    "precio-del-pacto": 22,
+    "presa": 19,
+    "primeros-auxilios": 5,
+    "punto-critico": 23,
+    "recuperar-virotes-o-flechas": 24,
+    "reglas-alternativas-a-discutir-por-el-grupo": 8,
+    "reglas-basicas": 4,
+    "reglas-especiales": 7,
+    "reputacion": 26,
+    "resistencia": 22,
+    "retrasar-la-iniciativa": 19,
+    "rituales-maximos-a-nivel-maestro": 16,
+    "romper-un-pacto": 22,
+    "sin-miedo": 14,
+    "sorpresa": 6,
+    "superposicion-de-efectos": 27,
+    "tipo-de-reputacion": 26,
+    "tiradas-a-cambio-de-corrupcion": 9,
+    "tiradas-a-cambio-de-experiencia": 9,
+    "tiradas-para-atributos": 12,
+    "tomar-la-iniciativa": 20,
+    "trampas": 17,
+    "tubo-de-fuego-alquimico-fijo": 13,
+    "tubo-de-fuego-alquimico-portatil": 13,
+    "umbral-de-corrupcion": 8,
+    "umbral-de-dolor": 7,
+    "usar-aplicar-un-elixir": 5,
+    "usar-persuasivo-entre-jugadores": 12,
+    "veneno-en-las-armas": 20,
+    "venta-de-bienes-usados": 18,
+    "ventaja": 6,
+    "ventajas-del-pacto": 22
+  },
+  capabilities: {
+    "acrobata": 1,
+    "adivinacion": 46,
+    "adivinacion-nigromantica": 68,
+    "aliento-negro": 29,
+    "alquimista": 1,
+    "alzar-muertos-vivientes": 47,
+    "anatema": 30,
+    "arco-veloz": 2,
+    "arma-danzante": 30,
+    "armas-a-dos-manos": 2,
+    "armas-de-asta": 2,
+    "armas-de-presa": 3,
+    "artesano-de-artefactos": 63,
+    "ataque-con-dos-armas": 3,
+    "ataque-traicionero": 4,
+    "atributo-excepcional": 4,
+    "aura-impia": 30,
+    "aura-sagrada": 31,
+    "baculo-arrojadizo": 64,
+    "berserker": 4,
+    "brujeria": 5,
+    "caceria-salvaje": 67,
+    "cadenas-de-juicio": 47,
+    "cambiaformas": 31,
+    "canalizacion": 5,
+    "canto-troll": 6,
+    "capa-danzante": 61,
+    "cascada-de-azufre": 31,
+    "circulo-de-bruja": 47,
+    "circulo-magico": 48,
+    "clarividencia": 48,
+    "combate-con-arma-larga": 7,
+    "combate-con-armadura": 6,
+    "combate-con-armas-de-cadena": 7,
+    "combate-con-escudo": 7,
+    "combate-sangriento": 62,
+    "combate-sin-armas": 8,
+    "companero-bestial": 68,
+    "confesor": 76,
+    "confusion": 32,
+    "conjurar-terreno-vengativo": 48,
+    "crecimiento-acelerado": 49,
+    "cuchillo-rapido": 8,
+    "danza-de-batalla": 62,
+    "decretar-confesion": 49,
+    "demonologo": 70,
+    "disparo-magistral": 9,
+    "dominacion": 10,
+    "elaboracion-de-artefactos": 63,
+    "empuje-mental": 32,
+    "enredadera-veloz": 33,
+    "erupcion-de-larvas": 33,
+    "esclavizar": 49,
+    "escritura-lejana": 49,
+    "escudo-bendito": 34,
+    "esfera-de-proteccion": 34,
+    "esgrima-sagrada": 10,
+    "espia-de-la-reina": 66,
+    "espiritista-el-camino-blanco-de-las-brujas": 68,
+    "espiritu-combativo": 11,
+    "espiritu-igneo": 78,
+    "espiritu-protector": 49,
+    "espiritus-atormentadores": 69,
+    "estrangulador": 11,
+    "estudioso": 12,
+    "exorcismo": 50,
+    "experto-en-asedios": 12,
+    "expiacion": 76,
+    "expulsar-a-los-abismos": 70,
+    "familiar": 50,
+    "fata-morgana": 75,
+    "finta": 13,
+    "forma-espiritual": 69,
+    "forma-ilusoria": 51,
+    "forma-verdadera": 35,
+    "fortaleza-viviente": 77,
+    "fuego-purificador": 51,
+    "gemelos-flamigeros": 78,
+    "glifo-vampirico": 35,
+    "golpe-bajo": 13,
+    "golpe-de-hierro": 14,
+    "golpe-espectral": 36,
+    "golpe-psiquico": 79,
+    "grilletes-del-destino": 51,
+    "guardaespaldas": 14,
+    "guardia-de-la-furia": 61,
+    "guardian-runico": 52,
+    "habilidades-para-todos": 1,
+    "hechiceria": 14,
+    "herida-compartida": 36,
+    "herrero": 15,
+    "himno-de-batalla": 37,
+    "himno-debilitante": 37,
+    "himno-heroico": 38,
+    "humo-sagrado": 52,
+    "ilusion": 52,
+    "ilusionista": 75,
+    "imagen-especular": 75,
+    "imperceptible": 38,
+    "imposicion-de-manos": 38,
+    "inquebrantable": 15,
+    "inquisidor": 77,
+    "instinto-de-cazador": 16,
+    "intercambiar-sombra": 52,
+    "interrogatorio-mental": 53,
+    "invocacion": 53,
+    "invocar-demonio": 72,
+    "jinete": 16,
+    "juramentado-de-hierro": 62,
+    "ladron-de-guante-blanco": 61,
+    "levitacion": 39,
+    "lider": 17,
+    "lucha": 17,
+    "maestro-del-hacha": 18,
+    "magia": 19,
+    "magia-del-baculo": 63,
+    "mago-del-baculo": 63,
+    "maldicion": 39,
+    "manantial-de-vida": 76,
+    "manipulacion-atmosferica": 53,
+    "mano-veloz": 19,
+    "manto-de-espinas": 76,
+    "martillo-ariete": 19,
+    "martillo-de-monstruos": 40,
+    "medicus": 20,
+    "mentalista": 78,
+    "mirada-penetrante": 78,
+    "mistico-acorazado": 66,
+    "modificacion-ilusoria": 40,
+    "moldear-la-carne": 53,
+    "muro-de-llamas": 40,
+    "nana-del-bosque": 54,
+    "nigromancia": 54,
+    "nigromante": 68,
+    "nomada-de-la-sangre-el-camino-rojo-de-las-brujas": 67,
+    "nube-de-venganza": 41,
+    "ojo-mistico": 20,
+    "oportunista": 21,
+    "oraculo": 54,
+    "paisaje-hipnotico": 54,
+    "piedra-de-espiritu": 54,
+    "piromante": 78,
+    "pirotecnia": 66,
+    "poderes-misticos": 29,
+    "posesion": 55,
+    "prestamo-animal": 55,
+    "prision-espiritual": 56,
+    "prisma-ardiente-de-prios": 42,
+    "profesiones-y-sus-habilidades": 61,
+    "prolongar-la-vida": 56,
+    "puno-de-flecha": 21,
+    "purgatorio": 77,
+    "rastro-heretico": 56,
+    "rastro-invisible": 56,
+    "rayo-negro": 42,
+    "recipiente-vital": 56,
+    "recuperacion": 22,
+    "recuperar-objeto": 57,
+    "reflejos-rapidos": 22,
+    "refugio-terrestre": 43,
+    "relato-de-cenizas": 57,
+    "reparar": 57,
+    "rito-de-bendicion": 57,
+    "rito-de-profanacion": 57,
+    "rito-de-sellado-apertura": 58,
+    "rituales": 46,
+    "romper-conexion": 58,
+    "runas-de-proteccion": 43,
+    "santuario": 58,
+    "sello-de-expulsion": 43,
+    "senor-de-la-muerte": 70,
+    "sexto-sentido": 22,
+    "siervo-demoniaco": 75,
+    "siervo-flamigero": 58,
+    "simbolismo": 23,
+    "simbolo-cegador": 44,
+    "someter-voluntad": 44,
+    "tactico": 24,
+    "talento-mistico-superior": 24,
+    "tatuaje-runico": 25,
+    "tatuar-runa": 59,
+    "tejedora-verde": 76,
+    "teletransportacion": 71,
+    "templario": 66,
+    "terremoto": 65,
+    "terreno-ilusorio": 59,
+    "teurgia": 25,
+    "tirador": 25,
+    "tormenta-de-flechas": 45,
+    "tormenta-de-sangre": 65,
+    "tormento": 59,
+    "tortura-resonante": 59,
+    "tradiciones-de-los-poderes": 29,
+    "tradiciones-de-los-rituales": 46,
+    "trampa-mistica": 60,
+    "trampero": 26,
+    "transformacion-regresiva": 45,
+    "tunel-mistico": 79,
+    "ungir": 60,
+    "venenos": 27,
+    "versado-en-criaturas": 27,
+    "vida-falsa": 60,
+    "viento-de-acero": 28,
+    "vinculo-de-sangre": 60,
+    "zancada-de-siete-leguas": 61
+  },
+  errata: {
+    "arma-arrojadiza": 3,
+    "armadura-valores-de-los-monstruos": 1,
+    "armas-valores-de-los-monstruos": 1,
+    "ataque-de-monstruos": 4,
+    "berserker-habilidad": 2,
+    "cambiaformas-poder-mistico": 3,
+    "concentrado-magico-elixir-alquimico": 4,
+    "dano-de-dados-superiores-a-1d12": 7,
+    "defensa-valores-de-monstruos": 2,
+    "elixir-de-vida-elixir-alquimico": 3,
+    "experiencia": 2,
+    "fuego-purificador-ritual": 6,
+    "golpe-de-hierro-habilidad": 3,
+    "habilidades-que-sustituyen-un-rasgo-por-otro": 2,
+    "jefe-ladron": 6,
+    "larga-cualidad": 4,
+    "lider-habilidad": 3,
+    "material-para-usar-poderes": 4,
+    "piedra-de-alma-ritual": 7,
+    "renta": 3,
+    "sirviente-flamigero-ritual": 2,
+    "tabla": 5,
+    "versado-en-criaturas-habilidad": 4,
+    "vinculo-de-sangre-ritual": 2
+  }
+};
+
+const SOURCE_PDF_PAGE_OFFSETS: Record<string, number> = {
+  "Libro B\u00e1sico": 1,
+  "Gu\u00eda Avanzada del Jugador": 2,
+  "Gu\u00eda del Jugador": -68,
+  "Gu\u00eda DM": -162,
+  "Mundo de Symbaroum": -10,
+  "C\u00f3dice de monstruos": 2
+};
+
+const ADVANCED_GUIDE_ENTRY_PAGE_OVERRIDES: Record<string, number> = {
+  "Arco veloz": 60,
+  "Armas de presa": 60,
+  "CanalizaciÃ³n": 62,
+  "Capa danzante": 62,
+  "Combate con arma larga": 63,
+  "Combate con armas de cadena": 63,
+  "Combate sangriento": 63,
+  "Cuchillo rÃ¡pido": 64,
+  "Danza de batalla": 64,
+  "Disparo magistral": 64,
+  "ElaboraciÃ³n de artefactos": 66,
+  "Esgrima sagrada": 66,
+  "EspÃ­ritu combativo": 66,
+  "Experto en asedios": 67,
+  "Golpe bajo": 67,
+  "Herrero": 67,
+  "Instinto de cazador": 68,
+  "Lucha": 68,
+  "Magia del bÃ¡culo": 69,
+  "Martillo ariete": 70,
+  "Maestro del hacha": 68,
+  "MÃ­stico acorazado": 70,
+  "Oportunista": 70,
+  "Pirotecnia": 70,
+  "PuÃ±o de flecha": 71,
+  "Reflejos rÃ¡pidos": 71,
+  "Simbolismo": 72,
+  "Talento mÃ­stico superior": 72,
+  "Tatuaje rÃºnico": 73,
+  "Trampero": 73,
+  "Aliento negro": 78,
+  "Arma danzante": 78,
+  "BÃ¡culo arrojadizo": 80,
+  "CacerÃ­a salvaje": 80,
+  "Esfera de protecciÃ³n": 80,
+  "EspÃ­ritu Ã­gneo": 81,
+  "EspÃ­ritus atormentadores": 81,
+  "Expulsar a los abismos": 81,
+  "Forma espiritual": 82,
+  "Glifo vampÃ­rico": 82,
+  "Golpe psÃ­quico": 83,
+  "Himno de batalla": 83,
+  "Himno debilitante": 83,
+  "Himno heroico": 83,
+  "Imagen especular": 84,
+  "Manantial de vida": 84,
+  "Manto de espinas": 84,
+  "Nube de venganza": 84,
+  "Purgatorio": 86,
+  "Rayo negro": 86,
+  "Runas de protecciÃ³n": 86,
+  "Sello de expulsiÃ³n": 87,
+  "SÃ­mbolo cegador": 87,
+  "TeletransportaciÃ³n": 87
+};
+
+function resolveCompendiumPdfPage(source: string, page?: number, searchTerm?: string): number | undefined {
+  if (!page) {
+    return undefined;
+  }
+
+  const canonicalSource = canonicalizeCompendiumSourceName(source);
+  let resolvedPage = page;
+
+  if (canonicalSource === "Gu\u00eda Avanzada del Jugador") {
+    const exactPage = searchTerm ? ADVANCED_GUIDE_ENTRY_PAGE_OVERRIDES[searchTerm.trim()] : undefined;
+    if (exactPage) {
+      resolvedPage = exactPage;
+    } else if (searchTerm?.trim()) {
+      if (page >= 64 && page <= 67) {
+        resolvedPage = 60;
+      } else if (page >= 80 && page <= 81) {
+        resolvedPage = 78;
+      } else if (page >= 90 && page <= 91) {
+        resolvedPage = 88;
+      }
+    }
+  }
+
+  const pdfPage = resolvedPage + (SOURCE_PDF_PAGE_OFFSETS[canonicalSource] ?? SOURCE_PDF_PAGE_OFFSETS[source] ?? 0);
+  return pdfPage >= 1 ? pdfPage : undefined;
+}
+
+function buildCompendiumPdfUrl(basePath: string, page?: number): string {
+  if (!page) {
+    return basePath;
+  }
+
+  return `${basePath}#page=${page}`;
+}
+
 export function getCompendiumSourcePdfUrl(source: string, page?: number, searchTerm?: string): string | null {
   const canonicalSource = canonicalizeCompendiumSourceName(source);
   const basePath = SOURCE_PDF_PATHS[canonicalSource] ?? SOURCE_PDF_PATHS[source];
@@ -1228,14 +2725,41 @@ export function getCompendiumSourcePdfUrl(source: string, page?: number, searchT
     return null;
   }
 
-  const fragmentParams = new URLSearchParams();
-  if (page) {
-    fragmentParams.set("page", String(page));
-  }
-  if (searchTerm?.trim()) {
-    fragmentParams.set("search", searchTerm.trim());
+  const adjustedPage = resolveCompendiumPdfPage(canonicalSource, page, searchTerm);
+  return buildCompendiumPdfUrl(basePath, adjustedPage);
+}
+
+export function getCompendiumSummaryLink(entry: CompendiumEntry): CompendiumSummaryLink | null {
+  const buildSummaryUrl = (documentKey: keyof typeof SUMMARY_DOC_PATHS, sectionLabel: string): string => {
+    const basePath = SUMMARY_DOC_PATHS[documentKey];
+    const page = SUMMARY_PDF_PAGE_LOOKUPS[documentKey]?.[slugify(sectionLabel)];
+    return buildCompendiumPdfUrl(basePath, page);
+  };
+
+  if (entry.fuente === "Resumen de Reglas") {
+    return {
+      url: buildSummaryUrl("rules", entry.nombre),
+      documentLabel: "Resumen: Reglas",
+      sectionLabel: entry.nombre
+    };
   }
 
-  const fragment = fragmentParams.toString();
-  return fragment ? `${basePath}#${fragment}` : basePath;
+  if (entry.tipo === "habilidad" || entry.tipo === "poder_mistico" || entry.tipo === "ritual" || entry.tipo === "tradicion") {
+    return {
+      url: buildSummaryUrl("capabilities", entry.nombre),
+      documentLabel: "Resumen: Habilidades, poderes y rituales",
+      sectionLabel: entry.nombre
+    };
+  }
+
+  if (entry.tipo === "raza" || entry.tipo === "cultura" || entry.tipo === "arquetipo") {
+    return {
+      url: buildSummaryUrl("errata", entry.nombre),
+      documentLabel: "Resumen relacionado",
+      sectionLabel: entry.nombre
+    };
+  }
+
+  return null;
 }
+

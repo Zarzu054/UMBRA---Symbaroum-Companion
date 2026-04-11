@@ -6,6 +6,7 @@ export type SymbaroumCapabilityAction = {
   cost: "free" | "movement" | "combat" | "reaction";
   requiredLevel?: "novato" | "adepto" | "maestro";
   rollAttribute?: "agil" | "atento" | "discreto" | "diestro" | "fuerte" | "inteligente" | "persuasivo" | "tenaz";
+  fixedTarget?: number;
   damageFormula?: string;
   effectSummary: string;
 };
@@ -677,7 +678,7 @@ const FORMA_VERDADERA_ACTIONS: SymbaroumCapabilityAction[] = [
 ];
 
 const GLIFO_VAMPIRICO_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("general-glifo-vampirico", "Activar Glifo vampírico", "combat", "Activa un glifo que drena Resistencia del objetivo y la transfiere según el nivel del símbolo.", { rollAttribute: "tenaz" })
+  capabilityAction("general-glifo-vampirico", "Activar Glifo vampírico", "combat", "Activa un glifo que drena Resistencia del objetivo y la transfiere según el nivel del símbolo.", { rollAttribute: "tenaz", damageFormula: "1d4" })
 ];
 
 const HERIDA_COMPARTIDA_ACTIONS: SymbaroumCapabilityAction[] = [
@@ -886,7 +887,7 @@ const ARCO_VELOZ_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
     "maestro-arco-veloz",
     "Usar Arco veloz (Maestro)",
-    "reaction",
+    "combat",
     "Resuelve tres disparos con una sola acción de combate, contra uno o varios objetivos.",
     { rollAttribute: "diestro" }
   )
@@ -925,11 +926,25 @@ const BERSERKER_ACTIONS: SymbaroumCapabilityAction[] = [
     { damageFormula: "+1d6" }
   ),
   capabilityAction(
+    "novato-berserker-defensa",
+    "Defender con Berserker (Novato)",
+    "reaction",
+    "Mientras estés en frenesí, tu Defensa se resuelve como si tuvieras Ágil 5.",
+    { rollAttribute: "agil", fixedTarget: 5 }
+  ),
+  capabilityAction(
     "adepto-berserker",
     "Absorber daño con Berserker (Adepto)",
     "reaction",
     "Mientras estás en frenesí, puedes ignorar 1D4 de daño de cada ataque sufrido.",
     { damageFormula: "1d4" }
+  ),
+  capabilityAction(
+    "adepto-berserker-defensa",
+    "Defender con Berserker (Adepto)",
+    "reaction",
+    "Mientras estés en frenesí, tu Defensa se resuelve como si tuvieras Ágil 5.",
+    { rollAttribute: "agil", fixedTarget: 5 }
   ),
   capabilityAction(
     "maestro-berserker",
@@ -1914,8 +1929,24 @@ export const SYMBAROUM_ABILITIES: SymbaroumCapability[] = [
   makeCapability("habilidad", "Poder místico", LIBRO_BASICO, 116),
   makeCapability("habilidad", "Puño de flecha", GUIA_AVANZADA, 67),
   makeCapability("habilidad", "Recuperación", LIBRO_BASICO, 116),
+  makeCapability(
+    "habilidad",
+    "Recio",
+    "Códice de monstruos",
+    1,
+    [],
+    "Novato: tu Robustez se calcula como Fuerte x1,5. Adepto: tu Robustez se calcula como Fuerte x2. Maestro: tu Robustez se calcula como Fuerte x3. Ref: Códice de monstruos, p.1."
+  ),
   makeCapability("habilidad", "Reflejos rápidos", GUIA_AVANZADA, 67),
   makeCapability("habilidad", "Rituales", LIBRO_BASICO, 115),
+  makeCapability(
+    "habilidad",
+    "Robusto",
+    "Códice de monstruos",
+    1,
+    [],
+    "Novato: tu Defensa se reduce en 2 y una vez por turno puedes añadir +1D4 al daño de un ataque cuerpo a cuerpo. Adepto: tu Defensa se reduce en 3 y el bono pasa a +1D6. Maestro: tu Defensa se reduce en 4 y el bono pasa a +1D8. Ref: Códice de monstruos, p.1."
+  ),
   makeCapability("habilidad", "Sexto sentido", LIBRO_BASICO, 116),
   makeCapability("habilidad", "Simbolismo", GUIA_AVANZADA, 67),
   makeCapability("habilidad", "Táctico", LIBRO_BASICO, 116),
@@ -1924,6 +1955,22 @@ export const SYMBAROUM_ABILITIES: SymbaroumCapability[] = [
   makeCapability("habilidad", "Teúrgia", LIBRO_BASICO, 116),
   makeCapability("habilidad", "Tirador", LIBRO_BASICO, 116, [], undefined, TIRADOR_ACTIONS),
   makeCapability("habilidad", "Trampero", GUIA_AVANZADA, 67),
+  makeCapability(
+    "habilidad",
+    "Arma natural",
+    "Códice de monstruos",
+    1,
+    [],
+    "Novato: ganas un ataque de Arma natural que inflige 1D6. Adepto: el ataque de Arma natural inflige 1D8. Maestro: el ataque de Arma natural inflige 1D10. Ref: Códice de monstruos, p.1."
+  ),
+  makeCapability(
+    "habilidad",
+    "Duro",
+    "Códice de monstruos",
+    1,
+    [],
+    "Novato: obtienes armadura natural 1D4. Adepto: obtienes armadura natural 1D6. Maestro: obtienes armadura natural 1D8. Ref: Códice de monstruos, p.1."
+  ),
   makeCapability("habilidad", "Venenos", LIBRO_BASICO, 113),
   makeCapability("habilidad", "Versado en criaturas", LIBRO_BASICO, 116),
   makeCapability("habilidad", "Viento de acero", LIBRO_BASICO, 116)

@@ -3,6 +3,7 @@ import {
   ALL_ENTRIES,
   TYPE_LABELS,
   canonicalizeCompendiumSourceName,
+  getCompendiumSummaryLink,
   getCompendiumSourcePdfUrl,
   type CompendiumEntry,
   type EntryType
@@ -141,7 +142,14 @@ export function CompendiumView({
   const suppressHistoryRef = useRef(false);
 
   const sources = useMemo(
-    () => ["all", ...new Set(ALL_ENTRIES.map((entry) => canonicalizeCompendiumSourceName(entry.fuente)))],
+    () => [
+      "all",
+      ...new Set(
+        ALL_ENTRIES
+          .map((entry) => canonicalizeCompendiumSourceName(entry.fuente))
+          .filter((source) => source !== "Reglas UMBRA")
+      )
+    ],
     []
   );
 
@@ -163,10 +171,12 @@ export function CompendiumView({
     }
     setTypeFilter("all");
     setSourceFilter(
-      initialSourceFilter !== "all"
+      initialSourceFilter !== "all" && canonicalizeCompendiumSourceName(initialSourceFilter) !== "Reglas UMBRA"
         ? canonicalizeCompendiumSourceName(initialSourceFilter)
         : targetEntry
-          ? canonicalizeCompendiumSourceName(targetEntry.fuente)
+          ? canonicalizeCompendiumSourceName(targetEntry.fuente) === "Reglas UMBRA"
+            ? "all"
+            : canonicalizeCompendiumSourceName(targetEntry.fuente)
           : "all"
     );
   }, [focusToken, initialEntryId, initialQuery, initialSourceFilter]);
@@ -192,6 +202,7 @@ export function CompendiumView({
   const sourcePdfUrl = selectedEntry
     ? getCompendiumSourcePdfUrl(selectedEntry.fuente, selectedEntry.pagina, selectedEntry.nombre)
     : null;
+  const summaryLink = selectedEntry ? getCompendiumSummaryLink(selectedEntry) : null;
   const parsedCapabilityDetail =
     selectedEntry && (selectedEntry.tipo === "habilidad" || selectedEntry.tipo === "poder_mistico")
       ? parseCapabilityTiers(selectedEntry.detalle)
@@ -272,14 +283,22 @@ export function CompendiumView({
     window.open(sourcePdfUrl, "_blank", "noopener,noreferrer");
   }
 
+  function openSummaryDocument(): void {
+    if (!summaryLink) {
+      return;
+    }
+
+    window.open(summaryLink.url, "_blank", "noopener,noreferrer");
+  }
+
   return (
     <>
       <section className="panel lore-panel compendium-hero">
         <div>
           <h2>Compendio Central</h2>
           <p>
-            Consulta rápida de reglas, habilidades, poderes místicos, rituales y referencias base de personaje desde un
-            único módulo.
+            Consulta rápida de reglas, rasgos de monstruo, habilidades, poderes místicos, rituales y referencias base
+            de personaje desde un único módulo.
           </p>
         </div>
         <div className="toolbar">
@@ -382,8 +401,18 @@ export function CompendiumView({
                       {selectedEntry.pagina ? `Abrir PDF p.${selectedEntry.pagina}` : "Abrir PDF"}
                     </button>
                   ) : null}
+                  {summaryLink ? (
+                    <button className="subtle-button" onClick={openSummaryDocument}>
+                      {summaryLink.documentLabel}
+                    </button>
+                  ) : null}
                 </div>
               </div>
+              {summaryLink ? (
+                <p className="meta-text">
+                  Sección en resumen: <strong>{summaryLink.sectionLabel}</strong>
+                </p>
+              ) : null}
               {parsedCapabilityDetail && parsedCapabilityDetail.tiers.length > 0 ? (
                 <div className="capability-tier-list">
                   {parsedCapabilityDetail.tiers.map((tier) => (
@@ -399,6 +428,16 @@ export function CompendiumView({
               ) : (
                 <p>{renderHighlightedText(selectedEntry.detalle, query)}</p>
               )}
+              {selectedEntry.media?.length ? (
+                <div className="compendium-media-list">
+                  {selectedEntry.media.map((asset) => (
+                    <figure key={`${selectedEntry.id}-${asset.src}`} className="compendium-media-card">
+                      <img src={asset.src} alt={asset.alt} className="compendium-media-image" />
+                      {asset.caption ? <figcaption className="meta-text">{asset.caption}</figcaption> : null}
+                    </figure>
+                  ))}
+                </div>
+              ) : null}
 
               {selectedEntry.tags.length > 0 ? (
                 <div className="compendium-tags">

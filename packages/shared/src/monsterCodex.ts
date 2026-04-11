@@ -1,0 +1,809 @@
+import { z } from "zod";
+
+export const monsterAttributeKeySchema = z.enum([
+  "accurate",
+  "cunning",
+  "discreet",
+  "persuasive",
+  "quick",
+  "resolute",
+  "strong",
+  "vigilant"
+]);
+
+export const monsterCategorySchema = z.enum([
+  "Abominación",
+  "Bestia",
+  "Fenómeno",
+  "Flora",
+  "Muerto viviente",
+  "Ser civilizado"
+]);
+
+export const monsterThreatSchema = z.enum(["Débil", "Moderado", "Peligroso", "Legendario"]);
+
+export type MonsterAttributeKey = z.infer<typeof monsterAttributeKeySchema>;
+export type MonsterCategory = z.infer<typeof monsterCategorySchema>;
+export type MonsterThreat = z.infer<typeof monsterThreatSchema>;
+
+export const MONSTER_ATTRIBUTE_LABELS: Record<MonsterAttributeKey, string> = {
+  accurate: "Preciso",
+  cunning: "Astuto",
+  discreet: "Discreto",
+  persuasive: "Persuasivo",
+  quick: "Ágil",
+  resolute: "Tenaz",
+  strong: "Fuerte",
+  vigilant: "Atento"
+};
+
+export const MONSTER_ATTRIBUTE_KEYS = Object.keys(MONSTER_ATTRIBUTE_LABELS) as MonsterAttributeKey[];
+export const MONSTER_CATEGORIES = monsterCategorySchema.options;
+export const MONSTER_THREATS = monsterThreatSchema.options;
+
+export const monsterAttributesSchema = z.object({
+  accurate: z.number().int().min(1).max(20),
+  cunning: z.number().int().min(1).max(20),
+  discreet: z.number().int().min(1).max(20),
+  persuasive: z.number().int().min(1).max(20),
+  quick: z.number().int().min(1).max(20),
+  resolute: z.number().int().min(1).max(20),
+  strong: z.number().int().min(1).max(20),
+  vigilant: z.number().int().min(1).max(20)
+});
+
+export const monsterSheetSchema = z.object({
+  attack: z.string().min(1).max(40),
+  damage: z.string().min(1).max(40),
+  defense: z.string().min(1).max(40),
+  armor: z.string().min(1).max(40),
+  toughness: z.string().min(1).max(40),
+  painThreshold: z.string().min(1).max(40),
+  movement: z.string().min(1).max(80),
+  attributes: monsterAttributesSchema,
+  traits: z.array(z.string().min(1).max(160)).max(30).default([]),
+  actions: z.array(z.string().min(1).max(160)).max(20).default([]),
+  tactics: z.string().max(1200).default(""),
+  weakness: z.string().max(1200).default(""),
+  loot: z.string().max(1200).default("")
+});
+
+export type MonsterSheet = z.infer<typeof monsterSheetSchema>;
+
+export const createMonsterSchema = z.object({
+  name: z.string().min(2).max(120),
+  category: monsterCategorySchema,
+  threat: monsterThreatSchema,
+  source: z.string().max(120).default("Mis monstruos"),
+  summary: z.string().min(4).max(500),
+  sheet: monsterSheetSchema
+});
+
+export const updateMonsterSchema = createMonsterSchema.partial().extend({
+  sheet: monsterSheetSchema.optional()
+});
+
+export type CreateMonsterInput = z.infer<typeof createMonsterSchema>;
+export type UpdateMonsterInput = z.infer<typeof updateMonsterSchema>;
+
+export type Monster = {
+  id: string;
+  name: string;
+  category: MonsterCategory;
+  threat: MonsterThreat;
+  source: string;
+  summary: string;
+  sheet: MonsterSheet;
+  createdAt: string;
+  updatedAt: string;
+};
+
+const DEFAULT_ATTRIBUTE_TEMPLATE: Record<MonsterAttributeKey, number> = {
+  accurate: 10,
+  cunning: 9,
+  discreet: 10,
+  persuasive: 7,
+  quick: 11,
+  resolute: 10,
+  strong: 13,
+  vigilant: 10
+};
+
+export function createDefaultMonsterSheet(): MonsterSheet {
+  return {
+    attack: "+1",
+    damage: "1d8",
+    defense: "-1",
+    armor: "1d4",
+    toughness: "13",
+    painThreshold: "6",
+    movement: "10 m",
+    attributes: { ...DEFAULT_ATTRIBUTE_TEMPLATE },
+    traits: [],
+    actions: [],
+    tactics: "",
+    weakness: "",
+    loot: ""
+  };
+}
+
+export function createEmptyMonsterInput(): CreateMonsterInput {
+  return {
+    name: "",
+    category: "Bestia",
+    threat: "Moderado",
+    source: "Mis monstruos",
+    summary: "",
+    sheet: createDefaultMonsterSheet()
+  };
+}
+
+export function getMonsterAttributeTotal(sheet: MonsterSheet): number {
+  return MONSTER_ATTRIBUTE_KEYS.reduce((total, key) => total + Number(sheet.attributes[key] || 0), 0);
+}
+
+type StarterMonsterSeed = {
+  id: string;
+  name: string;
+  category: MonsterCategory;
+  threat: MonsterThreat;
+  source?: string;
+  summary: string;
+  attack?: string;
+  damage?: string;
+  defense: string;
+  armor: string;
+  toughness: string;
+  painThreshold: string;
+  movement?: string;
+  attributes: MonsterSheet["attributes"];
+  traits: string[];
+  actions: string[];
+  tactics: string;
+  weakness?: string;
+  loot?: string;
+};
+
+const STARTER_MONSTER_TIMESTAMP = "2026-04-10T00:00:00.000Z";
+
+function createStarterMonster(seed: StarterMonsterSeed): Monster {
+  return {
+    id: seed.id,
+    name: seed.name,
+    category: seed.category,
+    threat: seed.threat,
+    source: seed.source ?? "Libro Básico",
+    summary: seed.summary,
+    sheet: {
+      attack: seed.attack ?? "Ver acciones",
+      damage: seed.damage ?? "Según arma o rasgo",
+      defense: seed.defense,
+      armor: seed.armor,
+      toughness: seed.toughness,
+      painThreshold: seed.painThreshold,
+      movement: seed.movement ?? "-",
+      attributes: seed.attributes,
+      traits: seed.traits,
+      actions: seed.actions,
+      tactics: seed.tactics,
+      weakness: seed.weakness ?? "",
+      loot: seed.loot ?? ""
+    },
+    createdAt: STARTER_MONSTER_TIMESTAMP,
+    updatedAt: STARTER_MONSTER_TIMESTAMP
+  };
+}
+
+const BASIC_BOOK_MONSTERS: Monster[] = [
+  createStarterMonster({
+    id: "libro-basico-elfo-vernal",
+    name: "Elfo vernal",
+    category: "Ser civilizado",
+    threat: "Débil",
+    summary: "Arquero joven y escurridizo, eficaz para provocaciones, trampas y emboscadas en bosque.",
+    defense: "-3",
+    armor: "Ninguna",
+    toughness: "10",
+    painThreshold: "3",
+    attributes: { accurate: 10, cunning: 10, discreet: 15, persuasive: 9, quick: 13, resolute: 7, strong: 5, vigilant: 11 },
+    traits: ["Longevo"],
+    actions: ["Armas: Daga 3 (Corta), Arco 4"],
+    tactics: "Se mantiene a distancia, dispara con arco y atrae a sus víctimas hacia trampas o emboscadas.",
+    loot: "Nada de valor."
+  }),
+  createStarterMonster({
+    id: "libro-basico-elfo-estival-verde",
+    name: "Elfo estival verde",
+    category: "Ser civilizado",
+    threat: "Moderado",
+    summary: "Hostigador élfico con arco y lanza, pensado para abrir combate a distancia y replegarse.",
+    defense: "-3",
+    armor: "Hilo de seda 2 (Flexible)",
+    toughness: "10",
+    painThreshold: "4",
+    attributes: { accurate: 10, cunning: 10, discreet: 11, persuasive: 5, quick: 13, resolute: 9, strong: 7, vigilant: 15 },
+    traits: ["Longevo"],
+    actions: ["Armas: Arco 5, Lanza 4 (Larga)", "Habilidades: Acróbata, Sexto sentido, Tirador (adepto)"],
+    tactics: "Confía en el arco y solo recurre a la lanza cuando el enemigo consigue cerrar distancias.",
+    loot: "Hierbas curativas y una docena de flechas."
+  }),
+  createStarterMonster({
+    id: "libro-basico-elfo-estival-maduro",
+    name: "Elfo estival maduro",
+    category: "Ser civilizado",
+    threat: "Peligroso",
+    summary: "Veterano élfico disciplinado, sólido con arco y asta, adecuado para escaramuzas duras.",
+    defense: "0",
+    armor: "Coraza de seda lacada 4 (Flexible)",
+    toughness: "10",
+    painThreshold: "4",
+    attributes: { accurate: 15, cunning: 10, discreet: 11, persuasive: 9, quick: 10, resolute: 13, strong: 7, vigilant: 5 },
+    traits: ["Longevo"],
+    actions: ["Armas: Arco 5, Lanza 5 (Larga)", "Habilidades: Armas de asta, Combate con armadura, Tirador"],
+    tactics: "Prefiere mantener la línea y castigar con disciplina antes de rematar con lanza.",
+    loot: "Hierbas curativas."
+  }),
+  createStarterMonster({
+    id: "libro-basico-elfo-otonal",
+    name: "Elfo otoñal",
+    category: "Ser civilizado",
+    threat: "Peligroso",
+    summary: "Místico élfico de apoyo y control, peligroso por rituales, larvas y sometimiento.",
+    defense: "+5",
+    armor: "Hilo de seda 2 (Flexible)",
+    toughness: "10",
+    painThreshold: "4",
+    attributes: { accurate: 9, cunning: 13, discreet: 10, persuasive: 11, quick: 5, resolute: 15, strong: 7, vigilant: 10 },
+    traits: ["Longevo"],
+    actions: ["Armas: Espada 4", "Habilidades: Estudioso, Medicus, Poder místico (Erupción de larvas, Someter voluntad), Rituales"],
+    tactics: "Abre con control mental o magia y evita el choque directo mientras aliados rematan.",
+    loot: "10 hierbas curativas."
+  }),
+  createStarterMonster({
+    id: "libro-basico-troll-saqueador-hambriento",
+    name: "Troll saqueador hambriento",
+    category: "Ser civilizado",
+    threat: "Moderado",
+    summary: "Bruto agresivo que entra en berserk y caza objetivos aislados uno por uno.",
+    defense: "+7",
+    armor: "Piel de troll 4",
+    toughness: "15",
+    painThreshold: "8",
+    attributes: { accurate: 13, cunning: 10, discreet: 5, persuasive: 7, quick: 11, resolute: 10, strong: 15, vigilant: 9 },
+    traits: ["Longevo", "Arma natural (I)", "Robusto (I)"],
+    actions: ["Armas: Zarpas 8 (Corta)", "Habilidades: Berserker (adepto)"],
+    tactics: "Carga con ferocidad y persigue a sus objetivos hasta matar a todos.",
+    loot: "Ninguno."
+  }),
+  createStarterMonster({
+    id: "libro-basico-troll-saqueador-sociable",
+    name: "Troll saqueador sociable",
+    category: "Ser civilizado",
+    threat: "Peligroso",
+    summary: "Troll resistente que se regenera y mantiene presión sostenida en primera línea.",
+    defense: "+7",
+    armor: "Piel de troll 4; regenera 4 por turno salvo fuego o ácido",
+    toughness: "15",
+    painThreshold: "8",
+    attributes: { accurate: 13, cunning: 10, discreet: 5, persuasive: 7, quick: 10, resolute: 11, strong: 15, vigilant: 9 },
+    traits: ["Arma natural (I)", "Longevo", "Regeneración (III)", "Robusto (I)"],
+    actions: ["Armas: Zarpas 9 (Corta)", "Habilidades: Berserker (adepto), Combate sin armas"],
+    tactics: "Se apoya en la regeneración para aguantar combate prolongado y seguir avanzando.",
+    weakness: "Fuego y ácido.",
+    loot: "Amuleto de la suerte."
+  }),
+  createStarterMonster({
+    id: "libro-basico-cacique-troll",
+    name: "Cacique troll",
+    category: "Ser civilizado",
+    threat: "Peligroso",
+    summary: "Jefe troll demoledor con zarpas dobles, gran fuerza y regeneración pesada.",
+    defense: "+1",
+    armor: "Piel de troll 7; regenera 4 por turno salvo fuego o ácido",
+    toughness: "15",
+    painThreshold: "8",
+    attributes: { accurate: 13, cunning: 10, discreet: 5, persuasive: 11, quick: 9, resolute: 10, strong: 18, vigilant: 7 },
+    traits: ["Arma natural (I)", "Duro (I)", "Longevo", "Regeneración (III)", "Robusto (II)"],
+    actions: ["Armas: Zarpas 13 (Corta), segundo ataque 10", "Habilidades: Alquimista, Atributo excepcional (Fuerte), Berserker, Combate sin armas"],
+    tactics: "Rompe líneas con pura fuerza y castiga al mismo objetivo con un segundo zarpazo.",
+    weakness: "Fuego y ácido.",
+    loot: "Equipo tribal del cacique."
+  }),
+  createStarterMonster({
+    id: "libro-basico-architroll",
+    name: "Architroll",
+    category: "Ser civilizado",
+    threat: "Legendario",
+    summary: "Amenaza mayor troll: hipnosis, regeneración y pegada brutal en un solo jefe.",
+    defense: "+3",
+    armor: "Piel de troll 10; regenera 4 por turno salvo fuego o ácido",
+    toughness: "18",
+    painThreshold: "9",
+    attributes: { accurate: 11, cunning: 10, discreet: 5, persuasive: 9, quick: 7, resolute: 16, strong: 18, vigilant: 10 },
+    traits: ["Arma natural (III)", "Duro (III)", "Hipnótico (III)", "Longevo", "Regeneración (III)", "Robusto (III)"],
+    actions: ["Armas: Zarpas 16 (Largas)", "Habilidades: Alquimista, Atributo excepcional (Fuerte y Tenaz), Berserker, Golpe de hierro"],
+    tactics: "Domina la escena como jefe frontal: hipnotiza, soporta castigo y despieza a quien no pueda retirarse.",
+    weakness: "Fuego y ácido.",
+    loot: "Restos valiosos de un coloso antiguo."
+  }),
+  createStarterMonster({
+    id: "libro-basico-maranosa",
+    name: "Marañosa",
+    category: "Bestia",
+    threat: "Moderado",
+    summary: "Enjambre de arañas venenosas que desborda por volumen y desgaste continuo.",
+    defense: "-3",
+    armor: "Ninguna",
+    toughness: "10",
+    painThreshold: "3",
+    attributes: { accurate: 15, cunning: 10, discreet: 11, persuasive: 7, quick: 13, resolute: 9, strong: 5, vigilant: 10 },
+    traits: ["Arma natural (I)", "Enjambre (II)", "Venenosa (I)"],
+    actions: ["Armas: Picadura 3, veneno 2 durante 2 turnos"],
+    tactics: "El enjambre se echa encima de la presa hasta matarla antes de dispersarse.",
+    loot: "Ninguno."
+  }),
+  createStarterMonster({
+    id: "libro-basico-arana-trampera",
+    name: "Araña trampera",
+    category: "Bestia",
+    threat: "Moderado",
+    summary: "Cazadora de control que inmoviliza con telaraña antes de envenenar.",
+    defense: "-5",
+    armor: "Ninguna",
+    toughness: "10",
+    painThreshold: "5",
+    attributes: { accurate: 13, cunning: 10, discreet: 11, persuasive: 5, quick: 15, resolute: 7, strong: 9, vigilant: 10 },
+    traits: ["Arma natural (I)", "Telaraña (I)", "Venenosa (I)"],
+    actions: ["Armas: Picadura 3, veneno 2 durante 2 turnos", "Habilidades: Acróbata"],
+    tactics: "Atrapa a la presa en sus redes y la desgasta sin exponerse demasiado.",
+    loot: "Redes con objetos de víctimas anteriores."
+  }),
+  createStarterMonster({
+    id: "libro-basico-baiagorno",
+    name: "Baiagorno",
+    category: "Bestia",
+    threat: "Moderado",
+    summary: "Depredador robusto que pasa de la cautela al frenesí cuando se ve amenazado.",
+    defense: "+7",
+    armor: "Piel de oso 4",
+    toughness: "15",
+    painThreshold: "8",
+    attributes: { accurate: 10, cunning: 10, discreet: 9, persuasive: 5, quick: 7, resolute: 13, strong: 15, vigilant: 11 },
+    traits: ["Arma natural (I)", "Robusto (I)"],
+    actions: ["Armas: Garras 8 (Cortas)", "Habilidades: Berserker (adepto)"],
+    tactics: "Si está nervioso o herido entra en furia y se lanza sobre la presa más cercana.",
+    loot: "Ninguno."
+  }),
+  createStarterMonster({
+    id: "libro-basico-gato-vibora",
+    name: "Gato víbora",
+    category: "Bestia",
+    threat: "Moderado",
+    summary: "Acechador venenoso que busca sorpresa, sigilo y remate rápido.",
+    defense: "-3",
+    armor: "Ninguna",
+    toughness: "10",
+    painThreshold: "4",
+    attributes: { accurate: 11, cunning: 9, discreet: 15, persuasive: 5, quick: 13, resolute: 10, strong: 7, vigilant: 10 },
+    traits: ["Arma natural (II)", "Venenoso (I)"],
+    actions: ["Armas: Mordisco 4 (Corta), veneno 2 durante 2 turnos", "Habilidades: Acróbata"],
+    tactics: "Se aproxima sigilosamente para sorprender y retirarse si la presa resiste demasiado.",
+    loot: "Ninguno."
+  }),
+  createStarterMonster({
+    id: "libro-basico-abojali",
+    name: "Abojalí",
+    category: "Bestia",
+    threat: "Peligroso",
+    summary: "Jabalí monstruoso muy duro que intimida, amaga y rompe la línea con colmillos.",
+    defense: "+1",
+    armor: "Piel de cerdo 7",
+    toughness: "15",
+    painThreshold: "8",
+    attributes: { accurate: 10, cunning: 10, discreet: 7, persuasive: 5, quick: 13, resolute: 11, strong: 15, vigilant: 9 },
+    traits: ["Arma natural (II)", "Duro (II)", "Robusto (III)"],
+    actions: ["Armas: Colmillos 10 (Cortos)", "Habilidades: Golpe de hierro (adepto)"],
+    tactics: "Simula atacar para espantar a la presa antes de cargar con violencia real.",
+    loot: "Ninguno."
+  }),
+  createStarterMonster({
+    id: "libro-basico-kanaran",
+    name: "Kanaran",
+    category: "Bestia",
+    threat: "Peligroso",
+    summary: "Serpiente ágil y muy inteligente, especializada en constricción y control de objetivos.",
+    defense: "-4",
+    armor: "Piel de serpiente 4",
+    toughness: "10",
+    painThreshold: "5",
+    attributes: { accurate: 5, cunning: 16, discreet: 11, persuasive: 7, quick: 14, resolute: 9, strong: 10, vigilant: 10 },
+    traits: ["Duro (III)"],
+    actions: ["Armas: Estrangulación y presa", "Habilidades: Acróbata, Atributo excepcional (Ágil, Inteligente), Estrangulador"],
+    tactics: "Espera el momento justo para inmovilizar a una víctima y asfixiarla fuera del foco principal.",
+    loot: "Ninguno."
+  }),
+  createStarterMonster({
+    id: "libro-basico-lindorma",
+    name: "Lindorma",
+    category: "Bestia",
+    threat: "Peligroso",
+    summary: "Reptil enorme con hipnosis y mordisco aplastante, útil como depredador de alto riesgo.",
+    defense: "+4",
+    armor: "Escamas 8",
+    toughness: "13",
+    painThreshold: "7",
+    attributes: { accurate: 7, cunning: 9, discreet: 5, persuasive: 11, quick: 10, resolute: 15, strong: 13, vigilant: 10 },
+    traits: ["Duro (III)", "Hipnótico (III)", "Longeva", "Robusta (III)"],
+    actions: ["Armas: Mordisco 14 (Corta) o dos ataques 12 y 8", "Habilidades: Combate sin armas, Golpe de hierro"],
+    tactics: "Intenta hipnotizar al grupo antes de empezar a alimentarse sobre una presa inmovilizada.",
+    loot: "Ninguno."
+  }),
+  createStarterMonster({
+    id: "libro-basico-kranka",
+    name: "Kranka",
+    category: "Bestia",
+    threat: "Moderado",
+    summary: "Bandada aérea hostigadora que satura con pico y movilidad desde múltiples ángulos.",
+    defense: "-5",
+    armor: "Ninguna",
+    toughness: "10",
+    painThreshold: "5",
+    attributes: { accurate: 13, cunning: 10, discreet: 5, persuasive: 7, quick: 15, resolute: 10, strong: 9, vigilant: 11 },
+    traits: ["Alado (I)", "Enjambre (I)"],
+    actions: ["Armas: Pico 3, dos ataques contra el mismo objetivo", "Habilidades: Combate sin armas (adepto)"],
+    tactics: "Rodea al objetivo y concentra la bandada para desgastarlo por acumulación de ataques.",
+    loot: "Ninguno."
+  }),
+  createStarterMonster({
+    id: "libro-basico-libelula-dragon",
+    name: "Libélula dragón",
+    category: "Bestia",
+    threat: "Peligroso",
+    summary: "Depredador volador de pasada, pensado para golpear y salir del alcance rival.",
+    defense: "-3",
+    armor: "Ninguna",
+    toughness: "11",
+    painThreshold: "6",
+    attributes: { accurate: 15, cunning: 5, discreet: 7, persuasive: 10, quick: 13, resolute: 10, strong: 11, vigilant: 9 },
+    traits: ["Alada (III)", "Arma natural (II)"],
+    actions: ["Armas: Colmillos 8, dos ataques contra el mismo objetivo", "Habilidades: Combate sin armas (adepto)"],
+    tactics: "Pasa junto a su objetivo, muerde y sigue volando hasta quedar fuera de contraataque.",
+    loot: "Ninguno."
+  }),
+  createStarterMonster({
+    id: "libro-basico-humano-renacido",
+    name: "Humano renacido",
+    category: "Abominación",
+    threat: "Moderado",
+    summary: "Abominación humana de choque corto con sangre ácida y garras violentas.",
+    defense: "+9, sangre corrosiva 3 durante tres turnos",
+    armor: "Peto de cuero 4 (Incómodo)",
+    toughness: "11",
+    painThreshold: "6",
+    attributes: { accurate: 15, cunning: 9, discreet: 10, persuasive: 5, quick: 7, resolute: 13, strong: 11, vigilant: 10 },
+    traits: ["Arma natural (I)", "Robusto (I)", "Sangre ácida (I)"],
+    actions: ["Armas: Garras 9 (Cortas)", "Habilidades: Berserker, Combate sin armas"],
+    tactics: "Se aproxima a su víctima con hambre despiadada y acepta recibir golpes para devolverlos.",
+    loot: "Objetos y herramientas de su antigua ocupación."
+  }),
+  createStarterMonster({
+    id: "libro-basico-alce-renacido",
+    name: "Alce renacido",
+    category: "Abominación",
+    threat: "Peligroso",
+    summary: "Bestia corrupta de embestida pesada que añade Corrupción temporal a su cornada.",
+    defense: "0",
+    armor: "Piel de alce 3",
+    toughness: "15",
+    painThreshold: "8",
+    attributes: { accurate: 11, cunning: 7, discreet: 10, persuasive: 5, quick: 13, resolute: 9, strong: 15, vigilant: 10 },
+    traits: ["Arma natural (II)", "Ataque de corrupción (I)", "Robusto (II)"],
+    actions: ["Armas: Cuernos 10, +1D4 de Corrupción temporal", "Habilidades: Combate sin armas, Golpe de hierro"],
+    tactics: "Ataca en cuanto huele criaturas vivientes, impulsado por espuma y corrupción.",
+    loot: "Ninguno."
+  }),
+  createStarterMonster({
+    id: "libro-basico-abojali-renacido",
+    name: "Abojalí renacido",
+    category: "Abominación",
+    threat: "Peligroso",
+    summary: "Versión corrupta del abojalí, aún más dura y con sangre y mordisco infectados.",
+    defense: "+1",
+    armor: "Piel de cerdo 8",
+    toughness: "15",
+    painThreshold: "8",
+    attributes: { accurate: 7, cunning: 10, discreet: 7, persuasive: 5, quick: 13, resolute: 11, strong: 15, vigilant: 9 },
+    traits: ["Arma natural (III)", "Ataque de Corrupción (II)", "Duro (III)", "Robusto (III)", "Sangre ácida (III)"],
+    actions: ["Armas: Colmillos 11 (Largos), +1D6 de Corrupción temporal", "Habilidades: Golpe de hierro (adepto)"],
+    tactics: "Gruñe con ansias de carne viva y nunca duda en cargar de frente.",
+    loot: "Ninguno."
+  }),
+  createStarterMonster({
+    id: "libro-basico-abominacion-primigenia",
+    name: "Abominación primigenia",
+    category: "Abominación",
+    threat: "Legendario",
+    summary: "Avatar corrupto de destrucción pura, diseñado como encuentro de jefe extremo.",
+    defense: "+3",
+    armor: "Piel endurecida por la Corrupción 10; regenera 4 por turno",
+    toughness: "18",
+    painThreshold: "9",
+    attributes: { accurate: 13, cunning: 9, discreet: 5, persuasive: 7, quick: 11, resolute: 10, strong: 18, vigilant: 10 },
+    traits: ["Arma natural (III)", "Ataque de Corrupción (III)", "Duro (III)", "Regeneración (III)", "Robusto (III)", "Sangre ácida (III)"],
+    actions: ["Armas: Garras 20 (Largas) o dos ataques 18 y 14, +1D8 de Corrupción temporal", "Habilidades: Atributo excepcional (Fuerte), Berserker, Combate sin armas, Golpe de hierro"],
+    tactics: "No usa sutileza; solo persigue destrucción total y presión constante sobre todo lo vivo.",
+    loot: "Restos corruptos de enorme valor alquímico."
+  }),
+  createStarterMonster({
+    id: "libro-basico-dragul",
+    name: "Dragul",
+    category: "Muerto viviente",
+    threat: "Moderado",
+    summary: "No muerto marcial básico, útil como línea de choque y guardián de ruinas.",
+    defense: "0 (escudo)",
+    armor: "Cuero tachonado 2 (Incómoda)",
+    toughness: "15",
+    painThreshold: "—",
+    attributes: { accurate: 9, cunning: 7, discreet: 10, persuasive: 5, quick: 10, resolute: 13, strong: 15, vigilant: 11 },
+    traits: ["Muerto viviente (I)"],
+    actions: ["Armas: Espada oxidada 7", "Habilidades: Combate con escudo, Golpe de hierro"],
+    tactics: "Sigue la voluntad de su creador o el hambre de sangre fresca y carne caliente.",
+    loot: "1D10 ortegs."
+  }),
+  createStarterMonster({
+    id: "libro-basico-hielo-fatuo",
+    name: "Hielo fatuo",
+    category: "Muerto viviente",
+    threat: "Débil",
+    summary: "Espíritu débil pero molesto que drena fuerza vital ignorando armaduras físicas.",
+    defense: "-3",
+    armor: "Ninguna; las armas normales solo le hacen la mitad de daño",
+    toughness: "10",
+    painThreshold: "—",
+    attributes: { accurate: 10, cunning: 9, discreet: 11, persuasive: 5, quick: 13, resolute: 15, strong: 7, vigilant: 10 },
+    traits: ["Daño alternativo (I)", "Forma espiritual (I)"],
+    actions: ["Armas: Toque de muerte 3, ignora armadura, daño igual a Fuerte"],
+    tactics: "Se ve atraído por el calor y toca a las víctimas sin seguir táctica elaborada.",
+    loot: "Ninguno."
+  }),
+  createStarterMonster({
+    id: "libro-basico-necromago",
+    name: "Necromago",
+    category: "Muerto viviente",
+    threat: "Peligroso",
+    summary: "Espíritu controlador que atrae víctimas con magia y las remata con terror y garras.",
+    defense: "-3",
+    armor: "Solo sufre daño por armas mágicas (mitad) y poderes místicos (completo)",
+    toughness: "10",
+    painThreshold: "—",
+    attributes: { accurate: 10, cunning: 9, discreet: 11, persuasive: 5, quick: 13, resolute: 15, strong: 7, vigilant: 10 },
+    traits: ["Daño alternativo (III)", "Forma espiritual (III)", "Terrorífico (II)"],
+    actions: ["Armas: Garras espectrales 5, ignoran armadura, daño igual a Tenaz", "Habilidades: Poder místico (Someter voluntad, adepto)"],
+    tactics: "Somete la voluntad de sus víctimas para acercarlas, aterrorizarlas y devorar su espíritu.",
+    loot: "Ninguno."
+  }),
+  createStarterMonster({
+    id: "libro-basico-moratumbas",
+    name: "Moratumbas",
+    category: "Muerto viviente",
+    threat: "Peligroso",
+    summary: "Guardia espectral de tumbas, muy difícil de trabar y letal si paraliza primero.",
+    defense: "-3 (dos armas)",
+    armor: "Solo sufre daño por armas mágicas y poderes místicos, y solo la mitad",
+    toughness: "15",
+    painThreshold: "—",
+    attributes: { accurate: 5, cunning: 10, discreet: 7, persuasive: 10, quick: 11, resolute: 13, strong: 15, vigilant: 9 },
+    traits: ["Forma corpórea (III)", "Forma espiritual (III)", "Frío de ultratumba (III)"],
+    actions: ["Armas: Dos espadas 7/6 (Equilibradas), dos ataques al mismo objetivo", "Habilidades: Ataque con dos armas, Golpe de hierro"],
+    tactics: "Empieza con su ataque paralizante y luego usa sus espadas para rematar a la víctima inmóvil.",
+    loot: "Dos espadas espectrales."
+  })
+];
+
+export const STARTER_MONSTER_CODEX: Monster[] = [
+  {
+    id: "codex-abominacion-devoradora",
+    name: "Abominación devoradora",
+    category: "Abominación",
+    threat: "Peligroso",
+    source: "Códice de monstruos · Lote inicial",
+    summary: "Depredador corrupto de asalto frontal, diseñado para castigar posiciones cerradas y sembrar terror.",
+    sheet: {
+      attack: "+3",
+      damage: "1d10",
+      defense: "-2",
+      armor: "1d6",
+      toughness: "18",
+      painThreshold: "9",
+      movement: "12 m",
+      attributes: {
+        accurate: 13,
+        cunning: 9,
+        discreet: 11,
+        persuasive: 5,
+        quick: 12,
+        resolute: 15,
+        strong: 14,
+        vigilant: 11
+      },
+      traits: ["Armadura natural I", "Ataque múltiple I", "Aura corruptora I", "Terrorífico I"],
+      actions: ["Zarpazo doble", "Arremetida contaminante"],
+      tactics: "Entra por el objetivo más aislado, fuerza chequeos de Resoluto y presiona hasta romper la línea.",
+      weakness: "Fuego y terreno abierto; pierde presión si no puede encadenar ataques.",
+      loot: "Tejidos corruptos, bilis alquímica y trofeos contaminados."
+    },
+    createdAt: "2026-04-10T00:00:00.000Z",
+    updatedAt: "2026-04-10T00:00:00.000Z"
+  },
+  {
+    id: "codex-lobo-de-davokar",
+    name: "Lobo de Davokar",
+    category: "Bestia",
+    threat: "Moderado",
+    source: "Códice de monstruos · Lote inicial",
+    summary: "Cazador rápido en manada, eficaz para hostigar exploradores y rematar objetivos heridos.",
+    sheet: {
+      attack: "+1",
+      damage: "1d6",
+      defense: "+2",
+      armor: "1",
+      toughness: "10",
+      painThreshold: "5",
+      movement: "14 m",
+      attributes: {
+        accurate: 11,
+        cunning: 9,
+        discreet: 13,
+        persuasive: 5,
+        quick: 15,
+        resolute: 10,
+        strong: 10,
+        vigilant: 12
+      },
+      traits: ["Sentidos agudos I", "Ataque en manada I", "Derribo I"],
+      actions: ["Mordisco", "Hostigar y retirarse"],
+      tactics: "Busca flancos, fuerza persecución y gana bonificadores cuando actúa junto a otros lobos.",
+      weakness: "Sufre en espacios cerrados y frente a objetivos con armadura pesada.",
+      loot: "Piel, colmillos y rastros útiles para caza."
+    },
+    createdAt: "2026-04-10T00:00:00.000Z",
+    updatedAt: "2026-04-10T00:00:00.000Z"
+  },
+  {
+    id: "codex-dragul",
+    name: "Dragul",
+    category: "Muerto viviente",
+    threat: "Peligroso",
+    source: "Códice de monstruos · Lote inicial",
+    summary: "No muerto brutal pensado para aguantar la primera descarga y fijar a los héroes en combate cerrado.",
+    sheet: {
+      attack: "+2",
+      damage: "1d8",
+      defense: "-1",
+      armor: "1d6",
+      toughness: "16",
+      painThreshold: "-",
+      movement: "8 m",
+      attributes: {
+        accurate: 12,
+        cunning: 7,
+        discreet: 8,
+        persuasive: 6,
+        quick: 9,
+        resolute: 13,
+        strong: 15,
+        vigilant: 10
+      },
+      traits: ["No muerto", "Aguante sobrenatural I", "Miedo I", "Garras I"],
+      actions: ["Zarpazo necrótico", "Aferrar presa"],
+      tactics: "Avanza sin preocuparse por daño crítico, inmoviliza y abre espacio para otros horrores.",
+      weakness: "Luz sagrada, fuego y tácticas de movilidad.",
+      loot: "Reliquias funerarias, armas antiguas y joyería ennegrecida."
+    },
+    createdAt: "2026-04-10T00:00:00.000Z",
+    updatedAt: "2026-04-10T00:00:00.000Z"
+  },
+  {
+    id: "codex-reina-espora",
+    name: "Reina espora",
+    category: "Flora",
+    threat: "Legendario",
+    source: "Códice de monstruos · Lote inicial",
+    summary: "Nodo vegetal monstruoso que domina una zona, controla visión y castiga con venenos y raíces.",
+    sheet: {
+      attack: "+1",
+      damage: "1d12",
+      defense: "-3",
+      armor: "1d8",
+      toughness: "22",
+      painThreshold: "11",
+      movement: "0 m",
+      attributes: {
+        accurate: 10,
+        cunning: 12,
+        discreet: 6,
+        persuasive: 4,
+        quick: 5,
+        resolute: 15,
+        strong: 16,
+        vigilant: 12
+      },
+      traits: ["Raíces prensiles II", "Nube tóxica II", "Armadura vegetal II", "Regeneración I"],
+      actions: ["Látigo de raíces", "Descarga de esporas"],
+      tactics: "Convierte el terreno en un embudo, bloquea retirada y desgasta por exposición prolongada.",
+      weakness: "Fuego, aceites y pérdida de cobertura natural.",
+      loot: "Sacos de esporas, savia rara y componentes alquímicos."
+    },
+    createdAt: "2026-04-10T00:00:00.000Z",
+    updatedAt: "2026-04-10T00:00:00.000Z"
+  },
+  {
+    id: "codex-jinete-goblin",
+    name: "Jinete goblin",
+    category: "Ser civilizado",
+    threat: "Moderado",
+    source: "Códice de monstruos · Lote inicial",
+    summary: "Hostigador móvil que golpea desde alcance variable y explota cobertura, humo y terreno difícil.",
+    sheet: {
+      attack: "+1",
+      damage: "1d6",
+      defense: "+1",
+      armor: "1d4",
+      toughness: "11",
+      painThreshold: "5",
+      movement: "16 m",
+      attributes: {
+        accurate: 11,
+        cunning: 12,
+        discreet: 13,
+        persuasive: 9,
+        quick: 14,
+        resolute: 9,
+        strong: 8,
+        vigilant: 10
+      },
+      traits: ["Montura veloz I", "Escaramuza I", "Truco sucio I"],
+      actions: ["Lanza corta", "Disparo rápido", "Retirada táctica"],
+      tactics: "Evita quedarse trabado, castiga retaguardia y corta líneas de visión con humo o cobertura.",
+      weakness: "Pierde eficacia cuando desmonta o es rodeado.",
+      loot: "Jabalinas, amuletos tribales, cuero trabajado."
+    },
+    createdAt: "2026-04-10T00:00:00.000Z",
+    updatedAt: "2026-04-10T00:00:00.000Z"
+  },
+  {
+    id: "codex-anomalia-de-sombra",
+    name: "Anomalía de sombra",
+    category: "Fenómeno",
+    threat: "Peligroso",
+    source: "Códice de monstruos · Lote inicial",
+    summary: "Entidad inestable que deforma percepción y castiga a personajes con baja disciplina mental.",
+    sheet: {
+      attack: "+2",
+      damage: "1d8",
+      defense: "+1",
+      armor: "1d4",
+      toughness: "14",
+      painThreshold: "7",
+      movement: "10 m flotando",
+      attributes: {
+        accurate: 12,
+        cunning: 13,
+        discreet: 12,
+        persuasive: 6,
+        quick: 12,
+        resolute: 14,
+        strong: 9,
+        vigilant: 14
+      },
+      traits: ["Intangible por pulsos I", "Oscuridad viva I", "Desorientar I"],
+      actions: ["Latigazo umbrío", "Estallido de sombras"],
+      tactics: "Aparece, golpea sobre el más frágil mentalmente y desaparece antes de quedar fijada.",
+      weakness: "Luz intensa, zonas consagradas y ataques coordinados.",
+      loot: "Residuos umbríos, cristal ennegrecido y vestigios arcanos."
+    },
+    createdAt: "2026-04-10T00:00:00.000Z",
+    updatedAt: "2026-04-10T00:00:00.000Z"
+  },
+  ...BASIC_BOOK_MONSTERS
+];

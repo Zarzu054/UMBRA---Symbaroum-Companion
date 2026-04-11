@@ -32,6 +32,7 @@ import {
 } from "../services/rollTransport";
 import { CampaignDashboardView } from "./CampaignDashboardView";
 import { CompendiumView } from "./CompendiumView";
+import { MonsterDashboardView } from "./MonsterDashboardView";
 
 
 type Props = {
@@ -40,7 +41,7 @@ type Props = {
   onLogout: () => Promise<void>;
 };
 
-type AppModule = "characters" | "compendium" | "campaigns";
+type AppModule = "characters" | "compendium" | "campaigns" | "monsters";
 
 type CompendiumFocus = {
   entryId: string | null;
@@ -57,6 +58,10 @@ type PendingCharacterRollConfirmation = {
 
 function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token">; sheetId?: string | null } {
   const rawHash = window.location.hash.replace(/^#/, "");
+  if (rawHash.startsWith("monsters")) {
+    return { module: "monsters" };
+  }
+
   if (rawHash.startsWith("campaigns")) {
     return { module: "campaigns" };
   }
@@ -88,7 +93,10 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   const isCampaignManagedLock = false;
   const isCapabilityLocked = controller.isEditing;
   const canAccessCharacters = user.role !== "gm";
-  const [activeModule, setActiveModule] = useState<AppModule>(canAccessCharacters ? "characters" : "campaigns");
+  const canAccessMonsters = user.role === "gm" || user.role === "superadmin";
+  const [activeModule, setActiveModule] = useState<AppModule>(
+    canAccessCharacters ? "characters" : canAccessMonsters ? "monsters" : "campaigns"
+  );
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [compendiumFocus, setCompendiumFocus] = useState<CompendiumFocus>({
     entryId: null,
@@ -106,8 +114,16 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     function syncWithHash(): void {
       const parsed = parseHash();
       if (!canAccessCharacters && parsed.module === "characters") {
-        setActiveModule("campaigns");
-        window.location.hash = "campaigns";
+        const fallbackModule = canAccessMonsters ? "monsters" : "campaigns";
+        setActiveModule(fallbackModule);
+        window.location.hash = fallbackModule;
+        return;
+      }
+
+      if (!canAccessMonsters && parsed.module === "monsters") {
+        const fallbackModule = canAccessCharacters ? "characters" : "campaigns";
+        setActiveModule(fallbackModule);
+        window.location.hash = fallbackModule;
         return;
       }
 
@@ -124,6 +140,9 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         case "campaigns":
           setActiveModule("campaigns");
           return;
+        case "monsters":
+          setActiveModule("monsters");
+          return;
         case "characters":
         default:
           setActiveModule("characters");
@@ -135,7 +154,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     syncWithHash();
     window.addEventListener("hashchange", syncWithHash);
     return () => window.removeEventListener("hashchange", syncWithHash);
-  }, [canAccessCharacters]);
+  }, [canAccessCharacters, canAccessMonsters]);
 
   function openCompendiumCapability(tipo: "habilidad" | "poder_mistico" | "ritual", nombre: string): void {
     const entryId = findCompendiumCapabilityEntryId(tipo, nombre);
@@ -181,6 +200,13 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     }
   }
 
+  function openMonstersModule(): void {
+    setActiveModule("monsters");
+    if (!window.location.hash.startsWith("#monsters")) {
+      window.location.hash = "monsters";
+    }
+  }
+
   return (
     <main className="page">
       <div className={`app-shell${isSidebarOpen ? "" : " is-sidebar-collapsed"}`}>
@@ -207,6 +233,11 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               <button className={activeModule === "campaigns" ? "active-toggle" : ""} onClick={openCampaignsModule}>
                 Campañas
               </button>
+              {canAccessMonsters ? (
+                <button className={activeModule === "monsters" ? "active-toggle" : ""} onClick={openMonstersModule}>
+                  Monstruos
+                </button>
+              ) : null}
               <button className={activeModule === "compendium" ? "active-toggle" : ""} onClick={openCompendiumModule}>
                 Compendio
               </button>
@@ -242,6 +273,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               initialSourceFilter={compendiumFocus.source}
               focusToken={compendiumFocus.token}
             />
+          ) : activeModule === "monsters" ? (
+            <MonsterDashboardView user={user} ensureAccessToken={ensureAccessToken} />
           ) : activeModule === "campaigns" ? (
             <CampaignDashboardView user={user} ensureAccessToken={ensureAccessToken} />
           ) : selectedCharacterSheet ? (
@@ -392,19 +425,13 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           </label>
           <label className="field">
             <span>Raza</span>
-            <select
+            <input
               value={controller.form.sheet.identidad.raza}
               onChange={(event) => {
                 controller.updateSheet("identidad.raza", event.target.value);
                 controller.updateTopLevel("race", event.target.value);
               }}
-            >
-              {controller.races.map((race) => (
-                <option key={race} value={race}>
-                  {race}
-                </option>
-              ))}
-            </select>
+            />
           </label>
           <label className="field">
             <span>Cultura</span>
@@ -538,7 +565,11 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           <div className="info-box">Robustez actual total: {controller.derived.robustezActualTotal}</div>
           <div className="info-box">Umbral de dolor total: {controller.derived.umbralDolorTotal}</div>
           <div className="info-box">Umbral de corrupción total: {controller.derived.umbralCorrupcionTotal}</div>
+          <div className="info-box">Armadura activa: {controller.derived.armaduraActiva || "-"}</div>
         </div>
+        <p className="section-help">
+          Las bendiciones suman <code>5 PX</code> gastados cada una y las cargas aportan <code>5 PX</code> extra disponibles cada una.
+        </p>
         {controller.derived.warnings.length > 0 ? (
           <div className="warning-block">
             {controller.derived.warnings.map((warning) => (
@@ -1050,11 +1081,49 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         </div>
         </fieldset>
 
-        <div className="section-title">Rasgos, equipo y contactos</div>
+        <div className="section-title">Bendiciones, cargas, rasgos, equipo y contactos</div>
         <p className="section-help">Elementos narrativos y de inventario que impactan la partida y la hoja.</p>
         {isCampaignManagedLock ? <p className="section-help">Inventario, contactos y recursos vivos se editan desde la hoja de campaña.</p> : null}
         <fieldset disabled={isCampaignManagedLock} className="campaign-managed-fieldset">
         <div className="triple-columns">
+          <div>
+            <div className="inline-row">
+              <label className="field">
+                <span>Nueva bendición</span>
+                <input
+                  value={controller.listInput.bendiciones}
+                  onChange={(event) => controller.setListInput((prev) => ({ ...prev, bendiciones: event.target.value }))}
+                />
+              </label>
+              <button onClick={() => controller.addSimpleItem("bendiciones")}>Agregar</button>
+            </div>
+            <ul className="tag-list">
+              {controller.form.sheet.bendiciones.map((item, index) => (
+                <li key={`ben-${index}`}>
+                  {item}
+                  <button onClick={() => controller.removeSimpleItem("bendiciones", index)}>x</button>
+                </li>
+              ))}
+            </ul>
+            <div className="inline-row">
+              <label className="field">
+                <span>Nueva carga</span>
+                <input
+                  value={controller.listInput.cargas}
+                  onChange={(event) => controller.setListInput((prev) => ({ ...prev, cargas: event.target.value }))}
+                />
+              </label>
+              <button onClick={() => controller.addSimpleItem("cargas")}>Agregar</button>
+            </div>
+            <ul className="tag-list">
+              {controller.form.sheet.cargas.map((item, index) => (
+                <li key={`car-${index}`}>
+                  {item}
+                  <button onClick={() => controller.removeSimpleItem("cargas", index)}>x</button>
+                </li>
+              ))}
+            </ul>
+          </div>
           <div>
             <div className="inline-row">
               <label className="field">
@@ -1627,15 +1696,15 @@ function CharacterActionSheet({ character }: CharacterActionSheetProps) {
                 <button type="button" onClick={runDefenseRoll}>Tirar prueba</button>
               </div>
             </div>
-            {sheet.combate.armaduraProteccion ? (
+            {derived.armaduraActiva ? (
               <div className="campaign-action-button">
-                <strong>{sheet.combate.armadura || "Armadura principal"}</strong>
-                <span>{sheet.combate.armaduraProteccion}</span>
+                <strong>{sheet.combate.armadura || (derived.armaduraNatural ? "Armadura natural" : "Armadura principal")}</strong>
+                <span>{derived.armaduraActiva}</span>
                 <div className="character-action-roll-grid">
                   <div className="character-action-roll-block">
                     <span className="character-action-roll-title">Protección</span>
-                    <span className="character-action-roll-meta">{sheet.combate.armaduraProteccion}</span>
-                    <button type="button" onClick={() => runArmorRoll("Protección principal", sheet.combate.armaduraProteccion)}>
+                    <span className="character-action-roll-meta">{derived.armaduraActiva}</span>
+                    <button type="button" onClick={() => runArmorRoll("Protección principal", derived.armaduraActiva)}>
                       Tirar daño
                     </button>
                   </div>
