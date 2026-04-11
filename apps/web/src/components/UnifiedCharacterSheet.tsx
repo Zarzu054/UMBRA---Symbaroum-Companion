@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ATTRIBUTE_KEYS,
   ATTRIBUTE_LABELS,
+  SYMBAROUM_ABILITIES,
   buildRollRequest,
   deriveCharacterActions,
   executeCharacterAction,
   synchronizeCharacterSheet,
+  SYMBAROUM_MYSTIC_POWERS,
+  SYMBAROUM_RITUALS,
   type ActionRollResult,
   type CharacterActionDefinition,
   type CharacterActionPhase,
@@ -50,6 +53,12 @@ type PendingRollConfirmation = {
   selectedDamageModifierIds: string[];
   defenseAlternativeIds?: string[];
   selectedDefenseAlternativeId?: string;
+};
+
+type FormulaBreakdownEntry = {
+  label: string;
+  formula?: string;
+  detail?: string;
 };
 
 type ActionDetailModal = {
@@ -109,7 +118,7 @@ function formatMoneyCounters(counters: MoneyCounters): string {
 
 function formatActionDisplayLabel(label: string): string {
   return String(label ?? "")
-    .replace(/^Usar\s+/i, "")
+    .replace(/^(Usar|Lanzar)\s+/i, "")
     .replace(/\s+\((Novato|Adepto|Maestro)\)\s*$/i, "")
     .trim();
 }
@@ -117,6 +126,10 @@ function formatActionDisplayLabel(label: string): string {
 function getActionRollLabel(action: CharacterActionDefinition): string {
   if (action.sourceType === "weapon") {
     return "Ataque";
+  }
+
+  if (action.sourceType === "power") {
+    return "Hechizo";
   }
 
   const normalized = normalizeCapabilityText(`${action.label} ${action.effectSummary}`);
@@ -130,6 +143,37 @@ function getActionRollLabel(action: CharacterActionDefinition): string {
 function getActionDamageVariants(action: CharacterActionDefinition): Array<{ id: string; label: string; formula: string }> {
   if (action.damageModifiers && action.damageModifiers.length > 0) {
     return action.damageModifiers;
+  }
+
+  return [];
+}
+
+function getDamageRollBreakdown(
+  action: CharacterActionDefinition,
+  selectedDamageModifierIds: string[] = []
+): FormulaBreakdownEntry[] {
+  const selectedIds = new Set(selectedDamageModifierIds);
+  const baseEntries = action.damageBreakdown && action.damageBreakdown.length > 0
+    ? action.damageBreakdown
+    : (action.damageFormula ? [{ label: action.sourceName, formula: action.damageFormula }] : []);
+
+  const selectedModifiers = (action.damageModifiers ?? [])
+    .filter((modifier) => selectedIds.has(modifier.id))
+    .map((modifier) => ({
+      label: modifier.label,
+      formula: modifier.formula
+    }));
+
+  return [...baseEntries, ...selectedModifiers];
+}
+
+function getRollRequestBreakdown(request: RollRequest): FormulaBreakdownEntry[] {
+  if (request.formulaBreakdown && request.formulaBreakdown.length > 0) {
+    return request.formulaBreakdown;
+  }
+
+  if (request.phase === "damage" && request.formula) {
+    return [{ label: request.sourceName || request.actionLabel, formula: request.formula }];
   }
 
   return [];
@@ -378,6 +422,7 @@ export function UnifiedCharacterSheet({
   const [history, setHistory] = useState<Array<{ title: string; detail?: string; rolls: ActionRollResult[] }>>([]);
   const rollDestination: RollDestination = "roll20";
   const [pendingRollConfirmation, setPendingRollConfirmation] = useState<PendingRollConfirmation | null>(null);
+  const [showPendingRollBreakdown, setShowPendingRollBreakdown] = useState(false);
   const [actionDetailModal, setActionDetailModal] = useState<ActionDetailModal | null>(null);
 
   const normalizedSheet = useMemo(() => synchronizeCharacterSheet(draft), [draft]);
@@ -484,7 +529,17 @@ export function UnifiedCharacterSheet({
         ? normalizedSheet.rituales
         : normalizedSheet.habilidades;
     const entry = entries.find((candidate) => normalizeCapabilityText(candidate.nombre) === normalizeCapabilityText(action.sourceName));
-    const rawDetail = `${entry?.efecto ?? ""}\n${entry?.notas ?? ""}`.trim() || action.effectSummary;
+    const canonicalEntry = (
+      action.sourceType === "power"
+        ? SYMBAROUM_MYSTIC_POWERS.find((candidate) => normalizeCapabilityText(candidate.nombre) === normalizeCapabilityText(action.sourceName))
+        : action.sourceType === "ritual"
+          ? SYMBAROUM_RITUALS.find((candidate) => normalizeCapabilityText(candidate.nombre) === normalizeCapabilityText(action.sourceName))
+          : SYMBAROUM_ABILITIES.find((candidate) => normalizeCapabilityText(candidate.nombre) === normalizeCapabilityText(action.sourceName))
+    );
+    const rawDetail =
+      canonicalEntry?.efectoResumen?.trim() ||
+      `${entry?.efecto ?? ""}\n${entry?.notas ?? ""}`.trim() ||
+      action.effectSummary;
     const parsed = parseCapabilityTiers(rawDetail);
     const currentTierLabel = entry?.nivel ? capitalizeActionLevel(entry.nivel) : null;
     const tierContent = currentTierLabel ? parsed.tiers.find((tier) => tier.label === currentTierLabel)?.content : null;
@@ -513,6 +568,7 @@ export function UnifiedCharacterSheet({
         defenseAlternativeIds: [],
         selectedDefenseAlternativeId: ""
       });
+      setShowPendingRollBreakdown(false);
       return;
     }
 
@@ -526,6 +582,7 @@ export function UnifiedCharacterSheet({
       defenseAlternativeIds: [],
       selectedDefenseAlternativeId: ""
     });
+    setShowPendingRollBreakdown(false);
   }
 
   function runAction(action: CharacterActionDefinition, phase: CharacterActionPhase, damageVariantId?: string): void {
@@ -655,6 +712,17 @@ export function UnifiedCharacterSheet({
     if (!formula) return;
     const label = equippedArmor?.name || normalizedSheet.combate.armadura || (derived.armaduraNatural ? "Armadura natural" : "Armadura");
     if (rollDestination !== "umbra") {
+      const formulaBreakdown = equippedArmor?.protectionFormula
+        ? [{
+            label: equippedArmor?.name || "Armadura",
+            formula
+          }]
+        : (derived.armaduraNaturalBreakdown.length > 0
+            ? derived.armaduraNaturalBreakdown
+            : [{
+                label: equippedArmor?.name || (derived.armaduraNatural ? "Armadura natural" : "Armadura"),
+                formula
+              }]);
       queueRoll20Request(
         {
           kind: "damage",
@@ -665,6 +733,7 @@ export function UnifiedCharacterSheet({
           sourceName: label,
           sourceType: "ability",
           formula,
+          formulaBreakdown,
           destination: rollDestination
         },
         `${label} · Proteccion`
@@ -738,6 +807,7 @@ export function UnifiedCharacterSheet({
       void error;
     } finally {
       setPendingRollConfirmation(null);
+      setShowPendingRollBreakdown(false);
     }
   }
 
@@ -1719,21 +1789,61 @@ export function UnifiedCharacterSheet({
                     <span>{modifier.label} ({modifier.formula})</span>
                   </label>
                 ))}
-                <p className="section-help">
-                  Formula final: {
-                    buildRollRequest(
-                      normalizedSheet,
-                      displayName,
-                      pendingRollConfirmation.action.id,
-                      "damage",
-                      rollDestination,
-                      "",
-                      pendingRollConfirmation.selectedDamageModifierIds
-                    ).formula
-                  }
-                </p>
               </div>
             ) : null}
+            {(() => {
+              const formulaBreakdown = pendingRollConfirmation.action && pendingRollConfirmation.phase === "damage"
+                ? getDamageRollBreakdown(
+                    pendingRollConfirmation.action,
+                    pendingRollConfirmation.selectedDamageModifierIds
+                  )
+                : (pendingRollConfirmation.request?.phase === "damage" ? getRollRequestBreakdown(pendingRollConfirmation.request) : []);
+              const finalFormula = pendingRollConfirmation.action && pendingRollConfirmation.phase === "damage"
+                ? buildRollRequest(
+                    normalizedSheet,
+                    displayName,
+                    pendingRollConfirmation.action.id,
+                    "damage",
+                    rollDestination,
+                    "",
+                    pendingRollConfirmation.selectedDamageModifierIds
+                  ).formula
+                : (pendingRollConfirmation.request?.phase === "damage" ? pendingRollConfirmation.request.formula : "");
+
+              if (!finalFormula) {
+                return null;
+              }
+
+              return (
+                <div className="character-roll-confirm-formula-block">
+                  <div className="character-roll-confirm-formula-row">
+                    <p className="section-help">Formula final: {finalFormula}</p>
+                    {formulaBreakdown.length > 0 ? (
+                      <button
+                        type="button"
+                        className="character-roll-info-button"
+                        onClick={() => setShowPendingRollBreakdown((current) => !current)}
+                        aria-expanded={showPendingRollBreakdown}
+                        aria-label="Mostrar origen de los dados"
+                      >
+                        i
+                      </button>
+                    ) : null}
+                  </div>
+                  {showPendingRollBreakdown && formulaBreakdown.length > 0 ? (
+                    <div className="character-roll-breakdown-list">
+                      {formulaBreakdown.map((entry, index) => (
+                        <div key={`${entry.label}-${entry.formula ?? entry.detail ?? index}`} className="character-roll-breakdown-item">
+                          <strong>{entry.label}</strong>
+                          {entry.formula ? <span>{entry.formula}</span> : null}
+                          {entry.detail ? <span>{entry.detail}</span> : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })()}
             {(pendingRollConfirmation.defenseAlternativeIds?.length ?? 0) > 0 ? (
               <div className="character-roll-confirm-modifiers">
                 <span>Defensa</span>

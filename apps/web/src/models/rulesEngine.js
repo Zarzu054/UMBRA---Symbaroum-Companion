@@ -13,11 +13,25 @@ export function computeDerivedStats(sheet) {
     const umbralDolorTotal = Math.max(0, sheet.combate.umbralDolor + modifiers.UMBDOLOR);
     const umbralCorrupcionTotal = Math.max(0, sheet.corrupcion.umbral + modifiers.UMBCORR);
     const iniciativaBase = resolveInitiativeAttribute(sheet);
-    const defensaBase = resolveDefenseAttribute(sheet) + monsterTraitEffects.defenseModifier;
+    const defensaBase = resolveDefenseAttribute(sheet) - monsterTraitEffects.defenseModifier;
     const defensaTotal = defensaBase + sheet.combate.defensaMod + modifiers.DEF;
     const iniciativaTotal = iniciativaBase + sheet.combate.iniciativaMod + modifiers.INI;
     const armaduraNatural = monsterTraitEffects.armorFormula;
     const armaduraActiva = sheet.combate.armaduraProteccion || armaduraNatural;
+    const armaduraNaturalBreakdown = [
+        monsterTraitEffects.duroLevel > 0
+            ? {
+                label: "Duro",
+                formula: monsterTraitEffects.duroLevel === 3 ? "1d8" : monsterTraitEffects.duroLevel === 2 ? "1d6" : "1d4"
+            }
+            : null,
+        monsterTraitEffects.robustoLevel > 0
+            ? {
+                label: "Robusto",
+                formula: monsterTraitEffects.robustoLevel === 3 ? "1d8" : monsterTraitEffects.robustoLevel === 2 ? "1d6" : "1d4"
+            }
+            : null
+    ].filter((entry) => Boolean(entry));
     const warnings = [];
     if (corrupcionTotal >= sheet.atributos.tenaz) {
         warnings.push("La corrupción total alcanza o supera Tenaz");
@@ -43,6 +57,7 @@ export function computeDerivedStats(sheet) {
         umbralCorrupcionTotal,
         armaduraNatural,
         armaduraActiva,
+        armaduraNaturalBreakdown,
         warnings
     };
 }

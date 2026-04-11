@@ -263,7 +263,7 @@ export async function importCharacterSheetPdf(file: File): Promise<ImportCharact
     culture: sheet.identidad.cultura,
     profession,
     level: 1,
-    sheet
+    sheet: sanitizeImportSheetForValidation(sheet)
   };
 
   const validation = importCharacterSchema.safeParse(payload);
@@ -414,14 +414,18 @@ function importCapabilities(fields: PdfFieldMap): {
         continue;
       }
 
+      const canonicalEffect = truncateImportedCapabilityText(fromCatalog?.efectoResumen || "", 1200);
+      const canonicalNotes = truncateImportedCapabilityText(fromCatalog?.efectoResumen || "", 800);
+      const importedEffect = truncateImportedCapabilityText(efecto, 1200);
+      const importedNotes = truncateImportedCapabilityText(efecto, 800);
       const entry = {
-        nombre,
+        nombre: fromCatalog?.nombre ?? nombre,
         tipo: resolvedType === "poder_mistico" ? "Poder místico" : resolvedType === "ritual" ? "Ritual" : "Habilidad",
-        efecto: efecto || fromCatalog?.efectoResumen || "",
+        efecto: canonicalEffect || importedEffect,
         nivel,
         fuente: fromCatalog?.libro ?? "",
         pagina: fromCatalog?.pagina,
-        notas: efecto || fromCatalog?.efectoResumen || "",
+        notas: canonicalNotes || importedNotes,
         acciones: fromCatalog?.acciones ?? []
       };
 
@@ -436,6 +440,28 @@ function importCapabilities(fields: PdfFieldMap): {
   }
 
   return { habilidades, poderesMisticos, rituales, bendiciones, cargas, rasgos };
+}
+
+function truncateImportedCapabilityText(value: string, maxLength: number): string {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  return text.length > maxLength ? text.slice(0, maxLength) : text;
+}
+
+function sanitizeImportSheetForValidation(sheet: ImportCharacterInput["sheet"]): ImportCharacterInput["sheet"] {
+  const sanitizeEntries = <T extends Array<{ efecto?: string; notas?: string }>>(entries: T): T =>
+    entries.map((entry) => ({
+      ...entry,
+      efecto: truncateImportedCapabilityText(entry.efecto ?? "", 1200),
+      notas: truncateImportedCapabilityText(entry.notas ?? "", 800)
+    })) as T;
+
+  return {
+    ...sheet,
+    habilidades: sanitizeEntries(sheet.habilidades),
+    poderesMisticos: sanitizeEntries(sheet.poderesMisticos),
+    rituales: sanitizeEntries(sheet.rituales)
+  };
 }
 
 function resolveImportedTraitName(rawName: string, traitCatalog: Map<string, string>): string {

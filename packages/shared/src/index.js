@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { SYMBAROUM_ABILITIES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS } from "./symbaroumCompendium.js";
 import { getCharacterMonsterTraitEffects } from "./monsterTraitRules.js";
+import { STARTER_MONSTER_CODEX } from "./monsterCodex.js";
 export * from "./symbaroumCompendium.js";
 export * from "./campaignActionEngine.js";
 export * from "./monsterCodex.js";
@@ -61,6 +62,7 @@ const MYSTIC_ABILITY_NAMES = ["Poder místico", "Magia", "Teúrgia", "Brujería"
 const RITUAL_ABILITY_NAMES = ["Rituales"];
 const NORMALIZED_MYSTIC_ABILITY_NAMES = MYSTIC_ABILITY_NAMES.map(normalizeName);
 const NORMALIZED_RITUAL_ABILITY_NAMES = RITUAL_ABILITY_NAMES.map(normalizeName);
+const MONSTER_TRAIT_NAME_SET = buildMonsterTraitNameSet();
 function nullableDefaultString(maxLength, fallback = "") {
     return z.preprocess((value) => value == null ? fallback : value, z.string().max(maxLength).default(fallback));
 }
@@ -358,6 +360,62 @@ function normalizeName(value) {
         .trim()
         .toLowerCase();
 }
+function buildMonsterTraitNameSet() {
+    const names = new Set();
+    for (const monster of STARTER_MONSTER_CODEX) {
+        for (const trait of monster.sheet?.traits ?? []) {
+            const baseName = extractMonsterTraitBaseName(trait);
+            if (baseName) {
+                names.add(baseName);
+            }
+        }
+    }
+    return names;
+}
+function extractMonsterTraitBaseName(value) {
+    return normalizeName(value)
+        .replace(/\((?:i{1,3}|[1-3])\)/g, "")
+        .replace(/\b(?:i{1,3}|[1-3])\b/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+function parseMonsterTraitLevel(value) {
+    const normalized = normalizeName(value);
+    if (/\bmaestro\b|\biii\b|\b3\b/.test(normalized))
+        return "maestro";
+    if (/\badepto\b|\bii\b|\b2\b/.test(normalized))
+        return "adepto";
+    return "novato";
+}
+function isCharacterMonsterTrait(value) {
+    return MONSTER_TRAIT_NAME_SET.has(extractMonsterTraitBaseName(value));
+}
+function buildMonsterTraitAbilityEntries(rasgos, existingAbilities) {
+    const existingNames = new Set((existingAbilities ?? []).map((entry) => normalizeName(entry.nombre)));
+    const migrated = [];
+    for (const rasgo of rasgos ?? []) {
+        const baseName = extractMonsterTraitBaseName(rasgo);
+        if (!baseName || !isCharacterMonsterTrait(rasgo) || existingNames.has(baseName)) {
+            continue;
+        }
+        const canonical = SYMBAROUM_ABILITIES.find((entry) => normalizeName(entry.nombre) === baseName);
+        migrated.push({
+            nombre: canonical?.nombre ?? String(rasgo).trim(),
+            tipo: canonical?.tipo ?? "Rasgo monstruoso",
+            efecto: canonical?.efectoResumen ?? "",
+            nivel: parseMonsterTraitLevel(rasgo),
+            fuente: canonical?.libro ?? "",
+            pagina: canonical?.pagina,
+            notas: "",
+            acciones: canonical?.acciones.map((action) => ({ ...action })) ?? []
+        });
+        existingNames.add(baseName);
+    }
+    return migrated;
+}
+function filterCharacterNonMonsterTraits(rasgos) {
+    return (rasgos ?? []).filter((rasgo) => !isCharacterMonsterTrait(rasgo));
+}
 function getEffectiveExperienceTotal(sheet) {
     return Number(sheet.progreso?.experienciaTotal ?? 0) + (Array.isArray(sheet.cargas) ? sheet.cargas.length * 5 : 0);
 }
@@ -403,6 +461,19 @@ function inferInventoryCategory(name) {
         return "treasure";
     return "gear";
 }
+function isNaturalArmorPlaceholderName(value) {
+    const normalized = normalizeName(value);
+    return normalized === "natural" || normalized === "armadura natural";
+}
+function hasCharacterTraitBasedNaturalArmor(sheet) {
+    return Boolean(getCharacterMonsterTraitEffects(sheet).armorFormula);
+}
+function stripNaturalArmorPlaceholderItems(items, sheet) {
+    if (!hasCharacterTraitBasedNaturalArmor(sheet)) {
+        return items;
+    }
+    return items.filter((item) => !(item.category === "armor" && isNaturalArmorPlaceholderName(item.name)));
+}
 function buildLegacyInventoryItems(sheet) {
     const items = [];
     const pushItem = (item) => {
@@ -413,6 +484,9 @@ function buildLegacyInventoryItems(sheet) {
     const addWeapon = (id, name, slot, damageFormula, attribute, qualities) => {
         const trimmed = (name ?? "").trim();
         if (!trimmed)
+            return;
+        const normalizedName = normalizeName(trimmed);
+        if (normalizedName === "natural" || normalizedName === "arma natural" || normalizedName === "armas naturales")
             return;
         pushItem({
             id,
@@ -439,7 +513,7 @@ function buildLegacyInventoryItems(sheet) {
     addWeapon("legacy-weapon-secondary", sheet.combate.armaSecundaria, "offHand", sheet.combate.danioSecundaria, sheet.combate.armaSecundariaAtributo, "");
     addWeapon("legacy-weapon-tertiary", sheet.combate.armaTerciaria, "ranged", sheet.combate.danioTerciaria, sheet.combate.armaTerciariaAtributo, sheet.combate.armaTerciariaCualidad);
     addWeapon("legacy-weapon-quaternary", sheet.combate.armaCuaternaria, "ranged", sheet.combate.danioCuaternaria, sheet.combate.armaCuaternariaAtributo, sheet.combate.armaCuaternariaCualidad);
-    if ((sheet.combate.armadura ?? "").trim()) {
+    if ((sheet.combate.armadura ?? "").trim() && !isNaturalArmorPlaceholderName(sheet.combate.armadura ?? "")) {
         pushItem({
             id: "legacy-armor-primary",
             name: (sheet.combate.armadura ?? "").trim(),
@@ -522,6 +596,45 @@ function buildLegacyEquipmentSlots(items, sheet) {
         artifact: items.find((item) => item.slot === "artifact")?.id ?? "",
         worn: ""
     };
+}
+function synchronizeInventoryEquipment(items, rawSlots) {
+    const slotKeys = ["mainHand", "offHand", "ranged", "armor", "artifact", "worn"];
+    const itemIds = new Set(items.map((item) => item.id));
+    const equipmentSlots = {
+        mainHand: itemIds.has(rawSlots.mainHand) ? rawSlots.mainHand : "",
+        offHand: itemIds.has(rawSlots.offHand) ? rawSlots.offHand : "",
+        ranged: itemIds.has(rawSlots.ranged) ? rawSlots.ranged : "",
+        armor: itemIds.has(rawSlots.armor) ? rawSlots.armor : "",
+        artifact: itemIds.has(rawSlots.artifact) ? rawSlots.artifact : "",
+        worn: itemIds.has(rawSlots.worn) ? rawSlots.worn : ""
+    };
+    for (const item of items) {
+        if (!item.equipped || item.slot === "none")
+            continue;
+        const slot = item.slot;
+        if (slotKeys.includes(slot) && !equipmentSlots[slot]) {
+            equipmentSlots[slot] = item.id;
+        }
+    }
+    const assignedSlots = new Map();
+    for (const slot of slotKeys) {
+        const itemId = equipmentSlots[slot];
+        if (itemId) {
+            assignedSlots.set(itemId, slot);
+        }
+    }
+    const inventoryItems = items.map((item) => {
+        const assignedSlot = assignedSlots.get(item.id);
+        if (assignedSlot) {
+            return { ...item, equipped: true, slot: assignedSlot };
+        }
+        return {
+            ...item,
+            equipped: false,
+            slot: "none"
+        };
+    });
+    return { inventoryItems, equipmentSlots };
 }
 function buildLegacyConditions(sheet) {
     const conditions = [];
@@ -645,7 +758,6 @@ function buildCanonicalActions(sheet) {
     pushRatedActions("power", sheet.poderesMisticos);
     pushRatedActions("ritual", sheet.rituales);
     const combateSinArmas = sheet.habilidades.find((entry) => normalizeName(entry.nombre) === "combate sin armas");
-    const naturalWeaponLevel = getTraitLevelForCanonicalActions(sheet, "arma natural");
     const baseUnarmedDamage = !combateSinArmas ? "1d4" : combateSinArmas.nivel === "maestro" ? "2d6" : "1d6";
     actions.push({
         id: "ability:combate-sin-armas:base",
@@ -654,8 +766,8 @@ function buildCanonicalActions(sheet) {
         sourceName: combateSinArmas ? "Combate sin armas" : "Ataque basico",
         cost: "combat",
         requiredLevel: combateSinArmas?.nivel,
-        rollAttribute: "fuerte",
-        damageFormula: naturalWeaponLevel > 0 ? combineCanonicalDamageFormula(baseUnarmedDamage, convertTraitBonusToPlayerRoll(naturalWeaponLevel)) : baseUnarmedDamage,
+        rollAttribute: "diestro",
+        damageFormula: baseUnarmedDamage,
         effectSummary: !combateSinArmas
             ? "Ataque desarmado basico disponible para cualquier personaje."
             : combateSinArmas.nivel === "adepto"
@@ -667,10 +779,32 @@ function buildCanonicalActions(sheet) {
         notes: combateSinArmas?.notas ?? "",
         linkedItemId: ""
     });
+    const naturalWeaponLevel = getTraitLevelForCanonicalActions(sheet, "arma natural");
+    if (naturalWeaponLevel > 0) {
+        actions.push({
+            id: `trait:arma-natural:${naturalWeaponLevel}`,
+            label: "Ataque con Arma natural",
+            sourceType: "weapon",
+            sourceName: "Arma natural",
+            cost: "combat",
+            rollAttribute: "diestro",
+            damageFormula: getNaturalWeaponCharacterDamage(naturalWeaponLevel),
+            effectSummary: "Ataque cuerpo a cuerpo realizado con las armas naturales del personaje.",
+            category: "ability",
+            notes: "",
+            linkedItemId: ""
+        });
+    }
     return actions;
 }
 function getTraitLevelForCanonicalActions(sheet, traitName) {
     const target = normalizeName(traitName);
+    const ratedAbilityLevel = (sheet.habilidades ?? [])
+        .filter((entry) => normalizeName(entry.nombre) === target || normalizeName(entry.nombre).startsWith(`${target} `) || normalizeName(entry.nombre).startsWith(`${target} (`))
+        .reduce((highest, entry) => Math.max(highest, entry.nivel === "maestro" ? 3 : entry.nivel === "adepto" ? 2 : 1), 0);
+    if (ratedAbilityLevel > 0) {
+        return ratedAbilityLevel;
+    }
     const traitSources = [
         ...(sheet.rasgos ?? []),
         ...String(sheet.noteSections?.traits ?? "")
@@ -696,6 +830,18 @@ function getTraitLevelForCanonicalActions(sheet, traitName) {
         return 1;
     }
     return 0;
+}
+function getNaturalWeaponCharacterDamage(level) {
+    switch (level) {
+        case 3:
+            return "1d10";
+        case 2:
+            return "1d8";
+        case 1:
+            return "1d6";
+        default:
+            return "1d4";
+    }
 }
 function convertTraitBonusToPlayerRoll(value) {
     switch (value) {
@@ -792,13 +938,13 @@ function sanitizeImportedRatedEntry(entry) {
     const nivel = nivelRaw === "novato" || nivelRaw === "adepto" || nivelRaw === "maestro" ? nivelRaw : "novato";
     const acciones = Array.isArray(candidate.acciones) ? candidate.acciones.filter((action) => action && typeof action === "object") : [];
     return {
-        nombre,
-        tipo: String(candidate.tipo ?? ""),
-        efecto: String(candidate.efecto ?? ""),
+        nombre: truncateImportedString(nombre, 120),
+        tipo: truncateImportedString(candidate.tipo, 120),
+        efecto: truncateImportedString(candidate.efecto, 1200),
         nivel,
-        fuente: String(candidate.fuente ?? ""),
+        fuente: truncateImportedString(candidate.fuente, 120),
         pagina: typeof candidate.pagina === "number" && Number.isInteger(candidate.pagina) ? candidate.pagina : undefined,
-        notas: String(candidate.notas ?? ""),
+        notas: truncateImportedString(candidate.notas, 800),
         acciones: acciones
     };
 }
@@ -812,13 +958,13 @@ function hydrateRatedEntryActions(entries, sourceType) {
         const actions = Array.isArray(entry.acciones) ? entry.acciones : [];
         return {
             ...entry,
-            tipo: entry.tipo || canonicalEntry?.tipo || "",
-            efecto: entry.efecto || canonicalEntry?.efectoResumen || "",
-            fuente: entry.fuente || canonicalEntry?.libro || "",
-            pagina: entry.pagina ?? canonicalEntry?.pagina,
-            acciones: actions.length > 0
-                ? actions
-                : (canonicalEntry?.acciones.map((action) => ({ ...action })) ?? [])
+            nombre: truncateImportedString(canonicalEntry?.nombre || entry.nombre, 120),
+            tipo: truncateImportedString(canonicalEntry?.tipo || entry.tipo || "", 120),
+            efecto: truncateImportedString(canonicalEntry?.efectoResumen || entry.efecto || "", 1200),
+            fuente: truncateImportedString(canonicalEntry?.libro || entry.fuente || "", 120),
+            pagina: canonicalEntry?.pagina ?? entry.pagina,
+            notas: truncateImportedString(canonicalEntry?.efectoResumen || entry.notas || entry.efecto || "", 800),
+            acciones: canonicalEntry?.acciones.map((action) => ({ ...action })) ?? (actions.length > 0 ? actions : [])
         };
     });
 }
@@ -849,15 +995,55 @@ function normalizeRatedEntries(entries, sourceType) {
     }
     return [...merged.values()];
 }
+function truncateImportedString(value, maxLength) {
+    return String(value ?? "").slice(0, maxLength);
+}
+function sanitizeRawRatedEntryCollection(entries) {
+    if (!Array.isArray(entries)) {
+        return [];
+    }
+    return entries
+        .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+        .map((entry) => {
+        const candidate = entry;
+        const acciones = Array.isArray(candidate.acciones)
+            ? candidate.acciones
+                .filter((action) => action && typeof action === "object" && !Array.isArray(action))
+                .map((action) => {
+                const actionCandidate = action;
+                return {
+                    ...actionCandidate,
+                    id: truncateImportedString(actionCandidate.id, 120),
+                    label: truncateImportedString(actionCandidate.label, 120),
+                    damageFormula: truncateImportedString(actionCandidate.damageFormula, 80),
+                    effectSummary: truncateImportedString(actionCandidate.effectSummary, 400)
+                };
+            })
+            : [];
+        return {
+            ...candidate,
+            nombre: truncateImportedString(candidate.nombre, 120),
+            tipo: truncateImportedString(candidate.tipo, 120),
+            efecto: truncateImportedString(candidate.efecto, 1200),
+            fuente: truncateImportedString(candidate.fuente, 120),
+            notas: truncateImportedString(candidate.notas, 800),
+            acciones
+        };
+    });
+}
 function migrateCharacterSheetInput(input) {
     if (!input || typeof input !== "object" || Array.isArray(input)) {
         return input;
     }
     const candidate = structuredClone(input);
-    const inventoryItems = Array.isArray(candidate.inventoryItems) && candidate.inventoryItems.length > 0
+    candidate.habilidades = sanitizeRawRatedEntryCollection(candidate.habilidades);
+    candidate.poderesMisticos = sanitizeRawRatedEntryCollection(candidate.poderesMisticos);
+    candidate.rituales = sanitizeRawRatedEntryCollection(candidate.rituales);
+    const rawInventoryItems = Array.isArray(candidate.inventoryItems) && candidate.inventoryItems.length > 0
         ? candidate.inventoryItems
         : buildLegacyInventoryItems(candidate);
-    const equipmentSlots = candidate.equipmentSlots
+    const inventoryItemsWithoutNaturalPlaceholder = stripNaturalArmorPlaceholderItems(rawInventoryItems, candidate);
+    const rawEquipmentSlots = candidate.equipmentSlots
         ? {
             mainHand: candidate.equipmentSlots.mainHand ?? "",
             offHand: candidate.equipmentSlots.offHand ?? "",
@@ -866,7 +1052,8 @@ function migrateCharacterSheetInput(input) {
             artifact: candidate.equipmentSlots.artifact ?? "",
             worn: candidate.equipmentSlots.worn ?? ""
         }
-        : buildLegacyEquipmentSlots(inventoryItems, candidate);
+        : buildLegacyEquipmentSlots(inventoryItemsWithoutNaturalPlaceholder, candidate);
+    const { inventoryItems, equipmentSlots } = synchronizeInventoryEquipment(inventoryItemsWithoutNaturalPlaceholder, rawEquipmentSlots);
     const noteSections = candidate.noteSections
         ? {
             general: candidate.noteSections.general ?? candidate.notas ?? "",
@@ -875,17 +1062,21 @@ function migrateCharacterSheetInput(input) {
             campaign: candidate.noteSections.campaign ?? ""
         }
         : buildLegacyNotesSections(candidate);
-    const habilidades = normalizeRatedEntries(candidate.habilidades, "ability");
+    const migratedMonsterTraitAbilities = buildMonsterTraitAbilityEntries(candidate.rasgos, candidate.habilidades);
+    const habilidades = normalizeRatedEntries([...(candidate.habilidades ?? []), ...migratedMonsterTraitAbilities], "ability");
     const poderesMisticos = normalizeRatedEntries(candidate.poderesMisticos, "power");
     const rituales = normalizeRatedEntries(candidate.rituales, "ritual");
     const syncedRobustezMax = getEffectiveCharacterRobustezMax(candidate);
     return {
         ...candidate,
+        rasgos: filterCharacterNonMonsterTraits(candidate.rasgos),
         habilidades,
         poderesMisticos,
         rituales,
         combate: {
             ...candidate.combate,
+            armadura: hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armadura,
+            armaduraProteccion: hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armaduraProteccion,
             robustezMax: syncedRobustezMax,
             robustezActual: Math.min(candidate.combate?.robustezActual ?? syncedRobustezMax, syncedRobustezMax)
         },
@@ -907,16 +1098,22 @@ function migrateCharacterSheetInput(input) {
 }
 function buildSynchronizedCharacterSheet(input) {
     const syncedRobustezMax = getEffectiveCharacterRobustezMax(input);
-    const habilidades = normalizeRatedEntries(input.habilidades, "ability");
+    const migratedMonsterTraitAbilities = buildMonsterTraitAbilityEntries(input.rasgos, input.habilidades);
+    const habilidades = normalizeRatedEntries([...(input.habilidades ?? []), ...migratedMonsterTraitAbilities], "ability");
     const poderesMisticos = normalizeRatedEntries(input.poderesMisticos, "power");
     const rituales = normalizeRatedEntries(input.rituales, "ritual");
+    const inventoryItemsWithoutNaturalPlaceholder = stripNaturalArmorPlaceholderItems(input.inventoryItems, input);
+    const syncedEquipment = synchronizeInventoryEquipment(inventoryItemsWithoutNaturalPlaceholder, input.equipmentSlots);
     const legacyCompatible = {
         ...input,
+        rasgos: filterCharacterNonMonsterTraits(input.rasgos),
         habilidades,
         poderesMisticos,
         rituales,
         combate: {
             ...input.combate,
+            armadura: hasCharacterTraitBasedNaturalArmor(input) && isNaturalArmorPlaceholderName(input.combate.armadura ?? "") ? "" : input.combate.armadura,
+            armaduraProteccion: hasCharacterTraitBasedNaturalArmor(input) && isNaturalArmorPlaceholderName(input.combate.armadura ?? "") ? "" : input.combate.armaduraProteccion,
             robustezMax: syncedRobustezMax,
             robustezActual: Math.min(input.combate.robustezActual, syncedRobustezMax)
         },
@@ -928,8 +1125,7 @@ function buildSynchronizedCharacterSheet(input) {
             campaign: input.noteSections.campaign
         },
         conditions: synchronizeAutomaticConditions(input.conditions, input),
-        inventoryItems: input.inventoryItems,
-        equipmentSlots: input.equipmentSlots
+        ...syncedEquipment
     };
     const autoActions = buildCanonicalActions(legacyCompatible);
     const manualUtilityActions = input.actions.filter((action) => action.sourceType === "utility");
@@ -938,6 +1134,8 @@ function buildSynchronizedCharacterSheet(input) {
         habilidades,
         poderesMisticos,
         rituales,
+        inventoryItems: syncedEquipment.inventoryItems,
+        equipmentSlots: syncedEquipment.equipmentSlots,
         noteSections: legacyCompatible.noteSections,
         actions: [...manualUtilityActions, ...autoActions]
     };

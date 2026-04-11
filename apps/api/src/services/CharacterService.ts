@@ -53,10 +53,11 @@ export class CharacterService {
   }
 
   async importCharacter(ownerId: string, input: ImportCharacterInput): Promise<Character> {
+    const parsedImportedSheet = parseCharacterSheet(input.sheet ?? createEmptyCharacterSheet());
     const normalizedSheet = {
-      ...(input.sheet ?? createEmptyCharacterSheet()),
+      ...parsedImportedSheet,
       progreso: {
-        ...(input.sheet?.progreso ?? createEmptyCharacterSheet().progreso),
+        ...parsedImportedSheet.progreso,
         nivel: 1 as const
       }
     };

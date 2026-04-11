@@ -1406,6 +1406,60 @@ td {
   margin: 0;
 }
 
+.character-roll-confirm-formula-block {
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 0.9rem;
+}
+
+.character-roll-confirm-formula-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.character-roll-confirm-formula-row .section-help {
+  margin: 0;
+}
+
+.character-roll-info-button {
+  width: 1.45rem;
+  height: 1.45rem;
+  min-width: 1.45rem;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(197, 139, 86, 0.78);
+  background: rgba(251, 242, 231, 0.92);
+  color: #7a4e2d;
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+.character-roll-breakdown-list {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 14px;
+  background: rgba(255, 250, 244, 0.88);
+  border: 1px solid rgba(90, 77, 64, 0.14);
+}
+
+.character-roll-breakdown-item {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.character-roll-breakdown-item strong {
+  font-size: 0.9rem;
+}
+
+.character-roll-breakdown-item span {
+  font-size: 0.84rem;
+  color: #6d5a49;
+}
+
 .unified-sheet-item-catalog-modal {
   width: min(520px, 100%);
 }

@@ -12,6 +12,11 @@ function normalizeTraitName(value: string): string {
 }
 
 function extractTraitLevel(value: string): number {
+  const normalizedValue = normalizeTraitName(value);
+  if (/\bmaestro\b/.test(normalizedValue)) return 3;
+  if (/\badepto\b/.test(normalizedValue)) return 2;
+  if (/\bnovato\b/.test(normalizedValue)) return 1;
+
   const match = String(value ?? "").match(TRAIT_LEVEL_REGEX);
   const raw = normalizeTraitName(match?.[1] ?? "");
   if (raw === "iii" || raw === "3") return 3;
@@ -38,6 +43,7 @@ export function getMonsterTraitLevel(traits: readonly string[], aliases: readonl
 
 function getCharacterTraitSources(sheet: CharacterSheet): string[] {
   return [
+    ...(sheet.habilidades ?? []).map((entry) => `${entry.nombre} ${entry.nivel ?? ""}`.trim()),
     ...(sheet.rasgos ?? []),
     ...String(sheet.noteSections?.traits ?? "")
       .split(/[,\n;]/)
@@ -70,6 +76,23 @@ function getDuroCharacterArmor(level: number): string {
     default:
       return "";
   }
+}
+
+function getRobustoCharacterArmor(level: number): string {
+  switch (level) {
+    case 3:
+      return "1d8";
+    case 2:
+      return "1d6";
+    case 1:
+      return "1d4";
+    default:
+      return "";
+  }
+}
+
+function combineArmorFormulas(...formulas: string[]): string {
+  return formulas.map((formula) => String(formula ?? "").trim()).filter(Boolean).join("+");
 }
 
 function getDuroMonsterArmor(level: number): string {
@@ -134,7 +157,7 @@ export function getCharacterMonsterTraitEffects(sheet: CharacterSheet): Characte
     robustoLevel,
     robustezBase,
     robustezMaxima,
-    armorFormula: getDuroCharacterArmor(duroLevel),
+    armorFormula: combineArmorFormulas(getDuroCharacterArmor(duroLevel), getRobustoCharacterArmor(robustoLevel)),
     defenseModifier: getRobustoDefensePenalty(robustoLevel)
   };
 }

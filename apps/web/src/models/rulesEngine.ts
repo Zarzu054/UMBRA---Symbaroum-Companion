@@ -15,6 +15,11 @@ type DerivedStats = {
   umbralCorrupcionTotal: number;
   armaduraNatural: string;
   armaduraActiva: string;
+  armaduraNaturalBreakdown: Array<{
+    label: string;
+    formula?: string;
+    detail?: string;
+  }>;
   warnings: string[];
 };
 
@@ -35,11 +40,25 @@ export function computeDerivedStats(sheet: CharacterSheet): DerivedStats {
   const umbralCorrupcionTotal = Math.max(0, sheet.corrupcion.umbral + modifiers.UMBCORR);
 
   const iniciativaBase = resolveInitiativeAttribute(sheet);
-  const defensaBase = resolveDefenseAttribute(sheet) + monsterTraitEffects.defenseModifier;
+  const defensaBase = resolveDefenseAttribute(sheet) - monsterTraitEffects.defenseModifier;
   const defensaTotal = defensaBase + sheet.combate.defensaMod + modifiers.DEF;
   const iniciativaTotal = iniciativaBase + sheet.combate.iniciativaMod + modifiers.INI;
   const armaduraNatural = monsterTraitEffects.armorFormula;
   const armaduraActiva = sheet.combate.armaduraProteccion || armaduraNatural;
+  const armaduraNaturalBreakdown = [
+    monsterTraitEffects.duroLevel > 0
+      ? {
+          label: "Duro",
+          formula: monsterTraitEffects.duroLevel === 3 ? "1d8" : monsterTraitEffects.duroLevel === 2 ? "1d6" : "1d4"
+        }
+      : null,
+    monsterTraitEffects.robustoLevel > 0
+      ? {
+          label: "Robusto",
+          formula: monsterTraitEffects.robustoLevel === 3 ? "1d8" : monsterTraitEffects.robustoLevel === 2 ? "1d6" : "1d4"
+        }
+      : null
+  ].filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
 
   const warnings: string[] = [];
   if (corrupcionTotal >= sheet.atributos.tenaz) {
@@ -67,6 +86,7 @@ export function computeDerivedStats(sheet: CharacterSheet): DerivedStats {
     umbralCorrupcionTotal,
     armaduraNatural,
     armaduraActiva,
+    armaduraNaturalBreakdown,
     warnings
   };
 }

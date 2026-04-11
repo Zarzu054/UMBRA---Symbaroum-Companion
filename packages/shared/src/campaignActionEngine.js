@@ -27,6 +27,7 @@ const LEGACY_WEAPON_SLOTS = [
 export function deriveCharacterActions(sheet) {
     if (sheet.actions.length > 0) {
         const storedActions = sheet.actions
+            .filter((action) => isStoredSheetActionStillLinked(sheet, action))
             .map((action) => ({
             id: action.id,
             label: action.label,
@@ -37,13 +38,54 @@ export function deriveCharacterActions(sheet) {
             rollAttribute: action.rollAttribute,
             fixedTarget: action.fixedTarget,
             damageFormula: normalizeFormula(action.damageFormula ?? ""),
+            damageBreakdown: action.damageFormula
+                ? [{ label: action.sourceName, formula: normalizeFormula(action.damageFormula ?? "") }]
+                : undefined,
             effectSummary: action.effectSummary
         }))
             .filter((action) => isSheetActionAvailableForCharacter(sheet, action));
         const derivedActions = deriveLegacyCharacterActions(sheet);
-        return applyPassiveActionRules(sheet, dedupeActions([...storedActions, ...derivedActions]));
+        const filteredStoredActions = storedActions.filter((action) => !hasDerivedCombatOverride(action, derivedActions));
+        const filteredDerivedActions = derivedActions.filter((action) => !hasStoredWeaponEquivalent(action, filteredStoredActions));
+        return applyPassiveActionRules(sheet, dedupeActions([...filteredStoredActions, ...filteredDerivedActions]));
     }
     return deriveLegacyCharacterActions(sheet);
+}
+function isStoredSheetActionStillLinked(sheet, action) {
+    const inventoryItemIds = new Set(sheet.inventoryItems.map((item) => item.id));
+    if (action.linkedItemId) {
+        return inventoryItemIds.has(action.linkedItemId);
+    }
+    if (action.id.startsWith("inventory:")) {
+        return inventoryItemIds.has(action.id.slice("inventory:".length));
+    }
+    if (action.id.startsWith("item:")) {
+        const rawItemId = action.id.slice("item:".length).split(":")[0] ?? "";
+        return inventoryItemIds.has(rawItemId);
+    }
+    return true;
+}
+function hasDerivedCombatOverride(action, derivedActions) {
+    if (action.sourceType !== "weapon") {
+        return false;
+    }
+    return derivedActions.some((derivedAction) => derivedAction.sourceType === "weapon" &&
+        normalizeName(derivedAction.sourceName) === normalizeName(action.sourceName) &&
+        normalizeName(derivedAction.label) === normalizeName(action.label) &&
+        derivedAction.cost === action.cost &&
+        (normalizeFormula(derivedAction.damageFormula ?? "") ?? "") === (normalizeFormula(action.damageFormula ?? "") ?? ""));
+}
+function hasStoredWeaponEquivalent(action, storedActions) {
+    if (action.sourceType !== "weapon") {
+        return false;
+    }
+    return storedActions.some((storedAction) => storedAction.sourceType === "weapon" &&
+        normalizeName(storedAction.sourceName) === normalizeName(action.sourceName) &&
+        normalizeName(storedAction.label) === normalizeName(action.label) &&
+        storedAction.cost === action.cost &&
+        storedAction.rollAttribute === action.rollAttribute &&
+        (storedAction.fixedTarget ?? null) === (action.fixedTarget ?? null) &&
+        (normalizeFormula(storedAction.damageFormula ?? "") ?? "") === (normalizeFormula(action.damageFormula ?? "") ?? ""));
 }
 function deriveLegacyCharacterActions(sheet) {
     const actions = [];
@@ -57,6 +99,9 @@ function deriveLegacyCharacterActions(sheet) {
             cost: "combat",
             rollAttribute: weapon.attackAttribute ?? "diestro",
             damageFormula: normalizeFormula(weapon.damageFormula),
+            damageBreakdown: normalizeFormula(weapon.damageFormula)
+                ? [{ label: weapon.name, formula: normalizeFormula(weapon.damageFormula) }]
+                : undefined,
             effectSummary: weapon.qualities || weapon.description || "Tirada de ataque y, si procede, da\u00f1o del arma."
         });
     }
@@ -64,6 +109,9 @@ function deriveLegacyCharacterActions(sheet) {
         for (const slot of LEGACY_WEAPON_SLOTS) {
             const weaponName = slot.sourceName(sheet).trim();
             if (!weaponName)
+                continue;
+            const normalizedWeaponName = normalizeName(weaponName);
+            if (normalizedWeaponName === "natural" || normalizedWeaponName === "arma natural" || normalizedWeaponName === "armas naturales")
                 continue;
             actions.push({
                 id: slot.id,
@@ -73,6 +121,9 @@ function deriveLegacyCharacterActions(sheet) {
                 cost: "combat",
                 rollAttribute: slot.attribute(sheet),
                 damageFormula: normalizeFormula(slot.damage(sheet)),
+                damageBreakdown: normalizeFormula(slot.damage(sheet))
+                    ? [{ label: weaponName, formula: normalizeFormula(slot.damage(sheet)) }]
+                    : undefined,
                 effectSummary: "Tirada de ataque y, si procede, da\u00f1o del arma."
             });
         }
@@ -101,6 +152,7 @@ function mapRatedEntryActions(sourceType, sourceName, entryLevel, configuredActi
             rollAttribute: action.rollAttribute,
             fixedTarget: action.fixedTarget,
             damageFormula: action.damageFormula,
+            damageBreakdown: action.damageFormula ? [{ label: sourceName, formula: normalizeFormula(action.damageFormula) ?? action.damageFormula }] : undefined,
             effectSummary: action.effectSummary
         }))
             .filter((action) => isActionAvailableForEntryLevel(entryLevel, action.requiredLevel));
@@ -188,6 +240,7 @@ export function buildRollRequest(sheet, characterName, actionId, phase, destinat
         sourceType: action.sourceType,
         formula: damageRoll.formula,
         selectedDamageModifierIds: damageRoll.selectedModifierIds,
+        formulaBreakdown: damageRoll.breakdown,
         note: buildDamageRollNote(damageRoll, note)
     };
 }
@@ -300,13 +353,19 @@ function applyPassiveActionRules(sheet, actions) {
     const filteredActions = actions.filter((action) => !shouldSuppressStandaloneStyleAction(action));
     const styleAdjustedActions = applyIntegratedCombatStyles(sheet, filteredActions);
     ensureBerserkerDefenseAction(sheet, styleAdjustedActions);
-    applyConditionalDamageVariants(sheet, styleAdjustedActions);
     const visibleActions = styleAdjustedActions;
     const unarmedCombatLevel = getRatedEntryLevel(sheet, "Combate sin armas");
     const hasUnarmedAction = visibleActions.some((action) => action.id === "ability:combate-sin-armas:base");
     if (!hasUnarmedAction) {
-        visibleActions.push(createUnarmedAttackAction(sheet, unarmedCombatLevel));
+        const [unarmedAction] = applyIntegratedCombatStyles(sheet, [createUnarmedAttackAction(sheet, unarmedCombatLevel)]);
+        visibleActions.push(unarmedAction);
     }
+    const naturalWeaponAction = createNaturalWeaponAttackAction(sheet);
+    if (naturalWeaponAction && !visibleActions.some((action) => action.id === naturalWeaponAction.id)) {
+        const [styledNaturalWeaponAction] = applyIntegratedCombatStyles(sheet, [naturalWeaponAction]);
+        visibleActions.push(styledNaturalWeaponAction);
+    }
+    applyConditionalDamageVariants(sheet, visibleActions);
     return dedupeActions(visibleActions);
 }
 function applyConditionalDamageVariants(sheet, actions) {
@@ -370,7 +429,7 @@ function getRobustDamageBonus(sheet) {
     };
 }
 function getNaturalWeaponDamageBonus(sheet) {
-    const naturalWeaponLevel = getTraitLevel(sheet, "arma natural");
+    const naturalWeaponLevel = getTraitLevel(sheet, ["arma natural", "armas naturales"]);
     if (naturalWeaponLevel <= 0) {
         return null;
     }
@@ -382,10 +441,14 @@ function getNaturalWeaponDamageBonus(sheet) {
     };
 }
 function getRobustLevel(sheet) {
-    return getTraitLevel(sheet, "robusto");
+    return getTraitLevel(sheet, ["robusto", "robusta"]);
 }
-function getTraitLevel(sheet, traitName) {
-    const target = normalizeName(traitName);
+function getTraitLevel(sheet, traitNames) {
+    const aliases = (Array.isArray(traitNames) ? traitNames : [traitNames]).map((entry) => normalizeName(entry));
+    const ratedAbilityLevel = getRatedAbilityLevelByAliases(sheet, aliases);
+    if (ratedAbilityLevel > 0) {
+        return ratedAbilityLevel;
+    }
     const traitSources = [
         ...sheet.rasgos,
         ...String(sheet.noteSections?.traits ?? "")
@@ -395,7 +458,7 @@ function getTraitLevel(sheet, traitName) {
     ];
     for (const rawTrait of traitSources) {
         const normalized = normalizeName(rawTrait);
-        if (!normalized.startsWith(target)) {
+        if (!aliases.some((alias) => normalized.startsWith(alias))) {
             continue;
         }
         if (/\bmaestro\b/.test(normalized))
@@ -411,6 +474,29 @@ function getTraitLevel(sheet, traitName) {
         return 1;
     }
     return 0;
+}
+function getRatedAbilityLevelByAliases(sheet, aliases) {
+    let highest = 0;
+    for (const entry of sheet.habilidades) {
+        const normalized = normalizeName(entry.nombre);
+        if (!aliases.some((alias) => normalized === alias || normalized.startsWith(`${alias} `) || normalized.startsWith(`${alias} (`))) {
+            continue;
+        }
+        highest = Math.max(highest, skillLevelToNumber(entry.nivel));
+    }
+    return highest;
+}
+function skillLevelToNumber(level) {
+    switch (level) {
+        case "maestro":
+            return 3;
+        case "adepto":
+            return 2;
+        case "novato":
+            return 1;
+        default:
+            return 0;
+    }
 }
 function convertMonsterFlatBonusToPlayerRoll(value) {
     switch (value) {
@@ -465,11 +551,19 @@ function resolveDamageRoll(action, selectedDamageModifierIds = []) {
     const selectedModifiers = modifiers.filter((modifier) => selectedDamageModifierIds.includes(modifier.id));
     const formula = selectedModifiers.reduce((currentFormula, modifier) => combineDamageFormulas(currentFormula, modifier.formula), baseFormula);
     const selectedModifierLabels = selectedModifiers.map((modifier) => modifier.label);
+    const breakdown = [...(action.damageBreakdown ?? [{ label: action.sourceName, formula: baseFormula }])];
+    for (const modifier of selectedModifiers) {
+        breakdown.push({
+            label: modifier.label,
+            formula: modifier.formula
+        });
+    }
     return {
         label: selectedModifierLabels.length > 0 ? `Danio (${selectedModifierLabels.join(", ")})` : "Danio",
         formula,
         selectedModifierIds: selectedModifiers.map((modifier) => modifier.id),
-        selectedModifierLabels
+        selectedModifierLabels,
+        breakdown
     };
 }
 function buildDamageRollNote(damageRoll, note) {
@@ -494,7 +588,6 @@ function getRatedEntryLevel(sheet, name) {
     return sheet.habilidades.find((entry) => normalizeName(entry.nombre) === target)?.nivel;
 }
 function createUnarmedAttackAction(sheet, level) {
-    const naturalWeaponBonus = getNaturalWeaponDamageBonus(sheet);
     const baseDamage = !level ? "1d4" : level === "maestro" ? "2d6" : "1d6";
     return {
         id: "ability:combate-sin-armas:base",
@@ -502,8 +595,9 @@ function createUnarmedAttackAction(sheet, level) {
         sourceType: "weapon",
         sourceName: level ? "Combate sin armas" : "Ataque basico",
         cost: "combat",
-        rollAttribute: "fuerte",
-        damageFormula: naturalWeaponBonus ? combineDamageFormulas(baseDamage, naturalWeaponBonus.formula) : baseDamage,
+        rollAttribute: "diestro",
+        damageFormula: baseDamage,
+        damageBreakdown: [{ label: level ? "Combate sin armas" : "Ataque basico", formula: baseDamage }],
         effectSummary: !level
             ? "Ataque desarmado basico disponible para cualquier personaje."
             : level === "adepto"
@@ -511,6 +605,26 @@ function createUnarmedAttackAction(sheet, level) {
                 : level === "maestro"
                     ? "Ataque desarmado base mejorado por Combate sin armas. Los ataques desarmados infligen 2d6."
                     : "Ataque desarmado base de Combate sin armas."
+    };
+}
+function createNaturalWeaponAttackAction(sheet) {
+    const naturalWeaponLevel = getTraitLevel(sheet, ["arma natural", "armas naturales"]);
+    if (naturalWeaponLevel <= 0) {
+        return null;
+    }
+    const damageFormula = naturalWeaponLevel === 3 ? "1d10" : naturalWeaponLevel === 2 ? "1d8" : "1d6";
+    return {
+        id: `trait:arma-natural:${naturalWeaponLevel}`,
+        label: "Ataque con Arma natural",
+        sourceType: "weapon",
+        sourceName: "Arma natural",
+        cost: "combat",
+        rollAttribute: "diestro",
+        damageFormula,
+        damageBreakdown: [
+            { label: "Arma natural", formula: damageFormula }
+        ],
+        effectSummary: "Ataque cuerpo a cuerpo realizado con las armas naturales del personaje."
     };
 }
 function ensureBerserkerDefenseAction(sheet, actions) {
@@ -566,11 +680,19 @@ function applyIntegratedCombatStyles(sheet, actions) {
         if (action.sourceType !== "weapon") {
             return action;
         }
-        let next = { ...action };
+        let next = {
+            ...action,
+            damageBreakdown: action.damageBreakdown
+                ? [...action.damageBreakdown]
+                : action.damageFormula
+                    ? [{ label: action.sourceName, formula: action.damageFormula }]
+                    : undefined
+        };
         const twoHandedLevel = getRatedEntryLevel(sheet, "Armas a dos manos");
         if (twoHandedLevel && isHeavyWeaponAction(next)) {
             if (next.damageFormula) {
                 next.damageFormula = normalizeFormula(increaseDamageDie(next.damageFormula) ?? next.damageFormula);
+                appendDamageBreakdownDetail(next, "Armas a dos manos", `Mejora el dado base (${capitalizeSkillLevel(twoHandedLevel)}).`);
             }
             next.effectSummary = appendSummary(next.effectSummary, buildTwoHandedSummary(twoHandedLevel));
         }
@@ -578,6 +700,7 @@ function applyIntegratedCombatStyles(sheet, actions) {
         if (polearmLevel && isPolearmAction(next)) {
             if (next.damageFormula) {
                 next.damageFormula = normalizeFormula(increaseDamageDie(next.damageFormula) ?? next.damageFormula);
+                appendDamageBreakdownDetail(next, "Armas de asta", `Mejora el dado base (${capitalizeSkillLevel(polearmLevel)}).`);
             }
             next.effectSummary = appendSummary(next.effectSummary, buildPolearmSummary(polearmLevel));
         }
@@ -619,6 +742,7 @@ function applyIntegratedCombatStyles(sheet, actions) {
         if (marksmanLevel && isBowOrCrossbowAction(next)) {
             if (next.damageFormula) {
                 next.damageFormula = normalizeFormula(increaseDamageDie(next.damageFormula) ?? next.damageFormula);
+                appendDamageBreakdownDetail(next, "Tirador", `Mejora el dado base (${capitalizeSkillLevel(marksmanLevel)}).`);
             }
             next.effectSummary = appendSummary(next.effectSummary, buildMarksmanSummary(marksmanLevel));
         }
@@ -633,6 +757,7 @@ function applyIntegratedCombatStyles(sheet, actions) {
         if (steelWindLevel && isThrownWeaponAction(next)) {
             if (next.damageFormula) {
                 next.damageFormula = normalizeFormula(increaseDamageDie(next.damageFormula) ?? next.damageFormula);
+                appendDamageBreakdownDetail(next, "Viento de acero", `Mejora el dado base (${capitalizeSkillLevel(steelWindLevel)}).`);
             }
             next.effectSummary = appendSummary(next.effectSummary, buildSteelWindSummary(steelWindLevel));
         }
@@ -668,6 +793,15 @@ function increaseDamageDie(formula) {
     }
     const nextSides = sides === 4 ? 6 : sides === 6 ? 8 : sides === 8 ? 10 : 12;
     return `${count}d${nextSides}${modifier > 0 ? `+${modifier}` : modifier < 0 ? String(modifier) : ""}`;
+}
+function appendDamageBreakdownDetail(action, label, detail) {
+    if (!action.damageBreakdown) {
+        action.damageBreakdown = [];
+    }
+    if (action.damageBreakdown.some((entry) => normalizeName(entry.label) === normalizeName(label) && normalizeName(entry.detail ?? "") === normalizeName(detail))) {
+        return;
+    }
+    action.damageBreakdown.push({ label, detail });
 }
 function isAttributeEligibleForAgileKnife(attribute) {
     return !attribute || attribute === "diestro" || attribute === "agil";
@@ -819,12 +953,26 @@ function normalizeName(value) {
 function dedupeActions(actions) {
     const seen = new Set();
     return actions.filter((action) => {
-        if (seen.has(action.id)) {
+        const signature = buildActionDedupeSignature(action);
+        if (seen.has(signature)) {
             return false;
         }
-        seen.add(action.id);
+        seen.add(signature);
         return true;
     });
+}
+function buildActionDedupeSignature(action) {
+    return [
+        action.sourceType,
+        normalizeName(action.sourceName),
+        normalizeName(action.label),
+        action.cost,
+        action.requiredLevel ?? "",
+        action.rollAttribute ?? "",
+        action.fixedTarget ?? "",
+        normalizeFormula(action.damageFormula ?? "") ?? "",
+        normalizeName(action.effectSummary ?? "")
+    ].join("|");
 }
 function rollDie(sides) {
     return Math.floor(Math.random() * sides) + 1;

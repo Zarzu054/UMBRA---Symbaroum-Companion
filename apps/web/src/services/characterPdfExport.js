@@ -201,7 +201,7 @@ export async function importCharacterSheetPdf(file) {
         culture: sheet.identidad.cultura,
         profession,
         level: 1,
-        sheet
+        sheet: sanitizeImportSheetForValidation(sheet)
     };
     const validation = importCharacterSchema.safeParse(payload);
     if (!validation.success) {
@@ -323,14 +323,18 @@ function importCapabilities(fields) {
                 rasgos.push(resolveImportedTraitName(nombre, traitCatalog));
                 continue;
             }
+            const canonicalEffect = truncateImportedCapabilityText(fromCatalog?.efectoResumen || "", 1200);
+            const canonicalNotes = truncateImportedCapabilityText(fromCatalog?.efectoResumen || "", 800);
+            const importedEffect = truncateImportedCapabilityText(efecto, 1200);
+            const importedNotes = truncateImportedCapabilityText(efecto, 800);
             const entry = {
-                nombre,
+                nombre: fromCatalog?.nombre ?? nombre,
                 tipo: resolvedType === "poder_mistico" ? "Poder místico" : resolvedType === "ritual" ? "Ritual" : "Habilidad",
-                efecto: efecto || fromCatalog?.efectoResumen || "",
+                efecto: canonicalEffect || importedEffect,
                 nivel,
                 fuente: fromCatalog?.libro ?? "",
                 pagina: fromCatalog?.pagina,
-                notas: efecto || fromCatalog?.efectoResumen || "",
+                notas: canonicalNotes || importedNotes,
                 acciones: fromCatalog?.acciones ?? []
             };
             if (resolvedType === "poder_mistico") {
@@ -345,6 +349,25 @@ function importCapabilities(fields) {
         }
     }
     return { habilidades, poderesMisticos, rituales, bendiciones, cargas, rasgos };
+}
+function truncateImportedCapabilityText(value, maxLength) {
+    const text = String(value ?? "").trim();
+    if (!text)
+        return "";
+    return text.length > maxLength ? text.slice(0, maxLength) : text;
+}
+function sanitizeImportSheetForValidation(sheet) {
+    const sanitizeEntries = (entries) => entries.map((entry) => ({
+        ...entry,
+        efecto: truncateImportedCapabilityText(entry.efecto ?? "", 1200),
+        notas: truncateImportedCapabilityText(entry.notas ?? "", 800)
+    }));
+    return {
+        ...sheet,
+        habilidades: sanitizeEntries(sheet.habilidades),
+        poderesMisticos: sanitizeEntries(sheet.poderesMisticos),
+        rituales: sanitizeEntries(sheet.rituales)
+    };
 }
 function resolveImportedTraitName(rawName, traitCatalog) {
     const trimmedName = String(rawName ?? "").trim();

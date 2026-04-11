@@ -15,6 +15,12 @@ function getKindLabel(request: RollRequest): string {
   }
 }
 
+function formatAttributeLabel(value: string): string {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export function toRoll20Text(request: RollRequest, visibility: Roll20Visibility = "public"): string {
   const lines = [
     `${request.characterName} - ${request.actionLabel} [${getKindLabel(request)}]`,
@@ -22,7 +28,7 @@ export function toRoll20Text(request: RollRequest, visibility: Roll20Visibility 
   ];
 
   if (request.rollAttribute && typeof request.target === "number") {
-    lines.push(`Atributo: ${request.rollAttribute} | Objetivo: <= ${request.target}`);
+    lines.push(`Atributo: ${formatAttributeLabel(request.rollAttribute)} | Objetivo: <= ${request.target}`);
   }
 
   if (request.note) {

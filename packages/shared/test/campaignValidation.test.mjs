@@ -9,6 +9,7 @@ import {
   createCampaignSessionSchema,
   executeCharacterAction,
   grantCampaignExperienceSchema,
+  getCharacterMonsterTraitEffects,
   synchronizeCharacterSheet,
   SYMBAROUM_ABILITIES
 } from "../dist/index.js";
@@ -234,7 +235,17 @@ test("synchronizeCharacterSheet hidrata acciones canonicas para Berserker aunque
 test("Robusto agrega una variante de dano extra solo a ataques cuerpo a cuerpo", () => {
   const sheet = synchronizeCharacterSheet({
     ...createEmptyCharacterSheet(),
-    rasgos: ["Robusto II"],
+    habilidades: [
+      {
+        nombre: "Robusto",
+        tipo: "Rasgo monstruoso",
+        efecto: "",
+        nivel: "adepto",
+        fuente: "Codice de monstruos",
+        notas: "",
+        acciones: []
+      }
+    ],
     inventoryItems: [
       {
         id: "espada",
@@ -294,6 +305,73 @@ test("Robusto agrega una variante de dano extra solo a ataques cuerpo a cuerpo",
   const robustRequest = buildRollRequest(sheet, "Kael", meleeAttack.id, "damage", "umbra", "", ["trait:robusto:2"]);
   assert.equal(robustRequest.formula, "1d8+1d6");
   assert.match(robustRequest.note ?? "", /Robusto/);
+});
+
+test("Robusta tambien funciona como bono de dano seleccionable cuando se guarda como habilidad", () => {
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    habilidades: [
+      {
+        nombre: "Robusta",
+        tipo: "Rasgo monstruoso",
+        efecto: "",
+        nivel: "novato",
+        fuente: "Codice de monstruos",
+        notas: "",
+        acciones: []
+      }
+    ],
+    inventoryItems: [
+      {
+        id: "garrote",
+        name: "Garrote",
+        category: "weapon",
+        quantity: 1,
+        stackable: false,
+        isCustom: false,
+        description: "",
+        weight: "",
+        value: "",
+        equipped: true,
+        slot: "mainHand",
+        attackAttribute: "fuerte",
+        damageFormula: "1d6",
+        protectionFormula: "",
+        qualities: "",
+        notes: "",
+        grantedActions: [],
+        modifiers: []
+      }
+    ]
+  });
+
+  const meleeAttack = deriveCharacterActions(sheet).find((action) => action.sourceName === "Garrote");
+  assert.ok(meleeAttack);
+  assert.deepEqual(
+    meleeAttack.damageModifiers?.map((modifier) => [modifier.label, modifier.formula]),
+    [["Robusto", "+1d4"]]
+  );
+});
+
+test("Robusto como habilidad aplica su penalizador pasivo de Defensa", () => {
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    habilidades: [
+      {
+        nombre: "Robusto",
+        tipo: "Rasgo monstruoso",
+        efecto: "",
+        nivel: "adepto",
+        fuente: "Codice de monstruos",
+        notas: "",
+        acciones: []
+      }
+    ]
+  });
+
+  const traitEffects = getCharacterMonsterTraitEffects(sheet);
+  assert.equal(traitEffects.robustoLevel, 2);
+  assert.equal(traitEffects.defenseModifier, 3);
 });
 
 test("bonos de dano de una vez por turno generan una variante extra en ataques de arma", () => {
@@ -504,6 +582,58 @@ test("deriveCharacterActions infiere el nivel de acciones precalculadas antiguas
   assert.deepEqual(actions, ["Usar Guardaespaldas (Adepto)"]);
 });
 
+test("deriveCharacterActions colapsa acciones de arma duplicadas entre hoja precalculada e inventario equipado", () => {
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    inventoryItems: [
+      {
+        id: "bow-1",
+        name: "Arco",
+        category: "weapon",
+        quantity: 1,
+        stackable: false,
+        isCustom: false,
+        description: "",
+        weight: "",
+        value: "",
+        equipped: true,
+        slot: "ranged",
+        attackAttribute: "diestro",
+        damageFormula: "1d8",
+        protectionFormula: "",
+        qualities: "",
+        notes: "",
+        grantedActions: [],
+        modifiers: []
+      },
+      {
+        id: "crossbow-1",
+        name: "Ballesta",
+        category: "weapon",
+        quantity: 1,
+        stackable: false,
+        isCustom: false,
+        description: "",
+        weight: "",
+        value: "",
+        equipped: true,
+        slot: "ranged",
+        attackAttribute: "diestro",
+        damageFormula: "1d10",
+        protectionFormula: "",
+        qualities: "",
+        notes: "",
+        grantedActions: [],
+        modifiers: []
+      }
+    ]
+  });
+
+  const actions = deriveCharacterActions(sheet).filter((action) => action.sourceType === "weapon");
+  assert.equal(actions.filter((action) => action.sourceName === "Arco").length, 1);
+  assert.equal(actions.filter((action) => action.sourceName === "Ballesta").length, 1);
+});
+
 test("synchronizeCharacterSheet colapsa capacidades duplicadas y conserva el nivel mas alto", () => {
   const sheet = createEmptyCharacterSheet();
   sheet.habilidades = [
@@ -570,7 +700,7 @@ test("Combate sin armas se deriva como ataque base y no como accion pasiva separ
   assert.equal(actions.length, 1);
   assert.equal(actions[0].label, "Ataque desarmado");
   assert.equal(actions[0].damageFormula, "1d6");
-  assert.equal(actions[0].rollAttribute, "fuerte");
+  assert.equal(actions[0].rollAttribute, "diestro");
 });
 
 test("todo personaje tiene un ataque desarmado base de 1d4 aunque no tenga Combate sin armas", () => {
@@ -579,38 +709,58 @@ test("todo personaje tiene un ataque desarmado base de 1d4 aunque no tenga Comba
   const unarmedAction = deriveCharacterActions(sheet).find((action) => action.label === "Ataque desarmado");
   assert.ok(unarmedAction);
   assert.equal(unarmedAction.damageFormula, "1d4");
-  assert.equal(unarmedAction.rollAttribute, "fuerte");
+  assert.equal(unarmedAction.rollAttribute, "diestro");
 });
 
-test("Arma natural se integra en el ataque desarmado y no lo sustituye por un arma separada", () => {
+test("Arma natural crea un ataque separado y no modifica el ataque desarmado base", () => {
   const sheet = createEmptyCharacterSheet();
-  sheet.rasgos = ["Arma natural II"];
-
-  const actions = deriveCharacterActions(sheet);
-  const unarmedAction = actions.find((action) => action.label === "Ataque desarmado");
-  assert.ok(unarmedAction);
-  assert.equal(unarmedAction.damageFormula, "1d4+1d4");
-  assert.equal(actions.filter((action) => /arma natural|garra|mordisco/i.test(action.label)).length, 0);
-});
-
-test("Arma natural mejora tambien el dano desarmado cuando existe Combate sin armas", () => {
-  const sheet = createEmptyCharacterSheet();
-  sheet.rasgos = ["Arma natural III"];
   sheet.habilidades = [
     {
-      nombre: "Combate sin armas",
-      tipo: "Habilidad",
+      nombre: "Arma natural",
+      tipo: "Rasgo monstruoso",
       efecto: "",
       nivel: "novato",
-      fuente: "Libro basico",
+      fuente: "Codice de monstruos",
       notas: "",
       acciones: []
     }
   ];
 
-  const unarmedAction = deriveCharacterActions(sheet).find((action) => action.label === "Ataque desarmado");
+  const actions = deriveCharacterActions(sheet);
+  const unarmedAction = actions.find((action) => action.label === "Ataque desarmado");
+  const naturalWeaponAction = actions.find((action) => action.label === "Ataque con Arma natural");
   assert.ok(unarmedAction);
-  assert.equal(unarmedAction.damageFormula, "1d6+1d6");
+  assert.ok(naturalWeaponAction);
+  assert.equal(unarmedAction.damageFormula, "1d4");
+  assert.equal(naturalWeaponAction.damageFormula, "1d6");
+});
+
+test("las armas heredadas llamadas Natural no generan un arma equipada falsa", () => {
+  const baseSheet = createEmptyCharacterSheet();
+  const sheet = synchronizeCharacterSheet({
+    ...baseSheet,
+    combate: {
+      ...baseSheet.combate,
+      armaPrincipal: "Natural",
+      danioPrincipal: "1d6",
+      armaPrincipalAtributo: "diestro"
+    },
+    habilidades: [
+      {
+        nombre: "Arma natural",
+        tipo: "Rasgo monstruoso",
+        efecto: "",
+        nivel: "novato",
+        fuente: "Codice de monstruos",
+        notas: "",
+        acciones: []
+      }
+    ]
+  });
+
+  const actions = deriveCharacterActions(sheet);
+  assert.equal(actions.some((action) => action.label === "Atacar con Natural"), false);
+  assert.equal(actions.some((action) => action.label === "Ataque con Arma natural"), true);
 });
 
 test("Cuchillo rapido modifica el ataque con cuchillo en vez de aparecer como accion separada", () => {

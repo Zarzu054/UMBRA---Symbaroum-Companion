@@ -172,6 +172,40 @@ test("synchronizeCharacterSheet hidrata efecto y acciones canonicas cuando una h
   assert.equal(typeof normalized.habilidades[0].pagina, "number");
 });
 
+test("synchronizeCharacterSheet reemplaza el texto importado por el canon interno cuando la habilidad existe por nombre", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.habilidades = [
+    {
+      nombre: "Berserker",
+      tipo: "Texto importado",
+      efecto: "DESCRIPCION PDF ERRONEA",
+      nivel: "novato",
+      fuente: "PDF",
+      pagina: 999,
+      notas: "NOTA ERRONEA",
+      acciones: [{ id: "fake", label: "Fake", cost: "combat", effectSummary: "Fake" }]
+    }
+  ];
+
+  const normalized = synchronizeCharacterSheet(sheet);
+  assert.equal(normalized.habilidades[0].tipo, "habilidad");
+  assert.doesNotMatch(normalized.habilidades[0].efecto, /ERRONEA|PDF/i);
+  assert.notEqual(normalized.habilidades[0].pagina, 999);
+  assert.notEqual(normalized.habilidades[0].acciones[0]?.label, "Fake");
+});
+
+test("synchronizeCharacterSheet migra rasgos monstruosos del PDF a habilidades canonicas por nombre", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.rasgos = ["Arma natural I", "Duro II", "Contactos"];
+
+  const normalized = synchronizeCharacterSheet(sheet);
+  assert.deepEqual(normalized.rasgos, ["Contactos"]);
+  assert.equal(normalized.habilidades.some((entry) => entry.nombre === "Arma natural" && entry.nivel === "novato"), true);
+  assert.equal(normalized.habilidades.some((entry) => entry.nombre === "Duro" && entry.nivel === "adepto"), true);
+  assert.match(normalized.habilidades.find((entry) => entry.nombre === "Arma natural")?.efecto ?? "", /1D6/i);
+  assert.match(normalized.habilidades.find((entry) => entry.nombre === "Duro")?.efecto ?? "", /1D6/i);
+});
+
 test("rechaza rituales sin habilidad Rituales", () => {
   const payload = buildPayload();
   payload.sheet.rituales = [
