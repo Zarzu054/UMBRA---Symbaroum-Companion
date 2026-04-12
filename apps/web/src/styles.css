@@ -1003,6 +1003,35 @@ button.subtle-button {
   align-items: flex-start;
 }
 
+.campaign-action-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.campaign-action-favorite-toggle {
+  min-width: 1.8rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(147, 113, 80, 0.24);
+  background: rgba(255, 250, 244, 0.92);
+  color: #9f876f;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.campaign-action-favorite-toggle.is-active {
+  background: linear-gradient(180deg, #f5d98a, #ddb44d);
+  border-color: rgba(155, 114, 25, 0.42);
+  color: #4e3408;
+}
+
 .campaign-action-name-button {
   all: unset;
   justify-self: start;
@@ -1462,21 +1491,84 @@ td {
 
 .unified-sheet-item-catalog-modal {
   width: min(520px, 100%);
+  display: grid;
+  gap: 0.95rem;
+}
+
+.unified-sheet-weapon-editor-modal {
+  width: min(640px, 100%);
+  max-height: min(80vh, 760px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.unified-sheet-item-catalog-fields {
+  display: grid;
+  gap: 0.8rem;
 }
 
 .unified-sheet-item-catalog-preview {
   display: grid;
-  gap: 0.35rem;
-  padding: 0.7rem 0.8rem;
-  border-radius: 16px;
-  background: rgba(255, 250, 244, 0.88);
+  gap: 0.75rem;
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  background: rgba(255, 250, 244, 0.92);
   border: 1px solid rgba(90, 77, 64, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.56);
 }
 
 .unified-sheet-item-catalog-preview p {
   margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.unified-sheet-item-catalog-preview-header {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.unified-sheet-item-catalog-preview-header strong {
+  font-size: 0.98rem;
+  letter-spacing: 0.06em;
+}
+
+.unified-sheet-item-catalog-preview-header span {
+  color: #7a6551;
+  font-size: 0.82rem;
+}
+
+.unified-sheet-item-catalog-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.unified-sheet-item-catalog-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(147, 113, 80, 0.22);
+  background: rgba(255, 250, 244, 0.94);
+  color: #6c4f37;
   font-size: 0.8rem;
-  line-height: 1.35;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.unified-sheet-item-catalog-weapon-preview .unified-sheet-weapon-detail-hero {
+  gap: 0.75rem;
+}
+
+.unified-sheet-item-catalog-weapon-preview .unified-sheet-weapon-detail-copy {
+  padding-top: 0.1rem;
+}
+
+.unified-sheet-item-catalog-weapon-preview .unified-sheet-weapon-detail-qualities h4 {
+  margin: 0 0 0.45rem;
 }
 
 .character-roll-confirm-primary {
@@ -1712,6 +1804,54 @@ td {
   border-radius: 0;
   background: rgba(236, 242, 251, 0.88);
   box-shadow: inset 0 0 0 1px rgba(255, 253, 247, 0.78);
+}
+
+.campaign-structured-card.is-clickable-card {
+  cursor: pointer;
+  transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+.campaign-structured-card.is-clickable-card:hover,
+.campaign-structured-card.is-clickable-card:focus-visible {
+  border-color: rgba(78, 121, 145, 0.48);
+  box-shadow: inset 0 0 0 1px rgba(255, 253, 247, 0.78), 0 10px 24px rgba(41, 57, 69, 0.08);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.unified-sheet-weapon-list-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+}
+
+.campaign-structured-card.is-clickable-card h3 {
+  position: relative;
+  top: -1px;
+}
+
+.unified-sheet-weapon-list-summary .meta-text {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  color: #6f6257;
+}
+
+.unified-sheet-weapon-list-damage {
+  align-self: center;
+  margin-top: 0.35rem;
+  line-height: 1;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #243748;
+}
+
+.unified-sheet-weapon-list-summary span {
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #243748;
 }
 
 .campaign-sheet .field input,
@@ -2232,7 +2372,7 @@ td {
 
 .unified-sheet-hero-main {
   display: grid;
-  grid-template-columns: 68px minmax(0, 1fr);
+  grid-template-columns: 68px minmax(0, 1fr) minmax(170px, 220px);
   gap: 0.55rem;
   align-items: center;
 }
@@ -2273,6 +2413,47 @@ td {
 .unified-sheet-identity {
   display: grid;
   gap: 0.18rem;
+}
+
+.unified-sheet-xp-card {
+  display: grid;
+  gap: 0.28rem;
+  align-self: stretch;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid rgba(147, 113, 80, 0.24);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 251, 244, 0.92), rgba(245, 236, 223, 0.82));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.unified-sheet-xp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.unified-sheet-xp-row > span {
+  font-size: 0.68rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: #7b614c;
+}
+
+.unified-sheet-xp-row > strong {
+  font-size: 1.08rem;
+  color: #1f1b17;
+}
+
+.unified-sheet-xp-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+}
+
+.unified-sheet-xp-controls .vital-action {
+  min-width: 2rem;
+  padding: 0.28rem 0.55rem;
 }
 
 .unified-sheet-identity-grid,
@@ -2892,6 +3073,22 @@ td {
   border-color: rgba(78, 121, 145, 0.48);
 }
 
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-subtabs + .unified-sheet-list {
+  margin-top: 0.35rem;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-subtabs + .unified-sheet-money-grid {
+  margin-top: 0.55rem;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-subtabs + .row-actions {
+  margin-top: 0.45rem;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .row-actions + .unified-sheet-list {
+  margin-top: 0.4rem;
+}
+
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card {
   display: grid;
   gap: 0.35rem;
@@ -2899,6 +3096,223 @@ td {
   border-radius: 14px;
   background: rgba(255, 251, 246, 0.76);
   border: 1px solid rgba(90, 77, 64, 0.16);
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card.is-clickable {
+  cursor: pointer;
+  transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card.is-clickable:hover,
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card.is-clickable:focus-visible {
+  border-color: rgba(78, 121, 145, 0.48);
+  box-shadow: 0 10px 24px rgba(41, 57, 69, 0.08);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.unified-sheet-action-detail-modal {
+  max-height: min(80vh, 760px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.unified-sheet-action-detail-body {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 0.9rem;
+  padding-right: 0.2rem;
+  margin-bottom: 0.9rem;
+}
+
+.unified-sheet-action-detail-body .unified-sheet-rich-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.unified-sheet-action-detail-body .unified-sheet-capability-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.15rem;
+}
+
+.unified-sheet-action-detail-body .unified-sheet-capability-meta a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(147, 113, 80, 0.28);
+  background: rgba(255, 250, 244, 0.92);
+  color: #6c4f37;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.unified-sheet-action-detail-body .unified-sheet-capability-meta a:hover,
+.unified-sheet-action-detail-body .unified-sheet-capability-meta a:focus-visible {
+  background: rgba(226, 239, 245, 0.96);
+  border-color: rgba(78, 121, 145, 0.44);
+  color: #24455b;
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.unified-sheet-weapon-detail-layout {
+  display: grid;
+  gap: 0.95rem;
+}
+
+.unified-sheet-weapon-detail-hero {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.unified-sheet-weapon-detail-primary,
+.unified-sheet-weapon-detail-stat,
+.unified-sheet-weapon-quality-panel {
+  border-radius: 14px;
+  border: 1px solid rgba(90, 77, 64, 0.16);
+  background: rgba(250, 245, 237, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.58);
+}
+
+.unified-sheet-weapon-detail-primary {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.2rem;
+  padding: 0.9rem;
+  background: linear-gradient(180deg, rgba(232, 240, 246, 0.95), rgba(214, 228, 237, 0.96));
+}
+
+.unified-sheet-weapon-detail-primary strong {
+  font-size: 1.45rem;
+  line-height: 1;
+  color: #173244;
+}
+
+.unified-sheet-weapon-detail-primary span,
+.unified-sheet-weapon-detail-stat span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6a594a;
+}
+
+.unified-sheet-weapon-detail-stats {
+  display: contents;
+}
+
+.unified-sheet-weapon-detail-stat {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.8rem 0.9rem;
+}
+
+.unified-sheet-weapon-detail-stat strong {
+  font-size: 1rem;
+  color: #243748;
+}
+
+.unified-sheet-weapon-detail-copy,
+.unified-sheet-weapon-detail-qualities,
+.unified-sheet-weapon-detail-notes {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.unified-sheet-weapon-detail-qualities h4,
+.unified-sheet-weapon-detail-notes h4 {
+  margin: 0;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #5f4d3f;
+}
+
+.unified-sheet-weapon-quality-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.unified-sheet-weapon-quality-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.35rem 0.28rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(242, 234, 223, 0.78);
+  border: 1px solid rgba(112, 95, 76, 0.16);
+}
+
+.unified-sheet-weapon-quality-row span {
+  font-size: 0.76rem;
+  color: #4f4136;
+}
+
+.unified-sheet-weapon-quality-info {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  padding: 0;
+  border: 1px solid rgba(78, 121, 145, 0.32);
+  background: rgba(210, 228, 237, 0.88);
+  color: #1c4053;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.unified-sheet-weapon-quality-info.is-active {
+  background: linear-gradient(180deg, #d4ebf5, #a7cfdf);
+  border-color: rgba(78, 121, 145, 0.5);
+}
+
+.unified-sheet-weapon-quality-panel {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.8rem 0.9rem;
+}
+
+.unified-sheet-weapon-quality-panel strong {
+  font-size: 0.88rem;
+  color: #223848;
+}
+
+.unified-sheet-weapon-quality-panel p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #4f4238;
+}
+
+.unified-sheet-quality-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.unified-sheet-quality-picker button {
+  min-height: 30px;
+  padding: 0.35rem 0.72rem;
+  border-radius: 999px;
+  border: 1px solid rgba(147, 113, 80, 0.24);
+  background: rgba(255, 250, 244, 0.9);
+  color: #6c4f37;
+}
+
+.unified-sheet-quality-picker button.is-active {
+  background: linear-gradient(180deg, #d4ebf5, #a7cfdf);
+  border-color: rgba(78, 121, 145, 0.48);
+  color: #13212a;
 }
 
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card h3 {
@@ -2975,6 +3389,44 @@ td {
   margin-left: auto;
 }
 
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-quantity-controls.is-weapon-summary {
+  flex-direction: column;
+  align-items: center;
+  min-width: 5rem;
+}
+
+.destructive-button {
+  min-height: 32px;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(154, 59, 46, 0.45);
+  background: linear-gradient(180deg, #f6d6cf, #e8b2a6);
+  color: #6d2018;
+}
+
+.destructive-button:hover,
+.destructive-button:focus-visible {
+  border-color: rgba(154, 59, 46, 0.7);
+  background: linear-gradient(180deg, #f2c7bf, #df9c8f);
+  outline: none;
+}
+
+.accent-button {
+  min-height: 32px;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(64, 115, 156, 0.45);
+  background: linear-gradient(180deg, #d8eaf7, #b7d5ea);
+  color: #173b57;
+}
+
+.accent-button:hover,
+.accent-button:focus-visible {
+  border-color: rgba(64, 115, 156, 0.72);
+  background: linear-gradient(180deg, #cfe4f3, #a7cbe3);
+  outline: none;
+}
+
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-stack-controls {
   display: flex;
   flex-direction: column;
@@ -3012,12 +3464,43 @@ td {
 }
 
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-card {
+  gap: 0.35rem;
   align-items: center;
   text-align: center;
 }
 
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-card strong {
   font-size: 0.8rem;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-coin {
+  width: 2.8rem;
+  height: 2.8rem;
+  margin-inline: auto;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(103, 82, 48, 0.26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 8px 16px rgba(48, 38, 24, 0.08);
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-coin span {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-coin.is-taleros {
+  background: radial-gradient(circle at 30% 30%, #fff3bf, #d9b24d 62%, #a5781f);
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-coin.is-chelines {
+  background: radial-gradient(circle at 30% 30%, #f9fbff, #cfd7df 62%, #8d98a4);
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-coin.is-ortegs {
+  background: radial-gradient(circle at 30% 30%, #ffd9c5, #c9865e 62%, #875134);
 }
 
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-card span {
@@ -3279,6 +3762,10 @@ td {
 
   .unified-sheet-hero-main {
     grid-template-columns: 1fr;
+  }
+
+  .unified-sheet-xp-card {
+    grid-column: 1 / -1;
   }
 
   .unified-sheet-portrait {
