@@ -8,6 +8,7 @@
   RollRequest,
   SkillLevel
 } from "./index.js";
+import { findWeaponQualityOption, parseWeaponQualities } from "./weaponCatalog.js";
 
 type FormulaBreakdownEntry = NonNullable<CharacterActionDefinition["damageBreakdown"]>[number];
 
@@ -129,8 +130,9 @@ function hasStoredWeaponEquivalent(
 function deriveLegacyCharacterActions(sheet: CharacterSheet): CharacterActionDefinition[] {
   const actions: CharacterActionDefinition[] = [];
 
-  const equippedWeapons = sheet.inventoryItems.filter((item) => item.category === "weapon" && item.equipped);
-  for (const weapon of equippedWeapons) {
+  const inventoryWeapons = sheet.inventoryItems.filter((item) => item.category === "weapon" && item.quantity > 0);
+  for (const weapon of inventoryWeapons) {
+    const qualitySummary = buildWeaponQualitySummary(weapon.qualities);
     actions.push({
       id: `weapon:${weapon.id}`,
       label: `Atacar con ${weapon.name}`,
@@ -142,11 +144,12 @@ function deriveLegacyCharacterActions(sheet: CharacterSheet): CharacterActionDef
       damageBreakdown: normalizeFormula(weapon.damageFormula)
         ? [{ label: weapon.name, formula: normalizeFormula(weapon.damageFormula) }]
         : undefined,
-      effectSummary: weapon.qualities || weapon.description || "Tirada de ataque y, si procede, da\u00f1o del arma."
+      effectSummary: [weapon.description, qualitySummary, "Tirada de ataque y, si procede, da\u00f1o del arma."].filter(Boolean).join(" ")
     });
+    actions.push(...buildWeaponQualityActions(weapon));
   }
 
-  if (equippedWeapons.length === 0) {
+  if (inventoryWeapons.length === 0) {
     for (const slot of LEGACY_WEAPON_SLOTS) {
       const weaponName = slot.sourceName(sheet).trim();
       if (!weaponName) continue;
@@ -182,6 +185,66 @@ function deriveLegacyCharacterActions(sheet: CharacterSheet): CharacterActionDef
   }
 
   return applyPassiveActionRules(sheet, dedupeActions(actions));
+}
+
+function buildWeaponQualitySummary(rawQualities: string): string {
+  const qualities = parseWeaponQualities(rawQualities);
+  if (qualities.length === 0) {
+    return "";
+  }
+
+  return qualities
+    .map((quality) => {
+      const definition = findWeaponQualityOption(quality);
+      if (definition?.grantsAction === "thrown_attack") {
+        return "";
+      }
+      return definition ? `${definition.label}: ${definition.summary}` : quality;
+    })
+    .filter(Boolean)
+    .join(" ");
+}
+
+function buildWeaponQualityActions(weapon: CharacterSheet["inventoryItems"][number]): CharacterActionDefinition[] {
+  const qualities = parseWeaponQualities(weapon.qualities);
+  const actions: CharacterActionDefinition[] = [];
+
+  for (const quality of qualities) {
+    const definition = findWeaponQualityOption(quality);
+    if (!definition?.grantsAction) {
+      continue;
+    }
+
+    if (definition.grantsAction === "thrown_attack") {
+      actions.push({
+        id: `weapon:${weapon.id}:thrown`,
+        label: `Lanzar ${weapon.name}`,
+        sourceType: "weapon",
+        sourceName: weapon.name,
+        cost: "combat",
+        rollAttribute: weapon.attackAttribute ?? "diestro",
+        damageFormula: normalizeFormula(weapon.damageFormula),
+        damageBreakdown: normalizeFormula(weapon.damageFormula)
+          ? [{ label: `${weapon.name} (lanzada)`, formula: normalizeFormula(weapon.damageFormula) }]
+          : undefined,
+        effectSummary: `${definition.label}: ${definition.summary}`
+      });
+      continue;
+    }
+
+    if (definition.grantsAction === "reload") {
+      actions.push({
+        id: `weapon:${weapon.id}:reload`,
+        label: `Recargar ${weapon.name}`,
+        sourceType: "weapon",
+        sourceName: weapon.name,
+        cost: "movement",
+        effectSummary: `${definition.label}: ${definition.summary}`
+      });
+    }
+  }
+
+  return actions;
 }
 
 function mapRatedEntryActions(
@@ -986,7 +1049,7 @@ function isAttributeEligibleForIronFist(attribute: AttributeKey | undefined): bo
 
 function hasEquippedShield(sheet: CharacterSheet): boolean {
   const inventoryShield = sheet.inventoryItems.some(
-    (item) => item.equipped && /escudo/.test(normalizeName(`${item.name} ${item.qualities}`))
+    (item) => item.quantity > 0 && /escudo/.test(normalizeName(`${item.name} ${item.qualities}`))
   );
   if (inventoryShield) {
     return true;

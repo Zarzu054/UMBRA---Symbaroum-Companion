@@ -6,6 +6,7 @@ export * from "./symbaroumCompendium.js";
 export * from "./campaignActionEngine.js";
 export * from "./monsterCodex.js";
 export * from "./monsterTraitRules.js";
+export * from "./weaponCatalog.js";
 
 export const userRoleSchema = z.enum(["player", "gm", "superadmin"]);
 export const registerRoleSchema = z.enum(["player", "gm"]);
@@ -76,8 +77,10 @@ export const ATTRIBUTE_LABELS: Record<AttributeKey, string> = {
 const STARTING_ABILITY_PATTERNS = new Set(["5novato", "2novato_1adepto"]);
 const MYSTIC_ABILITY_NAMES = ["Poder místico", "Magia", "Teúrgia", "Brujería", "Hechicería"];
 const RITUAL_ABILITY_NAMES = ["Rituales"];
+const SHEET_HIDDEN_ABILITY_NAMES = ["Poder mÃ­stico"];
 const NORMALIZED_MYSTIC_ABILITY_NAMES = MYSTIC_ABILITY_NAMES.map(normalizeName);
 const NORMALIZED_RITUAL_ABILITY_NAMES = RITUAL_ABILITY_NAMES.map(normalizeName);
+const NORMALIZED_SHEET_HIDDEN_ABILITY_NAMES = SHEET_HIDDEN_ABILITY_NAMES.map(normalizeName);
 const MONSTER_TRAIT_NAME_SET = buildMonsterTraitNameSet();
 
 function nullableDefaultString(maxLength: number, fallback = "") {
@@ -303,6 +306,7 @@ const characterSheetObjectSchema = z.object({
     { nombre: "", poderes: "", corrupcion: "" },
     { nombre: "", poderes: "", corrupcion: "" }
   ]),
+  actionFavorites: z.array(z.string().min(1).max(160)).max(80).default([]),
   actions: z.array(canonicalActionEntrySchema).max(200).default([]),
   inventoryItems: z.array(inventoryItemSchema).max(400).default([]),
   equipmentSlots: equipmentSlotsSchema.default({
@@ -776,7 +780,7 @@ function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>
   const actions: z.infer<typeof canonicalActionEntrySchema>[] = [];
 
   for (const item of sheet.inventoryItems) {
-    if (item.category !== "weapon" || !item.equipped) continue;
+    if (item.category !== "weapon" || item.quantity <= 0) continue;
     actions.push({
       id: `inventory:${item.id}`,
       label: `Atacar con ${item.name}`,
@@ -785,7 +789,7 @@ function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>
       cost: "combat",
       rollAttribute: item.attackAttribute ?? "diestro",
       damageFormula: item.damageFormula || undefined,
-      effectSummary: item.qualities || item.description || "Tirada de ataque desde equipo equipado.",
+      effectSummary: item.qualities || item.description || "Tirada de ataque desde el inventario.",
       category: "weapon",
       notes: item.notes,
       linkedItemId: item.id
@@ -793,7 +797,7 @@ function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>
   }
 
   for (const item of sheet.inventoryItems) {
-    const canUseItemActions = item.quantity > 0 && (item.category !== "weapon" || item.equipped);
+    const canUseItemActions = item.quantity > 0;
     if (!canUseItemActions) continue;
 
     for (const action of item.grantedActions ?? []) {
@@ -900,6 +904,10 @@ function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>
   }
 
   return actions;
+}
+
+function normalizeActionFavorites(favorites: string[] | undefined): string[] {
+  return Array.from(new Set((favorites ?? []).map((entry) => String(entry ?? "").trim()).filter(Boolean))).slice(0, 80);
 }
 
 function getTraitLevelForCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>, traitName: string): number {
@@ -1106,6 +1114,9 @@ function normalizeRatedEntries(
 
   for (const entry of hydrateRatedEntryActions(entries, sourceType)) {
     const key = normalizeName(entry.nombre);
+    if (sourceType === "ability" && NORMALIZED_SHEET_HIDDEN_ABILITY_NAMES.includes(key)) {
+      continue;
+    }
     const existing = merged.get(key);
     if (!existing) {
       merged.set(key, { ...entry });
@@ -1230,6 +1241,7 @@ function migrateCharacterSheetInput(input: unknown): unknown {
       candidate
     ),
     noteSections,
+    actionFavorites: normalizeActionFavorites(candidate.actionFavorites),
     actions: Array.isArray(candidate.actions) && candidate.actions.length > 0 ? candidate.actions : buildCanonicalActions({
       ...candidate,
       habilidades,
@@ -1287,6 +1299,7 @@ function buildSynchronizedCharacterSheet(input: CharacterSheet): CharacterSheet 
     inventoryItems: syncedEquipment.inventoryItems,
     equipmentSlots: syncedEquipment.equipmentSlots,
     noteSections: legacyCompatible.noteSections,
+    actionFavorites: normalizeActionFavorites(input.actionFavorites),
     actions: [...manualUtilityActions, ...autoActions]
   };
 }
@@ -1417,6 +1430,7 @@ export function createEmptyCharacterSheet(): CharacterSheet {
       poderes: "",
       corrupcion: ""
     })),
+    actionFavorites: [],
     actions: [],
     inventoryItems: [],
     equipmentSlots: {

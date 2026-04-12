@@ -288,7 +288,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                 onOpenCompendiumCapability={openCompendiumCapability}
                 onSave={async (nextSheet) => {
                   const token = await ensureAccessToken();
-                  await updateCharacter(
+                  const updated = await updateCharacter(
                     selectedCharacterSheet.id,
                     {
                       name: nextSheet.identidad.nombrePersonaje.trim() || selectedCharacterSheet.name,
@@ -301,7 +301,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                     },
                     token
                   );
-                  await controller.refresh();
+                  controller.upsertCharacterRecord(updated);
                 }}
               />
             </section>

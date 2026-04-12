@@ -28,6 +28,70 @@ test("createCampaignSessionSchema acepta una sesion valida", () => {
   assert.equal(parsed.title, "Sesion 12");
   assert.equal(parsed.status, "planned");
 });
+test("las armas arrojadizas generan una accion separada para lanzar el arma", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.inventoryItems = [
+    {
+      id: "throwing-knife-1",
+      name: "Cuchillo arrojadizo",
+      category: "weapon",
+      quantity: 3,
+      stackable: true,
+      isCustom: false,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "offHand",
+      attackAttribute: "diestro",
+      damageFormula: "1d6",
+      protectionFormula: "",
+      qualities: "Arrojadiza, Corta, Precisa",
+      notes: "",
+      grantedActions: [],
+      modifiers: []
+    }
+  ];
+
+  const actions = deriveCharacterActions(sheet);
+  assert.ok(actions.find((action) => action.label === "Atacar con Cuchillo arrojadizo"));
+  const thrownAction = actions.find((action) => action.label === "Lanzar Cuchillo arrojadizo");
+  assert.ok(thrownAction);
+  assert.equal(thrownAction.rollAttribute, "diestro");
+  assert.equal(thrownAction.damageFormula, "1d6");
+});
+
+test("las armas con recarga generan una accion separada para recargar", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.inventoryItems = [
+    {
+      id: "crossbow-1",
+      name: "Ballesta",
+      category: "weapon",
+      quantity: 1,
+      stackable: false,
+      isCustom: false,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "ranged",
+      attackAttribute: "diestro",
+      damageFormula: "1d10",
+      protectionFormula: "",
+      qualities: "A distancia, Recarga",
+      notes: "",
+      grantedActions: [],
+      modifiers: []
+    }
+  ];
+
+  const actions = deriveCharacterActions(sheet);
+  const reloadAction = actions.find((action) => action.label === "Recargar Ballesta");
+  assert.ok(reloadAction);
+  assert.equal(reloadAction.cost, "movement");
+  assert.equal(reloadAction.rollAttribute, undefined);
+});
 
 test("grantCampaignExperienceSchema rechaza PX menores que 1", () => {
   assert.throws(() => {
@@ -617,7 +681,7 @@ test("deriveCharacterActions colapsa acciones de arma duplicadas entre hoja prec
         weight: "",
         value: "",
         equipped: true,
-        slot: "ranged",
+        slot: "offHand",
         attackAttribute: "diestro",
         damageFormula: "1d10",
         protectionFormula: "",
@@ -670,7 +734,7 @@ test("synchronizeCharacterSheet colapsa capacidades duplicadas y conserva el niv
 
   assert.equal(normalized.habilidades.length, 1);
   assert.equal(normalized.habilidades[0].nivel, "maestro");
-  assert.equal(normalized.habilidades[0].efecto, "maestro");
+  assert.match(normalized.habilidades[0].efecto, /Maestro:/);
 });
 
 test("Combate sin armas se deriva como ataque base y no como accion pasiva separada", () => {

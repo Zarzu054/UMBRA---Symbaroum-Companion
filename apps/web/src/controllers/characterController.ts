@@ -87,6 +87,19 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     }
   }
 
+  function upsertCharacterRecord(character: Character): void {
+    setCharacters((current) => {
+      const index = current.findIndex((entry) => entry.id === character.id);
+      if (index === -1) {
+        return [character, ...current];
+      }
+
+      const next = current.slice();
+      next[index] = character;
+      return next;
+    });
+  }
+
   function updateTopLevel<K extends keyof CharacterFormState>(field: K, value: CharacterFormState[K]): void {
     setValidationErrors([]);
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -461,6 +474,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       attributeLabels: ATTRIBUTE_LABELS,
       derived,
       refresh,
+      upsertCharacterRecord,
       submit,
       importFromPdf,
       createRandomCharacter,

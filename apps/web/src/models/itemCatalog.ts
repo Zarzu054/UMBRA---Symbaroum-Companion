@@ -1,4 +1,10 @@
-import type { CharacterSheet } from "@umbra/shared";
+import {
+  buildWeaponCatalogNotes,
+  WEAPON_QUALITY_OPTIONS,
+  WEAPON_TEMPLATES,
+  formatWeaponQualities,
+  type CharacterSheet
+} from "@umbra/shared";
 
 type InventoryItem = CharacterSheet["inventoryItems"][number];
 
@@ -7,116 +13,27 @@ export type ItemTemplate = Omit<InventoryItem, "id" | "quantity" | "equipped"> &
   defaultQuantity?: number;
 };
 
-export const ITEM_CATALOG: ItemTemplate[] = [
-  {
-    templateId: "weapon-dagger",
-    name: "Daga",
-    category: "weapon",
-    stackable: false,
-    isCustom: false,
-    description: "Arma corta, facil de ocultar.",
-    weight: "Ligera",
-    value: "",
-    slot: "offHand",
-    attackAttribute: "diestro",
-    damageFormula: "1d6",
-    protectionFormula: "",
-    qualities: "Corta",
-    notes: "",
-    grantedActions: [],
-    modifiers: []
-  },
-  {
-    templateId: "weapon-sword",
-    name: "Espada larga",
-    category: "weapon",
-    stackable: false,
-    isCustom: false,
-    description: "Arma versatil de una mano.",
-    weight: "Media",
-    value: "",
-    slot: "mainHand",
-    attackAttribute: "diestro",
-    damageFormula: "1d8",
-    protectionFormula: "",
-    qualities: "",
-    notes: "",
-    grantedActions: [],
-    modifiers: []
-  },
-  {
-    templateId: "weapon-spear",
-    name: "Lanza",
-    category: "weapon",
-    stackable: false,
-    isCustom: false,
-    description: "Arma larga para mantener la distancia.",
-    weight: "Media",
-    value: "",
-    slot: "mainHand",
-    attackAttribute: "diestro",
-    damageFormula: "1d10",
-    protectionFormula: "",
-    qualities: "Larga",
-    notes: "",
-    grantedActions: [],
-    modifiers: []
-  },
-  {
-    templateId: "weapon-bow",
-    name: "Arco",
-    category: "weapon",
-    stackable: false,
-    isCustom: false,
-    description: "Arma a distancia comun.",
-    weight: "Media",
-    value: "",
-    slot: "ranged",
-    attackAttribute: "diestro",
-    damageFormula: "1d8",
-    protectionFormula: "",
-    qualities: "A distancia",
-    notes: "",
-    grantedActions: [],
-    modifiers: []
-  },
-  {
-    templateId: "weapon-crossbow",
-    name: "Ballesta",
-    category: "weapon",
-    stackable: false,
-    isCustom: false,
-    description: "Arma a distancia de gran pegada.",
-    weight: "Media",
-    value: "",
-    slot: "ranged",
-    attackAttribute: "diestro",
-    damageFormula: "1d10",
-    protectionFormula: "",
-    qualities: "A distancia",
-    notes: "",
-    grantedActions: [],
-    modifiers: []
-  },
-  {
-    templateId: "weapon-throwing-knife",
-    name: "Cuchillo arrojadizo",
-    category: "weapon",
-    stackable: true,
-    isCustom: false,
-    description: "Arma ligera para combate cercano o lanzamiento.",
-    weight: "Ligera",
-    value: "",
-    slot: "none",
-    attackAttribute: "diestro",
-    damageFormula: "1d6",
-    protectionFormula: "",
-    qualities: "Arrojadiza, Corta",
-    notes: "",
-    grantedActions: [],
-    modifiers: [],
-    defaultQuantity: 3
-  },
+const WEAPON_ITEM_TEMPLATES: ItemTemplate[] = WEAPON_TEMPLATES.map((template) => ({
+  templateId: template.templateId,
+  name: template.name,
+  category: "weapon",
+  stackable: template.stackable ?? false,
+  isCustom: false,
+  description: template.description,
+  weight: template.weight,
+  value: template.value,
+  slot: template.slot,
+  attackAttribute: template.attackAttribute,
+  damageFormula: template.damageFormula,
+  protectionFormula: "",
+  qualities: formatWeaponQualities(template.qualities),
+  notes: buildWeaponCatalogNotes(template.notes ?? "", template.qualities),
+  grantedActions: [],
+  modifiers: [],
+  defaultQuantity: template.defaultQuantity
+}));
+
+const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
   {
     templateId: "armor-light",
     name: "Armadura ligera",
@@ -337,6 +254,9 @@ export const ITEM_CATALOG: ItemTemplate[] = [
   }
 ];
 
+export const ITEM_CATALOG: ItemTemplate[] = [...WEAPON_ITEM_TEMPLATES, ...OTHER_ITEM_TEMPLATES];
+export { WEAPON_QUALITY_OPTIONS };
+
 export function createInventoryItemFromTemplate(template: ItemTemplate): InventoryItem {
   return {
     ...template,
@@ -346,11 +266,12 @@ export function createInventoryItemFromTemplate(template: ItemTemplate): Invento
   };
 }
 
-export function createCustomInventoryItem(): InventoryItem {
+export function createCustomInventoryItem(category: InventoryItem["category"] = "gear"): InventoryItem {
+  const isWeapon = category === "weapon";
   return {
     id: `custom-item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    name: "Objeto personalizado",
-    category: "gear",
+    name: isWeapon ? "Arma personalizada" : "Objeto personalizado",
+    category,
     quantity: 1,
     stackable: false,
     isCustom: true,
@@ -358,8 +279,8 @@ export function createCustomInventoryItem(): InventoryItem {
     weight: "",
     value: "",
     equipped: false,
-    slot: "none",
-    attackAttribute: undefined,
+    slot: isWeapon ? "mainHand" : "none",
+    attackAttribute: isWeapon ? "diestro" : undefined,
     damageFormula: "",
     protectionFormula: "",
     qualities: "",
