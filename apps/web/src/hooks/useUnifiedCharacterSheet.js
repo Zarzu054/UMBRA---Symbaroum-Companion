@@ -16,8 +16,9 @@ export function useUnifiedCharacterSheet({ sheet, editable, onSave }) {
         const incomingNormalized = synchronizeCharacterSheet(parsed);
         const incomingSnapshot = JSON.stringify(incomingNormalized);
         const currentDraftSnapshot = JSON.stringify(synchronizeCharacterSheet(draftRef.current));
-        const hasUnsavedLocalChanges = currentDraftSnapshot !== lastSavedSnapshotRef.current;
-        if (incomingSnapshot === lastSavedSnapshotRef.current || !hasUnsavedLocalChanges) {
+        const matchesCurrentDraft = incomingSnapshot === currentDraftSnapshot;
+        const matchesLastConfirmedSave = incomingSnapshot === lastSavedSnapshotRef.current;
+        if (matchesCurrentDraft || matchesLastConfirmedSave) {
             setDraft(parsed);
             draftRef.current = parsed;
         }
