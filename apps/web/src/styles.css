@@ -3,6 +3,11 @@
 :root {
   --bg-outer: #2a221e;
   --bg-shadow: rgba(20, 12, 8, 0.32);
+  --forest-900: #0e1612;
+  --forest-800: #16211b;
+  --forest-700: #223128;
+  --forest-600: #31453a;
+  --forest-vein: rgba(119, 153, 130, 0.1);
   --paper: #efe6d6;
   --paper-deep: #e3d7c1;
   --paper-edge: #d0c0a6;
@@ -197,9 +202,13 @@ td {
   padding: 18px 14px 20px;
   border-right: 1px solid rgba(139, 109, 77, 0.28);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.04)),
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.4), transparent 18%),
+    radial-gradient(circle at 84% 10%, rgba(176, 132, 82, 0.08), transparent 22%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(240, 230, 214, 0.94)),
     var(--paper);
-  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset -1px 0 0 rgba(255, 255, 255, 0.26),
+    inset 0 0 0 1px rgba(208, 192, 166, 0.28);
 }
 
 .app-sidebar-head {
@@ -225,6 +234,12 @@ td {
   overflow-wrap: anywhere;
 }
 
+.app-sidebar-head h1,
+.sidebar-nav button,
+.sidebar-session button {
+  color: var(--ink);
+}
+
 .sidebar-nav,
 .sidebar-session {
   display: grid;
@@ -234,7 +249,7 @@ td {
 .sidebar-session {
   align-self: end;
   padding-top: 12px;
-  border-top: 1px solid rgba(139, 109, 77, 0.22);
+  border-top: 1px solid rgba(139, 109, 77, 0.18);
 }
 
 .sidebar-session-meta {
@@ -248,22 +263,73 @@ td {
   text-align: center;
 }
 
+.sidebar-nav button {
+  color: var(--rubric-strong);
+  background:
+    linear-gradient(180deg, rgba(250, 245, 236, 0.95), rgba(227, 213, 190, 0.96));
+}
+
+.sidebar-nav button.active-toggle {
+  color: var(--rubric-strong);
+  border-color: rgba(127, 52, 31, 0.68);
+  background:
+    linear-gradient(180deg, rgba(250, 245, 236, 0.98), rgba(232, 218, 196, 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgba(127, 52, 31, 0.14),
+    0 6px 14px rgba(56, 35, 19, 0.12);
+}
+
+.sidebar-nav button.active-toggle:hover,
+.sidebar-nav button.active-toggle:focus-visible {
+  background:
+    linear-gradient(180deg, rgba(255, 249, 242, 0.98), rgba(236, 222, 200, 0.98));
+}
+
+.sidebar-session button {
+  color: #fff3ef;
+  border-color: rgba(146, 60, 45, 0.78);
+  background:
+    linear-gradient(180deg, rgba(171, 74, 58, 0.98), rgba(128, 41, 31, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 18px rgba(16, 8, 7, 0.24);
+}
+
+.sidebar-session button:hover,
+.sidebar-session button:focus-visible {
+  border-color: rgba(169, 86, 70, 0.82);
+  background:
+    linear-gradient(180deg, rgba(187, 85, 68, 0.98), rgba(143, 49, 38, 0.98));
+}
+
+.sidebar-session button.is-active {
+  color: #f4ede2;
+  border-color: rgba(162, 136, 92, 0.7);
+  background:
+    linear-gradient(180deg, rgba(55, 78, 66, 0.98), rgba(22, 35, 28, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 18px rgba(8, 12, 10, 0.22);
+}
+
 .sidebar-toggle {
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
   padding: 0;
   display: inline-grid;
   place-items: center;
-  border-radius: 14px;
+  border-radius: 11px;
   line-height: 1;
   align-self: start;
   justify-self: end;
+  font-size: 0.92rem;
 }
 
 .app-content {
+  position: relative;
   min-width: 0;
-  padding: 18px 20px 28px;
+  padding: 18px 20px 28px 20px;
 }
 
 .content-topbar {
@@ -279,23 +345,16 @@ td {
 .panel {
   margin-top: 20px;
   padding: 20px 22px;
-  border: 1px solid rgba(139, 109, 77, 0.4);
+  border: 1px solid rgba(64, 48, 34, 0.36);
   border-radius: 16px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.02)),
-    linear-gradient(180deg, rgba(197, 162, 116, 0.06), rgba(197, 162, 116, 0)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0.06)),
+    linear-gradient(180deg, rgba(197, 162, 116, 0.05), rgba(197, 162, 116, 0)),
     var(--paper);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2), 0 6px 24px rgba(82, 58, 32, 0.08);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 10px 24px rgba(82, 58, 32, 0.08);
   position: relative;
-}
-
-.panel::before {
-  content: "";
-  position: absolute;
-  inset: 9px;
-  border: 1px solid rgba(168, 130, 93, 0.18);
-  border-radius: 12px;
-  pointer-events: none;
 }
 
 .lore-panel {
@@ -1664,29 +1723,19 @@ td {
 
 .campaign-sheet-card {
   padding: 18px 16px 16px;
-  border: 1px solid rgba(40, 30, 22, 0.18);
-  border-radius: 0;
+  border: 1px solid rgba(40, 30, 22, 0.24);
+  border-radius: 16px;
   background:
     linear-gradient(180deg, rgba(255, 252, 246, 0.98), rgba(248, 240, 229, 0.94));
   box-shadow:
     inset 0 0 0 1px rgba(255, 248, 234, 0.85),
-    inset 0 0 0 6px rgba(236, 226, 209, 0.32);
-  position: relative;
-}
-
-.campaign-sheet-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: rgba(51, 39, 28, 0.8);
+    inset 0 0 0 6px rgba(236, 226, 209, 0.24),
+    0 12px 26px rgba(44, 31, 19, 0.06);
 }
 
 .campaign-sheet-card h4 {
   margin: 0 0 12px;
-  color: #8f4a31;
+  color: var(--rubric-strong);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   font-size: 0.88rem;
@@ -2541,10 +2590,10 @@ td {
 .unified-sheet {
   display: grid;
   gap: 0.6rem;
-  --sheet-sky: linear-gradient(135deg, rgba(200, 229, 242, 0.92), rgba(244, 233, 214, 0.9) 52%, rgba(226, 214, 195, 0.98));
+  --sheet-sky: linear-gradient(135deg, rgba(224, 233, 223, 0.94), rgba(244, 233, 214, 0.92) 52%, rgba(226, 214, 195, 0.98));
   --sheet-gold: #c7a76b;
   --sheet-ink: #1d1916;
-  --sheet-blue: #88b9cf;
+  --sheet-blue: #587d6a;
   --sheet-green: #2f8f5b;
   --sheet-green-soft: #d8f2e3;
   --sheet-red: #bc4437;
@@ -2682,9 +2731,9 @@ td {
 }
 
 .unified-sheet-tabs .is-active {
-  background: linear-gradient(180deg, #d4ebf5, #a7cfdf);
-  color: #13212a;
-  border-color: rgba(78, 121, 145, 0.48);
+  background: linear-gradient(180deg, rgba(62, 94, 79, 0.98), rgba(24, 38, 31, 0.98));
+  color: #f6efe2;
+  border-color: rgba(108, 130, 112, 0.48);
 }
 
 .unified-sheet-overview-grid {
@@ -2790,8 +2839,8 @@ td {
   place-items: center;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.75), transparent 25%),
-    linear-gradient(180deg, rgba(84, 132, 154, 0.86), rgba(34, 54, 70, 0.95));
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.38), transparent 25%),
+    linear-gradient(180deg, rgba(62, 100, 94, 0.92), rgba(19, 33, 29, 0.98));
   color: #fff8ee;
   font-family: var(--font-title);
   font-size: 1.8rem;
@@ -2920,8 +2969,8 @@ td {
   padding: 0.4rem 0.5rem;
   border-radius: 12px;
   background:
-    linear-gradient(180deg, rgba(247, 252, 255, 0.9), rgba(219, 235, 242, 0.92));
-  border: 1px solid rgba(112, 154, 176, 0.34);
+    linear-gradient(180deg, rgba(242, 248, 243, 0.94), rgba(223, 232, 224, 0.96));
+  border: 1px solid rgba(95, 119, 104, 0.28);
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.65);
 }
 
@@ -2929,12 +2978,12 @@ td {
   font-size: 0.56rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #47697c;
+  color: #4f6657;
 }
 
 .unified-sheet-attribute-chip strong {
   font-size: 1.08rem;
-  color: #193343;
+  color: #1f2f27;
   line-height: 1;
 }
 
@@ -3500,9 +3549,9 @@ td {
 }
 
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-subtabs .is-active {
-  background: linear-gradient(180deg, #d4ebf5, #a7cfdf);
-  color: #13212a;
-  border-color: rgba(78, 121, 145, 0.48);
+  background: linear-gradient(180deg, rgba(62, 94, 79, 0.98), rgba(24, 38, 31, 0.98));
+  color: #f6efe2;
+  border-color: rgba(108, 130, 112, 0.48);
 }
 
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-subtabs + .unified-sheet-list {
@@ -3704,8 +3753,8 @@ td {
 }
 
 .unified-sheet-weapon-quality-info.is-active {
-  background: linear-gradient(180deg, #d4ebf5, #a7cfdf);
-  border-color: rgba(78, 121, 145, 0.5);
+  background: linear-gradient(180deg, rgba(225, 237, 228, 0.98), rgba(193, 214, 200, 0.98));
+  border-color: rgba(77, 110, 89, 0.48);
 }
 
 .unified-sheet-weapon-quality-panel {
@@ -3742,9 +3791,9 @@ td {
 }
 
 .unified-sheet-quality-picker button.is-active {
-  background: linear-gradient(180deg, #d4ebf5, #a7cfdf);
-  border-color: rgba(78, 121, 145, 0.48);
-  color: #13212a;
+  background: linear-gradient(180deg, rgba(225, 237, 228, 0.98), rgba(193, 214, 200, 0.98));
+  border-color: rgba(77, 110, 89, 0.48);
+  color: #203428;
 }
 
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card h3 {
@@ -3850,15 +3899,15 @@ td {
   min-height: 32px;
   padding: 0.3rem 0.8rem;
   border-radius: 999px;
-  border: 1px solid rgba(64, 115, 156, 0.45);
-  background: linear-gradient(180deg, #d8eaf7, #b7d5ea);
-  color: #173b57;
+  border: 1px solid rgba(66, 102, 82, 0.45);
+  background: linear-gradient(180deg, #dce9df, #bdd1c2);
+  color: #20362a;
 }
 
 .accent-button:hover,
 .accent-button:focus-visible {
-  border-color: rgba(64, 115, 156, 0.72);
-  background: linear-gradient(180deg, #cfe4f3, #a7cbe3);
+  border-color: rgba(66, 102, 82, 0.72);
+  background: linear-gradient(180deg, #d2e3d6, #adc6b4);
   outline: none;
 }
 

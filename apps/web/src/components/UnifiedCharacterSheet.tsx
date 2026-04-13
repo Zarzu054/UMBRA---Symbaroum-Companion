@@ -32,7 +32,7 @@ import {
 } from "../services/rollTransport";
 
 type TabId = "actions" | "inventory" | "abilities" | "background" | "notes";
-type ActionTabId = "all" | "favorites" | "attacks" | "powers" | "actions" | "free" | "reactions" | "other";
+type ActionTabId = "all" | "favorites" | "attacks" | "powers" | "actions" | "free" | "reactions" | "other" | "special";
 type CapabilityTabId = "traits" | "blessings" | "burdens" | "abilities" | "powers" | "rituals";
 type InventoryTabId = "money" | "weapons" | "armors" | "items";
 type RatedEntry = CharacterSheet["habilidades"][number];
@@ -155,7 +155,7 @@ type SheetTabState = {
 };
 
 const TAB_IDS: TabId[] = ["actions", "inventory", "abilities", "background", "notes"];
-const ACTION_TAB_IDS: ActionTabId[] = ["all", "favorites", "attacks", "powers", "actions", "free", "reactions", "other"];
+const ACTION_TAB_IDS: ActionTabId[] = ["all", "favorites", "attacks", "powers", "actions", "free", "reactions", "other", "special"];
 const CAPABILITY_TAB_IDS: CapabilityTabId[] = ["traits", "blessings", "burdens", "abilities", "powers", "rituals"];
 const INVENTORY_TAB_IDS: InventoryTabId[] = ["money", "weapons", "armors", "items"];
 
@@ -196,6 +196,26 @@ const DEFAULT_SHEET_TAB_STATE: SheetTabState = {
   activeCapabilityTab: "abilities",
   activeInventoryTab: "weapons"
 };
+
+const SPECIAL_ACTION_RULE_NAMES = [
+  "Apuntar con cuidado",
+  "Embestir",
+  "Retrasar la iniciativa",
+  "Desarmar",
+  "Defensa completa",
+  "Ofensiva total",
+  "Presa",
+  "Dejar inconsciente",
+  "Veneno en las armas",
+  "Hacer retroceder",
+  "Placaje",
+  "Tomar la iniciativa",
+  "Luchar a ciegas",
+  "Destrabarse del combate",
+  "Usar/aplicar un elixir",
+  "Primeros auxilios",
+  "Levantarse"
+] as const;
 
 function matchesWeaponCatalogFilter(item: ItemTemplate, filterId: WeaponCatalogFilterId): boolean {
   if (item.category !== "weapon") return false;
@@ -802,6 +822,8 @@ export function UnifiedCharacterSheet({
         return visibleActions.filter((action) => action.cost === "free" && !isOtherAction(action));
       case "reactions":
         return visibleActions.filter((action) => action.cost === "reaction" && !isOtherAction(action));
+      case "special":
+        return [];
       case "actions":
       default:
         return visibleActions.filter((action) =>
@@ -814,6 +836,14 @@ export function UnifiedCharacterSheet({
         );
     }
   }, [visibleActions, activeActionTab, favoriteActionIds]);
+  const specialActionEntries = useMemo(() => {
+    const order = new Map(SPECIAL_ACTION_RULE_NAMES.map((name, index) => [normalizeCapabilityText(name), index]));
+    return ALL_ENTRIES
+      .filter((entry) => entry.tipo === "regla" && order.has(normalizeCapabilityText(entry.nombre)))
+      .sort((a, b) =>
+        (order.get(normalizeCapabilityText(a.nombre)) ?? 999) - (order.get(normalizeCapabilityText(b.nombre)) ?? 999)
+      );
+  }, []);
   const pendingAttackModifiers = useMemo(
     () => (
       pendingRollConfirmation
@@ -1256,6 +1286,26 @@ export function UnifiedCharacterSheet({
       title: compendiumEntry.nombre,
       sourceLabel: `${categoryLabel}${compendiumEntry.fuente ? ` · ${compendiumEntry.fuente}${compendiumEntry.pagina ? ` p. ${compendiumEntry.pagina}` : ""}` : ""}`,
       detail: compendiumEntry.detalle,
+      references
+    });
+  }
+
+  function openRuleCompendiumDetail(entry: typeof ALL_ENTRIES[number]): void {
+    const summaryLink = getCompendiumSummaryLink(entry);
+    const references = [
+      getCompendiumSourcePdfUrl(entry.fuente, entry.pagina, entry.nombre),
+      summaryLink?.url
+    ]
+      .filter((url): url is string => Boolean(url))
+      .map((url) => ({
+        url,
+        label: url === summaryLink?.url ? `${summaryLink.documentLabel} - ${summaryLink.sectionLabel}` : `${entry.fuente}${entry.pagina ? ` p. ${entry.pagina}` : ""}`
+      }));
+
+    setActionDetailModal({
+      title: entry.nombre,
+      sourceLabel: `Accion especial · ${entry.fuente}${entry.pagina ? ` p. ${entry.pagina}` : ""}`,
+      detail: entry.detalle,
       references
     });
   }
@@ -2111,6 +2161,7 @@ export function UnifiedCharacterSheet({
                     ["favorites", "Favoritas"],
                     ["attacks", "Ataques"],
                     ["powers", "Poderes y rituales"],
+                    ["special", "Acciones especiales"],
                     ["actions", "Acciones"],
                     ["free", "Acciones gratuitas"],
                     ["reactions", "Reacciones"],
@@ -2122,6 +2173,31 @@ export function UnifiedCharacterSheet({
                   ))}
                 </nav>
                 <div className="campaign-sheet-actions">
+                  {activeActionTab === "special" ? (
+                    <>
+                      {specialActionEntries.map((entry) => (
+                        <div key={entry.id} className="campaign-action-button campaign-action-button--row">
+                          <div className="campaign-action-main">
+                            <div className="campaign-action-title-row">
+                              <button type="button" className="campaign-action-name-button" onClick={() => openRuleCompendiumDetail(entry)}>
+                                {entry.nombre}
+                              </button>
+                            </div>
+                            <span className="campaign-action-source-note">{entry.fuente}{entry.pagina ? ` p. ${entry.pagina}` : ""}</span>
+                          </div>
+                          <div className="campaign-action-slot">
+                            <span className="compendium-chip">Regla</span>
+                          </div>
+                          <div className="campaign-action-slot is-damage">
+                            <span aria-hidden="true" className="campaign-action-slot-placeholder" />
+                          </div>
+                        </div>
+                      ))}
+                      {specialActionEntries.length === 0 ? <p className="section-help">Sin acciones especiales registradas.</p> : null}
+                    </>
+                  ) : null}
+                  {activeActionTab !== "special" ? (
+                    <>
                   {filteredActions.map((action) => (
                     <div key={action.id} className="campaign-action-button campaign-action-button--row">
                       <div className="campaign-action-main">
@@ -2154,6 +2230,8 @@ export function UnifiedCharacterSheet({
                     </div>
                   ))}
                   {filteredActions.length === 0 ? <p className="section-help">Sin acciones registradas en esta categoria.</p> : null}
+                    </>
+                  ) : null}
                 </div>
               </article>
             </section>
@@ -2542,6 +2620,7 @@ export function UnifiedCharacterSheet({
                 ["favorites", "Favoritas"],
                 ["attacks", "Ataques"],
                 ["powers", "Poderes y rituales"],
+                ["special", "Acciones especiales"],
                 ["actions", "Acciones"],
                 ["free", "Acciones gratuitas"],
                 ["reactions", "Reacciones"],
@@ -2552,7 +2631,29 @@ export function UnifiedCharacterSheet({
                 </button>
               ))}
             </nav>
-                <div className="campaign-sheet-actions">
+            <div className="campaign-sheet-actions">
+              {activeActionTab === "special" ? (
+                <>
+                  {specialActionEntries.map((entry) => (
+                    <div key={entry.id} className="campaign-action-button campaign-action-button--row">
+                      <div className="campaign-action-title-row">
+                        <strong>{entry.nombre}</strong>
+                      </div>
+                      <div className="campaign-action-slot">
+                        <span className="compendium-chip">Regla</span>
+                      </div>
+                      <div className="campaign-action-slot is-damage">
+                        <span aria-hidden="true" className="campaign-action-slot-placeholder" />
+                      </div>
+                      <div className="campaign-action-slot">
+                        <button type="button" className="subtle-button" onClick={() => openRuleCompendiumDetail(entry)}>Detalle</button>
+                      </div>
+                    </div>
+                  ))}
+                  {specialActionEntries.length === 0 ? <p className="section-help">Sin acciones especiales registradas.</p> : null}
+                </>
+              ) : (
+                <>
               {filteredActions.map((action) => (
                 <div key={action.id} className="campaign-action-button campaign-action-button--row">
                   <div className="campaign-action-title-row">
@@ -2583,6 +2684,8 @@ export function UnifiedCharacterSheet({
                     </div>
                   ))}
               {filteredActions.length === 0 ? <p className="section-help">Sin acciones registradas en esta categoria.</p> : null}
+                </>
+              )}
             </div>
           </article>
         </section>
