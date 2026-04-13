@@ -24,6 +24,16 @@ export class AuthController {
     reply.code(204).send();
   }
 
+  async requestPasswordReset(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.authService.requestPasswordReset(request.body);
+    reply.code(204).send();
+  }
+
+  async resetPassword(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.authService.resetPassword(request.body);
+    reply.code(204).send();
+  }
+
   async changePassword(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const session = await this.authService.changePassword(request.authUser!.id, request.body);
     reply.send({ data: session });

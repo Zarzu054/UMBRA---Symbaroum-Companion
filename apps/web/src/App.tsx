@@ -25,6 +25,8 @@ export function App() {
         onModeChange={auth.setAuthMode}
         onLogin={auth.login}
         onRegister={auth.register}
+        onRequestPasswordReset={auth.sendPasswordReset}
+        onResetPassword={auth.confirmPasswordReset}
       />
     );
   }

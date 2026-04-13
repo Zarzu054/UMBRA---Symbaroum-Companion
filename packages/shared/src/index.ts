@@ -1532,6 +1532,15 @@ export const changePasswordSchema = z
     }
   });
 
+export const requestPasswordResetSchema = z.object({
+  email: z.string().email()
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(20).max(400),
+  newPassword: z.string().min(8).max(128)
+});
+
 export const campaignMemberRoleSchema = z.enum(["gm", "player"]);
 export const campaignSessionStatusSchema = z.enum(["planned", "completed", "cancelled"]);
 
@@ -1643,6 +1652,8 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type CampaignMemberRole = z.infer<typeof campaignMemberRoleSchema>;
 export type CampaignSessionStatus = z.infer<typeof campaignSessionStatusSchema>;
 export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;

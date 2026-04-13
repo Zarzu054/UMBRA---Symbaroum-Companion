@@ -1347,6 +1347,13 @@ export const changePasswordSchema = z
         });
     }
 });
+export const requestPasswordResetSchema = z.object({
+    email: z.string().email()
+});
+export const resetPasswordSchema = z.object({
+    token: z.string().min(20).max(400),
+    newPassword: z.string().min(8).max(128)
+});
 export const campaignMemberRoleSchema = z.enum(["gm", "player"]);
 export const campaignSessionStatusSchema = z.enum(["planned", "completed", "cancelled"]);
 export const createCampaignSchema = z.object({

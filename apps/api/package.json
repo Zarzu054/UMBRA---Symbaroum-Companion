@@ -27,6 +27,7 @@
     "dotenv": "^16.4.7",
     "fastify": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.10.1",
     "umbra-symbaroum-companion": "file:../..",
     "zod": "^3.24.1"
   },

@@ -333,9 +333,18 @@ td {
 }
 
 .content-topbar {
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  z-index: 8;
   display: flex;
   justify-content: flex-start;
-  margin-bottom: 12px;
+  margin-bottom: 0;
+  pointer-events: none;
+}
+
+.content-topbar .sidebar-toggle {
+  pointer-events: auto;
 }
 
 .content-toolbar-panel .toolbar {

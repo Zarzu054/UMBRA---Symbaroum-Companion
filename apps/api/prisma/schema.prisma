@@ -44,6 +44,7 @@ model User {
   characters          Character[]
   monsters            Monster[]
   refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
   gmCampaigns         Campaign[]         @relation("CampaignGm")
   campaignMemberships CampaignMember[]
   campaignXpGrants    CampaignXpLog[]    @relation("CampaignXpGrantUser")
@@ -100,6 +101,19 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model Campaign {

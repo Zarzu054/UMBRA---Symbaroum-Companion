@@ -1,10 +1,20 @@
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
-import { randomUUID } from "node:crypto";
-import { changePasswordSchema, type AuthSession, type AuthUser, loginSchema, refreshSchema, registerSchema } from "@umbra/shared";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import {
+  changePasswordSchema,
+  type AuthSession,
+  type AuthUser,
+  loginSchema,
+  refreshSchema,
+  registerSchema,
+  requestPasswordResetSchema,
+  resetPasswordSchema
+} from "@umbra/shared";
 import type { UserRole as DbUserRole } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { env } from "../config/env.js";
+import { MailService } from "./MailService.js";
 import { AppError } from "../utils/AppError.js";
 
 type AccessTokenPayload = {
@@ -22,6 +32,8 @@ type RefreshTokenPayload = {
 };
 
 export class AuthService {
+  constructor(private readonly mailService = new MailService()) {}
+
   async register(input: unknown): Promise<AuthSession> {
     if (!env.ALLOW_PUBLIC_REGISTRATION) {
       throw new AppError("REGISTRATION_DISABLED", "El registro publico esta deshabilitado", 403);
@@ -182,6 +194,105 @@ export class AuthService {
     });
   }
 
+  async requestPasswordReset(input: unknown): Promise<void> {
+    const payload = requestPasswordResetSchema.parse(input);
+    const email = payload.email.toLowerCase();
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true }
+    });
+
+    if (!user) {
+      return;
+    }
+
+    const rawToken = randomBytes(32).toString("hex");
+    const tokenHash = hashResetToken(rawToken);
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 30);
+
+    await prisma.$transaction([
+      prisma.passwordResetToken.updateMany({
+        where: {
+          userId: user.id,
+          usedAt: null
+        },
+        data: {
+          usedAt: new Date()
+        }
+      }),
+      prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash,
+          expiresAt
+        }
+      })
+    ]);
+
+    const resetUrl = `${env.APP_BASE_URL.replace(/\/$/, "")}/#reset-password?token=${encodeURIComponent(rawToken)}`;
+    await this.mailService.sendPasswordResetEmail(user.email, resetUrl);
+  }
+
+  async resetPassword(input: unknown): Promise<void> {
+    const payload = resetPasswordSchema.parse(input);
+    const tokenHash = hashResetToken(payload.token);
+    const now = new Date();
+
+    const stored = await prisma.passwordResetToken.findFirst({
+      where: {
+        tokenHash,
+        usedAt: null,
+        expiresAt: {
+          gt: now
+        }
+      },
+      include: {
+        user: true
+      }
+    });
+
+    if (!stored) {
+      throw new AppError("INVALID_RESET_TOKEN", "El enlace de recuperacion no es valido o ya ha expirado", 400);
+    }
+
+    const passwordHash = await argon2.hash(payload.newPassword);
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: stored.userId },
+        data: {
+          passwordHash,
+          mustChangePassword: false
+        }
+      }),
+      prisma.passwordResetToken.update({
+        where: { id: stored.id },
+        data: {
+          usedAt: now
+        }
+      }),
+      prisma.passwordResetToken.updateMany({
+        where: {
+          userId: stored.userId,
+          usedAt: null
+        },
+        data: {
+          usedAt: now
+        }
+      }),
+      prisma.refreshToken.updateMany({
+        where: {
+          userId: stored.userId,
+          revokedAt: null
+        },
+        data: {
+          revokedAt: now
+        }
+      })
+    ]);
+  }
+
   private async issueSession(user: AuthUser): Promise<AuthSession> {
     const tokenId = randomUUID();
 
@@ -242,6 +353,10 @@ export class AuthService {
       throw new AppError("INVALID_REFRESH_TOKEN", "Token de refresco invalido", 401);
     }
   }
+}
+
+function hashResetToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 function toAppRole(role: DbUserRole): "player" | "gm" | "superadmin" {
