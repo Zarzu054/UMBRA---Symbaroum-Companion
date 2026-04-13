@@ -17,7 +17,7 @@ import {
 import { CharacterCard } from "../components/CharacterCard";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
-import { findCompendiumCapabilityEntryId } from "../models/compendiumEntries";
+import { findCompendiumCapabilityEntryId, findCompendiumEntryByTypeAndName } from "../models/compendiumEntries";
 import { toCharacterCardViewModel } from "../models/characterModel";
 import { computeDerivedStats } from "../models/rulesEngine";
 import { exportCharacterSheetPdf } from "../services/characterPdfExport";
@@ -31,6 +31,7 @@ import {
   type Roll20Visibility
 } from "../services/rollTransport";
 import { CampaignDashboardView } from "./CampaignDashboardView";
+import { CharacterBuilderView } from "./CharacterBuilderView";
 import { CompendiumView } from "./CompendiumView";
 import { MonsterDashboardView } from "./MonsterDashboardView";
 
@@ -42,6 +43,7 @@ type Props = {
 };
 
 type AppModule = "characters" | "compendium" | "campaigns" | "monsters";
+type CharacterPageMode = "sheet" | "builder";
 
 type CompendiumFocus = {
   entryId: string | null;
@@ -56,7 +58,7 @@ type PendingCharacterRollConfirmation = {
   title: string;
 };
 
-function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token">; sheetId?: string | null } {
+function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token">; sheetId?: string | null; characterPageMode?: CharacterPageMode } {
   const rawHash = window.location.hash.replace(/^#/, "");
   if (rawHash.startsWith("monsters")) {
     return { module: "monsters" };
@@ -69,7 +71,12 @@ function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"
   if (rawHash.startsWith("characters")) {
     const [, search = ""] = rawHash.split("?");
     const params = new URLSearchParams(search);
-    return { module: "characters", sheetId: params.get("sheetId") };
+    const rawView = params.get("view");
+    return {
+      module: "characters",
+      sheetId: params.get("sheetId"),
+      characterPageMode: rawView === "builder" ? "builder" : "sheet"
+    };
   }
 
   if (!rawHash.startsWith("compendium")) {
@@ -105,6 +112,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     token: 0
   });
   const [selectedCharacterSheetId, setSelectedCharacterSheetId] = useState<string | null>(() => parseHash().sheetId ?? null);
+  const [selectedCharacterPageMode, setSelectedCharacterPageMode] = useState<CharacterPageMode>(() => parseHash().characterPageMode ?? "sheet");
   const selectedCharacterSheet = useMemo(
     () => controller.characters.find((entry) => entry.id === selectedCharacterSheetId) ?? null,
     [controller.characters, selectedCharacterSheetId]
@@ -147,6 +155,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         default:
           setActiveModule("characters");
           setSelectedCharacterSheetId(parsed.sheetId ?? null);
+          setSelectedCharacterPageMode(parsed.characterPageMode ?? "sheet");
           return;
       }
     }
@@ -156,8 +165,10 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     return () => window.removeEventListener("hashchange", syncWithHash);
   }, [canAccessCharacters, canAccessMonsters]);
 
-  function openCompendiumCapability(tipo: "habilidad" | "poder_mistico" | "ritual", nombre: string): void {
-    const entryId = findCompendiumCapabilityEntryId(tipo, nombre);
+  function openCompendiumCapability(tipo: "habilidad" | "poder_mistico" | "ritual" | "bendicion" | "carga", nombre: string): void {
+    const entryId = tipo === "bendicion" || tipo === "carga"
+      ? (findCompendiumEntryByTypeAndName(tipo, nombre)?.id ?? null)
+      : findCompendiumCapabilityEntryId(tipo, nombre);
     const params = new URLSearchParams();
     params.set("q", nombre);
     params.set("source", "all");
@@ -176,13 +187,26 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   function openCharacterSheet(characterId: string): void {
     setActiveModule("characters");
     setSelectedCharacterSheetId(characterId);
+    setSelectedCharacterPageMode("sheet");
     const params = new URLSearchParams();
     params.set("sheetId", characterId);
+    params.set("view", "sheet");
+    window.location.hash = `characters?${params.toString()}`;
+  }
+
+  function openCharacterBuilder(characterId: string): void {
+    setActiveModule("characters");
+    setSelectedCharacterSheetId(characterId);
+    setSelectedCharacterPageMode("builder");
+    const params = new URLSearchParams();
+    params.set("sheetId", characterId);
+    params.set("view", "builder");
     window.location.hash = `characters?${params.toString()}`;
   }
 
   function closeCharacterSheet(): void {
     setSelectedCharacterSheetId(null);
+    setSelectedCharacterPageMode("sheet");
     window.location.hash = "characters";
   }
 
@@ -279,69 +303,110 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             <CampaignDashboardView user={user} ensureAccessToken={ensureAccessToken} />
           ) : selectedCharacterSheet ? (
             <section className="character-actions-page">
-              <UnifiedCharacterSheet
-                title={selectedCharacterSheet.name}
-                subtitle={`${selectedCharacterSheet.culture || "Sin cultura"} · ${selectedCharacterSheet.archetype || "Sin arquetipo"} · ${selectedCharacterSheet.race || "Sin raza"}`}
-                sheet={parseCharacterSheet(selectedCharacterSheet.sheet)}
-                editable
-                onBack={closeCharacterSheet}
-                onOpenCompendiumCapability={openCompendiumCapability}
-                onSave={async (nextSheet) => {
-                  const token = await ensureAccessToken();
-                  const updated = await updateCharacter(
-                    selectedCharacterSheet.id,
-                    {
-                      name: nextSheet.identidad.nombrePersonaje.trim() || selectedCharacterSheet.name,
-                      archetype: String(nextSheet.identidad.arquetipo),
-                      race: String(nextSheet.identidad.raza),
-                      culture: String(nextSheet.identidad.cultura),
-                      profession: nextSheet.identidad.profesion,
-                      level: 1,
-                      sheet: synchronizeCharacterSheet(nextSheet)
-                    },
-                    token
-                  );
-                  controller.upsertCharacterRecord(updated);
-                }}
-              />
+              {selectedCharacterPageMode === "builder" ? (
+                <CharacterBuilderView
+                  character={selectedCharacterSheet}
+                  onBackToCharacters={closeCharacterSheet}
+                  onOpenSheet={() => openCharacterSheet(selectedCharacterSheet.id)}
+                  onSave={async (nextSheet) => {
+                    const token = await ensureAccessToken();
+                    const updated = await updateCharacter(
+                      selectedCharacterSheet.id,
+                      {
+                        name: nextSheet.identidad.nombrePersonaje.trim() || selectedCharacterSheet.name,
+                        archetype: String(nextSheet.identidad.arquetipo),
+                        race: String(nextSheet.identidad.raza),
+                        culture: String(nextSheet.identidad.cultura),
+                        profession: nextSheet.identidad.profesion,
+                        level: 1,
+                        sheet: synchronizeCharacterSheet(nextSheet)
+                      },
+                      token
+                    );
+                    controller.upsertCharacterRecord(updated);
+                  }}
+                />
+              ) : (
+                <UnifiedCharacterSheet
+                  title={selectedCharacterSheet.name}
+                  subtitle={`${selectedCharacterSheet.culture || "Sin cultura"} · ${selectedCharacterSheet.archetype || "Sin arquetipo"} · ${selectedCharacterSheet.race || "Sin raza"}`}
+                  sheet={parseCharacterSheet(selectedCharacterSheet.sheet)}
+                  editable
+                  onBack={closeCharacterSheet}
+                  onOpenBuilder={() => openCharacterBuilder(selectedCharacterSheet.id)}
+                  onOpenCompendiumCapability={openCompendiumCapability}
+                  onSave={async (nextSheet) => {
+                    const token = await ensureAccessToken();
+                    const updated = await updateCharacter(
+                      selectedCharacterSheet.id,
+                      {
+                        name: nextSheet.identidad.nombrePersonaje.trim() || selectedCharacterSheet.name,
+                        archetype: String(nextSheet.identidad.arquetipo),
+                        race: String(nextSheet.identidad.raza),
+                        culture: String(nextSheet.identidad.cultura),
+                        profession: nextSheet.identidad.profesion,
+                        level: 1,
+                        sheet: synchronizeCharacterSheet(nextSheet)
+                      },
+                      token
+                    );
+                    controller.upsertCharacterRecord(updated);
+                  }}
+                />
+              )}
             </section>
           ) : (
-            <>
-      <section className="panel content-toolbar-panel">
-        <div className="toolbar">
-          <button onClick={controller.openCreateModal}>Nuevo personaje</button>
-          <label className={`file-trigger${controller.isSaving ? " is-disabled" : ""}`}>
-            Importar PDF
-            <input
-              type="file"
-              accept="application/pdf,.pdf"
-              disabled={controller.isSaving}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) {
-                  void controller.importFromPdf(file);
-                }
-                event.currentTarget.value = "";
-              }}
-            />
-          </label>
-          <button disabled={controller.isSaving} onClick={() => void controller.createRandomCharacter()}>
-            Generar aleatorio
-          </button>
-        </div>
-      </section>
-      <section className="panel lore-panel">
-        <h2>Ficha de Personaje de Symbaroum</h2>
-        <p>
-          Constructor avanzado basado en hoja completa: identidad, atributos, progreso, combate, corrupción,
-          habilidades, poderes, rituales, equipo y referencias por libro/pagina.
-        </p>
-        {controller.error && !controller.isFormModalOpen ? <p className="error">{controller.error}</p> : null}
-      </section>
+            <section className="character-directory-page unified-sheet">
+              <section className="character-directory-shell campaign-sheet-card">
+                <section className="character-directory-header-band">
+                  <div className="unified-sheet-portrait" aria-hidden="true">
+                    <div className="unified-sheet-portrait-ring">
+                      <div className="unified-sheet-portrait-content">PJ</div>
+                    </div>
+                  </div>
+                  <div className="character-directory-identity">
+                    <h2>Archivo de personajes</h2>
+                    <p className="unified-sheet-inline-subtitle">
+                      Gestiona hojas, constructor y progreso de PX con la misma presentacion que la ficha.
+                    </p>
+                  </div>
+                </section>
 
-      {controller.isFormModalOpen ? (
-        <section className="modal-backdrop" onClick={controller.closeFormModal}>
-          <div className="panel modal-panel" onClick={(event) => event.stopPropagation()}>
+                <section className="character-directory-stage">
+                  <section className="character-directory-panel campaign-sheet-card">
+                    <div className="row-actions character-directory-toolbar-row">
+                      <div>
+                        <h3>Acciones del archivo</h3>
+                        <p className="section-help">Crea, importa o genera personajes sin salir del modulo.</p>
+                      </div>
+                      <div className="toolbar">
+                        <button onClick={controller.openCreateModal}>Nuevo personaje</button>
+                        <label className={`file-trigger${controller.isSaving ? " is-disabled" : ""}`}>
+                          Importar PDF
+                          <input
+                            type="file"
+                            accept="application/pdf,.pdf"
+                            disabled={controller.isSaving}
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              if (file) {
+                                void controller.importFromPdf(file);
+                              }
+                              event.currentTarget.value = "";
+                            }}
+                          />
+                        </label>
+                        <button disabled={controller.isSaving} onClick={() => void controller.createRandomCharacter()}>
+                          Generar aleatorio
+                        </button>
+                      </div>
+                    </div>
+                    {controller.error && !controller.isFormModalOpen ? <p className="error">{controller.error}</p> : null}
+                  </section>
+
+                  {controller.isFormModalOpen ? (
+                    <section className="modal-backdrop" onClick={controller.closeFormModal}>
+                      <div className="panel modal-panel character-directory-form-modal" onClick={(event) => event.stopPropagation()}>
         <div className="row-actions">
           <h2>{controller.isEditing ? "Editar personaje" : "Crear personaje"}</h2>
           <div className="toolbar">
@@ -1315,32 +1380,42 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           ))}
         </div>
         </fieldset>
-          </div>
-        </section>
-      ) : null}
+                      </div>
+                    </section>
+                  ) : null}
 
-      <section className="panel">
-        <h2>Personajes</h2>
-        {controller.isLoading ? <p>Cargando...</p> : null}
-        <div className="cards">
-          {controller.characters.map((character) => (
-            <CharacterCard
-              key={character.id}
-              item={toCharacterCardViewModel(character)}
-              selected={selectedCharacterSheetId === character.id}
-              onOpenSheet={() => openCharacterSheet(character.id)}
-              onExportPdf={() => void exportCharacterSheetPdf(character)}
-              onDuplicate={() => void controller.duplicateSelected(character.id)}
-              onDelete={() => {
-                if (window.confirm("Esta acción eliminará el personaje. ¿Deseas continuar?")) {
-                  void controller.deleteSelected(character.id);
-                }
-              }}
-            />
-          ))}
-        </div>
-      </section>
-            </>
+                  <section className="character-directory-panel campaign-sheet-card">
+                    <div className="row-actions">
+                      <div>
+                        <h3>Personajes</h3>
+                        <p className="section-help">Acceso directo a hoja, constructor, exportacion y duplicado.</p>
+                      </div>
+                      <span className="meta-text">
+                        {controller.isLoading ? "Cargando..." : `${controller.characters.length} registrados`}
+                      </span>
+                    </div>
+                    <div className="cards character-record-grid">
+                      {controller.characters.map((character) => (
+                        <CharacterCard
+                          key={character.id}
+                          item={toCharacterCardViewModel(character)}
+                          selected={selectedCharacterSheetId === character.id}
+                          onOpenSheet={() => openCharacterSheet(character.id)}
+                          onOpenBuilder={() => openCharacterBuilder(character.id)}
+                          onExportPdf={() => void exportCharacterSheetPdf(character)}
+                          onDuplicate={() => void controller.duplicateSelected(character.id)}
+                          onDelete={() => {
+                            if (window.confirm("Esta acción eliminará el personaje. ¿Deseas continuar?")) {
+                              void controller.deleteSelected(character.id);
+                            }
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                </section>
+              </section>
+            </section>
           )}
         </section>
       </div>

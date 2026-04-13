@@ -23,7 +23,7 @@ import {
 import { computeDerivedStats } from "../models/rulesEngine";
 import { getCharacterExperienceSummary } from "../models/characterExperience";
 import { ARMOR_QUALITY_OPTIONS, ITEM_QUALITY_OPTIONS, createCustomInventoryItem, createInventoryItemFromTemplate, ITEM_CATALOG, type ItemTemplate } from "../models/itemCatalog";
-import { ALL_ENTRIES, getCompendiumSourcePdfUrl, getCompendiumSummaryLink } from "../models/compendiumEntries";
+import { ALL_ENTRIES, findCompendiumEntryByTypeAndName, getCompendiumSourcePdfUrl, getCompendiumSummaryLink } from "../models/compendiumEntries";
 import { useUnifiedCharacterSheet } from "../hooks/useUnifiedCharacterSheet";
 import {
   dispatchRoll20Request,
@@ -46,7 +46,8 @@ type Props = {
   busy?: boolean;
   onSave?: (sheet: CharacterSheet) => Promise<void>;
   onBack?: () => void;
-  onOpenCompendiumCapability?: (tipo: "habilidad" | "poder_mistico" | "ritual", nombre: string) => void;
+  onOpenBuilder?: () => void;
+  onOpenCompendiumCapability?: (tipo: "habilidad" | "poder_mistico" | "ritual" | "bendicion" | "carga", nombre: string) => void;
 };
 
 type PendingRollConfirmation = {
@@ -74,7 +75,7 @@ type ActionDetailModal = {
   tiers?: CapabilityTier[];
   notes?: string[];
   references?: Array<{ label: string; url: string }>;
-  capabilityTipo?: "habilidad" | "poder_mistico" | "ritual";
+  capabilityTipo?: "habilidad" | "poder_mistico" | "ritual" | "bendicion" | "carga";
   capabilityNombre?: string;
   removeInventoryIndex?: number;
   editInventoryIndex?: number;
@@ -135,6 +136,29 @@ type RollModalAttackModifier = AttackRollModifier & {
   source: "trait" | "ability";
 };
 
+type RollModalCheckModifier = AttackRollModifier & {
+  source: "trait" | "ability" | "boon";
+};
+
+type PersistedSheetTabs = {
+  activeTab?: TabId;
+  activeActionTab?: ActionTabId;
+  activeCapabilityTab?: CapabilityTabId;
+  activeInventoryTab?: InventoryTabId;
+};
+
+type SheetTabState = {
+  activeTab: TabId;
+  activeActionTab: ActionTabId;
+  activeCapabilityTab: CapabilityTabId;
+  activeInventoryTab: InventoryTabId;
+};
+
+const TAB_IDS: TabId[] = ["actions", "inventory", "abilities", "background", "notes"];
+const ACTION_TAB_IDS: ActionTabId[] = ["all", "favorites", "attacks", "powers", "actions", "free", "reactions", "other"];
+const CAPABILITY_TAB_IDS: CapabilityTabId[] = ["traits", "blessings", "burdens", "abilities", "powers", "rituals"];
+const INVENTORY_TAB_IDS: InventoryTabId[] = ["money", "weapons", "armors", "items"];
+
 const WEAPON_CATALOG_FILTER_OPTIONS: Array<{ id: WeaponCatalogFilterId; label: string }> = [
   { id: "all", label: "Todas" },
   { id: "one-handed", label: "Una mano" },
@@ -164,6 +188,14 @@ const ITEM_CATALOG_FILTER_OPTIONS: Array<{ id: ItemCatalogFilterId; label: strin
   { id: "valuable", label: "Valiosos" },
   { id: "artifact", label: "Artefactos" }
 ];
+
+const SHEET_TAB_STORAGE_PREFIX = "umbra:character-sheet-tabs:";
+const DEFAULT_SHEET_TAB_STATE: SheetTabState = {
+  activeTab: "actions",
+  activeActionTab: "all",
+  activeCapabilityTab: "abilities",
+  activeInventoryTab: "weapons"
+};
 
 function matchesWeaponCatalogFilter(item: ItemTemplate, filterId: WeaponCatalogFilterId): boolean {
   if (item.category !== "weapon") return false;
@@ -328,6 +360,48 @@ function getRollRequestBreakdown(request: RollRequest): FormulaBreakdownEntry[] 
   return [];
 }
 
+const BOON_CHECK_MODIFIER_DEFINITIONS: Array<{
+  id: string;
+  names: string[];
+  label: string;
+  bonus: number;
+  maxStacks?: number;
+}> = [
+  { id: "boon:augur", names: ["Augur"], label: "Augur", bonus: 1, maxStacks: 3 },
+  { id: "boon:pulgar-verde", names: ["Pulgar verde", "Sintonia con las plantas", "Sintonia con las plantas"], label: "Sintonia con las plantas", bonus: 1, maxStacks: 3 },
+  { id: "boon:forjado-por-el-fuego", names: ["Forjado por el fuego"], label: "Forjado por el fuego", bonus: 1 },
+  { id: "boon:imitador", names: ["Imitador"], label: "Imitador", bonus: 1, maxStacks: 3 },
+  { id: "boon:manipulador", names: ["Manipulador"], label: "Manipulador", bonus: 1, maxStacks: 3 },
+  { id: "boon:nacido-de-las-sombras", names: ["Nacido de las sombras"], label: "Nacido de las sombras", bonus: 1, maxStacks: 3 },
+  { id: "boon:correveidile", names: ["Correveidile"], label: "Correveidile", bonus: 1, maxStacks: 3 }
+];
+
+function getBoonCheckModifiers(sheet: CharacterSheet): RollModalCheckModifier[] {
+  const blessingCounts = new Map<string, number>();
+  sheet.bendiciones.forEach((entry) => {
+    const normalized = normalizeCapabilityText(entry);
+    blessingCounts.set(normalized, (blessingCounts.get(normalized) ?? 0) + 1);
+  });
+
+  return BOON_CHECK_MODIFIER_DEFINITIONS.flatMap((definition) => {
+    const totalMatches = definition.names.reduce(
+      (sum, name) => sum + (blessingCounts.get(normalizeCapabilityText(name)) ?? 0),
+      0
+    );
+    if (totalMatches <= 0) {
+      return [];
+    }
+    const appliedStacks = Math.min(totalMatches, definition.maxStacks ?? totalMatches);
+    const totalBonus = appliedStacks * definition.bonus;
+    return [{
+      id: definition.id,
+      label: `${definition.label} (+${totalBonus}, si aplica)`,
+      bonus: totalBonus,
+      source: "boon"
+    }];
+  });
+}
+
 function getAttackRollModifiers(action: CharacterActionDefinition, sheet: CharacterSheet): RollModalAttackModifier[] {
   if (!action.rollAttribute) {
     return [];
@@ -347,19 +421,33 @@ function getAttackRollModifiers(action: CharacterActionDefinition, sheet: Charac
   }];
 }
 
+function getCheckRollModifiers(
+  action: CharacterActionDefinition | undefined,
+  request: RollRequest | undefined,
+  sheet: CharacterSheet
+): RollModalCheckModifier[] {
+  const hasTargetRoll = Boolean((action && action.rollAttribute) || (request && typeof request.target === "number"));
+  if (!hasTargetRoll) {
+    return [];
+  }
+
+  const modifiers: RollModalCheckModifier[] = [...getBoonCheckModifiers(sheet)];
+  if (action) {
+    modifiers.push(...getAttackRollModifiers(action, sheet));
+  }
+  return modifiers;
+}
+
 function getPendingAttackTarget(
-  sheet: CharacterSheet,
-  characterName: string,
-  action: CharacterActionDefinition,
-  destination: RollDestination,
-  selectedAttackModifierIds: string[]
+  request: RollRequest | null,
+  selectedAttackModifierIds: string[],
+  modifiers: RollModalCheckModifier[]
 ): number | null {
-  const request = buildRollRequest(sheet, characterName, action.id, "attack", destination);
-  if (typeof request.target !== "number") {
+  if (!request || typeof request.target !== "number") {
     return null;
   }
 
-  const selectedBonus = getAttackRollModifiers(action, sheet)
+  const selectedBonus = modifiers
     .filter((modifier) => selectedAttackModifierIds.includes(modifier.id))
     .reduce((sum, modifier) => sum + modifier.bonus, 0);
 
@@ -643,6 +731,7 @@ export function UnifiedCharacterSheet({
   busy = false,
   onSave,
   onBack,
+  onOpenBuilder,
   onOpenCompendiumCapability
 }: Props) {
   const { draft, editMode, isDirty, isSavingLocal, setDraft, setEditMode, updateField, save } = useUnifiedCharacterSheet({
@@ -652,10 +741,6 @@ export function UnifiedCharacterSheet({
   });
   const canEditNotes = editMode && editable;
   const canEditInventory = editable;
-  const [activeTab, setActiveTab] = useState<TabId>("actions");
-  const [activeActionTab, setActiveActionTab] = useState<ActionTabId>("all");
-  const [activeCapabilityTab, setActiveCapabilityTab] = useState<CapabilityTabId>("abilities");
-  const [activeInventoryTab, setActiveInventoryTab] = useState<InventoryTabId>("weapons");
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>(ITEM_CATALOG[0]?.templateId ?? "");
   const [inventoryCatalogModalTab, setInventoryCatalogModalTab] = useState<InventoryCatalogModalTab | null>(null);
   const [selectedWeaponCatalogFilter, setSelectedWeaponCatalogFilter] = useState<WeaponCatalogFilterId>("all");
@@ -686,6 +771,21 @@ export function UnifiedCharacterSheet({
     () => new Set(normalizedSheet.actionFavorites ?? []),
     [normalizedSheet.actionFavorites]
   );
+  const displayName = normalizedSheet.identidad.nombrePersonaje || title;
+  const sheetTabStorageKey = useMemo(
+    () => `${SHEET_TAB_STORAGE_PREFIX}${normalizeCapabilityText(displayName || "default").replace(/[^a-z0-9]+/g, "-")}`,
+    [displayName]
+  );
+  const [sheetTabState, setSheetTabState] = useState<SheetTabState>(DEFAULT_SHEET_TAB_STATE);
+  const [hasHydratedSheetTabs, setHasHydratedSheetTabs] = useState(false);
+  const activeTab = sheetTabState.activeTab;
+  const activeActionTab = sheetTabState.activeActionTab;
+  const activeCapabilityTab = sheetTabState.activeCapabilityTab;
+  const activeInventoryTab = sheetTabState.activeInventoryTab;
+  const setActiveTab = (nextTab: TabId) => setSheetTabState((current) => ({ ...current, activeTab: nextTab }));
+  const setActiveActionTab = (nextTab: ActionTabId) => setSheetTabState((current) => ({ ...current, activeActionTab: nextTab }));
+  const setActiveCapabilityTab = (nextTab: CapabilityTabId) => setSheetTabState((current) => ({ ...current, activeCapabilityTab: nextTab }));
+  const setActiveInventoryTab = (nextTab: InventoryTabId) => setSheetTabState((current) => ({ ...current, activeInventoryTab: nextTab }));
   const filteredActions = useMemo(() => {
     switch (activeActionTab) {
       case "all":
@@ -716,13 +816,12 @@ export function UnifiedCharacterSheet({
   }, [visibleActions, activeActionTab, favoriteActionIds]);
   const pendingAttackModifiers = useMemo(
     () => (
-      pendingRollConfirmation?.action && pendingRollConfirmation.phase === "attack"
-        ? getAttackRollModifiers(pendingRollConfirmation.action, normalizedSheet)
+      pendingRollConfirmation
+        ? getCheckRollModifiers(pendingRollConfirmation.action, pendingRollConfirmation.request, normalizedSheet)
         : []
     ),
     [pendingRollConfirmation, normalizedSheet]
   );
-  const displayName = normalizedSheet.identidad.nombrePersonaje || title;
   const experience = useMemo(() => getCharacterExperienceSummary(normalizedSheet), [normalizedSheet]);
   const displayedSpentExperience = Math.max(normalizedSheet.progreso.experienciaGastada, experience.computedSpent);
   const activeArmor = useMemo(
@@ -766,6 +865,43 @@ export function UnifiedCharacterSheet({
   useEffect(() => {
     persistRollDestination("roll20");
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    let nextState = DEFAULT_SHEET_TAB_STATE;
+    try {
+      const rawTabs = window.localStorage.getItem(sheetTabStorageKey);
+      if (rawTabs) {
+        const persistedTabs = JSON.parse(rawTabs) as PersistedSheetTabs;
+        nextState = {
+          activeTab: persistedTabs.activeTab && TAB_IDS.includes(persistedTabs.activeTab) ? persistedTabs.activeTab : DEFAULT_SHEET_TAB_STATE.activeTab,
+          activeActionTab: persistedTabs.activeActionTab && ACTION_TAB_IDS.includes(persistedTabs.activeActionTab) ? persistedTabs.activeActionTab : DEFAULT_SHEET_TAB_STATE.activeActionTab,
+          activeCapabilityTab: persistedTabs.activeCapabilityTab && CAPABILITY_TAB_IDS.includes(persistedTabs.activeCapabilityTab) ? persistedTabs.activeCapabilityTab : DEFAULT_SHEET_TAB_STATE.activeCapabilityTab,
+          activeInventoryTab: persistedTabs.activeInventoryTab && INVENTORY_TAB_IDS.includes(persistedTabs.activeInventoryTab) ? persistedTabs.activeInventoryTab : DEFAULT_SHEET_TAB_STATE.activeInventoryTab
+        };
+      }
+    } catch {
+      window.localStorage.removeItem(sheetTabStorageKey);
+      nextState = DEFAULT_SHEET_TAB_STATE;
+    }
+    setSheetTabState(nextState);
+    setHasHydratedSheetTabs(true);
+  }, [sheetTabStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !hasHydratedSheetTabs) {
+      return;
+    }
+    const persistedTabs: PersistedSheetTabs = {
+      activeTab,
+      activeActionTab,
+      activeCapabilityTab,
+      activeInventoryTab
+    };
+    window.localStorage.setItem(sheetTabStorageKey, JSON.stringify(persistedTabs));
+  }, [activeActionTab, activeCapabilityTab, activeInventoryTab, activeTab, hasHydratedSheetTabs, sheetTabStorageKey]);
 
   function pushHistory(titleText: string, rolls: ActionRollResult[], detail?: string): void {
     setHistory((current) => [{ title: titleText, detail, rolls }, ...current].slice(0, 12));
@@ -1085,6 +1221,45 @@ export function UnifiedCharacterSheet({
     });
   }
 
+  function openSimpleCompendiumDetail(
+    tipo: "bendicion" | "carga",
+    categoryLabel: string,
+    entryName: string
+  ): void {
+    const compendiumEntry = findCompendiumEntryByTypeAndName(tipo, entryName);
+    if (!compendiumEntry) {
+      setActionDetailModal({
+        title: entryName,
+        sourceLabel: categoryLabel,
+        detail: tipo === "bendicion"
+          ? "Bendicion registrada en la ficha. Cada bendicion cuenta como 5 PX gastados."
+          : "Carga registrada en la ficha. Cada carga aporta 5 PX adicionales al total de experiencia disponible.",
+        notes: [
+          tipo === "bendicion"
+            ? "No existe una entrada detallada en el compendio para este nombre exacto."
+            : "No existe una entrada detallada en el compendio para este nombre exacto."
+        ]
+      });
+      return;
+    }
+    const summaryLink = getCompendiumSummaryLink(compendiumEntry);
+    const references = [
+      getCompendiumSourcePdfUrl(compendiumEntry.fuente, compendiumEntry.pagina, compendiumEntry.nombre),
+      summaryLink?.url
+    ]
+      .filter((url): url is string => Boolean(url))
+      .map((url) => ({
+        url,
+        label: url === summaryLink?.url ? summaryLink.documentLabel : `${compendiumEntry.fuente}${compendiumEntry.pagina ? ` p. ${compendiumEntry.pagina}` : ""}`
+      }));
+    setActionDetailModal({
+      title: compendiumEntry.nombre,
+      sourceLabel: `${categoryLabel}${compendiumEntry.fuente ? ` · ${compendiumEntry.fuente}${compendiumEntry.pagina ? ` p. ${compendiumEntry.pagina}` : ""}` : ""}`,
+      detail: compendiumEntry.detalle,
+      references
+    });
+  }
+
   function queueRoll20Request(
     requestOrAction: RollRequest | CharacterActionDefinition,
     phaseOrTitle: CharacterActionPhase | string,
@@ -1117,6 +1292,40 @@ export function UnifiedCharacterSheet({
       selectedDefenseAlternativeId: ""
     });
     setShowPendingRollBreakdown(false);
+  }
+
+  function buildPendingConfirmationRequest(pending: PendingRollConfirmation): RollRequest | null {
+    const selectedDefenseAction = pending.selectedDefenseAlternativeId
+      ? defenseAlternativeActions.find((action) => action.id === pending.selectedDefenseAlternativeId)
+      : null;
+
+    if (selectedDefenseAction) {
+      return buildRollRequest(
+        normalizedSheet,
+        displayName,
+        selectedDefenseAction.id,
+        "attack",
+        rollDestination
+      );
+    }
+
+    if (pending.request) {
+      return { ...pending.request };
+    }
+
+    if (pending.action && pending.phase) {
+      return buildRollRequest(
+        normalizedSheet,
+        displayName,
+        pending.action.id,
+        pending.phase,
+        rollDestination,
+        "",
+        pending.selectedDamageModifierIds
+      );
+    }
+
+    return null;
   }
 
   function runAction(action: CharacterActionDefinition, phase: CharacterActionPhase, damageVariantId?: string): void {
@@ -1299,40 +1508,21 @@ export function UnifiedCharacterSheet({
   async function handleConfirmRoll20Send(visibility: Roll20Visibility): Promise<void> {
     if (!pendingRollConfirmation) return;
     try {
-      const selectedDefenseAction = pendingRollConfirmation.selectedDefenseAlternativeId
-        ? defenseAlternativeActions.find((action) => action.id === pendingRollConfirmation.selectedDefenseAlternativeId)
-        : null;
-        const request = selectedDefenseAction
-          ? buildRollRequest(
-              normalizedSheet,
-              displayName,
-              selectedDefenseAction.id,
-            "attack",
-            rollDestination
-            )
-          : pendingRollConfirmation.request ?? (
-          pendingRollConfirmation.action && pendingRollConfirmation.phase
-            ? buildRollRequest(
-                normalizedSheet,
-              displayName,
-              pendingRollConfirmation.action.id,
-              pendingRollConfirmation.phase,
-              rollDestination,
-                "",
-                pendingRollConfirmation.selectedDamageModifierIds
-              )
-            : null
-          );
+        const request = buildPendingConfirmationRequest(pendingRollConfirmation);
         if (!request) {
           throw new Error("No se pudo preparar la tirada");
         }
-        if (pendingRollConfirmation.action && pendingRollConfirmation.phase === "attack" && typeof request.target === "number") {
-          const selectedAttackModifiers = getAttackRollModifiers(pendingRollConfirmation.action, normalizedSheet)
+        if (typeof request.target === "number") {
+          const selectedAttackModifiers = getCheckRollModifiers(
+            pendingRollConfirmation.action,
+            request,
+            normalizedSheet
+          )
             .filter((modifier) => pendingRollConfirmation.selectedAttackModifierIds.includes(modifier.id));
           const totalAttackBonus = selectedAttackModifiers.reduce((sum, modifier) => sum + modifier.bonus, 0);
           if (totalAttackBonus !== 0) {
             request.target += totalAttackBonus;
-            const modifierNote = `Modificadores de ataque: ${selectedAttackModifiers.map((modifier) => modifier.label).join(", ")}`;
+            const modifierNote = `Modificadores de tirada: ${selectedAttackModifiers.map((modifier) => modifier.label).join(", ")}`;
             request.note = request.note ? `${request.note} | ${modifierNote}` : modifierNote;
           }
         }
@@ -2096,11 +2286,21 @@ export function UnifiedCharacterSheet({
                 ) : null}
 
                 {activeCapabilityTab === "blessings" ? (
-                  <SimpleStringList title="Bendiciones" entries={normalizedSheet.bendiciones} emptyText="Sin bendiciones registradas." />
+                  <SimpleStringList
+                    title="Bendiciones"
+                    entries={normalizedSheet.bendiciones}
+                    emptyText="Sin bendiciones registradas."
+                    onOpenDetail={(entry) => openSimpleCompendiumDetail("bendicion", "Bendicion", entry)}
+                  />
                 ) : null}
 
                 {activeCapabilityTab === "burdens" ? (
-                  <SimpleStringList title="Cargas" entries={normalizedSheet.cargas} emptyText="Sin cargas registradas." />
+                  <SimpleStringList
+                    title="Cargas"
+                    entries={normalizedSheet.cargas}
+                    emptyText="Sin cargas registradas."
+                    onOpenDetail={(entry) => openSimpleCompendiumDetail("carga", "Carga", entry)}
+                  />
                 ) : null}
 
                 {activeCapabilityTab === "abilities" ? (
@@ -2200,6 +2400,12 @@ export function UnifiedCharacterSheet({
               <h2 className="unified-sheet-title">{displayName}</h2>
               {subtitle ? <span className="unified-sheet-inline-subtitle">{subtitle}</span> : null}
             </div>
+            {onOpenBuilder ? (
+              <button type="button" className="unified-sheet-builder-launch" onClick={onOpenBuilder}>
+                <span aria-hidden="true">⚒</span>
+                <span>Constructor</span>
+              </button>
+            ) : null}
             <div className="unified-sheet-xp-card">
               <div className="unified-sheet-xp-row">
                 <span>PX total</span>
@@ -2595,7 +2801,7 @@ export function UnifiedCharacterSheet({
               <p className="section-help">{pendingRollConfirmation.title}</p>
               {pendingAttackModifiers.length > 0 ? (
                 <div className="character-roll-confirm-modifiers">
-                  <span>Modificadores de ataque</span>
+                  <span>Modificadores de tirada</span>
                   {pendingAttackModifiers.map((modifier) => (
                     <label key={`${pendingRollConfirmation.action?.id}-${modifier.id}`} className="character-roll-confirm-modifier">
                       <input
@@ -2615,11 +2821,9 @@ export function UnifiedCharacterSheet({
                   ))}
                   <p className="section-help">
                     Objetivo final: {getPendingAttackTarget(
-                      normalizedSheet,
-                      displayName,
-                      pendingRollConfirmation.action!,
-                      rollDestination,
-                      pendingRollConfirmation.selectedAttackModifierIds
+                      buildPendingConfirmationRequest(pendingRollConfirmation),
+                      pendingRollConfirmation.selectedAttackModifierIds,
+                      pendingAttackModifiers
                     ) ?? "-"}
                   </p>
                 </div>
@@ -3326,17 +3530,31 @@ function CapabilityTextList({
 function SimpleStringList({
   title,
   entries,
-  emptyText
+  emptyText,
+  onOpenDetail
 }: {
   title: string;
   entries: string[];
   emptyText: string;
+  onOpenDetail?: (entry: string) => void;
 }) {
   return (
     <div className="unified-sheet-list">
       {entries.length > 0 ? (
         entries.map((entry, index) => (
-          <article key={`${title}-${index}-${entry}`} className="unified-sheet-capability-card">
+          <article
+            key={`${title}-${index}-${entry}`}
+            className={`unified-sheet-capability-card${onOpenDetail ? " is-clickable" : ""}`}
+            onClick={onOpenDetail ? () => onOpenDetail(entry) : undefined}
+            onKeyDown={onOpenDetail ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onOpenDetail(entry);
+              }
+            } : undefined}
+            tabIndex={onOpenDetail ? 0 : undefined}
+            role={onOpenDetail ? "button" : undefined}
+          >
             <h3>{entry}</h3>
             <div className="unified-sheet-capability-meta">
               <span>{title}</span>
