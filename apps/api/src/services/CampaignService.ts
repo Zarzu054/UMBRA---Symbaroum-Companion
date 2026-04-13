@@ -210,8 +210,6 @@ export class CampaignService {
   }
 
   async linkCharacter(userId: string, userRole: UserRole, campaignId: string, characterId: string): Promise<Campaign> {
-    requireDirectorRole(userRole);
-    await this.assertCampaignManagedBy(userId, userRole, campaignId);
     const payload = linkCampaignCharacterSchema.parse({ characterId });
     const character = await this.model.findCharacterById(payload.characterId);
 
@@ -220,6 +218,13 @@ export class CampaignService {
     }
 
     const campaign = await this.getCampaign(userId, userRole, campaignId);
+    const isDirector = userRole === "superadmin" || campaign.gmId === userId;
+    const isMember = campaign.members.some((member: Campaign["members"][number]) => member.userId === userId);
+
+    if (!isDirector && !isMember) {
+      throw new AppError("CAMPAIGN_FORBIDDEN", "Solo los miembros pueden vincular personajes a la campana", 403);
+    }
+
     const isMemberCharacter = campaign.members.some((member: Campaign["members"][number]) => member.userId === character.ownerId);
     if (!isMemberCharacter) {
       throw new AppError(
@@ -229,18 +234,26 @@ export class CampaignService {
       );
     }
 
+    if (!isDirector && character.ownerId !== userId) {
+      throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes vincular tus propios personajes", 403);
+    }
+
     await this.model.linkCharacter(campaignId, payload.characterId);
     return this.getCampaign(userId, userRole, campaignId);
   }
 
   async unlinkCharacter(userId: string, userRole: UserRole, linkId: string): Promise<Campaign> {
-    requireDirectorRole(userRole);
-    const link = await this.model.findCharacterLinkById(linkId);
+    const link = await this.model.findCharacterLinkDetailById(linkId);
     if (!link) {
       throw new AppError("CAMPAIGN_CHARACTER_LINK_NOT_FOUND", "Vinculo de personaje no encontrado", 404);
     }
 
-    await this.assertCampaignManagedBy(userId, userRole, link.campaignId);
+    const campaign = await this.getCampaign(userId, userRole, link.campaignId);
+    const isDirector = userRole === "superadmin" || campaign.gmId === userId;
+    if (!isDirector && link.ownerId !== userId) {
+      throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes desvincular tus propios personajes", 403);
+    }
+
     await this.model.unlinkCharacter(linkId);
     return this.getCampaign(userId, userRole, link.campaignId);
   }

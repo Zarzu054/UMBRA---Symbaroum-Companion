@@ -1,0 +1,309 @@
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+import { useEffect, useMemo, useState } from "react";
+import { SYMBAROUM_ABILITIES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS, parseCharacterSheet, synchronizeCharacterSheet } from "@umbra/shared";
+import { getCharacterExperienceSummary } from "../models/characterExperience";
+import { SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS } from "../models/compendiumEntries";
+const LEVEL_OPTIONS = [
+    { value: "novato", label: "Novato" },
+    { value: "adepto", label: "Adepto" },
+    { value: "maestro", label: "Maestro" }
+];
+const INITIAL_CATALOG_SELECTIONS = {
+    habilidades: SYMBAROUM_ABILITIES[0]?.id ?? "",
+    poderesMisticos: SYMBAROUM_MYSTIC_POWERS[0]?.id ?? "",
+    rituales: SYMBAROUM_RITUALS[0]?.id ?? "",
+    bendiciones: SYMBAROUM_BLESSINGS[0]?.id ?? "",
+    cargas: SYMBAROUM_BURDENS[0]?.id ?? ""
+};
+const SIMPLE_SECTION_LABELS = {
+    bendiciones: "Bendiciones",
+    cargas: "Cargas",
+    rasgos: "Rasgos"
+};
+const BUILDER_TABS = [
+    { id: "resumen", label: "Resumen" },
+    { id: "identidad", label: "Identidad" },
+    { id: "compras", label: "Compras PX" },
+    { id: "rasgos", label: "Rasgos y cargas" }
+];
+function normalizeName(value) {
+    return String(value ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+}
+function getRatedEntryCost(level) {
+    switch (level) {
+        case "maestro":
+            return 60;
+        case "adepto":
+            return 30;
+        case "novato":
+        default:
+            return 10;
+    }
+}
+function getSimpleEntryDelta(section) {
+    if (section === "bendiciones")
+        return -5;
+    if (section === "cargas")
+        return 5;
+    return 0;
+}
+function buildRatedEntry(entry, section) {
+    return {
+        nombre: entry.nombre,
+        tipo: section === "habilidades" ? "Habilidad" : section === "poderesMisticos" ? "Poder mistico" : "Ritual",
+        efecto: entry.efectoResumen,
+        nivel: "novato",
+        fuente: entry.libro,
+        pagina: entry.pagina,
+        notas: entry.efectoResumen,
+        acciones: entry.acciones
+    };
+}
+function getCatalogEntries(section) {
+    if (section === "habilidades")
+        return [...SYMBAROUM_ABILITIES];
+    if (section === "poderesMisticos")
+        return [...SYMBAROUM_MYSTIC_POWERS];
+    return [...SYMBAROUM_RITUALS];
+}
+function getSectionCostLabel(section) {
+    return section === "rituales" ? "Sin coste automatico" : "10 / 30 / 60 PX";
+}
+function getNextLevel(level) {
+    if (level === "novato")
+        return "adepto";
+    if (level === "adepto")
+        return "maestro";
+    return null;
+}
+function getUpgradeCost(section, currentLevel) {
+    if (section === "rituales") {
+        return 0;
+    }
+    if (currentLevel === "novato") {
+        return 20;
+    }
+    if (currentLevel === "adepto") {
+        return 30;
+    }
+    return 0;
+}
+function parseCapabilityTiers(detail) {
+    const text = String(detail ?? "").trim();
+    if (!text) {
+        return [];
+    }
+    const matches = [...text.matchAll(/(Novato|Adepto|Maestro):\s*([\s\S]*?)(?=(?:Novato|Adepto|Maestro):|$)/gi)];
+    const order = ["Novato", "Adepto", "Maestro"];
+    const mapped = new Map();
+    for (const match of matches) {
+        const rawLabel = match[1]?.toLowerCase();
+        const content = match[2]?.trim();
+        if (!content)
+            continue;
+        const label = rawLabel === "novato" ? "Novato" : rawLabel === "adepto" ? "Adepto" : rawLabel === "maestro" ? "Maestro" : null;
+        if (!label || mapped.has(label))
+            continue;
+        mapped.set(label, { label, content });
+    }
+    return order.map((label) => mapped.get(label)).filter((tier) => Boolean(tier));
+}
+export function CharacterBuilderView({ character, busy = false, onBackToCharacters, onOpenSheet, onSave }) {
+    const [draft, setDraft] = useState(() => parseCharacterSheet(character.sheet));
+    const [catalogSelections, setCatalogSelections] = useState(INITIAL_CATALOG_SELECTIONS);
+    const [simpleInputs, setSimpleInputs] = useState({
+        bendiciones: "",
+        cargas: "",
+        rasgos: ""
+    });
+    const [manualSpentAdjustment, setManualSpentAdjustment] = useState(0);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState(null);
+    const [activeTab, setActiveTab] = useState("resumen");
+    const [acquisitionModal, setAcquisitionModal] = useState(null);
+    useEffect(() => {
+        const parsedSheet = parseCharacterSheet(character.sheet);
+        const experience = getCharacterExperienceSummary(parsedSheet);
+        setDraft(parsedSheet);
+        setCatalogSelections(INITIAL_CATALOG_SELECTIONS);
+        setSimpleInputs({
+            bendiciones: "",
+            cargas: "",
+            rasgos: ""
+        });
+        setManualSpentAdjustment(Math.max(0, parsedSheet.progreso.experienciaGastada - experience.computedSpent));
+        setError(null);
+        setActiveTab("resumen");
+        setAcquisitionModal(null);
+    }, [character]);
+    const experience = useMemo(() => getCharacterExperienceSummary(draft), [draft]);
+    const effectiveSpent = useMemo(() => Math.max(0, experience.computedSpent + Math.max(0, manualSpentAdjustment)), [experience.computedSpent, manualSpentAdjustment]);
+    const effectiveAvailable = useMemo(() => Math.max(0, draft.progreso.experienciaTotal - effectiveSpent), [draft.progreso.experienciaTotal, effectiveSpent]);
+    const subtitle = `${draft.identidad.cultura || "Sin cultura"} · ${draft.identidad.arquetipo || "Sin arquetipo"} · ${draft.identidad.raza || "Sin raza"}`;
+    const acquisitionCatalogEntries = useMemo(() => acquisitionModal ? getCatalogEntries(acquisitionModal.section) : [], [acquisitionModal]);
+    const filteredAcquisitionEntries = useMemo(() => {
+        if (!acquisitionModal) {
+            return [];
+        }
+        const query = normalizeName(acquisitionModal.query);
+        const entries = acquisitionCatalogEntries.filter((entry) => !draft[acquisitionModal.section].some((current) => normalizeName(current.nombre) === normalizeName(entry.nombre)));
+        if (!query) {
+            return entries.slice(0, 12);
+        }
+        return entries
+            .filter((entry) => normalizeName(entry.nombre).includes(query) ||
+            normalizeName(entry.efectoResumen).includes(query) ||
+            normalizeName(entry.libro).includes(query))
+            .slice(0, 12);
+    }, [acquisitionCatalogEntries, acquisitionModal, draft]);
+    const selectedAcquisitionEntry = useMemo(() => acquisitionModal
+        ? acquisitionCatalogEntries.find((entry) => entry.id === acquisitionModal.selectedId) ?? filteredAcquisitionEntries[0] ?? null
+        : null, [acquisitionCatalogEntries, acquisitionModal, filteredAcquisitionEntries]);
+    const acquisitionPreviewTiers = useMemo(() => parseCapabilityTiers(selectedAcquisitionEntry?.efectoResumen ?? ""), [selectedAcquisitionEntry]);
+    function updateIdentityField(field, value) {
+        setDraft((current) => ({
+            ...current,
+            identidad: {
+                ...current.identidad,
+                [field]: value
+            }
+        }));
+    }
+    function updateProgressField(field, value) {
+        setDraft((current) => ({
+            ...current,
+            progreso: {
+                ...current.progreso,
+                [field]: Math.max(0, Math.trunc(Number.isFinite(value) ? value : 0))
+            }
+        }));
+    }
+    function levelUpRatedEntry(section, index) {
+        const entry = draft[section][index];
+        if (!entry) {
+            return;
+        }
+        const nextLevel = getNextLevel(entry.nivel);
+        if (!nextLevel) {
+            return;
+        }
+        const upgradeCost = getUpgradeCost(section, entry.nivel);
+        if (upgradeCost > effectiveAvailable) {
+            setError(`No hay PX suficientes para subir ${entry.nombre} a ${nextLevel}.`);
+            return;
+        }
+        setError(null);
+        setDraft((current) => ({
+            ...current,
+            [section]: current[section].map((ratedEntry, entryIndex) => entryIndex === index ? { ...ratedEntry, nivel: nextLevel } : ratedEntry)
+        }));
+    }
+    function openAcquisitionModal(section) {
+        const entries = getCatalogEntries(section).filter((entry) => !draft[section].some((current) => normalizeName(current.nombre) === normalizeName(entry.nombre)));
+        setAcquisitionModal({
+            section,
+            query: "",
+            selectedId: entries[0]?.id ?? ""
+        });
+    }
+    function confirmAcquisition() {
+        if (!acquisitionModal) {
+            return;
+        }
+        const entry = acquisitionCatalogEntries.find((candidate) => candidate.id === (selectedAcquisitionEntry?.id ?? acquisitionModal.selectedId));
+        if (!entry) {
+            return;
+        }
+        const section = acquisitionModal.section;
+        const acquisitionCost = section === "rituales" ? 0 : 10;
+        if (acquisitionCost > effectiveAvailable) {
+            setError(`No hay PX suficientes para obtener ${entry.nombre}.`);
+            return;
+        }
+        if (draft[section].some((current) => normalizeName(current.nombre) === normalizeName(entry.nombre))) {
+            setError(`${entry.nombre} ya esta en la hoja.`);
+            return;
+        }
+        setError(null);
+        setDraft((current) => ({
+            ...current,
+            [section]: [...current[section], buildRatedEntry(entry, section)]
+        }));
+        setAcquisitionModal(null);
+    }
+    function updateSimpleInput(section, value) {
+        setSimpleInputs((current) => ({
+            ...current,
+            [section]: value
+        }));
+    }
+    function addSimpleEntry(section) {
+        const value = simpleInputs[section].trim();
+        if (!value)
+            return;
+        if (draft[section].some((entry) => normalizeName(entry) === normalizeName(value))) {
+            setError(`${value} ya esta en ${SIMPLE_SECTION_LABELS[section].toLowerCase()}.`);
+            return;
+        }
+        setError(null);
+        setDraft((current) => ({
+            ...current,
+            [section]: [...current[section], value]
+        }));
+        setSimpleInputs((current) => ({
+            ...current,
+            [section]: ""
+        }));
+    }
+    function removeSimpleEntry(section, index) {
+        setDraft((current) => ({
+            ...current,
+            [section]: current[section].filter((_, entryIndex) => entryIndex !== index)
+        }));
+    }
+    function addCatalogSimpleEntry(section) {
+        const sourceEntries = section === "bendiciones" ? SYMBAROUM_BLESSINGS : SYMBAROUM_BURDENS;
+        const selectedId = catalogSelections[section];
+        const entry = sourceEntries.find((candidate) => candidate.id === selectedId);
+        if (!entry) {
+            return;
+        }
+        if (draft[section].some((current) => normalizeName(current) === normalizeName(entry.nombre))) {
+            setError(`${entry.nombre} ya esta en ${SIMPLE_SECTION_LABELS[section].toLowerCase()}.`);
+            return;
+        }
+        setError(null);
+        setDraft((current) => ({
+            ...current,
+            [section]: [...current[section], entry.nombre]
+        }));
+    }
+    async function handleSave() {
+        setIsSaving(true);
+        setError(null);
+        try {
+            const nextSheet = synchronizeCharacterSheet({
+                ...draft,
+                progreso: {
+                    ...draft.progreso,
+                    experienciaGastada: effectiveSpent
+                }
+            });
+            await onSave(nextSheet);
+        }
+        catch (err) {
+            setError(err instanceof Error ? err.message : "No se pudo guardar el constructor.");
+        }
+        finally {
+            setIsSaving(false);
+        }
+    }
+    return (_jsxs("section", { className: "character-builder-page unified-sheet", children: [_jsxs("section", { className: "character-builder-shell campaign-sheet-card", children: [_jsxs("div", { className: "character-builder-header-band", children: [_jsxs("div", { className: "unified-sheet-portrait", children: [_jsx("div", { className: "unified-sheet-portrait-ring" }), _jsx("div", { className: "unified-sheet-portrait-content", children: _jsx("span", { children: String(draft.identidad.arquetipo || character.archetype || "C").slice(0, 1) }) })] }), _jsxs("div", { className: "character-builder-identity", children: [_jsx("h2", { className: "unified-sheet-title", children: draft.identidad.nombrePersonaje || character.name }), _jsx("p", { className: "unified-sheet-inline-subtitle", children: subtitle })] }), _jsxs("div", { className: "toolbar character-builder-toolbar", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: onBackToCharacters, children: "Volver a personajes" }), _jsx("button", { type: "button", className: "subtle-button", onClick: onOpenSheet, children: "Abrir hoja" }), _jsx("button", { type: "button", onClick: () => void handleSave(), disabled: busy || isSaving, children: isSaving ? "Guardando..." : "Guardar constructor" })] })] }), error ? (_jsx("section", { className: "panel error-list", children: _jsx("p", { children: error }) })) : null, _jsxs("section", { className: "character-builder-stage", children: [_jsx("div", { className: "unified-sheet-tabs character-builder-tabs", children: BUILDER_TABS.map((tab) => (_jsx("button", { type: "button", className: activeTab === tab.id ? "is-active" : "", onClick: () => setActiveTab(tab.id), children: tab.label }, tab.id))) }), _jsxs("section", { className: "character-builder-layout", children: [activeTab === "resumen" ? (_jsxs("section", { className: "character-builder-panel campaign-sheet-card", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Constructor" }), _jsx("span", { className: "meta-text", children: "Edicion narrativa y progreso de PX" })] }), _jsxs("div", { className: "character-builder-xp-grid", children: [_jsxs("article", { className: "character-builder-xp-card", children: [_jsx("span", { children: "PX total" }), _jsx("strong", { children: draft.progreso.experienciaTotal })] }), _jsxs("article", { className: "character-builder-xp-card", children: [_jsx("span", { children: "PX gastada" }), _jsx("strong", { children: experience.computedSpent })] }), _jsxs("article", { className: "character-builder-xp-card", children: [_jsx("span", { children: "PX disponible" }), _jsx("strong", { children: effectiveAvailable })] })] }), _jsxs("div", { className: "character-builder-summary-notes", children: [_jsxs("p", { children: [_jsx("strong", { children: "Bendiciones:" }), " cada una suma 5 PX gastados."] }), _jsxs("p", { children: [_jsx("strong", { children: "Cargas:" }), " se registran en la ficha y el constructor, pero no alteran el PX total."] }), _jsxs("p", { children: [_jsx("strong", { children: "Rituales y rasgos:" }), " se gestionan aqui, pero sin coste automatico."] })] })] })) : null, activeTab === "identidad" ? (_jsxs("section", { className: "character-builder-panel campaign-sheet-card", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Identidad" }), _jsx("span", { className: "meta-text", children: "Lo que antes estaba repartido entre crear y editar." })] }), _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Nombre del personaje" }), _jsx("input", { value: draft.identidad.nombrePersonaje, onChange: (event) => updateIdentityField("nombrePersonaje", event.target.value) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Nombre del jugador" }), _jsx("input", { value: draft.identidad.nombreJugador, onChange: (event) => updateIdentityField("nombreJugador", event.target.value) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Raza" }), _jsx("input", { value: draft.identidad.raza, onChange: (event) => updateIdentityField("raza", event.target.value) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Cultura" }), _jsx("input", { value: draft.identidad.cultura, onChange: (event) => updateIdentityField("cultura", event.target.value) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Arquetipo" }), _jsx("input", { value: draft.identidad.arquetipo, onChange: (event) => updateIdentityField("arquetipo", event.target.value) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Profesion" }), _jsx("input", { value: draft.identidad.profesion, onChange: (event) => updateIdentityField("profesion", event.target.value) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Edad" }), _jsx("input", { value: draft.identidad.edad, onChange: (event) => updateIdentityField("edad", event.target.value) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Apariencia" }), _jsx("input", { value: draft.identidad.apariencia, onChange: (event) => updateIdentityField("apariencia", event.target.value) })] }), _jsxs("label", { className: "field field-span-2", children: [_jsx("span", { children: "Objetivo personal" }), _jsx("input", { value: draft.identidad.objetivoPersonal, onChange: (event) => updateIdentityField("objetivoPersonal", event.target.value) })] }), _jsxs("label", { className: "field field-span-2", children: [_jsx("span", { children: "Trasfondo" }), _jsx("textarea", { rows: 6, value: draft.identidad.trasfondo, onChange: (event) => updateIdentityField("trasfondo", event.target.value) })] })] })] })) : null, activeTab === "compras" ? (_jsxs("section", { className: "character-builder-panel campaign-sheet-card", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Compras de PX" }), _jsxs("span", { className: "meta-text", children: ["PX disponibles: ", effectiveAvailable] })] }), _jsx("div", { className: "character-builder-purchase-stack", children: ["habilidades", "poderesMisticos", "rituales"].map((section) => {
+                                                    return (_jsxs("article", { className: "character-builder-block", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h4", { children: section === "habilidades" ? "Habilidades" : section === "poderesMisticos" ? "Poderes" : "Rituales" }), _jsxs("div", { className: "toolbar", children: [_jsx("span", { className: "meta-text", children: getSectionCostLabel(section) }), _jsx("button", { type: "button", onClick: () => openAcquisitionModal(section), children: section === "habilidades" ? "Obtener nueva habilidad" : section === "poderesMisticos" ? "Obtener nuevo poder" : "Obtener nuevo ritual" })] })] }), _jsx("div", { className: "character-builder-entry-list", children: draft[section].length > 0 ? draft[section].map((entry, index) => (_jsxs("article", { className: "character-builder-entry-card", children: [_jsxs("div", { className: "character-builder-entry-head", children: [_jsxs("div", { children: [_jsx("strong", { children: entry.nombre }), _jsxs("span", { className: "meta-text", children: [section === "rituales" ? "Sin coste automatico" : `${getRatedEntryCost(entry.nivel)} PX invertidos`, entry.fuente ? ` · ${entry.fuente}` : ""] })] }), _jsxs("div", { className: "card-actions", children: [_jsxs("span", { className: "meta-text", children: ["Nivel actual: ", LEVEL_OPTIONS.find((option) => option.value === entry.nivel)?.label ?? entry.nivel] }), getNextLevel(entry.nivel) ? (_jsxs("button", { type: "button", onClick: () => levelUpRatedEntry(section, index), disabled: getUpgradeCost(section, entry.nivel) > effectiveAvailable, children: ["Subir a ", getNextLevel(entry.nivel) === "adepto" ? "Adepto" : "Maestro", section === "rituales" ? "" : ` (${getUpgradeCost(section, entry.nivel)} PX)`] })) : (_jsx("span", { className: "meta-text", children: "Nivel maximo" }))] })] }), entry.efecto ? _jsx("p", { className: "section-help", children: entry.efecto }) : null] }, `${section}-${entry.nombre}-${index}`))) : (_jsx("p", { className: "section-help", children: "Sin entradas registradas." })) })] }, section));
+                                                }) })] })) : null, activeTab === "rasgos" ? (_jsxs("section", { className: "character-builder-panel campaign-sheet-card", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Bendiciones, cargas y rasgos" }), _jsx("span", { className: "meta-text", children: "Listas simples para progreso y narrativa." })] }), _jsx("div", { className: "character-builder-purchase-stack", children: ["bendiciones", "cargas", "rasgos"].map((section) => (_jsxs("article", { className: "character-builder-block", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h4", { children: SIMPLE_SECTION_LABELS[section] }), _jsx("span", { className: "meta-text", children: getSimpleEntryDelta(section) === 0 ? "Sin coste automatico" : getSimpleEntryDelta(section) > 0 ? `+${getSimpleEntryDelta(section)} PX` : `${getSimpleEntryDelta(section)} PX` })] }), section === "bendiciones" || section === "cargas" ? (_jsxs("div", { className: "character-builder-purchase-stack", children: [_jsxs("div", { className: "character-builder-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Catalogo" }), _jsx("select", { value: catalogSelections[section], onChange: (event) => setCatalogSelections((current) => ({ ...current, [section]: event.target.value })), children: (section === "bendiciones" ? SYMBAROUM_BLESSINGS : SYMBAROUM_BURDENS).map((entry) => (_jsx("option", { value: entry.id, children: entry.nombre }, entry.id))) })] }), _jsx("button", { type: "button", onClick: () => addCatalogSimpleEntry(section), children: section === "bendiciones" ? "Comprar del catalogo" : "Anadir del catalogo" })] }), _jsxs("div", { className: "character-builder-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Personalizada" }), _jsx("input", { value: simpleInputs[section], onChange: (event) => updateSimpleInput(section, event.target.value) })] }), _jsx("button", { type: "button", onClick: () => addSimpleEntry(section), children: section === "bendiciones" ? "Comprar personalizada" : "Anadir personalizada" })] })] })) : (_jsxs("div", { className: "character-builder-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Anadir" }), _jsx("input", { value: simpleInputs[section], onChange: (event) => updateSimpleInput(section, event.target.value) })] }), _jsx("button", { type: "button", onClick: () => addSimpleEntry(section), children: "Anadir" })] })), _jsx("div", { className: "character-builder-token-list", children: draft[section].length > 0 ? draft[section].map((entry, index) => (_jsxs("span", { className: "character-builder-token", children: [_jsx("span", { children: entry }), _jsx("button", { type: "button", onClick: () => removeSimpleEntry(section, index), children: "x" })] }, `${section}-${entry}-${index}`))) : (_jsx("p", { className: "section-help", children: "Sin entradas registradas." })) })] }, section))) })] })) : null] })] })] }), acquisitionModal ? (_jsx("section", { className: "modal-backdrop", onClick: () => setAcquisitionModal(null), children: _jsxs("div", { className: "panel modal-panel character-builder-acquisition-modal", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: acquisitionModal.section === "habilidades" ? "Obtener nueva habilidad" : acquisitionModal.section === "poderesMisticos" ? "Obtener nuevo poder" : "Obtener nuevo ritual" }), _jsxs("span", { className: "meta-text", children: ["PX disponibles: ", effectiveAvailable] })] }), _jsxs("div", { className: "character-builder-acquisition-layout", children: [_jsxs("div", { className: "character-builder-acquisition-search", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Buscar" }), _jsx("input", { value: acquisitionModal.query, placeholder: "Escribe para buscar...", onChange: (event) => setAcquisitionModal((current) => current ? ({ ...current, query: event.target.value, selectedId: current.selectedId }) : null) })] }), _jsxs("div", { className: "character-builder-acquisition-results", children: [filteredAcquisitionEntries.map((entry) => (_jsxs("button", { type: "button", className: `character-builder-acquisition-result${selectedAcquisitionEntry?.id === entry.id ? " is-active" : ""}`, onClick: () => setAcquisitionModal((current) => current ? ({ ...current, selectedId: entry.id }) : null), children: [_jsx("strong", { children: entry.nombre }), _jsxs("span", { children: [entry.libro, entry.pagina ? ` p. ${entry.pagina}` : ""] })] }, entry.id))), filteredAcquisitionEntries.length === 0 ? _jsx("p", { className: "section-help", children: "No hay resultados disponibles." }) : null] })] }), _jsx("div", { className: "character-builder-acquisition-preview", children: selectedAcquisitionEntry ? (_jsxs(_Fragment, { children: [_jsxs("div", { className: "character-builder-acquisition-header", children: [_jsx("strong", { children: selectedAcquisitionEntry.nombre }), _jsxs("span", { className: "meta-text", children: [selectedAcquisitionEntry.libro, selectedAcquisitionEntry.pagina ? ` p. ${selectedAcquisitionEntry.pagina}` : "", " \u00B7 ", acquisitionModal.section === "rituales" ? "Sin coste automatico" : "10 PX"] })] }), acquisitionPreviewTiers.length > 0 ? (_jsx("div", { className: "character-builder-tier-preview-list", children: acquisitionPreviewTiers.map((tier) => (_jsxs("section", { className: "character-builder-tier-preview", children: [_jsx("h4", { children: tier.label }), _jsx("p", { children: tier.content })] }, `${selectedAcquisitionEntry.id}-${tier.label}`))) })) : (_jsx("p", { className: "section-help", children: selectedAcquisitionEntry.efectoResumen }))] })) : (_jsx("p", { className: "section-help", children: "Selecciona una entrada para ver su detalle." })) })] }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: () => setAcquisitionModal(null), children: "Cancelar" }), _jsx("button", { type: "button", onClick: confirmAcquisition, disabled: !selectedAcquisitionEntry || (acquisitionModal.section !== "rituales" && effectiveAvailable < 10), children: acquisitionModal.section === "rituales" ? "Obtener" : "Gastar 10 PX" })] })] }) })) : null] }));
+}

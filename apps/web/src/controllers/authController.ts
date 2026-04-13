@@ -2,7 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LoginInput, RegisterInput } from "@umbra/shared";
 import type { AuthState } from "../models/authModel";
 import { clearAuthState, loadAuthState, saveAuthState } from "../services/authStorage";
-import { changePassword, getCurrentUser, loginUser, logoutUser, refreshSession, registerUser } from "../services/authService";
+import {
+  changePassword,
+  getCurrentUser,
+  loginUser,
+  logoutUser,
+  refreshSession,
+  registerUser,
+  requestPasswordReset,
+  resetPassword
+} from "../services/authService";
 
 type AuthMode = "login" | "register";
 
@@ -90,6 +99,32 @@ export function useAuthController() {
     }
   }
 
+  async function sendPasswordReset(email: string): Promise<void> {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await requestPasswordReset({ email });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo enviar el correo de recuperacion");
+      throw err;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function confirmPasswordReset(token: string, newPassword: string): Promise<void> {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await resetPassword({ token, newPassword });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo restablecer la contrasena");
+      throw err;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   async function ensureAccessToken(): Promise<string> {
     if (!auth) throw new Error("No autenticado");
 
@@ -125,6 +160,8 @@ export function useAuthController() {
       register,
       login,
       rotatePassword,
+      sendPasswordReset,
+      confirmPasswordReset,
       logout,
       ensureAccessToken
     }),

@@ -3,6 +3,8 @@ export const TYPE_LABELS = {
     all: "Todo",
     regla: "Reglas",
     rasgo: "Rasgos",
+    bendicion: "Bendiciones",
+    carga: "Cargas",
     habilidad: "Habilidades",
     poder_mistico: "Poderes",
     ritual: "Rituales",
@@ -224,6 +226,689 @@ function buildTraditionEntries() {
         tags: ["tradicion", "magia"]
     }));
 }
+function normalizeLookup(value) {
+    return value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+}
+function buildBlessingEntries() {
+    const entries = [
+        {
+            tipo: "bendicion",
+            nombre: "Bushcraft",
+            resumen: "El personaje esta curtido para viajar, orientarse y sacar partido del terreno salvaje.",
+            detalle: "Bendicion de trasfondo ligada a exploracion y supervivencia. Encaja con cazadores, guias y personajes acostumbrados a Davokar o a la vida en camino.",
+            fuente: "Libro Básico",
+            pagina: 108
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Lengua de bestia",
+            resumen: "El personaje comprende o se hace entender ante bestias y criaturas guiadas por instinto.",
+            detalle: "Bendicion enfocada en trato con animales y seres salvajes. Puede apoyar escenas de rastreo, calma, manejo o lectura de comportamientos.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Sabueso",
+            resumen: "El personaje sigue rastros, olores y señales con una tenacidad fuera de lo normal.",
+            detalle: "Bendicion ideal para cazadores, perseguidores y exploradores. Refuerza la ficcion de alguien que no suelta una pista hasta cerrarla.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Contactos",
+            resumen: "El personaje dispone de una red social o profesional que puede abrir puertas e informacion.",
+            detalle: "Bendicion social muy flexible. Puede representar aliados, amigos, favores pendientes o acceso a circulos concretos dentro de Ambria, Yndaros o Fuerte Espina.",
+            fuente: "Libro Básico",
+            pagina: 108
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Marcha incansable",
+            resumen: "El personaje soporta viajes largos y fatiga con una resistencia poco comun.",
+            detalle: "Bendicion muy util en expediciones, huidas y travesias de desgaste. Encaja con veteranos del camino y gente hecha a sufrir marcha tras marcha.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Longevo",
+            resumen: "El personaje disfruta de una vida mas larga de lo habitual y una perspectiva vital distinta.",
+            detalle: "Suele asociarse a razas o linajes para quienes el paso del tiempo se siente de forma diferente. Tambien cambia como el personaje percibe memoria, legado y riesgo.",
+            fuente: "Libro Básico",
+            pagina: 108
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Mascota",
+            resumen: "El personaje viaja con un animal compañero que forma parte estable de su vida.",
+            detalle: "Bendicion narrativa que aporta presencia, apoyo tematico y muchas escenas de caracter. Su valor depende mucho de como la mesa integre a la mascota.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Privilegiado",
+            resumen: "El personaje pertenece a un estrato con trato preferente, recursos o autoridad social.",
+            detalle: "Bendicion centrada en posicion social. Suele reflejar nobleza, cargo, apellido influyente o un marco donde la palabra del personaje pesa mas que la de otros.",
+            fuente: "Libro Básico",
+            pagina: 109
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Voz de mando",
+            resumen: "El personaje proyecta autoridad y consigue que otros escuchen incluso en momentos tensos.",
+            detalle: "Bendicion muy adecuada para lideres, oficiales, predicadores y figuras acostumbradas a ordenar o coordinar.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Empresa",
+            resumen: "El personaje entiende de negocios, recursos y oportunidades donde otros solo ven trabajo.",
+            detalle: "Bendicion social y economica pensada para comerciantes, administradores, oportunistas o gente con olfato para convertir caos en ganancia.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Reliquia familiar",
+            resumen: "El personaje conserva un objeto heredado con peso practico, simbolico o emocional.",
+            detalle: "La bendicion puede representar linaje, juramento, memoria o una deuda heredada junto al propio objeto. Suele definir al personaje con fuerza.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Sirviente",
+            resumen: "El personaje cuenta con ayuda domestica, apoyo personal o alguien a su servicio.",
+            detalle: "Bendicion social ligada a estatus, casa, recursos o dependencia mutua. Tambien puede funcionar como gancho narrativo constante.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Robusto",
+            resumen: "El personaje esta hecho para aguantar castigo, cansancio o penurias mejor que la mayoria.",
+            detalle: "Bendicion fisica clasica para personajes de primera linea o supervivientes tozudos. Refuerza la idea de alguien dificil de derribar y de rematar.",
+            fuente: "Libro Básico",
+            pagina: 109
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Horripilante",
+            resumen: "La mera presencia del personaje inquieta, intimida o provoca rechazo visceral.",
+            detalle: "Bendicion util cuando se quiere imponer miedo o incomodidad. Puede venir de raza, apariencia, reputacion o una inquietante forma de estar en el mundo.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Lazos de sangre",
+            resumen: "El personaje pertenece a una red de parentesco poderosa, protectora o muy implicada en su destino.",
+            detalle: "Bendicion ideal para clanes, familias extendidas y linajes donde la identidad del personaje no se entiende sin los suyos.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Cambiaformas",
+            resumen: "El personaje tiene una afinidad excepcional con el cambio de forma y la adaptacion corporal.",
+            detalle: "Bendicion rara y muy marcada por la ficcion del personaje. Puede representar herencia, maldicion controlada o un vinculo muy profundo con lo salvaje.",
+            fuente: "Libro Básico",
+            pagina: 111
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Ladrón felino",
+            resumen: "El personaje trepa, se cuela y desaparece con la elasticidad de un depredador urbano.",
+            detalle: "Bendicion de infiltracion para especialistas en entrar, salir y moverse por lugares donde otros harian ruido o se quedarían colgados.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Tramposo",
+            resumen: "El personaje esta acostumbrado a manipular reglas, juegos y expectativas a su favor.",
+            detalle: "Bendicion muy propia de tahures, espias y supervivientes sociales. Puede cubrir desde juegos hasta tretas improvisadas.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Estafador",
+            resumen: "El personaje vende mentiras convincentes y convierte fachada en herramienta.",
+            detalle: "Bendicion orientada a engaño y lectura de vulnerabilidades. Brilla cuando la escena permite manipular codicia, ego o miedo.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Diestro",
+            resumen: "El personaje posee manos seguras y precisas para tareas finas, rapidas o discretas.",
+            detalle: "Bendicion de destreza practica, muy util para ladrones, artesanos, tramperos y cualquiera que dependa de la precision manual.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Escondites",
+            resumen: "El personaje dispone de refugios, agujeros o rutas seguras donde desaparecer temporalmente.",
+            detalle: "Bendicion urbana o territorial. Refleja preparacion previa, red local o experiencia sobreviviendo con salidas reservadas.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Instinto de supervivencia",
+            resumen: "El personaje reacciona al peligro antes que otros y se aferra a la vida con una intuicion feroz.",
+            detalle: "Bendicion muy apropiada para exploradores, vagabundos y veteranos que ya han sobrevivido a demasiadas malas decisiones ajenas.",
+            fuente: "Libro Básico",
+            pagina: 111
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Archivista",
+            resumen: "El personaje esta acostumbrado a trabajar con documentos, registros y conocimiento clasificado.",
+            detalle: "Bendicion orientada a investigacion, bibliotecas, archivos y tareas de memoria institucional. Encaja especialmente bien con eruditos, teurgos y burócratas.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Cartógrafo",
+            resumen: "El personaje sabe leer, crear y aprovechar mapas y rutas con solvencia profesional.",
+            detalle: "Bendicion de viaje y reconocimiento. Muy util para personajes que exploran, guian expediciones o convierten el territorio en una ventaja narrativa.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Cuentacuentos",
+            resumen: "El personaje convierte rumor, leyenda y memoria oral en una herramienta social real.",
+            detalle: "Bendicion ideal para embaucadores, artistas, cronistas y aventureros que viven tanto de lo que cuentan como de lo que hacen.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Escapismo",
+            resumen: "El personaje destaca saliendo de ataduras, encierros o situaciones donde otros se quedan atrapados.",
+            detalle: "Bendicion util para maleantes, artistas ambulantes y supervivientes. Representa ingenio fisico y practica mas que fuerza bruta.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Espejismo",
+            resumen: "El personaje sabe construir apariencias, distracciones o presencias falsas convincentes.",
+            detalle: "Bendicion social y escenica ligada a la puesta en escena, el disfraz o la manipulacion de percepciones dentro y fuera del peligro.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Falsa identidad",
+            resumen: "El personaje mantiene una identidad alternativa funcional y creible.",
+            detalle: "Bendicion centrada en infiltracion, tapaderas y supervivencia social. Puede implicar papeles, historia falsa, aliados o habitos bien ensayados.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Conocimiento prohibido",
+            resumen: "El personaje posee acceso a saberes vedados, peligrosos o reservados a iniciados.",
+            detalle: "Bendicion de gran peso narrativo. Puede abrir puertas a secretos de tradiciones, textos hereticos o practicas que otros ni siquiera admiten que existan.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Jugador",
+            resumen: "El personaje se mueve con soltura en mesas de apuestas, juegos y ambientes de riesgo social.",
+            detalle: "Bendicion muy propia de tahures, espias y oportunistas. Sirve tanto para ganar dinero como para leer gente y abrir conversaciones.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Médium",
+            resumen: "El personaje es especialmente sensible a presencias, ecos o señales mas alla de lo ordinario.",
+            detalle: "Bendicion util para sesiones de espiritismo, escenas de investigacion oscura o personajes marcados por lo invisible.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Mula de carga",
+            resumen: "El personaje esta hecho para transportar peso y seguir avanzando donde otros ceden.",
+            detalle: "Bendicion muy practica en expediciones. Tambien refuerza la ficcion de alguien fuerte, obstinado y acostumbrado al esfuerzo continuo.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Músico",
+            resumen: "El personaje domina la expresion musical como herramienta social, economica o emocional.",
+            detalle: "Bendicion perfecta para artistas, trotamundos y personajes que influyen en su entorno a traves del ritmo, la presencia y el simbolismo.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Suplantador",
+            resumen: "El personaje imita con soltura voces, habitos o presencia ajena para hacerse pasar por otro.",
+            detalle: "Bendicion de infiltracion y engaño. Su fuerza esta en la preparacion, la observacion y la valentia de sostener la mentira cuando importa.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "bendicion",
+            nombre: "Tahúr",
+            resumen: "El personaje vive del riesgo, la lectura de intenciones y la oportunidad en entornos tensos.",
+            detalle: "Bendicion cercana a Jugador, pero mas enfocada al oficio de sacar ventaja constante de apuestas, trampas y debilidades ajenas.",
+            fuente: "Guía Avanzada del Jugador"
+        }
+    ];
+    return entries.map((entry) => ({
+        ...entry,
+        id: `bendicion-${slugify(entry.nombre)}`,
+        tags: [
+            "bendicion",
+            slugify(entry.nombre),
+            ...(entry.nombre === "Bushcraft" ? ["supervivencia"] : []),
+            ...(entry.nombre === "Lengua de bestia" ? ["beast tongue"] : []),
+            ...(entry.nombre === "Sabueso" ? ["bloodhound"] : []),
+            ...(entry.nombre === "Marcha incansable" ? ["enduring march"] : []),
+            ...(entry.nombre === "Mascota" ? ["pet"] : []),
+            ...(entry.nombre === "Privilegiado" ? ["privileged"] : []),
+            ...(entry.nombre === "Robusto" ? ["tough"] : []),
+            ...(entry.nombre === "Voz de mando" ? ["commanding voice"] : []),
+            ...(entry.nombre === "Empresa" ? ["enterprise"] : []),
+            ...(entry.nombre === "Reliquia familiar" ? ["heirloom"] : []),
+            ...(entry.nombre === "Sirviente" ? ["servant"] : []),
+            ...(entry.nombre === "Horripilante" ? ["horrifying"] : []),
+            ...(entry.nombre === "Lazos de sangre" ? ["blood ties"] : []),
+            ...(entry.nombre === "Ladrón felino" ? ["cat burglar"] : []),
+            ...(entry.nombre === "Tramposo" ? ["cheat"] : []),
+            ...(entry.nombre === "Estafador" ? ["con artist"] : []),
+            ...(entry.nombre === "Diestro" ? ["dexterous"] : []),
+            ...(entry.nombre === "Escondites" ? ["hideouts"] : []),
+            ...(entry.nombre === "Conocimiento prohibido" ? ["forbidden knowledge"] : []),
+            ...(entry.nombre === "Jugador" ? ["gambler"] : []),
+            ...(entry.nombre === "Médium" ? ["medium"] : []),
+            ...(entry.nombre === "Mula de carga" ? ["pack-mule", "pack mule"] : []),
+            ...(entry.nombre === "Músico" ? ["musician"] : []),
+            ...(entry.nombre === "Suplantador" ? ["impostor"] : []),
+            ...(entry.nombre === "Tahúr" ? ["high roller"] : [])
+        ]
+    }));
+}
+function buildBurdenEntries() {
+    const entries = [
+        {
+            tipo: "carga",
+            nombre: "Enemigo jurado",
+            resumen: "Alguien poderoso, persistente o muy motivado tiene razones para ir contra el personaje.",
+            detalle: "Carga de persecucion personal. A diferencia de Buscado, aqui el peligro suele tener rostro, memoria y recursos propios.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "carga",
+            nombre: "Paria",
+            resumen: "El personaje carga con un estigma social que complica trato, prestigio y confianza.",
+            detalle: "Carga social clasica en Symbaroum. Puede venir de raza, origen, reputacion o pertenencia a un grupo que otros miran con desprecio, miedo o sospecha.",
+            fuente: "Libro Básico",
+            pagina: 108
+        },
+        {
+            tipo: "carga",
+            nombre: "Bestial",
+            resumen: "El personaje arrastra impulsos, habitos o una presencia que lo acercan a lo salvaje y dificultan la convivencia.",
+            detalle: "Carga fuerte de identidad. Puede representar una naturaleza feral, una marca visible o una dificultad real para moverse dentro de normas civilizadas.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "carga",
+            nombre: "Sed de sangre",
+            resumen: "El personaje se deja arrastrar con demasiada facilidad por violencia, furia o gusto por el combate.",
+            detalle: "Carga peligrosa para personajes agresivos o traumatizados. Funciona mejor cuando empuja decisiones que luego tienen coste.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "carga",
+            nombre: "Vida corta",
+            resumen: "El personaje envejece o se consume antes que otros, con todo lo que eso implica en su mirada del mundo.",
+            detalle: "Carga muy adecuada para personajes impulsivos, intensos o marcados por una urgencia existencial que condiciona decisiones y prioridades.",
+            fuente: "Libro Básico",
+            pagina: 111
+        },
+        {
+            tipo: "carga",
+            nombre: "Adicción",
+            resumen: "El personaje depende de una sustancia, rutina o estado que puede arrastrarlo a malas decisiones.",
+            detalle: "Carga de deterioro y dependencia. Funciona bien cuando la mesa quiere que la necesidad del personaje genere costes reales y escenas tensas.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "carga",
+            nombre: "Pesadillas",
+            resumen: "El descanso del personaje se ve perseguido por visiones, recuerdos o terrores que no lo sueltan.",
+            detalle: "Carga de trauma y desgaste. Puede estar ligada a corrupcion, guerra, culpa o encuentros con algo que no deberia haberse visto.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "carga",
+            nombre: "Código de honor",
+            resumen: "El personaje se somete a un principio que lo limita incluso cuando actuar de otro modo seria mas facil.",
+            detalle: "Carga moral o doctrinal. No es una desventaja mecanica constante, sino una fuente de conflictos, renuncias y oportunidades narrativas.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "carga",
+            nombre: "Secreto oscuro",
+            resumen: "El personaje oculta una verdad que podria destruir relaciones, posicion o seguridad si saliera a la luz.",
+            detalle: "Carga social excelente para campañas con facciones, juramentos y sospechas. No siempre explota rapido, pero cuando lo hace pesa mucho.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "carga",
+            nombre: "Impulsivo",
+            resumen: "El personaje actua antes de medir consecuencias y se lanza donde otros habrian esperado.",
+            detalle: "Carga clasica para aventureros brillantes pero poco prudentes. Aporta ritmo, problemas y decisiones precipitadas cuando el grupo mas calma necesita.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "carga",
+            nombre: "Buscado",
+            resumen: "Hay autoridades, acreedores, enemigos o facciones que reconocen al personaje y quieren encontrarlo.",
+            detalle: "Carga de persecucion. Puede venir de crimen, deudas, traicion, desercion o simplemente de haber sobrevivido a la gente equivocada.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "carga",
+            nombre: "Enfermizo",
+            resumen: "El personaje tiene una fragilidad fisica persistente que lo obliga a convivir con limitaciones.",
+            detalle: "Carga adecuada para conceptos de personaje debilitados, malditos o castigados por viejas heridas, enfermedad o mala constitucion.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "carga",
+            nombre: "Marca mística",
+            resumen: "El personaje lleva una señal sobrenatural visible para quien sabe que esta viendo.",
+            detalle: "Carga muy apropiada para misticos, malditos o tocados por fuerzas mayores. La marca puede delatar, inquietar o atraer atencion indebida.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "carga",
+            nombre: "Protegido",
+            resumen: "El personaje tiene a alguien dependiente, valioso o vulnerable cuyo destino lo condiciona.",
+            detalle: "Carga relacional que obliga a pensar mas alla del propio cuerpo. A veces el problema no es el enemigo, sino quien no puede quedar atras.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "carga",
+            nombre: "Señas reveladoras",
+            resumen: "El personaje deja una impresion demasiado marcada para pasar desapercibido con facilidad.",
+            detalle: "Carga social o fisica: un rasgo visible, una voz inconfundible, una cicatriz, un olor, una fama concreta o una presencia imposible de ocultar.",
+            fuente: "Guía Avanzada del Jugador"
+        },
+        {
+            tipo: "carga",
+            nombre: "Lento",
+            resumen: "El personaje es torpe para desplazarse, reaccionar o seguir el ritmo de otros cuando importa.",
+            detalle: "Carga fisica clara para conceptos pesados, lesionados o poco agiles. Se nota especialmente en escenas de huida, persecucion o reposicionamiento.",
+            fuente: "Guía Avanzada del Jugador"
+        }
+    ];
+    return entries.map((entry) => ({
+        ...entry,
+        id: `carga-${slugify(entry.nombre)}`,
+        tags: [
+            "carga",
+            slugify(entry.nombre),
+            ...(entry.nombre === "Enemigo jurado" ? ["arch enemy"] : []),
+            ...(entry.nombre === "Paria" ? ["pariah"] : []),
+            ...(entry.nombre === "Bestial" ? ["bestial"] : []),
+            ...(entry.nombre === "Sed de sangre" ? ["bloodthirst"] : []),
+            ...(entry.nombre === "Vida corta" ? ["short-lived", "short lived"] : []),
+            ...(entry.nombre === "Adicción" ? ["addiction"] : []),
+            ...(entry.nombre === "Pesadillas" ? ["nightmares"] : []),
+            ...(entry.nombre === "Código de honor" ? ["code of honor"] : []),
+            ...(entry.nombre === "Secreto oscuro" ? ["dark secret"] : []),
+            ...(entry.nombre === "Impulsivo" ? ["impulsive"] : []),
+            ...(entry.nombre === "Buscado" ? ["wanted"] : []),
+            ...(entry.nombre === "Enfermizo" ? ["sickly"] : []),
+            ...(entry.nombre === "Marca mística" ? ["mystical mark"] : []),
+            ...(entry.nombre === "Protegido" ? ["protege", "protégé"] : []),
+            ...(entry.nombre === "Señas reveladoras" ? ["telltale"] : []),
+            ...(entry.nombre === "Lento" ? ["slow"] : [])
+        ]
+    }));
+}
+function mergeCompendiumEntries(primary, secondary) {
+    const merged = new Map();
+    [...primary, ...secondary].forEach((entry) => {
+        const key = `${entry.tipo}:${slugify(entry.nombre)}`;
+        if (!merged.has(key)) {
+            merged.set(key, entry);
+        }
+    });
+    return [...merged.values()];
+}
+const APG_BLESSING_SUPPLEMENTS = [
+    {
+        id: "bendicion-memoria-absoluta",
+        tipo: "bendicion",
+        nombre: "Memoria absoluta",
+        resumen: "El personaje recuerda con precision casi perfecta todo lo que ha visto u oido.",
+        detalle: "Procedente de una cultura de tradicion oral, el personaje conserva detalles de escenas y conversaciones pasadas. El jugador puede pedir al Director de Juego detalles percibidos por el personaje en aventuras anteriores y debe recibir la respuesta mas completa posible.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 51,
+        tags: ["bendicion", "memoria-absoluta", "absolute memory"]
+    },
+    {
+        id: "bendicion-augur",
+        tipo: "bendicion",
+        nombre: "Augur",
+        resumen: "El personaje capta signos ocultos y refuerza rituales ligados al destino o a la revelacion.",
+        detalle: "Gana +1 en pruebas de rituales relacionados con el destino o la informacion escondida, como adivinacion, humo sagrado u oraculo. Puede comprarse varias veces, hasta un maximo de +3.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 51,
+        tags: ["bendicion", "augur"]
+    },
+    {
+        id: "bendicion-sangre-oscura",
+        tipo: "bendicion",
+        nombre: "Sangre oscura",
+        resumen: "Una herencia oscura permite al personaje desarrollar ciertos rasgos monstruosos.",
+        detalle: "La sangre oscura siempre viene acompanada por la carga Bestial. Gracias a ella, el personaje puede invertir PX en rasgos monstruosos como Arma natural, Armadura, Robusto, Regeneracion o Alas como si fueran capacidades normales.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 52,
+        tags: ["bendicion", "sangre-oscura", "dark blood"]
+    },
+    {
+        id: "bendicion-doble-lengua",
+        tipo: "bendicion",
+        nombre: "Doble lengua",
+        resumen: "El personaje domina un codigo verbal para hablar de secretos delante de otros.",
+        detalle: "Permite mantener conversaciones delicadas a la vista de terceros diciendo una cosa y queriendo decir otra. Solo falla frente a quien tambien conozca ese lenguaje encubierto.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 52,
+        tags: ["bendicion", "doble-lengua", "double-tongue"]
+    },
+    {
+        id: "bendicion-forjado-por-el-fuego",
+        tipo: "bendicion",
+        nombre: "Forjado por el fuego",
+        resumen: "El personaje resiste el fuego mejor que la mayoria y sabe tratar con llamas.",
+        detalle: "Otorga proteccion mistica +1 contra fuego y +1 en todas las pruebas relacionadas con usar, resistir o desenvolverse entre fuego y llamas.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 52,
+        tags: ["bendicion", "forjado-por-el-fuego", "fire forged"]
+    },
+    {
+        id: "bendicion-pies-ligeros",
+        tipo: "bendicion",
+        nombre: "Pies ligeros",
+        resumen: "El personaje se mueve con una velocidad anormalmente alta.",
+        detalle: "En situaciones donde el movimiento exacto importa, se desplaza 13 metros por turno. En la regla de Huida y caza aporta un +3 a Rapido.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 52,
+        tags: ["bendicion", "pies-ligeros", "fleet-footed"]
+    },
+    {
+        id: "bendicion-pulgar-verde",
+        tipo: "bendicion",
+        nombre: "Pulgar verde",
+        resumen: "El personaje mantiene una conexion especial con plantas, crecimiento y naturaleza salvaje.",
+        detalle: "Gana +1 en pruebas para orientarse en el bosque, encontrar comida o refugio, detectar o evitar trampas naturales. El bono tambien se aplica a todas las pruebas de Alquimia. Puede comprarse varias veces, hasta +3.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 53,
+        tags: ["bendicion", "pulgar-verde", "green thumb"]
+    },
+    {
+        id: "bendicion-imitador",
+        tipo: "bendicion",
+        nombre: "Imitador",
+        resumen: "El personaje reproduce tipos sociales o individuos concretos con gran credibilidad.",
+        detalle: "Otorga +1 a Discreto al hacerse pasar por otros. Si imita un tipo de persona de su propia raza, ademas obtiene una segunda oportunidad para superar la prueba. Puede adquirirse varias veces, hasta +3.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 53,
+        tags: ["bendicion", "imitador", "impressionist"]
+    },
+    {
+        id: "bendicion-manipulador",
+        tipo: "bendicion",
+        nombre: "Manipulador",
+        resumen: "El personaje dobla la voluntad ajena con adulacion, presion y lectura emocional.",
+        detalle: "Gana +1 a Persuasivo frente a una persona concreta durante la escena, siempre que tenga tiempo para trabajar la influencia. Puede comprarse varias veces, hasta un maximo de +3.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 53,
+        tags: ["bendicion", "manipulador", "manipulator"]
+    },
+    {
+        id: "bendicion-buscasendas",
+        tipo: "bendicion",
+        nombre: "Buscasendas",
+        resumen: "El personaje encuentra y sigue caminos con sentidos muy afinados.",
+        detalle: "Obtiene una segunda oportunidad en todas las pruebas de Vigilante para seguir un rastro o encontrar el camino de ida o vuelta a un lugar, tanto en superficie como bajo tierra.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 54,
+        tags: ["bendicion", "buscasendas", "pathfinder"]
+    },
+    {
+        id: "bendicion-resistente-al-veneno",
+        tipo: "bendicion",
+        nombre: "Resistente al veneno",
+        resumen: "El cuerpo del personaje ha sido endurecido frente a toxinas y venenos.",
+        detalle: "Los venenos le afectan un grado menos de lo normal. Si el toxico aplica un efecto distinto al dano, el personaje obtiene una segunda oportunidad para resistirlo.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 54,
+        tags: ["bendicion", "resistente-al-veneno", "poison resilient"]
+    },
+    {
+        id: "bendicion-nacido-de-las-sombras",
+        tipo: "bendicion",
+        nombre: "Nacido de las sombras",
+        resumen: "Las sombras se adhieren al personaje y facilitan ocultarse o deslizarse sin ser visto.",
+        detalle: "Concede +1 a todas las pruebas de Discreto al escabullirse u ocultarse. Puede comprarse varias veces, hasta un maximo de +3.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 54,
+        tags: ["bendicion", "nacido-de-las-sombras", "shadow spawn"]
+    },
+    {
+        id: "bendicion-alma-gemela",
+        tipo: "bendicion",
+        nombre: "Alma gemela",
+        resumen: "El personaje mantiene un lazo emocional y telepatico sencillo con otra persona.",
+        detalle: "Ambos pueden transmitirse mensajes simples y emociones, saben aproximadamente donde esta el otro y si se halla en peligro. El vinculo puede unir a dos PJ o a un PNJ importante.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 54,
+        tags: ["bendicion", "alma-gemela", "soulmate"]
+    },
+    {
+        id: "bendicion-correveidile",
+        tipo: "bendicion",
+        nombre: "Correveidile",
+        resumen: "El personaje sabe encontrar, propagar y desenredar rumores con enorme eficacia.",
+        detalle: "Gana +1 en todas las pruebas ligadas a oir, difundir o descubrir la verdad detras de rumores. Puede adquirirse varias veces, hasta un maximo de +3.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 54,
+        tags: ["bendicion", "correveidile", "telltale"]
+    }
+];
+const APG_BURDEN_SUPPLEMENTS = [
+    {
+        id: "carga-anciano",
+        tipo: "carga",
+        nombre: "Anciano",
+        resumen: "El personaje ya paso su mejor momento y sufre dias buenos y dias malos.",
+        detalle: "Si la primera prueba del dia es un exito, todo va razonablemente bien. Si es un fallo, el personaje arrastra dolores, rigidez o fatiga y sufre -1 en todas las pruebas el resto del dia.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 55,
+        tags: ["carga", "anciano", "elderly"]
+    },
+    {
+        id: "carga-epileptico",
+        tipo: "carga",
+        nombre: "Epileptico",
+        resumen: "Una mente excesivamente sensible puede desatar convulsiones en momentos de tension.",
+        detalle: "Si el personaje saca un 20 en una prueba, sufre un ataque y queda fuera de combate durante 1d6 turnos. Despues queda exhausto y sufre -1 en todas las pruebas hasta el final de la escena.",
+        fuente: "Guia Avanzada del Jugador",
+        pagina: 55,
+        tags: ["carga", "epileptico", "epileptic"]
+    }
+];
+const COMPLETE_BLESSING_OVERRIDES = [
+    { id: "bendicion-bushcraft", tipo: "bendicion", nombre: "Bushcraft", resumen: "El personaje esta entrenado para sobrevivir, orientarse y sacar provecho del entorno salvaje.", detalle: "Representa experiencia real en campo abierto. Refuerza escenas de viaje, exploracion, rastreo, comida, refugio y vida en Davokar o regiones agrestes, y define a alguien que se mueve con naturalidad fuera de los caminos seguros.", fuente: "Libro Basico", pagina: 108, tags: ["bendicion", "bushcraft", "supervivencia"] },
+    { id: "bendicion-contactos", tipo: "bendicion", nombre: "Contactos", resumen: "El personaje dispone de una red de conocidos que puede abrir puertas, conseguir informacion o facilitar favores.", detalle: "Los contactos pueden representar camaradas, colegas de oficio, informadores, acreedores o amigos en posiciones utiles. La bendicion convierte la vida social del personaje en un recurso estable dentro de la ficcion.", fuente: "Libro Basico", pagina: 108, tags: ["bendicion", "contactos", "contacts"] },
+    { id: "bendicion-longevo", tipo: "bendicion", nombre: "Longevo", resumen: "El personaje disfruta de una vida mas larga de lo normal y de una perspectiva marcada por el paso del tiempo.", detalle: "Suele ir asociada a linajes o pueblos cuya existencia se extiende mucho mas alla de lo humano. Afecta la forma de entender memoria, riesgo, legado y compromiso, y puede explicar conocimientos o paciencia fuera de lo comun.", fuente: "Libro Basico", pagina: 108, tags: ["bendicion", "longevo", "long-lived"] },
+    { id: "bendicion-privilegiado", tipo: "bendicion", nombre: "Privilegiado", resumen: "El personaje pertenece a un estrato con autoridad social, recursos o trato preferente.", detalle: "Puede proceder de nobleza, apellido, cargo, fortuna o una institucion poderosa. El privilegio no elimina conflictos, pero cambia como reaccionan las personas y que puertas se abren antes incluso de hablar.", fuente: "Libro Basico", pagina: 109, tags: ["bendicion", "privilegiado", "privileged"] },
+    { id: "bendicion-robusto", tipo: "bendicion", nombre: "Robusto", resumen: "El personaje esta hecho para soportar castigo, fatiga y penurias mejor que la mayoria.", detalle: "Refuerza el concepto de alguien dificil de quebrar. Encaja con combatientes, supervivientes y cuerpos curtidos por trabajo duro, heridas o viajes constantes.", fuente: "Libro Basico", pagina: 109, tags: ["bendicion", "robusto", "robust"] },
+    { id: "bendicion-cambiaformas", tipo: "bendicion", nombre: "Cambiaformas", resumen: "El personaje posee una afinidad extraordinaria con la transformacion y el cambio de forma.", detalle: "Es una bendicion muy marcada por la ficcion del personaje. Puede representar herencia, maldicion controlada o una cercania profunda con fuerzas salvajes y primitivas.", fuente: "Libro Basico", pagina: 111, tags: ["bendicion", "cambiaformas", "shapeshifter"] },
+    { id: "bendicion-instinto-de-supervivencia", tipo: "bendicion", nombre: "Instinto de supervivencia", resumen: "El personaje reacciona al peligro antes que otros y se aferra a la vida con intuicion feroz.", detalle: "La bendicion define a alguien que ha sobrevivido donde otros no lo lograron. Es apropiada para veteranos, exploradores y gente acostumbrada a detectar demasiado tarde todo lo que puede salir mal.", fuente: "Libro Basico", pagina: 111, tags: ["bendicion", "instinto-de-supervivencia", "survival instinct"] },
+    { id: "bendicion-memoria-absoluta", tipo: "bendicion", nombre: "Memoria absoluta", resumen: "El personaje recuerda con precision extraordinaria lo que ha visto, oido o aprendido.", detalle: "Permite tratar recuerdos pasados como informacion fiable dentro de la historia. El Director de Juego debe devolver al jugador detalles concretos de escenas anteriores cuando el personaje tuvo oportunidad real de percibirlos.", fuente: "Guia Avanzada del Jugador", pagina: 52, tags: ["bendicion", "memoria-absoluta", "absolute memory"] },
+    { id: "bendicion-augur", tipo: "bendicion", nombre: "Augur", resumen: "El personaje interpreta senales y refuerza rituales ligados al destino, la revelacion y la vision.", detalle: "Aporta un bono a pruebas relacionadas con rituales como Adivinacion, Humo sagrado u Oraculo. Puede comprarse varias veces, apilandose hasta un maximo de +3 en esas pruebas.", fuente: "Guia Avanzada del Jugador", pagina: 52, tags: ["bendicion", "augur"] },
+    { id: "bendicion-lengua-de-bestia", tipo: "bendicion", nombre: "Lengua de bestia", resumen: "El personaje comprende y se hace entender por bestias y criaturas guiadas por el instinto.", detalle: "No convierte a los animales en conversadores racionales, pero si permite comunicar intenciones simples, leer respuestas y desenvolverse mejor con seres salvajes o semisalvajes.", fuente: "Guia Avanzada del Jugador", pagina: 52, tags: ["bendicion", "lengua-de-bestia", "beast tongue"] },
+    { id: "bendicion-sabueso", tipo: "bendicion", nombre: "Sabueso", resumen: "El personaje sigue rastros, olores y senales con tenacidad excepcional.", detalle: "Convierte el seguimiento en una parte central del personaje. Refuerza rastreo persistente, persecuciones y escenas donde encontrar a alguien importa mas que enfrentarlo de inmediato.", fuente: "Guia Avanzada del Jugador", pagina: 52, tags: ["bendicion", "sabueso", "bloodhound"] },
+    { id: "bendicion-lazos-de-sangre", tipo: "bendicion", nombre: "Lazos de sangre", resumen: "El personaje esta unido a una familia o clan cuyo peso influye de forma constante en su vida.", detalle: "La bendicion aporta respaldo, obligaciones y presencia narrativa. Funciona especialmente bien en historias de linaje, herencia, venganzas familiares y proteccion mutua.", fuente: "Guia Avanzada del Jugador", pagina: 52, tags: ["bendicion", "lazos-de-sangre", "blood ties"] },
+    { id: "bendicion-voz-de-mando", tipo: "bendicion", nombre: "Voz de mando", resumen: "El personaje proyecta autoridad y hace que otros escuchen incluso en situaciones tensas.", detalle: "Es ideal para oficiales, predicadores, jefes de expedicion y lideres de guerra. Refuerza la ficcion de alguien acostumbrado a ordenar, coordinar y sostener el control del grupo.", fuente: "Guia Avanzada del Jugador", pagina: 52, tags: ["bendicion", "voz-de-mando", "commanding voice"] },
+    { id: "bendicion-empresa", tipo: "bendicion", nombre: "Empresa", resumen: "El personaje entiende el valor de recursos, acuerdos y oportunidades economicas.", detalle: "Hace fuerte al personaje en negocios, administracion y lectura de ventajas materiales. Encaja con comerciantes, emprendedores, patronos y oportunistas de largo alcance.", fuente: "Guia Avanzada del Jugador", pagina: 53, tags: ["bendicion", "empresa", "enterprise"] },
+    { id: "bendicion-sangre-oscura", tipo: "bendicion", nombre: "Sangre oscura", resumen: "Una herencia oscura permite al personaje adquirir y desarrollar rasgos monstruosos.", detalle: "La bendicion siempre va unida a la carga Bestial. Gracias a ella, el personaje puede comprar rasgos monstruosos como Arma natural, Armadura, Robusto, Regeneracion o Alas como si fueran capacidades de personaje.", fuente: "Guia Avanzada del Jugador", pagina: 53, tags: ["bendicion", "sangre-oscura", "dark blood"] },
+    { id: "bendicion-diestro", tipo: "bendicion", nombre: "Diestro", resumen: "El personaje posee manos seguras y precisas para tareas finas, rapidas o discretas.", detalle: "Refuerza conceptos basados en precision manual: robo, artesania, montaje de trampas, juego de manos o pequenas operaciones delicadas bajo presion.", fuente: "Guia Avanzada del Jugador", pagina: 53, tags: ["bendicion", "diestro", "dexterous"] },
+    { id: "bendicion-doble-lengua", tipo: "bendicion", nombre: "Doble lengua", resumen: "El personaje domina un lenguaje velado para hablar de secretos ante quien no debe entenderlos.", detalle: "Permite sostener conversaciones sensibles a la vista de terceros ocultando el sentido real. Solo resulta vulnerable frente a quien tambien domine ese codigo.", fuente: "Guia Avanzada del Jugador", pagina: 53, tags: ["bendicion", "doble-lengua", "double-tongue"] },
+    { id: "bendicion-escapismo", tipo: "bendicion", nombre: "Escapismo", resumen: "El personaje destaca al salir de ataduras, celdas, trampas y situaciones donde otros se quedan atrapados.", detalle: "Representa agilidad, maña y mucha practica, mas que fuerza. Encaja con maleantes, artistas ambulantes y supervivientes de prisiones o persecuciones.", fuente: "Guia Avanzada del Jugador", pagina: 53, tags: ["bendicion", "escapismo", "escape artist"] },
+    { id: "bendicion-falsa-identidad", tipo: "bendicion", nombre: "Falsa identidad", resumen: "El personaje mantiene una identidad alternativa creible y util.", detalle: "Incluye nombre, historia, costumbres y posiblemente documentos o apoyos que sostienen la tapadera. Es una herramienta de infiltracion y supervivencia social continua.", fuente: "Guia Avanzada del Jugador", pagina: 53, tags: ["bendicion", "falsa-identidad", "false identity"] },
+    { id: "bendicion-forjado-por-el-fuego", tipo: "bendicion", nombre: "Forjado por el fuego", resumen: "El personaje resiste el fuego mejor que la mayoria y sabe desenvolverse entre llamas.", detalle: "Otorga Proteccion mistica +1 contra fuego y +1 a todas las pruebas relacionadas con usar, resistir o manejar fuego, brasas y calor intenso.", fuente: "Guia Avanzada del Jugador", pagina: 53, tags: ["bendicion", "forjado-por-el-fuego", "fire forged"] },
+    { id: "bendicion-pies-ligeros", tipo: "bendicion", nombre: "Pies ligeros", resumen: "El personaje se mueve con una rapidez superior a la normal.", detalle: "En situaciones donde la distancia exacta importa, el personaje se desplaza 13 metros por turno. En la regla de Huida y caza obtiene +3 a Rapido.", fuente: "Guia Avanzada del Jugador", pagina: 53, tags: ["bendicion", "pies-ligeros", "fleet-footed"] },
+    { id: "bendicion-conocimiento-prohibido", tipo: "bendicion", nombre: "Conocimiento prohibido", resumen: "El personaje tiene acceso a saberes vedados, peligrosos o reservados a iniciados.", detalle: "La bendicion justifica que el personaje conozca secretos de tradiciones, textos hereticos, procesos ocultos o practicas que otros ni siquiera admiten que existan.", fuente: "Guia Avanzada del Jugador", pagina: 53, tags: ["bendicion", "conocimiento-prohibido", "forbidden knowledge"] },
+    { id: "bendicion-escondites", tipo: "bendicion", nombre: "Escondites", resumen: "El personaje dispone de refugios, agujeros o rutas seguras donde ocultarse temporalmente.", detalle: "Representa preparacion territorial, apoyo local o mucha experiencia desapareciendo cuando todo se complica. Es especialmente fuerte en ciudades o regiones conocidas.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "escondites", "hideouts"] },
+    { id: "bendicion-espejismo", tipo: "bendicion", nombre: "Espejismo", resumen: "El personaje construye apariencias, distracciones y presencias falsas con enorme eficacia.", detalle: "Sirve para manipular percepciones y jugar con lo que otros creen haber visto. Encaja con ilusionistas sociales, espias y figuras escenicas.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "espejismo", "mirage"] },
+    { id: "bendicion-horripilante", tipo: "bendicion", nombre: "Horripilante", resumen: "La sola presencia del personaje provoca miedo, rechazo o inquietud.", detalle: "Puede deberse a apariencia, reputacion, raza o una aura profundamente incomoda. Convierte el aspecto del personaje en una herramienta y tambien en una carga social potencial.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "horripilante", "terrifying"] },
+    { id: "bendicion-pulgar-verde", tipo: "bendicion", nombre: "Pulgar verde", resumen: "El personaje mantiene una conexion especial con plantas, crecimiento y vida salvaje.", detalle: "Gana +1 en pruebas para encontrar camino, comida o refugio en el bosque, detectar o evitar trampas naturales y tambien en todas las pruebas de Alquimia. Puede adquirirse varias veces, hasta +3.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "pulgar-verde", "green thumb"] },
+    { id: "bendicion-imitador", tipo: "bendicion", nombre: "Imitador", resumen: "El personaje imita tipos sociales o individuos concretos con gran credibilidad.", detalle: "Otorga +1 a Discreto al hacerse pasar por otra persona. Si imita un tipo de persona de su propia raza, ademas obtiene una segunda oportunidad para superar la prueba. Puede adquirirse varias veces, hasta +3.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "imitador", "impressionist"] },
+    { id: "bendicion-manipulador", tipo: "bendicion", nombre: "Manipulador", resumen: "El personaje dobla la voluntad ajena con adulacion, presion o lectura emocional.", detalle: "Gana +1 a Persuasivo frente a una persona concreta durante la escena cuando tiene tiempo para trabajar la influencia. Puede comprarse varias veces, hasta un maximo de +3.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "manipulador", "manipulator"] },
+    { id: "bendicion-medium", tipo: "bendicion", nombre: "Medium", resumen: "El personaje es especialmente sensible a presencias, ecos y senales de lo invisible.", detalle: "Hace del personaje alguien propenso a percibir lo sobrenatural y encaja especialmente bien con rituales, fantasmas, maldiciones y escenas de investigacion oscura.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "medium"] },
+    { id: "bendicion-mula-de-carga", tipo: "bendicion", nombre: "Mula de carga", resumen: "El personaje esta hecho para transportar peso y seguir avanzando donde otros ceden.", detalle: "Es una bendicion muy practica en expediciones y viajes duros. Refuerza la ficcion de alguien obstinado, fuerte y acostumbrado al esfuerzo continuo.", fuente: "Guia Avanzada del Jugador", pagina: 55, tags: ["bendicion", "mula-de-carga", "pack-mule"] },
+    { id: "bendicion-musico", tipo: "bendicion", nombre: "Musico", resumen: "El personaje domina la expresion musical como herramienta social, economica o simbolica.", detalle: "Convierte la musica en parte central de la identidad del personaje. Puede servir para influir, entretener, conmover, distraer o simplemente abrir puertas.", fuente: "Guia Avanzada del Jugador", pagina: 55, tags: ["bendicion", "musico", "musician"] },
+    { id: "bendicion-buscasendas", tipo: "bendicion", nombre: "Buscasendas", resumen: "El personaje encuentra y sigue caminos con sentidos muy afinados.", detalle: "Obtiene una segunda oportunidad en pruebas de Vigilante para seguir rastros o encontrar el camino de ida y vuelta a un lugar, tanto en superficie como bajo tierra.", fuente: "Guia Avanzada del Jugador", pagina: 55, tags: ["bendicion", "buscasendas", "pathfinder"] },
+    { id: "bendicion-mascota", tipo: "bendicion", nombre: "Mascota", resumen: "El personaje viaja con un animal companero que forma parte estable de su vida.", detalle: "La mascota no es un simple adorno: es presencia emocional, apoyo tematico y a menudo un ancla narrativa. Su valor depende de como la mesa integre esa relacion.", fuente: "Guia Avanzada del Jugador", pagina: 55, tags: ["bendicion", "mascota", "pet"] },
+    { id: "bendicion-resistente-al-veneno", tipo: "bendicion", nombre: "Resistente al veneno", resumen: "El cuerpo del personaje ha sido endurecido frente a toxinas y venenos.", detalle: "Los venenos le afectan un grado menos de lo normal. Si el toxico aplica un efecto diferente al dano, el personaje obtiene una segunda oportunidad para resistirlo.", fuente: "Guia Avanzada del Jugador", pagina: 55, tags: ["bendicion", "resistente-al-veneno", "poison resilient"] },
+    { id: "bendicion-sirviente", tipo: "bendicion", nombre: "Sirviente", resumen: "El personaje cuenta con ayuda domestica, apoyo personal o alguien a su servicio.", detalle: "Puede representar estatus, dependencia mutua o una pequena estructura domestica y social que acompana al personaje. Tambien es una fuente constante de ganchos narrativos.", fuente: "Guia Avanzada del Jugador", pagina: 55, tags: ["bendicion", "sirviente", "servant"] },
+    { id: "bendicion-nacido-de-las-sombras", tipo: "bendicion", nombre: "Nacido de las sombras", resumen: "Las sombras se adhieren al personaje y facilitan esconderse o moverse sin ser visto.", detalle: "Concede +1 a todas las pruebas de Discreto al escabullirse u ocultarse. Puede adquirirse varias veces, hasta un maximo de +3.", fuente: "Guia Avanzada del Jugador", pagina: 55, tags: ["bendicion", "nacido-de-las-sombras", "shadow spawn"] },
+    { id: "bendicion-alma-gemela", tipo: "bendicion", nombre: "Alma gemela", resumen: "El personaje comparte un lazo emocional y telepatico sencillo con otra persona.", detalle: "Ambos pueden transmitirse mensajes simples y emociones, conocer la direccion aproximada del otro y sentir si esta en peligro. El vinculo puede unir a un PJ con otro PJ o con un PNJ importante.", fuente: "Guia Avanzada del Jugador", pagina: 55, tags: ["bendicion", "alma-gemela", "soulmate"] },
+    { id: "bendicion-cartografo", tipo: "bendicion", nombre: "Cartografo", resumen: "El personaje sabe leer, crear y aprovechar mapas y rutas con solvencia profesional.", detalle: "Refuerza exploracion, orientacion y trabajo de campo. Convierte el territorio en una herramienta y no solo en un obstaculo.", fuente: "Guia Avanzada del Jugador", pagina: 56, tags: ["bendicion", "cartografo", "cartographer"] },
+    { id: "bendicion-cuentacuentos", tipo: "bendicion", nombre: "Cuentacuentos", resumen: "El personaje convierte leyendas, rumores y memoria oral en una herramienta real.", detalle: "Es una bendicion excelente para cronistas, artistas y embaucadores. Funciona tanto para entretener como para moldear percepciones y conservar historia viva.", fuente: "Guia Avanzada del Jugador", pagina: 56, tags: ["bendicion", "cuentacuentos", "storyteller"] },
+    { id: "bendicion-jugador", tipo: "bendicion", nombre: "Jugador", resumen: "El personaje se mueve con soltura en apuestas, juegos de azar y ambientes de riesgo social.", detalle: "Le da presencia en tabernas, garitos, mesas de cartas y encuentros donde leer a la gente importa tanto como el resultado del juego.", fuente: "Guia Avanzada del Jugador", pagina: 56, tags: ["bendicion", "jugador", "gambler"] },
+    { id: "bendicion-correveidile", tipo: "bendicion", nombre: "Correveidile", resumen: "El personaje sabe encontrar, propagar y desenredar rumores con gran eficacia.", detalle: "Gana +1 en pruebas ligadas a oir, difundir o descubrir la verdad detras de rumores. Puede adquirirse varias veces, hasta un maximo de +3.", fuente: "Guia Avanzada del Jugador", pagina: 56, tags: ["bendicion", "correveidile", "telltale"] },
+    { id: "bendicion-suplantador", tipo: "bendicion", nombre: "Suplantador", resumen: "El personaje imita voces, habitos y presencia ajena para hacerse pasar por otros.", detalle: "Es una bendicion de infiltracion sostenida. Su fuerza esta en la observacion, la preparacion y la valentia de mantener la mentira cuando realmente importa.", fuente: "Guia Avanzada del Jugador", pagina: 56, tags: ["bendicion", "suplantador", "impostor"] },
+    { id: "bendicion-tahur", tipo: "bendicion", nombre: "Tahur", resumen: "El personaje vive del riesgo, la lectura de intenciones y la oportunidad en ambientes tensos.", detalle: "Es cercana a Jugador, pero mas orientada al oficio de sacar ventaja constante de apuestas, trampas y debilidades ajenas.", fuente: "Guia Avanzada del Jugador", pagina: 56, tags: ["bendicion", "tahur", "high roller"] },
+    { id: "bendicion-archivista", tipo: "bendicion", nombre: "Archivista", resumen: "El personaje trabaja con documentos, registros y conocimiento clasificado con soltura profesional.", detalle: "Es ideal para eruditos, teurgos y burocratas. Refuerza escenas de investigacion, lectura de archivos, memoria institucional y rastreo de informacion escrita.", fuente: "Guia Avanzada del Jugador", pagina: 57, tags: ["bendicion", "archivista", "archivist"] },
+    { id: "bendicion-marcha-incansable", tipo: "bendicion", nombre: "Marcha incansable", resumen: "El personaje soporta viajes largos y desgaste fisico mejor que la mayoria.", detalle: "Es especialmente valiosa en expediciones, huidas y travesias donde la fatiga hace mella. Define a alguien acostumbrado a seguir andando incluso cuando todos los demas quieren parar.", fuente: "Guia Avanzada del Jugador", pagina: 57, tags: ["bendicion", "marcha-incansable", "enduring march"] },
+    { id: "bendicion-reliquia-familiar", tipo: "bendicion", nombre: "Reliquia familiar", resumen: "El personaje conserva un objeto heredado con fuerte peso practico, simbolico o emocional.", detalle: "La reliquia no es solo equipo: tambien implica linaje, memoria, promesas o deudas heredadas. Suele definir muy bien de donde viene el personaje.", fuente: "Guia Avanzada del Jugador", pagina: 57, tags: ["bendicion", "reliquia-familiar", "heirloom"] },
+    { id: "bendicion-ladron-felino", tipo: "bendicion", nombre: "Ladron felino", resumen: "El personaje trepa, se cuela y desaparece con la elasticidad de un depredador urbano.", detalle: "Es una bendicion de infiltracion fisica, ideal para especialistas en entrar, salir y moverse por lugares donde otros harian ruido o se quedarian atascados.", fuente: "Guia Avanzada del Jugador", pagina: 57, tags: ["bendicion", "ladron-felino", "cat burglar"] },
+    { id: "bendicion-tramposo", tipo: "bendicion", nombre: "Tramposo", resumen: "El personaje manipula reglas, juegos y expectativas a su favor.", detalle: "Refuerza a tahures, espias y supervivientes sociales. Puede abarcar desde trucos de mesa hasta pequenas tretas improvisadas en situaciones cotidianas.", fuente: "Guia Avanzada del Jugador", pagina: 57, tags: ["bendicion", "tramposo", "cheat"] },
+    { id: "bendicion-estafador", tipo: "bendicion", nombre: "Estafador", resumen: "El personaje vende mentiras convincentes y convierte apariencia en herramienta.", detalle: "Es una bendicion orientada a engano y lectura de vulnerabilidades. Brilla cuando la escena permite manipular codicia, ego, miedo o necesidad.", fuente: "Guia Avanzada del Jugador", pagina: 57, tags: ["bendicion", "estafador", "con artist"] }
+];
+const COMPLETE_BURDEN_OVERRIDES = [
+    { id: "carga-paria", tipo: "carga", nombre: "Paria", resumen: "El personaje carga con un estigma social que complica trato, prestigio y confianza.", detalle: "Puede deberse a raza, origen, reputacion o vinculacion con un grupo odiado. La carga hace que el personaje entre en escena ya con una desventaja social de base.", fuente: "Libro Basico", pagina: 108, tags: ["carga", "paria", "pariah"] },
+    { id: "carga-vida-corta", tipo: "carga", nombre: "Vida corta", resumen: "El personaje envejece o se consume antes que otros, y vive con esa urgencia.", detalle: "Define una relacion distinta con el tiempo, el riesgo y el legado. Es apropiada para personajes intensos, impulsivos o marcados por una fatalidad biologica o sobrenatural.", fuente: "Libro Basico", pagina: 111, tags: ["carga", "vida-corta", "short-lived", "short lived"] },
+    { id: "carga-enemigo-jurado", tipo: "carga", nombre: "Enemigo jurado", resumen: "Una persona o grupo poderoso tiene razones concretas para perseguir al personaje.", detalle: "A diferencia de una persecucion generica, aqui el peligro suele tener rostro, memoria y medios propios. Es una fuente estable de conflicto directo.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "enemigo-jurado", "arch enemy"] },
+    { id: "carga-bestial", tipo: "carga", nombre: "Bestial", resumen: "El personaje arrastra impulsos, presencia o habitos que lo acercan a lo salvaje.", detalle: "Hace mas dificil convivir dentro de estructuras civilizadas y suele venir acompanada de reacciones viscerales por parte de otros. En ciertos conceptos define toda la tension entre humanidad y monstruosidad.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "bestial", "bestial"] },
+    { id: "carga-sed-de-sangre", tipo: "carga", nombre: "Sed de sangre", resumen: "El personaje se deja arrastrar con demasiada facilidad por violencia, furia o gusto por el combate.", detalle: "Funciona mejor cuando empuja decisiones de las que luego hay que responder. Es una carga para personas agresivas, traumatizadas o demasiado comodas resolviendo todo a golpes.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "sed-de-sangre", "bloodthirst"] },
+    { id: "carga-adiccion", tipo: "carga", nombre: "Adiccion", resumen: "El personaje depende de una sustancia, costumbre o estado que puede arrastrarlo a malas decisiones.", detalle: "La necesidad genera tension real: gastar recursos, romper planes o exponerse. La carga funciona cuando la dependencia del personaje tiene consecuencias dentro de la historia.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "adiccion", "addiction"] },
+    { id: "carga-pesadillas", tipo: "carga", nombre: "Pesadillas", resumen: "El descanso del personaje se ve perseguido por visiones, recuerdos o terrores persistentes.", detalle: "Puede estar ligada a corrupcion, culpa, guerra o encuentros con algo que no deberia haberse visto. Refuerza escenas de cansancio, sobresalto y trauma.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "pesadillas", "nightmares"] },
+    { id: "carga-codigo-de-honor", tipo: "carga", nombre: "Codigo de honor", resumen: "El personaje se somete a principios que lo limitan incluso cuando actuar de otro modo seria mas facil.", detalle: "No es una desventaja mecanica constante, sino una fuente de conflictos y renuncias. Cuando importa, obliga al personaje a elegir entre eficacia y coherencia moral.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "codigo-de-honor", "code of honor"] },
+    { id: "carga-secreto-oscuro", tipo: "carga", nombre: "Secreto oscuro", resumen: "El personaje oculta una verdad capaz de destruir relaciones, posicion o seguridad si sale a la luz.", detalle: "Es excelente para campanas con facciones, juramentos y sospechas. No siempre estalla rapido, pero cuando lo hace pesa mucho y cambia dinamicas enteras.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "secreto-oscuro", "dark secret"] },
+    { id: "carga-anciano", tipo: "carga", nombre: "Anciano", resumen: "El personaje ha dejado atras su mejor momento y depende de si el cuerpo le acompana cada dia.", detalle: "Si la primera prueba del dia es un exito, todo va razonablemente bien. Si falla, arrastra rigidez y fatiga, sufriendo -1 a todas las pruebas durante el resto del dia.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "anciano", "elderly"] },
+    { id: "carga-epileptico", tipo: "carga", nombre: "Epileptico", resumen: "Una mente demasiado sensible puede desatar convulsiones en momentos de maxima tension.", detalle: "Si el personaje saca un 20 en una prueba, sufre un ataque y queda fuera de combate durante 1d6 turnos. Despues queda exhausto y sufre -1 a todas las pruebas hasta el final de la escena.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "epileptico", "epileptic"] },
+    { id: "carga-impulsivo", tipo: "carga", nombre: "Impulsivo", resumen: "El personaje actua antes de medir consecuencias y se lanza donde otros habrian esperado.", detalle: "La carga genera ritmo y problemas. Encaja con aventureros brillantes pero poco prudentes, gente con temperamento fuerte o personas incapaces de dejar pasar una provocacion.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "impulsivo", "impulsive"] },
+    { id: "carga-buscado", tipo: "carga", nombre: "Buscado", resumen: "Autoridades, acreedores, enemigos o facciones reconocen al personaje y quieren encontrarlo.", detalle: "Puede provenir de crimen, deudas, desercion, traicion o simplemente de haber sobrevivido a la gente equivocada. La amenaza existe incluso cuando el personaje intenta desaparecer.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "buscado", "wanted"] },
+    { id: "carga-enfermizo", tipo: "carga", nombre: "Enfermizo", resumen: "El personaje convive con una fragilidad fisica persistente o una salud inestable.", detalle: "Es adecuada para conceptos marcados por enfermedad, constitucion debil, viejas heridas o deterioro continuo. La limitacion debe sentirse como parte del personaje, no como un detalle decorativo.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "enfermizo", "sickly"] },
+    { id: "carga-marca-mistica", tipo: "carga", nombre: "Marca mistica", resumen: "El personaje lleva una senal sobrenatural reconocible para quien sepa mirarla.", detalle: "La marca puede delatar, inquietar o atraer atencion indebida. Es especialmente apropiada para misticos, malditos o personajes tocados por fuerzas mayores.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "marca-mistica", "mystical mark"] },
+    { id: "carga-protegido", tipo: "carga", nombre: "Protegido", resumen: "El personaje es responsable de alguien dependiente, vulnerable o demasiado valioso para quedar atras.", detalle: "Obliga a pensar mas alla del propio cuerpo. La carga gana fuerza cuando esa persona importa de verdad y condiciona viajes, decisiones y sacrificios.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "protegido", "protege", "protégé"] },
+    { id: "carga-senas-reveladoras", tipo: "carga", nombre: "Senas reveladoras", resumen: "El personaje deja una impresion demasiado marcada como para pasar desapercibido con facilidad.", detalle: "Puede tratarse de cicatrices, voz, olor, gestos, reputacion o cualquier detalle dificil de ocultar. Vuelve mas costoso mezclarse con la multitud o desaparecer.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "senas-reveladoras", "telltale"] },
+    { id: "carga-lento", tipo: "carga", nombre: "Lento", resumen: "El personaje es torpe para desplazarse, reaccionar o seguir el ritmo cuando la situacion exige rapidez.", detalle: "Se nota especialmente en huidas, persecuciones y escenas donde colocarse a tiempo importa tanto como actuar. Es apropiada para conceptos pesados, lesionados o poco agiles.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "lento", "slow"] }
+];
 function buildMonsterTraitEntries() {
     const traits = [
         {
@@ -1722,10 +2407,14 @@ export const RULE_SUMMARY_ENTRIES = [
     },
 ];
 export const CORE_RULES = [...MANUAL_RULES, ...RULE_SUMMARY_ENTRIES];
+export const SYMBAROUM_BLESSINGS = mergeCompendiumEntries(COMPLETE_BLESSING_OVERRIDES, mergeCompendiumEntries(APG_BLESSING_SUPPLEMENTS, buildBlessingEntries()));
+export const SYMBAROUM_BURDENS = mergeCompendiumEntries(COMPLETE_BURDEN_OVERRIDES, mergeCompendiumEntries(APG_BURDEN_SUPPLEMENTS, buildBurdenEntries()));
 export const ALL_ENTRIES = [
     ...CORE_RULES,
     ...buildMonsterRuleEntries(),
     ...buildMonsterTraitEntries(),
+    ...SYMBAROUM_BLESSINGS,
+    ...SYMBAROUM_BURDENS,
     ...SYMBAROUM_CAPABILITIES.map(buildCapabilityEntry),
     ...buildRaceEntries(),
     ...buildCultureEntries(),
@@ -1740,9 +2429,16 @@ export const COMPENDIUM_STATS = {
     rituals: SYMBAROUM_RITUALS.length
 };
 export function findCompendiumCapabilityEntryId(tipo, nombre) {
-    const targetSlug = slugify(nombre);
-    const entry = ALL_ENTRIES.find((item) => item.tipo === tipo && slugify(item.nombre) === targetSlug);
+    const entry = findCompendiumEntryByTypeAndName(tipo, nombre);
     return entry?.id ?? null;
+}
+export function findCompendiumEntryByTypeAndName(tipo, nombre) {
+    const normalizedTarget = normalizeLookup(nombre);
+    const targetSlug = slugify(nombre);
+    const entry = ALL_ENTRIES.find((item) => item.tipo === tipo && (slugify(item.nombre) === targetSlug ||
+        normalizeLookup(item.nombre) === normalizedTarget ||
+        item.tags.some((tag) => normalizeLookup(tag) === normalizedTarget || slugify(tag) === targetSlug)));
+    return entry ?? null;
 }
 const SOURCE_CANONICAL_MAP = {
     "Libro Basico": "Libro B\u00e1sico",
@@ -2463,6 +3159,74 @@ const SOURCE_PDF_PAGE_OFFSETS = {
     "C\u00f3dice de monstruos": 2
 };
 const ADVANCED_GUIDE_ENTRY_PAGE_OVERRIDES = {
+    "Memoria absoluta": 50,
+    "Augur": 50,
+    "Lengua de bestia": 50,
+    "Sabueso": 50,
+    "Lazos de sangre": 50,
+    "Voz de mando": 50,
+    "Empresa": 51,
+    "Sangre oscura": 51,
+    "Diestro": 51,
+    "Doble lengua": 51,
+    "Escapismo": 51,
+    "Falsa identidad": 51,
+    "Forjado por el fuego": 51,
+    "Pies ligeros": 51,
+    "Conocimiento prohibido": 51,
+    "Escondites": 52,
+    "Espejismo": 52,
+    "Horripilante": 52,
+    "Pulgar verde": 52,
+    "Imitador": 52,
+    "Manipulador": 52,
+    "Medium": 52,
+    "Médium": 52,
+    "Mula de carga": 53,
+    "Musico": 53,
+    "Músico": 53,
+    "Buscasendas": 53,
+    "Mascota": 53,
+    "Resistente al veneno": 53,
+    "Sirviente": 53,
+    "Nacido de las sombras": 53,
+    "Alma gemela": 53,
+    "Cartografo": 54,
+    "Cartógrafo": 54,
+    "Cuentacuentos": 54,
+    "Jugador": 54,
+    "Correveidile": 54,
+    "Suplantador": 54,
+    "Tahur": 54,
+    "Tahúr": 54,
+    "Archivista": 55,
+    "Marcha incansable": 55,
+    "Reliquia familiar": 55,
+    "Ladron felino": 55,
+    "Ladrón felino": 55,
+    "Tramposo": 55,
+    "Estafador": 55,
+    "Enemigo jurado": 56,
+    "Bestial": 56,
+    "Sed de sangre": 56,
+    "Adiccion": 56,
+    "Adicción": 56,
+    "Pesadillas": 56,
+    "Codigo de honor": 56,
+    "Código de honor": 56,
+    "Secreto oscuro": 56,
+    "Anciano": 56,
+    "Epileptico": 56,
+    "Epiléptico": 56,
+    "Impulsivo": 57,
+    "Buscado": 57,
+    "Enfermizo": 57,
+    "Marca mistica": 57,
+    "Marca mística": 57,
+    "Protegido": 57,
+    "Senas reveladoras": 57,
+    "Señas reveladoras": 57,
+    "Lento": 57,
     "Arco veloz": 60,
     "Armas de presa": 60,
     "CanalizaciÃ³n": 62,

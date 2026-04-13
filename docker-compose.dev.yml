@@ -28,6 +28,13 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-this-refresh-secret}
       ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-15m}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:5173}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
       SUPERADMIN_EMAIL: ${SUPERADMIN_EMAIL:-superadmin@umbra.local}
       SUPERADMIN_PASSWORD: ${SUPERADMIN_PASSWORD:-SuperAdmin123!}
     ports:
@@ -35,7 +42,9 @@ services:
     volumes:
       - ./:/app
       - umbra_api_node_modules:/app/node_modules
-    command: sh -c "if [ ! -d packages/shared/node_modules ]; then npm install --prefix packages/shared; fi && if [ ! -d apps/api/node_modules ]; then npm install --prefix apps/api; fi && npm run prisma:generate --prefix apps/api && npm run prisma:migrate:deploy --prefix apps/api && npm run prisma:seed --prefix apps/api && npm run dev --prefix apps/api"
+      - umbra_api_workspace_node_modules:/app/apps/api/node_modules
+      - umbra_shared_node_modules:/app/packages/shared/node_modules
+    command: sh -c "npm install --prefix packages/shared && npm install --prefix apps/api && npm run prisma:generate --prefix apps/api && npm run prisma:migrate:deploy --prefix apps/api && npm run prisma:seed --prefix apps/api && npm run dev --prefix apps/api"
 
   web:
     build:
@@ -54,9 +63,14 @@ services:
     volumes:
       - ./:/app
       - umbra_web_node_modules:/app/node_modules
-    command: sh -c "if [ ! -d packages/shared/node_modules ]; then npm install --prefix packages/shared; fi && if [ ! -d apps/web/node_modules ]; then npm install --prefix apps/web; fi && npm run dev --prefix apps/web"
+      - umbra_web_workspace_node_modules:/app/apps/web/node_modules
+      - umbra_shared_node_modules:/app/packages/shared/node_modules
+    command: sh -c "npm install --prefix packages/shared && npm install --prefix apps/web && npm run dev --prefix apps/web"
 
 volumes:
   umbra_postgres_data:
   umbra_api_node_modules:
   umbra_web_node_modules:
+  umbra_api_workspace_node_modules:
+  umbra_web_workspace_node_modules:
+  umbra_shared_node_modules:
