@@ -668,6 +668,39 @@ function getCustomArmorQualities(item: CharacterSheet["inventoryItems"][number])
     .filter((quality) => !knownIds.has(normalizeWeaponQualityKey(quality)));
 }
 
+function getArmorDefensePenaltyDetail(item: CharacterSheet["inventoryItems"][number]): string {
+  if (item.category !== "armor") {
+    return "";
+  }
+
+  const qualityIds = new Set(parseWeaponQualities(item.qualities).map((quality) => normalizeWeaponQualityKey(quality)));
+  let basePenalty = 0;
+  let label = "";
+  if (qualityIds.has("ligera")) {
+    basePenalty = -2;
+    label = "Ligera";
+  } else if (qualityIds.has("media")) {
+    basePenalty = -3;
+    label = "Media";
+  } else if (qualityIds.has("pesada")) {
+    basePenalty = -4;
+    label = "Pesada";
+  }
+
+  if (basePenalty === 0) {
+    return "";
+  }
+
+  if (qualityIds.has("flexible")) {
+    const reducedPenalty = Math.min(0, basePenalty + 2);
+    return reducedPenalty === 0
+      ? `Defensa: Flexible anula la penalizacion de ${label.toLowerCase()}.`
+      : `Defensa: ${label} ${basePenalty} por incomoda, reducida a ${reducedPenalty} por Flexible.`;
+  }
+
+  return `Defensa: ${label} ${basePenalty} por incomoda.`;
+}
+
 function getKnownItemQualities(item: CharacterSheet["inventoryItems"][number]): string[] {
   const knownIds = new Set(ITEM_QUALITY_OPTIONS.map((entry) => entry.id));
   return parseWeaponQualities(item.qualities)
@@ -855,8 +888,14 @@ export function UnifiedCharacterSheet({
   const experience = useMemo(() => getCharacterExperienceSummary(normalizedSheet), [normalizedSheet]);
   const displayedSpentExperience = Math.max(normalizedSheet.progreso.experienciaGastada, experience.computedSpent);
   const activeArmor = useMemo(
-    () => normalizedSheet.inventoryItems.find((item) => item.category === "armor" && item.quantity > 0) ?? null,
-    [normalizedSheet.inventoryItems]
+    () => {
+      const equippedArmorId = normalizedSheet.equipmentSlots.armor;
+      if (equippedArmorId) {
+        return normalizedSheet.inventoryItems.find((item) => item.id === equippedArmorId && item.category === "armor" && item.quantity > 0) ?? null;
+      }
+      return normalizedSheet.inventoryItems.find((item) => item.category === "armor" && item.equipped && item.quantity > 0) ?? null;
+    },
+    [normalizedSheet.equipmentSlots.armor, normalizedSheet.inventoryItems]
   );
   const moneyCounters = useMemo(() => parseMoneyCounters(normalizedSheet.recursos.dinero), [normalizedSheet.recursos.dinero]);
   const inventorySections = useMemo(
@@ -1066,6 +1105,11 @@ export function UnifiedCharacterSheet({
     const ammoInfo = getAmmoInfoForWeapon(item, normalizedSheet.inventoryItems);
     if (ammoInfo) {
       notes.unshift(`Municion disponible: ${ammoInfo.quantity} ${ammoInfo.label}`);
+    }
+
+    const armorPenaltyDetail = getArmorDefensePenaltyDetail(item);
+    if (armorPenaltyDetail) {
+      notes.unshift(armorPenaltyDetail);
     }
 
     setActiveWeaponQualityInfoId("");
@@ -1916,6 +1960,19 @@ export function UnifiedCharacterSheet({
     updateField("recursos.dinero", formatMoneyCounters(nextCounters));
   }
 
+  function setEquippedArmor(index: number): void {
+    const armor = draft.inventoryItems[index];
+    if (!armor || armor.category !== "armor") return;
+    const nextArmorId = draft.equipmentSlots.armor === armor.id ? "" : armor.id;
+    setDraft({
+      ...draft,
+      equipmentSlots: {
+        ...draft.equipmentSlots,
+        armor: nextArmorId
+      }
+    });
+  }
+
   function toggleFavoriteAction(actionId: string): void {
     const currentFavorites = new Set(normalizedSheet.actionFavorites ?? []);
     if (currentFavorites.has(actionId)) {
@@ -1934,6 +1991,7 @@ export function UnifiedCharacterSheet({
     const isInventoryCombatItem = item.category === "weapon" || item.category === "armor";
     const isManagedInventoryItem = !isInventoryCombatItem;
     const ammoInfo = item.category === "weapon" ? getAmmoInfoForWeapon(item, normalizedSheet.inventoryItems) : null;
+    const isEquippedArmor = item.category === "armor" && normalizedSheet.equipmentSlots.armor === item.id;
 
     return (
         <article
@@ -1962,6 +2020,7 @@ export function UnifiedCharacterSheet({
                 <div className="unified-sheet-weapon-list-summary">
                   <p className="meta-text">{item.qualities || (item.category === "artifact" ? "Mistico" : item.category === "consumable" ? "Consumible" : item.category === "treasure" ? "Valioso" : "Equipo")}</p>
                   {ammoInfo ? <p className="meta-text">{ammoInfo.label}: {ammoInfo.quantity}</p> : null}
+                  {isEquippedArmor ? <p className="meta-text">Equipada</p> : null}
                 </div>
               ) : (
                 <p className="meta-text">
@@ -1976,6 +2035,18 @@ export function UnifiedCharacterSheet({
             {item.category === "armor" && item.protectionFormula ? <span className="unified-sheet-weapon-list-damage">{item.protectionFormula}</span> : null}
             {isManagedInventoryItem && !stackable && item.value ? <span className="unified-sheet-weapon-list-damage">{item.value}</span> : null}
             {stackable ? <span className="info-chip">x{item.quantity}</span> : null}
+            {canEditInventory && item.category === "armor" ? (
+              <button
+                type="button"
+                className={`subtle-button${isEquippedArmor ? " is-active" : ""}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setEquippedArmor(index);
+                }}
+              >
+                {isEquippedArmor ? "Equipada" : "Equipar"}
+              </button>
+            ) : null}
             {canEditInventory && stackable ? (
               <div className="unified-sheet-stack-controls">
                 <button type="button" className="subtle-button" onClick={(event) => {
@@ -2558,6 +2629,7 @@ export function UnifiedCharacterSheet({
                     <h3>Defensa</h3>
                     <strong>{derived.defensaTotal}</strong>
                   </div>
+                  {derived.defensaArmaduraDetalle ? <p className="section-help">{derived.defensaArmaduraDetalle}</p> : null}
                   <div className="unified-sheet-vital-actions">
                     <button type="button" className="vital-action subtle is-defense-roll" onClick={runDefenseRoll}>Tirar Defensa</button>
                   </div>

@@ -640,6 +640,13 @@ function synchronizeInventoryEquipment(items, rawSlots) {
     });
     return { inventoryItems, equipmentSlots };
 }
+function getEquippedInventoryItem(items, equipmentSlots, slot) {
+    const itemId = equipmentSlots[slot];
+    if (!itemId) {
+        return null;
+    }
+    return items.find((item) => item.id === itemId) ?? null;
+}
 function buildLegacyConditions(sheet) {
     const conditions = [];
     if (sheet.corrupcion.temporal > 0 || sheet.corrupcion.permanente > 0) {
@@ -1085,8 +1092,11 @@ function migrateCharacterSheetInput(input) {
         rituales,
         combate: {
             ...candidate.combate,
-            armadura: hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armadura,
-            armaduraProteccion: hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armaduraProteccion,
+            armadura: getEquippedInventoryItem(inventoryItems, equipmentSlots, "armor")?.name
+                ?? (hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armadura),
+            armaduraProteccion: getEquippedInventoryItem(inventoryItems, equipmentSlots, "armor")?.protectionFormula
+                ?? (hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armaduraProteccion),
+            armaduraCualidad: getEquippedInventoryItem(inventoryItems, equipmentSlots, "armor")?.qualities ?? candidate.combate.armaduraCualidad,
             robustezMax: syncedRobustezMax,
             robustezActual: Math.min(candidate.combate?.robustezActual ?? syncedRobustezMax, syncedRobustezMax)
         },
@@ -1123,8 +1133,11 @@ function buildSynchronizedCharacterSheet(input) {
         rituales,
         combate: {
             ...input.combate,
-            armadura: hasCharacterTraitBasedNaturalArmor(input) && isNaturalArmorPlaceholderName(input.combate.armadura ?? "") ? "" : input.combate.armadura,
-            armaduraProteccion: hasCharacterTraitBasedNaturalArmor(input) && isNaturalArmorPlaceholderName(input.combate.armadura ?? "") ? "" : input.combate.armaduraProteccion,
+            armadura: getEquippedInventoryItem(syncedEquipment.inventoryItems, syncedEquipment.equipmentSlots, "armor")?.name
+                ?? (hasCharacterTraitBasedNaturalArmor(input) && isNaturalArmorPlaceholderName(input.combate.armadura ?? "") ? "" : input.combate.armadura),
+            armaduraProteccion: getEquippedInventoryItem(syncedEquipment.inventoryItems, syncedEquipment.equipmentSlots, "armor")?.protectionFormula
+                ?? (hasCharacterTraitBasedNaturalArmor(input) && isNaturalArmorPlaceholderName(input.combate.armadura ?? "") ? "" : input.combate.armaduraProteccion),
+            armaduraCualidad: getEquippedInventoryItem(syncedEquipment.inventoryItems, syncedEquipment.equipmentSlots, "armor")?.qualities ?? input.combate.armaduraCualidad,
             robustezMax: syncedRobustezMax,
             robustezActual: Math.min(input.combate.robustezActual, syncedRobustezMax)
         },

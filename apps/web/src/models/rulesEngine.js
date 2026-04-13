@@ -5,6 +5,7 @@ export function computeDerivedStats(sheet) {
     const modifiers = collectCapabilityModifiers(sheet);
     const monsterTraitEffects = getCharacterMonsterTraitEffects(sheet);
     const experienceSummary = getCharacterExperienceSummary(sheet);
+    const armorDefensePenalty = getArmorDefensePenalty(sheet);
     const xpDisponible = experienceSummary.effectiveAvailable;
     const corrupcionTotal = Math.max(0, sheet.corrupcion.temporal + modifiers.CORRTEMP) + Math.max(0, sheet.corrupcion.permanente + modifiers.CORRPERM);
     const robustezBase = getEffectiveCharacterRobustezMax(sheet);
@@ -14,7 +15,7 @@ export function computeDerivedStats(sheet) {
     const umbralCorrupcionTotal = Math.max(0, sheet.corrupcion.umbral + modifiers.UMBCORR);
     const iniciativaBase = resolveInitiativeAttribute(sheet);
     const defensaBase = resolveDefenseAttribute(sheet) - monsterTraitEffects.defenseModifier;
-    const defensaTotal = defensaBase + sheet.combate.defensaMod + modifiers.DEF;
+    const defensaTotal = defensaBase + sheet.combate.defensaMod + modifiers.DEF + armorDefensePenalty.value;
     const iniciativaTotal = iniciativaBase + sheet.combate.iniciativaMod + modifiers.INI;
     const armaduraNatural = monsterTraitEffects.armorFormula;
     const armaduraActiva = sheet.combate.armaduraProteccion || armaduraNatural;
@@ -52,6 +53,8 @@ export function computeDerivedStats(sheet) {
         robustezMaximaTotal,
         robustezActualTotal,
         defensaTotal,
+        defensaArmaduraMod: armorDefensePenalty.value,
+        defensaArmaduraDetalle: armorDefensePenalty.detail,
         iniciativaTotal,
         umbralDolorTotal,
         umbralCorrupcionTotal,
@@ -60,6 +63,60 @@ export function computeDerivedStats(sheet) {
         armaduraNaturalBreakdown,
         warnings
     };
+}
+function getArmorDefensePenalty(sheet) {
+    const armorName = (sheet.combate.armadura ?? "").trim();
+    const armorProtection = (sheet.combate.armaduraProteccion ?? "").trim();
+    if (!armorName && !armorProtection) {
+        return { value: 0, detail: "" };
+    }
+    const qualities = parseCommaList(sheet.combate.armaduraCualidad ?? "");
+    const normalizedQualities = new Set(qualities.map((entry) => normalizeCapabilityName(entry)));
+    const armorTier = resolveArmorPenaltyTier(normalizedQualities, armorName);
+    if (!armorTier) {
+        return { value: 0, detail: "" };
+    }
+    const basePenalty = armorTier === "ligera" ? -2 : armorTier === "media" ? -3 : -4;
+    const reducedPenalty = normalizedQualities.has("flexible")
+        ? Math.min(0, basePenalty + 2)
+        : basePenalty;
+    if (reducedPenalty === 0) {
+        return {
+            value: 0,
+            detail: normalizedQualities.has("flexible") ? `Flexible anula la penalizacion de ${armorTier}.` : ""
+        };
+    }
+    return {
+        value: reducedPenalty,
+        detail: normalizedQualities.has("flexible")
+            ? `${capitalizeArmorTier(armorTier)}${basePenalty} por incomoda, reducido a ${reducedPenalty} por Flexible.`
+            : `${capitalizeArmorTier(armorTier)}${reducedPenalty} por incomoda.`
+    };
+}
+function resolveArmorPenaltyTier(normalizedQualities, armorName) {
+    if (normalizedQualities.has("ligera"))
+        return "ligera";
+    if (normalizedQualities.has("media"))
+        return "media";
+    if (normalizedQualities.has("pesada"))
+        return "pesada";
+    const normalizedName = normalizeCapabilityName(armorName);
+    if (normalizedName.includes("armadura ligera"))
+        return "ligera";
+    if (normalizedName.includes("armadura media"))
+        return "media";
+    if (normalizedName.includes("armadura pesada"))
+        return "pesada";
+    return null;
+}
+function parseCommaList(value) {
+    return String(value ?? "")
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+}
+function capitalizeArmorTier(value) {
+    return value.charAt(0).toUpperCase() + value.slice(1);
 }
 function resolveInitiativeAttribute(sheet) {
     const candidates = [sheet.atributos.agil];
