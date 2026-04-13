@@ -22,7 +22,7 @@ import {
 } from "@umbra/shared";
 import { computeDerivedStats } from "../models/rulesEngine";
 import { getCharacterExperienceSummary } from "../models/characterExperience";
-import { createCustomInventoryItem, createInventoryItemFromTemplate, ITEM_CATALOG, type ItemTemplate } from "../models/itemCatalog";
+import { ARMOR_QUALITY_OPTIONS, createCustomInventoryItem, createInventoryItemFromTemplate, ITEM_CATALOG, type ItemTemplate } from "../models/itemCatalog";
 import { ALL_ENTRIES, getCompendiumSourcePdfUrl, getCompendiumSummaryLink } from "../models/compendiumEntries";
 import { useUnifiedCharacterSheet } from "../hooks/useUnifiedCharacterSheet";
 import {
@@ -79,9 +79,11 @@ type ActionDetailModal = {
   removeInventoryIndex?: number;
   editInventoryIndex?: number;
   inventoryMeta?: {
+    kind?: "weapon" | "armor";
     attack?: string;
     damage?: string;
     protection?: string;
+    primaryLabel?: string;
     value?: string;
     notes?: string[];
     qualities?: Array<{ id: string; label: string; summary: string; details: string }>;
@@ -96,6 +98,7 @@ type CapabilityTier = {
 };
 
 type WeaponCatalogFilterId = "all" | "one-handed" | "short" | "long" | "heavy" | "ranged" | "thrown";
+type ArmorCatalogFilterId = "all" | "light" | "medium" | "heavy" | "shield";
 
 type MoneyCounters = {
   taleros: number;
@@ -104,6 +107,12 @@ type MoneyCounters = {
 };
 
 type WeaponEditorModal = {
+  mode: "create" | "edit";
+  item: CharacterSheet["inventoryItems"][number];
+  index?: number;
+};
+
+type ArmorEditorModal = {
   mode: "create" | "edit";
   item: CharacterSheet["inventoryItems"][number];
   index?: number;
@@ -129,6 +138,14 @@ const WEAPON_CATALOG_FILTER_OPTIONS: Array<{ id: WeaponCatalogFilterId; label: s
   { id: "thrown", label: "Arrojadizas" }
 ];
 
+const ARMOR_CATALOG_FILTER_OPTIONS: Array<{ id: ArmorCatalogFilterId; label: string }> = [
+  { id: "all", label: "Todas" },
+  { id: "light", label: "Ligeras" },
+  { id: "medium", label: "Medias" },
+  { id: "heavy", label: "Pesadas" },
+  { id: "shield", label: "Escudos" }
+];
+
 function matchesWeaponCatalogFilter(item: ItemTemplate, filterId: WeaponCatalogFilterId): boolean {
   if (item.category !== "weapon") return false;
   if (filterId === "all") return true;
@@ -146,6 +163,17 @@ function matchesWeaponCatalogFilter(item: ItemTemplate, filterId: WeaponCatalogF
       && !qualities.includes("a distancia")
       && !qualities.includes("arrojadiza");
   }
+  return true;
+}
+
+function matchesArmorCatalogFilter(item: ItemTemplate, filterId: ArmorCatalogFilterId): boolean {
+  if (item.category !== "armor") return false;
+  if (filterId === "all") return true;
+  const qualities = parseWeaponQualities(item.qualities).map((entry) => entry.toLowerCase());
+  if (filterId === "shield") return qualities.includes("escudo") || item.name.toLowerCase().includes("escudo");
+  if (filterId === "light") return qualities.includes("ligera");
+  if (filterId === "medium") return qualities.includes("media");
+  if (filterId === "heavy") return qualities.includes("pesada");
   return true;
 }
 
@@ -458,6 +486,18 @@ function getCustomWeaponQualities(item: CharacterSheet["inventoryItems"][number]
     .filter((quality) => !knownIds.has(normalizeWeaponQualityKey(quality)));
 }
 
+function getKnownArmorQualities(item: CharacterSheet["inventoryItems"][number]): string[] {
+  const knownIds = new Set(ARMOR_QUALITY_OPTIONS.map((entry) => entry.id));
+  return parseWeaponQualities(item.qualities)
+    .filter((quality) => knownIds.has(normalizeWeaponQualityKey(quality)));
+}
+
+function getCustomArmorQualities(item: CharacterSheet["inventoryItems"][number]): string[] {
+  const knownIds = new Set(ARMOR_QUALITY_OPTIONS.map((entry) => entry.id));
+  return parseWeaponQualities(item.qualities)
+    .filter((quality) => !knownIds.has(normalizeWeaponQualityKey(quality)));
+}
+
 function capitalizeActionLevel(level: string): "Novato" | "Adepto" | "Maestro" | null {
   switch (String(level ?? "").toLowerCase()) {
     case "novato":
@@ -545,12 +585,14 @@ export function UnifiedCharacterSheet({
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>(ITEM_CATALOG[0]?.templateId ?? "");
   const [inventoryCatalogModalTab, setInventoryCatalogModalTab] = useState<InventoryCatalogModalTab | null>(null);
   const [selectedWeaponCatalogFilter, setSelectedWeaponCatalogFilter] = useState<WeaponCatalogFilterId>("all");
+  const [selectedArmorCatalogFilter, setSelectedArmorCatalogFilter] = useState<ArmorCatalogFilterId>("all");
   const [history, setHistory] = useState<Array<{ title: string; detail?: string; rolls: ActionRollResult[] }>>([]);
   const rollDestination: RollDestination = "roll20";
   const [pendingRollConfirmation, setPendingRollConfirmation] = useState<PendingRollConfirmation | null>(null);
   const [showPendingRollBreakdown, setShowPendingRollBreakdown] = useState(false);
   const [actionDetailModal, setActionDetailModal] = useState<ActionDetailModal | null>(null);
   const [weaponEditorModal, setWeaponEditorModal] = useState<WeaponEditorModal | null>(null);
+  const [armorEditorModal, setArmorEditorModal] = useState<ArmorEditorModal | null>(null);
   const [activeWeaponQualityInfoId, setActiveWeaponQualityInfoId] = useState<string>("");
 
   const normalizedSheet = useMemo(() => synchronizeCharacterSheet(draft), [draft]);
@@ -637,8 +679,10 @@ export function UnifiedCharacterSheet({
   const filteredModalCatalogItems = useMemo(
     () => inventoryCatalogModalTab === "weapons"
       ? modalCatalogItems.filter((item) => matchesWeaponCatalogFilter(item, selectedWeaponCatalogFilter))
-      : modalCatalogItems,
-    [inventoryCatalogModalTab, modalCatalogItems, selectedWeaponCatalogFilter]
+      : inventoryCatalogModalTab === "armors"
+        ? modalCatalogItems.filter((item) => matchesArmorCatalogFilter(item, selectedArmorCatalogFilter))
+        : modalCatalogItems,
+    [inventoryCatalogModalTab, modalCatalogItems, selectedWeaponCatalogFilter, selectedArmorCatalogFilter]
   );
 
   useEffect(() => {
@@ -785,8 +829,64 @@ export function UnifiedCharacterSheet({
       removeInventoryIndex: canEditInventory ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
       editInventoryIndex: canEditInventory && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
       inventoryMeta: {
+        kind: "weapon",
         damage: item.damageFormula || undefined,
         protection: item.protectionFormula || undefined,
+        primaryLabel: "Danio base",
+        value: item.value || undefined,
+        notes,
+        qualities: qualityDefinitions
+      }
+    });
+  }
+
+  function openInventoryArmorDetail(item: CharacterSheet["inventoryItems"][number]): void {
+    const qualityDefinitions = parseWeaponQualities(item.qualities).map((quality) => {
+      const definition = ARMOR_QUALITY_OPTIONS.find((entry) => entry.id === normalizeWeaponQualityKey(quality));
+      return definition
+        ? {
+            id: definition.id,
+            label: definition.label,
+            summary: definition.summary,
+            details: definition.details ?? definition.summary
+          }
+        : {
+            id: quality.toLowerCase(),
+            label: quality,
+            summary: quality,
+            details: quality
+          };
+    });
+    const qualityPrefixes = new Set(qualityDefinitions.map((entry) => `${entry.label}:`.toLowerCase()));
+    const notes = (item.notes || "")
+      .split(/\n+/)
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .filter((entry) => {
+        const normalizedEntry = entry.toLowerCase();
+        for (const prefix of qualityPrefixes) {
+          if (normalizedEntry.startsWith(prefix)) {
+            return false;
+          }
+        }
+        return true;
+      });
+    if (item.modifiers.length > 0) {
+      notes.push(`Modificadores: ${item.modifiers.map((modifier) => modifier.label || `${modifier.modifierType} ${modifier.value}`.trim()).join(" · ")}`);
+    }
+
+    setActiveWeaponQualityInfoId("");
+    setActionDetailModal({
+      title: item.name || "Objeto sin nombre",
+      sourceLabel: item.isCustom ? "Armadura personalizada" : "Armadura del catalogo",
+      detail: item.description.trim() || "Sin descripcion adicional.",
+      notes,
+      removeInventoryIndex: canEditInventory ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+      editInventoryIndex: canEditInventory && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+      inventoryMeta: {
+        kind: "armor",
+        protection: item.protectionFormula || undefined,
+        primaryLabel: "Proteccion base",
         value: item.value || undefined,
         notes,
         qualities: qualityDefinitions
@@ -1173,6 +1273,14 @@ export function UnifiedCharacterSheet({
     setActiveInventoryTab("weapons");
   }
 
+  function addCustomArmor(): void {
+    setArmorEditorModal({
+      mode: "create",
+      item: createCustomInventoryItem("armor")
+    });
+    setActiveInventoryTab("armors");
+  }
+
   function updateWeaponEditorItem(field: keyof CharacterSheet["inventoryItems"][number], value: string | number | boolean | undefined): void {
     setWeaponEditorModal((current) => current ? { ...current, item: { ...current.item, [field]: value } } : current);
   }
@@ -1234,6 +1342,68 @@ export function UnifiedCharacterSheet({
     setWeaponEditorModal(null);
   }
 
+  function updateArmorEditorItem(field: keyof CharacterSheet["inventoryItems"][number], value: string | number | boolean | undefined): void {
+    setArmorEditorModal((current) => current ? { ...current, item: { ...current.item, [field]: value } } : current);
+  }
+
+  function toggleArmorEditorQuality(qualityLabel: string): void {
+    setArmorEditorModal((current) => {
+      if (!current || current.item.category !== "armor") {
+        return current;
+      }
+      const currentQualities = parseWeaponQualities(current.item.qualities);
+      const normalizedTarget = normalizeWeaponQualityKey(qualityLabel);
+      const nextQualities = currentQualities.some((quality) => normalizeWeaponQualityKey(quality) === normalizedTarget)
+        ? currentQualities.filter((quality) => normalizeWeaponQualityKey(quality) !== normalizedTarget)
+        : [...currentQualities, qualityLabel];
+      return {
+        ...current,
+        item: {
+          ...current.item,
+          qualities: formatWeaponQualities(nextQualities)
+        }
+      };
+    });
+  }
+
+  function updateArmorEditorCustomQualities(rawValue: string): void {
+    setArmorEditorModal((current) => {
+      if (!current || current.item.category !== "armor") {
+        return current;
+      }
+      const knownQualities = getKnownArmorQualities(current.item);
+      const customQualities = parseWeaponQualities(rawValue);
+      return {
+        ...current,
+        item: {
+          ...current.item,
+          qualities: formatWeaponQualities([...knownQualities, ...customQualities])
+        }
+      };
+    });
+  }
+
+  function saveArmorEditorModal(): void {
+    if (!armorEditorModal) return;
+    const nextItem = {
+      ...armorEditorModal.item,
+      name: armorEditorModal.item.name.trim() || "Armadura personalizada",
+      description: armorEditorModal.item.description.trim(),
+      value: armorEditorModal.item.value.trim(),
+      protectionFormula: armorEditorModal.item.protectionFormula.trim(),
+      notes: armorEditorModal.item.notes.trim(),
+      qualities: formatWeaponQualities(parseWeaponQualities(armorEditorModal.item.qualities)),
+      slot: armorEditorModal.item.slot === "none" ? "armor" : armorEditorModal.item.slot
+    };
+    setDraft({
+      ...draft,
+      inventoryItems: typeof armorEditorModal.index === "number"
+        ? draft.inventoryItems.map((item, index) => (index === armorEditorModal.index ? nextItem : item))
+        : [...draft.inventoryItems, nextItem]
+    });
+    setArmorEditorModal(null);
+  }
+
   function removeInventoryItem(index: number): void {
     const removedId = draft.inventoryItems[index]?.id;
     setDraft({
@@ -1266,6 +1436,7 @@ export function UnifiedCharacterSheet({
       return item.category !== "weapon" && item.category !== "armor";
     });
     setSelectedWeaponCatalogFilter("all");
+    setSelectedArmorCatalogFilter("all");
     setSelectedCatalogItemId(filteredItems[0]?.templateId ?? "");
     setInventoryCatalogModalTab(tab);
   }
@@ -1315,25 +1486,30 @@ export function UnifiedCharacterSheet({
 
   function renderInventoryItemEditor(item: CharacterSheet["inventoryItems"][number], index: number): ReactNode {
     const stackable = isStackableInventoryItem(item);
+    const isInventoryCombatItem = item.category === "weapon" || item.category === "armor";
 
     return (
         <article
           key={item.id}
-          className={`campaign-structured-card${item.category === "weapon" ? " is-clickable-card" : ""}`}
-        onClick={item.category === "weapon" ? () => openInventoryWeaponDetail(item) : undefined}
-        onKeyDown={item.category === "weapon" ? (event) => {
+          className={`campaign-structured-card${isInventoryCombatItem ? " is-clickable-card" : ""}`}
+        onClick={item.category === "weapon" ? () => openInventoryWeaponDetail(item) : item.category === "armor" ? () => openInventoryArmorDetail(item) : undefined}
+        onKeyDown={isInventoryCombatItem ? (event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            openInventoryWeaponDetail(item);
+            if (item.category === "weapon") {
+              openInventoryWeaponDetail(item);
+            } else if (item.category === "armor") {
+              openInventoryArmorDetail(item);
+            }
           }
         } : undefined}
-        role={item.category === "weapon" ? "button" : undefined}
-        tabIndex={item.category === "weapon" ? 0 : undefined}
+        role={isInventoryCombatItem ? "button" : undefined}
+        tabIndex={isInventoryCombatItem ? 0 : undefined}
         >
           <div className="row-actions">
             <div>
               <h3>{item.name || "Objeto sin nombre"}</h3>
-              {item.category === "weapon" ? (
+              {isInventoryCombatItem ? (
                 <div className="unified-sheet-weapon-list-summary">
                   <p className="meta-text">{item.qualities || ""}</p>
                 </div>
@@ -1345,8 +1521,9 @@ export function UnifiedCharacterSheet({
                 </p>
               )}
             </div>
-          <div className={`unified-sheet-quantity-controls${item.category === "weapon" ? " is-weapon-summary" : ""}`}>
+          <div className={`unified-sheet-quantity-controls${isInventoryCombatItem ? " is-weapon-summary" : ""}`}>
             {item.category === "weapon" && item.damageFormula ? <span className="unified-sheet-weapon-list-damage">{item.damageFormula}</span> : null}
+            {item.category === "armor" && item.protectionFormula ? <span className="unified-sheet-weapon-list-damage">{item.protectionFormula}</span> : null}
             {stackable ? <span className="info-chip">x{item.quantity}</span> : null}
             {canEditInventory && stackable ? (
               <div className="unified-sheet-stack-controls">
@@ -1360,35 +1537,35 @@ export function UnifiedCharacterSheet({
                 }}>-</button>
               </div>
             ) : null}
-            {canEditInventory && item.category !== "weapon" ? <button type="button" className="subtle-button" onClick={(event) => {
+            {canEditInventory && !isInventoryCombatItem ? <button type="button" className="subtle-button" onClick={(event) => {
               event.stopPropagation();
               removeInventoryItem(index);
             }}>Quitar</button> : null}
           </div>
         </div>
         <div className="unified-sheet-item-readonly-grid">
-          {(item.attackAttribute || item.damageFormula || item.protectionFormula) && item.category !== "weapon" ? (
+          {(item.attackAttribute || item.damageFormula || item.protectionFormula) && !isInventoryCombatItem ? (
             <div className="info-box">
               {item.attackAttribute ? <span>Ataque: {ATTRIBUTE_LABELS[item.attackAttribute]}</span> : null}
               {item.damageFormula ? <span>Danio: {item.damageFormula}</span> : null}
               {item.protectionFormula ? <span>Proteccion: {item.protectionFormula}</span> : null}
             </div>
           ) : null}
-          {(item.weight || item.value) && item.category !== "weapon" ? (
+          {(item.weight || item.value) && !isInventoryCombatItem ? (
             <div className="info-box">
               {item.weight ? <span>Peso: {item.weight}</span> : null}
               {item.value ? <span>Valor: {item.value}</span> : null}
             </div>
           ) : null}
-          {item.qualities && item.category !== "weapon" ? <div className="info-box"><span>Cualidades: {item.qualities}</span></div> : null}
+          {item.qualities && !isInventoryCombatItem ? <div className="info-box"><span>Cualidades: {item.qualities}</span></div> : null}
           {item.modifiers.length > 0 ? (
             <div className="info-box">
               <span>Modificadores: {item.modifiers.map((modifier) => modifier.label || `${modifier.modifierType} ${modifier.value}`.trim()).join(" · ")}</span>
             </div>
           ) : null}
         </div>
-        {item.description && item.category !== "weapon" ? <p className="unified-sheet-rich-text">{item.description}</p> : null}
-        {item.notes && item.category !== "weapon" ? <p className="unified-sheet-capability-notes">{item.notes}</p> : null}
+        {item.description && !isInventoryCombatItem ? <p className="unified-sheet-rich-text">{item.description}</p> : null}
+        {item.notes && !isInventoryCombatItem ? <p className="unified-sheet-capability-notes">{item.notes}</p> : null}
       </article>
     );
   }
@@ -1651,7 +1828,12 @@ export function UnifiedCharacterSheet({
                   <>
                     <div className="row-actions">
                       <h3>Armaduras</h3>
-                      {canEditInventory ? <button type="button" onClick={() => openInventoryCatalogModal("armors")}>Agregar armadura</button> : null}
+                      {canEditInventory ? (
+                        <div className="toolbar">
+                          <button type="button" className="subtle-button" onClick={addCustomArmor}>Armadura personalizada</button>
+                          <button type="button" onClick={() => openInventoryCatalogModal("armors")}>Agregar armadura</button>
+                        </div>
+                      ) : null}
                     </div>
                     <div className="unified-sheet-list">
                       {inventorySections.armors.length > 0
@@ -2355,8 +2537,10 @@ export function UnifiedCharacterSheet({
                 <div className="unified-sheet-weapon-detail-layout">
                   <section className="unified-sheet-weapon-detail-hero">
                     <div className="unified-sheet-weapon-detail-primary">
-                      {actionDetailModal.inventoryMeta.damage ? <strong>{actionDetailModal.inventoryMeta.damage}</strong> : null}
-                      <span>Danio base</span>
+                      {actionDetailModal.inventoryMeta.damage || actionDetailModal.inventoryMeta.protection ? (
+                        <strong>{actionDetailModal.inventoryMeta.damage || actionDetailModal.inventoryMeta.protection}</strong>
+                      ) : null}
+                      <span>{actionDetailModal.inventoryMeta.primaryLabel || "Valor base"}</span>
                     </div>
                     <div className="unified-sheet-weapon-detail-stats">
                       {actionDetailModal.inventoryMeta.value ? (
@@ -2443,11 +2627,19 @@ export function UnifiedCharacterSheet({
                   onClick={() => {
                     const item = normalizedSheet.inventoryItems[actionDetailModal.editInventoryIndex as number];
                     if (!item) return;
-                    setWeaponEditorModal({
-                      mode: "edit",
-                      item: { ...item },
-                      index: actionDetailModal.editInventoryIndex
-                    });
+                    if (item.category === "weapon") {
+                      setWeaponEditorModal({
+                        mode: "edit",
+                        item: { ...item },
+                        index: actionDetailModal.editInventoryIndex
+                      });
+                    } else if (item.category === "armor") {
+                      setArmorEditorModal({
+                        mode: "edit",
+                        item: { ...item },
+                        index: actionDetailModal.editInventoryIndex
+                      });
+                    }
                     setActionDetailModal(null);
                   }}
                 >
@@ -2538,6 +2730,72 @@ export function UnifiedCharacterSheet({
           </div>
         </div>
       ) : null}
+      {armorEditorModal ? (
+        <div className="modal-backdrop" onClick={() => setArmorEditorModal(null)}>
+          <div className="panel modal-panel character-roll-confirm-modal unified-sheet-weapon-editor-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>{armorEditorModal.mode === "create" ? "Armadura personalizada" : "Editar armadura personalizada"}</h3>
+            <p className="section-help">Configura la armadura y guardala para que aparezca en el inventario como cualquier otra armadura.</p>
+            <div className="unified-sheet-action-detail-body">
+              <div className="form-grid">
+                <Field label="Nombre"><input value={armorEditorModal.item.name} onChange={(event) => updateArmorEditorItem("name", event.target.value)} /></Field>
+                <Field label="Proteccion"><input value={armorEditorModal.item.protectionFormula} onChange={(event) => updateArmorEditorItem("protectionFormula", event.target.value)} /></Field>
+                <Field label="Ranura">
+                  <select value={armorEditorModal.item.slot} onChange={(event) => updateArmorEditorItem("slot", event.target.value)}>
+                    <option value="armor">Armadura</option>
+                    <option value="offHand">Mano secundaria</option>
+                    <option value="worn">Llevada</option>
+                  </select>
+                </Field>
+                <Field label="Cantidad">
+                  <input type="number" min={0} value={armorEditorModal.item.quantity} onChange={(event) => updateArmorEditorItem("quantity", Number(event.target.value || 0))} />
+                </Field>
+                <Field label="Apilable">
+                  <select value={armorEditorModal.item.stackable ? "si" : "no"} onChange={(event) => updateArmorEditorItem("stackable", event.target.value === "si")}>
+                    <option value="no">No</option>
+                    <option value="si">Si</option>
+                  </select>
+                </Field>
+                <Field label="Valor"><input value={armorEditorModal.item.value} onChange={(event) => updateArmorEditorItem("value", event.target.value)} /></Field>
+              </div>
+              <div className="field">
+                <span>Cualidades</span>
+                <div className="unified-sheet-quality-picker">
+                  {ARMOR_QUALITY_OPTIONS.map((quality) => {
+                    const active = getKnownArmorQualities(armorEditorModal.item).some((entry) => normalizeWeaponQualityKey(entry) === quality.id);
+                    return (
+                      <button
+                        key={`${armorEditorModal.item.id}-${quality.id}`}
+                        type="button"
+                        className={active ? "is-active" : ""}
+                        onClick={() => toggleArmorEditorQuality(quality.label)}
+                      >
+                        {quality.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <Field label="Cualidades adicionales">
+                <input
+                  value={getCustomArmorQualities(armorEditorModal.item).join(", ")}
+                  placeholder="Separadas por comas"
+                  onChange={(event) => updateArmorEditorCustomQualities(event.target.value)}
+                />
+              </Field>
+              <Field label="Descripcion">
+                <textarea rows={3} value={armorEditorModal.item.description} placeholder="Descripcion de la armadura" onChange={(event) => updateArmorEditorItem("description", event.target.value)} />
+              </Field>
+              <Field label="Notas">
+                <textarea rows={3} value={armorEditorModal.item.notes} placeholder="Notas de uso, mantenimiento o procedencia" onChange={(event) => updateArmorEditorItem("notes", event.target.value)} />
+              </Field>
+            </div>
+            <div className="row-actions character-roll-confirm-actions">
+              <button type="button" className="subtle-button" onClick={() => setArmorEditorModal(null)}>Cancelar</button>
+              <button type="button" className="accent-button" onClick={saveArmorEditorModal}>Guardar</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {inventoryCatalogModalTab ? (
         <div className="modal-backdrop" onClick={() => setInventoryCatalogModalTab(null)}>
           <div className="panel modal-panel character-roll-confirm-modal unified-sheet-item-catalog-modal" onClick={(event) => event.stopPropagation()}>
@@ -2559,9 +2817,18 @@ export function UnifiedCharacterSheet({
                     ))}
                   </select>
                 </label>
+              ) : inventoryCatalogModalTab === "armors" ? (
+                <label className="field">
+                  <span>Tipo</span>
+                  <select value={selectedArmorCatalogFilter} onChange={(event) => setSelectedArmorCatalogFilter(event.target.value as ArmorCatalogFilterId)}>
+                    {ARMOR_CATALOG_FILTER_OPTIONS.map((option) => (
+                      <option key={option.id} value={option.id}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
               ) : null}
               <label className="field">
-                <span>{inventoryCatalogModalTab === "weapons" ? "Arma" : "Catalogo"}</span>
+                <span>{inventoryCatalogModalTab === "weapons" ? "Arma" : inventoryCatalogModalTab === "armors" ? "Armadura" : "Catalogo"}</span>
                 <select value={selectedCatalogItemId} onChange={(event) => setSelectedCatalogItemId(event.target.value)}>
                   {filteredModalCatalogItems.map((item) => (
                     <option key={item.templateId} value={item.templateId}>{item.name}</option>
@@ -2610,12 +2877,46 @@ export function UnifiedCharacterSheet({
                           </section>
                         ) : null}
                       </div>
+                    ) : selectedItem.category === "armor" ? (
+                      <div className="unified-sheet-weapon-detail-layout unified-sheet-item-catalog-weapon-preview">
+                        <div className="unified-sheet-item-catalog-preview-header">
+                          <strong>{selectedItem.name}</strong>
+                          <span>Armadura del catalogo</span>
+                        </div>
+                        <section className="unified-sheet-weapon-detail-hero">
+                          <div className="unified-sheet-weapon-detail-primary">
+                            {selectedItem.protectionFormula ? <strong>{selectedItem.protectionFormula}</strong> : <strong>-</strong>}
+                            <span>Proteccion base</span>
+                          </div>
+                          <div className="unified-sheet-weapon-detail-stats">
+                            {selectedItem.value ? (
+                              <article className="unified-sheet-weapon-detail-stat">
+                                <span>Valor</span>
+                                <strong>{selectedItem.value}</strong>
+                              </article>
+                            ) : null}
+                          </div>
+                        </section>
+                        {selectedItem.description ? (
+                          <section className="unified-sheet-weapon-detail-copy">
+                            <p>{selectedItem.description}</p>
+                          </section>
+                        ) : null}
+                        {parseWeaponQualities(selectedItem.qualities).length > 0 ? (
+                          <section className="unified-sheet-weapon-detail-qualities">
+                            <h4>Cualidades</h4>
+                            <div className="unified-sheet-item-catalog-meta">
+                              {parseWeaponQualities(selectedItem.qualities).map((quality) => <span key={`${selectedItem.templateId}-${quality}`}>{quality}</span>)}
+                            </div>
+                          </section>
+                        ) : null}
+                      </div>
                     ) : (
                       <>
                         <strong>{selectedItem.name}</strong>
                         {selectedItem.description ? <p>{selectedItem.description}</p> : null}
                         <div className="unified-sheet-item-catalog-meta">
-                          <span>{selectedItem.category === "armor" ? "Armadura" : "Objeto"}</span>
+                          <span>Objeto</span>
                           {selectedItem.protectionFormula ? <span>Proteccion {selectedItem.protectionFormula}</span> : null}
                           {selectedItem.value ? <span>{selectedItem.value}</span> : null}
                           {selectedItem.qualities ? <span>{selectedItem.qualities}</span> : null}
