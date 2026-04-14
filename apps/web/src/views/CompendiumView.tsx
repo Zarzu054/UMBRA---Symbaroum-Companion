@@ -350,7 +350,7 @@ export function CompendiumView({
               filteredEntries.map((entry) => (
                 <button
                   key={entry.id}
-                  className={`compendium-list-item${selectedEntry?.id === entry.id ? " is-active" : ""}`}
+                  className={`compendium-list-item app-card-accent app-card-accent--${entry.tipo}${selectedEntry?.id === entry.id ? " is-active" : ""}`}
                   onClick={() => setSelectedId(entry.id)}
                 >
                   <span className="compendium-list-top">

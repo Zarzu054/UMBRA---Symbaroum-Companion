@@ -1996,7 +1996,7 @@ export function UnifiedCharacterSheet({
     return (
         <article
           key={item.id}
-          className={`campaign-structured-card${(isInventoryCombatItem || isManagedInventoryItem) ? " is-clickable-card" : ""}`}
+          className={`campaign-structured-card${appCardCategoryClass(item.category)}${(isInventoryCombatItem || isManagedInventoryItem) ? " is-clickable-card" : ""}`}
         onClick={item.category === "weapon" ? () => openInventoryWeaponDetail(item) : item.category === "armor" ? () => openInventoryArmorDetail(item) : () => openManagedInventoryItemDetail(item)}
         onKeyDown={(isInventoryCombatItem || isManagedInventoryItem) ? (event) => {
           if (event.key === "Enter" || event.key === " ") {
@@ -2431,7 +2431,7 @@ export function UnifiedCharacterSheet({
                 </nav>
 
                 {activeCapabilityTab === "traits" ? (
-                  <SimpleStringList title="Rasgos" entries={normalizedSheet.rasgos} emptyText="Sin rasgos registrados." />
+                  <SimpleStringList title="Rasgos" entries={normalizedSheet.rasgos} emptyText="Sin rasgos registrados." categoryKey="rasgo" />
                 ) : null}
 
                 {activeCapabilityTab === "blessings" ? (
@@ -2439,6 +2439,7 @@ export function UnifiedCharacterSheet({
                     title="Bendiciones"
                     entries={normalizedSheet.bendiciones}
                     emptyText="Sin bendiciones registradas."
+                    categoryKey="bendicion"
                     onOpenDetail={(entry) => openSimpleCompendiumDetail("bendicion", "Bendicion", entry)}
                   />
                 ) : null}
@@ -2448,6 +2449,7 @@ export function UnifiedCharacterSheet({
                     title="Cargas"
                     entries={normalizedSheet.cargas}
                     emptyText="Sin cargas registradas."
+                    categoryKey="carga"
                     onOpenDetail={(entry) => openSimpleCompendiumDetail("carga", "Carga", entry)}
                   />
                 ) : null}
@@ -2456,6 +2458,7 @@ export function UnifiedCharacterSheet({
                   <CapabilityTextList
                     title="Habilidades"
                     entries={normalizedSheet.habilidades}
+                    categoryKey="habilidad"
                     onOpenDetail={(entry) => openCapabilityDetail("habilidad", entry)}
                     onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("habilidad", name) : undefined}
                   />
@@ -2465,6 +2468,7 @@ export function UnifiedCharacterSheet({
                   <CapabilityTextList
                     title="Poderes misticos"
                     entries={normalizedSheet.poderesMisticos}
+                    categoryKey="poder_mistico"
                     onOpenDetail={(entry) => openCapabilityDetail("poder_mistico", entry)}
                     onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("poder_mistico", name) : undefined}
                   />
@@ -2474,6 +2478,7 @@ export function UnifiedCharacterSheet({
                   <CapabilityTextList
                     title="Rituales"
                     entries={normalizedSheet.rituales}
+                    categoryKey="ritual"
                     onOpenDetail={(entry) => openCapabilityDetail("ritual", entry)}
                     onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("ritual", name) : undefined}
                   />
@@ -2875,6 +2880,7 @@ export function UnifiedCharacterSheet({
               <SimpleStringListEditor
                 title="Rasgos"
                 entries={normalizedSheet.rasgos}
+                categoryKey="rasgo"
                 editable={editMode}
                 rows={6}
                 helpText="Rasgos de personaje como Contactos se guardan aqui y se exportan/importan como tipo Rasgo."
@@ -2888,6 +2894,7 @@ export function UnifiedCharacterSheet({
               <SimpleStringListEditor
                 title="Bendiciones"
                 entries={normalizedSheet.bendiciones}
+                categoryKey="bendicion"
                 editable={editMode}
                 rows={6}
                 helpText="Cada bendicion cuenta como 5 PX gastados."
@@ -2901,6 +2908,7 @@ export function UnifiedCharacterSheet({
               <SimpleStringListEditor
                 title="Cargas"
                 entries={normalizedSheet.cargas}
+                categoryKey="carga"
                 editable={editMode}
                 rows={6}
                 helpText="Cada carga aporta 5 PX extra disponibles."
@@ -2911,13 +2919,13 @@ export function UnifiedCharacterSheet({
             ) : null}
           </article>
           {activeCapabilityTab === "abilities" ? (
-            <CapabilityEditor title="Habilidades" entries={normalizedSheet.habilidades} editable={editMode} onAdd={() => addRatedEntry("habilidades")} onRemove={(index) => removeRatedEntry("habilidades", index)} onUpdate={(index, field, value) => updateRatedEntry("habilidades", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("habilidad", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("habilidad", name) : undefined} />
+            <CapabilityEditor title="Habilidades" categoryKey="habilidad" entries={normalizedSheet.habilidades} editable={editMode} onAdd={() => addRatedEntry("habilidades")} onRemove={(index) => removeRatedEntry("habilidades", index)} onUpdate={(index, field, value) => updateRatedEntry("habilidades", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("habilidad", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("habilidad", name) : undefined} />
           ) : null}
           {activeCapabilityTab === "powers" ? (
-            <CapabilityEditor title="Poderes misticos" entries={normalizedSheet.poderesMisticos} editable={editMode} onAdd={() => addRatedEntry("poderesMisticos")} onRemove={(index) => removeRatedEntry("poderesMisticos", index)} onUpdate={(index, field, value) => updateRatedEntry("poderesMisticos", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("poder_mistico", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("poder_mistico", name) : undefined} />
+            <CapabilityEditor title="Poderes misticos" categoryKey="poder_mistico" entries={normalizedSheet.poderesMisticos} editable={editMode} onAdd={() => addRatedEntry("poderesMisticos")} onRemove={(index) => removeRatedEntry("poderesMisticos", index)} onUpdate={(index, field, value) => updateRatedEntry("poderesMisticos", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("poder_mistico", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("poder_mistico", name) : undefined} />
           ) : null}
           {activeCapabilityTab === "rituals" ? (
-            <CapabilityEditor title="Rituales" entries={normalizedSheet.rituales} editable={editMode} onAdd={() => addRatedEntry("rituales")} onRemove={(index) => removeRatedEntry("rituales", index)} onUpdate={(index, field, value) => updateRatedEntry("rituales", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("ritual", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("ritual", name) : undefined} />
+            <CapabilityEditor title="Rituales" categoryKey="ritual" entries={normalizedSheet.rituales} editable={editMode} onAdd={() => addRatedEntry("rituales")} onRemove={(index) => removeRatedEntry("rituales", index)} onUpdate={(index, field, value) => updateRatedEntry("rituales", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("ritual", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("ritual", name) : undefined} />
           ) : null}
         </section>
       ) : null}
@@ -3658,15 +3666,21 @@ function slotLabel(slot: "mainHand" | "offHand" | "ranged" | "armor" | "artifact
   }
 }
 
+function appCardCategoryClass(category: string | null | undefined): string {
+  return category ? ` app-card-accent app-card-accent--${category}` : "";
+}
+
 function CapabilityTextList({
   title,
   entries,
-  onOpenDetail
+  onOpenDetail,
+  categoryKey
 }: {
   title: string;
   entries: RatedEntry[];
   onOpenDetail?: (entry: RatedEntry) => void;
   onOpenCompendium?: (name: string) => void;
+  categoryKey?: string;
 }) {
   return (
     <div className="unified-sheet-list">
@@ -3674,7 +3688,7 @@ function CapabilityTextList({
         entries.map((entry, index) => (
           <article
             key={`${title}-${index}-${entry.nombre}`}
-            className={`unified-sheet-capability-card${onOpenDetail ? " is-clickable" : ""}`}
+            className={`unified-sheet-capability-card${onOpenDetail ? " is-clickable" : ""}${appCardCategoryClass(categoryKey)}`}
             onClick={onOpenDetail ? () => onOpenDetail(entry) : undefined}
             onKeyDown={onOpenDetail ? (event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -3706,12 +3720,14 @@ function SimpleStringList({
   title,
   entries,
   emptyText,
-  onOpenDetail
+  onOpenDetail,
+  categoryKey
 }: {
   title: string;
   entries: string[];
   emptyText: string;
   onOpenDetail?: (entry: string) => void;
+  categoryKey?: string;
 }) {
   return (
     <div className="unified-sheet-list">
@@ -3719,7 +3735,7 @@ function SimpleStringList({
         entries.map((entry, index) => (
           <article
             key={`${title}-${index}-${entry}`}
-            className={`unified-sheet-capability-card${onOpenDetail ? " is-clickable" : ""}`}
+            className={`unified-sheet-capability-card${onOpenDetail ? " is-clickable" : ""}${appCardCategoryClass(categoryKey)}`}
             onClick={onOpenDetail ? () => onOpenDetail(entry) : undefined}
             onKeyDown={onOpenDetail ? (event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -3751,7 +3767,8 @@ function SimpleStringListEditor({
   helpText,
   onChange,
   onAdd,
-  onRemove
+  onRemove,
+  categoryKey
 }: {
   title: string;
   entries: string[];
@@ -3761,6 +3778,7 @@ function SimpleStringListEditor({
   onChange: (value: string) => void;
   onAdd: () => void;
   onRemove: (index: number) => void;
+  categoryKey?: string;
 }) {
   return (
     <article className="campaign-sheet-card">
@@ -3780,7 +3798,7 @@ function SimpleStringListEditor({
       <div className="unified-sheet-list">
         {entries.length > 0 ? (
           entries.map((entry, index) => (
-            <article key={`${title}-editor-${index}-${entry}`} className="campaign-structured-card">
+            <article key={`${title}-editor-${index}-${entry}`} className={`campaign-structured-card${appCardCategoryClass(categoryKey)}`}>
               <div className="row-actions">
                 <strong>{entry || `${title} ${index + 1}`}</strong>
                 {editable ? <button type="button" className="subtle-button" onClick={() => onRemove(index)}>Quitar</button> : null}
@@ -3804,9 +3822,10 @@ type CapabilityEditorProps = {
   onUpdate: (index: number, field: "nombre" | "tipo" | "efecto" | "nivel" | "fuente" | "pagina" | "notas", value: string | number) => void;
   onOpenDetail?: (entry: CharacterSheet["habilidades"][number]) => void;
   onOpenCompendium?: (name: string) => void;
+  categoryKey?: string;
 };
 
-function CapabilityEditor({ title, entries, editable, onAdd, onRemove, onUpdate, onOpenDetail, onOpenCompendium }: CapabilityEditorProps) {
+function CapabilityEditor({ title, entries, editable, onAdd, onRemove, onUpdate, onOpenDetail, onOpenCompendium, categoryKey }: CapabilityEditorProps) {
   return (
     <article className="campaign-sheet-card">
       <div className="row-actions">
@@ -3815,7 +3834,7 @@ function CapabilityEditor({ title, entries, editable, onAdd, onRemove, onUpdate,
       </div>
       <div className="unified-sheet-list">
         {entries.map((entry, index) => (
-          <article key={`${title}-${index}-${entry.nombre}`} className="campaign-structured-card">
+          <article key={`${title}-${index}-${entry.nombre}`} className={`campaign-structured-card${appCardCategoryClass(categoryKey)}`}>
             <div className="form-grid">
               <Field label="Nombre"><input disabled={!editable} value={entry.nombre} onChange={(event) => onUpdate(index, "nombre", event.target.value)} /></Field>
               <Field label="Tipo"><input disabled={!editable} value={entry.tipo} onChange={(event) => onUpdate(index, "tipo", event.target.value)} /></Field>
