@@ -85,7 +85,17 @@ function referenceMatchesText(reference: CampaignReference, text: string): boole
   });
 }
 
-function renderHighlightedText(text: string, references: CampaignReference[]) {
+function findReferenceForTerm(term: string, references: CampaignReference[]): CampaignReference | null {
+  return references.find((reference) =>
+    getReferenceTerms(reference).some((candidate) => candidate.localeCompare(term, undefined, { sensitivity: "base" }) === 0)
+  ) ?? null;
+}
+
+function renderHighlightedText(
+  text: string,
+  references: CampaignReference[],
+  onOpenReference: (referenceId: string) => void
+) {
   if (!text.trim() || references.length === 0) {
     return text;
   }
@@ -103,7 +113,23 @@ function renderHighlightedText(text: string, references: CampaignReference[]) {
   const matcher = new RegExp(`(${terms.map((term) => escapeRegExp(term)).join("|")})`, "gi");
   return text.split(matcher).map((part, index) =>
     terms.some((term) => part.localeCompare(term, undefined, { sensitivity: "base" }) === 0)
-      ? <mark key={`${part}-${index}`} className="compendium-highlight">{part}</mark>
+      ? (() => {
+          const reference = findReferenceForTerm(part, references);
+          if (!reference) {
+            return <mark key={`${part}-${index}`} className="compendium-highlight">{part}</mark>;
+          }
+
+          return (
+            <button
+              key={`${part}-${index}`}
+              type="button"
+              className="compendium-highlight compendium-highlight-button"
+              onClick={() => onOpenReference(reference.id)}
+            >
+              {part}
+            </button>
+          );
+        })()
       : part
   );
 }
@@ -205,7 +231,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [isReferenceDetailModalOpen, setIsReferenceDetailModalOpen] = useState(false);
   const [isCreateCampaignModalOpen, setIsCreateCampaignModalOpen] = useState(false);
   const [isCampaignDetailsModalOpen, setIsCampaignDetailsModalOpen] = useState(false);
+  const [isSharedNotesModalOpen, setIsSharedNotesModalOpen] = useState(false);
   const [isBurdenSummaryModalOpen, setIsBurdenSummaryModalOpen] = useState(false);
+  const [pendingUnlinkCharacter, setPendingUnlinkCharacter] = useState<Campaign["characters"][number] | null>(null);
 
   const selectedCampaign = useMemo(
     () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
@@ -268,9 +296,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const isAnyModalOpen =
     isCreateCampaignModalOpen ||
     isCampaignDetailsModalOpen ||
+    isSharedNotesModalOpen ||
     isReferenceCreateModalOpen ||
     isReferenceDetailModalOpen ||
     isBurdenSummaryModalOpen ||
+    Boolean(pendingUnlinkCharacter) ||
     isSheetModalOpen;
 
   useBodyScrollLock(isAnyModalOpen);
@@ -310,6 +340,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setSelectedReferenceId(null);
       setReferenceForm(emptyReferenceForm);
       setReferenceAliasesText("");
+      setIsSharedNotesModalOpen(false);
+      setPendingUnlinkCharacter(null);
       setIsReferenceCreateModalOpen(false);
       setIsReferenceDetailModalOpen(false);
       return;
@@ -467,6 +499,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     try {
       const token = await ensureAccessToken();
       upsertCampaign(await updateCampaign(selectedCampaign.id, { sharedNotes: draft.sharedNotes }, token));
+      setFormError(null);
+      setIsSharedNotesModalOpen(false);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "No se pudieron guardar las notas compartidas");
     } finally {
@@ -528,6 +562,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     try {
       const token = await ensureAccessToken();
       upsertCampaign(await unlinkCampaignCharacter(linkId, token));
+      setPendingUnlinkCharacter(null);
       if (selectedSheetId === linkId) {
         setSelectedSheetId(null);
         setActiveSection("characters");
@@ -720,7 +755,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               </div>
             </div>
 
-            {formError && !isCampaignDetailsModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen ? (
+            {formError && !isCampaignDetailsModalOpen && !isSharedNotesModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen ? (
               <p className="error-text">{formError}</p>
             ) : null}
 
@@ -788,21 +823,22 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           {activeSection === "sharedNotes" ? (
             <section className="panel">
               <div className="row-actions">
-                <h3>Notas compartidas</h3>
-                <button type="button" disabled={isSaving} onClick={() => void handleSaveSharedNotes()}>
-                  {isSaving ? "Guardando..." : "Guardar"}
+                <div>
+                  <h3>Notas compartidas</h3>
+                  <p className="section-help">Lectura compartida de la campaña con resaltados de la wiki visibles para cada usuario.</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setFormError(null);
+                    setIsSharedNotesModalOpen(true);
+                  }}
+                >
+                  Editar notas
                 </button>
               </div>
-              <label className="field">
-                <span>Notas visibles para los miembros de la campana</span>
-                <textarea
-                  rows={14}
-                  value={draft.sharedNotes}
-                  onChange={(event) => setDraft((current) => ({ ...current, sharedNotes: event.target.value }))}
-                  placeholder="Apuntes de sesion, acuerdos del grupo, pistas, recordatorios..."
-                />
-              </label>
-              <article className="campaign-sheet-card">
+              <article className="campaign-sheet-card campaign-shared-notes-card">
                 <div className="row-actions">
                   <div>
                     <h4>Resaltados de la wiki</h4>
@@ -810,7 +846,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   </div>
                   <span className="meta-text">{sharedNotesReferenceHighlights.length} coincidencias</span>
                 </div>
-                <p>{renderHighlightedText(draft.sharedNotes || "Sin notas compartidas.", sharedNotesReferenceHighlights)}</p>
+                <div className="campaign-shared-notes-copy">
+                  <p>{renderHighlightedText(draft.sharedNotes || "Sin notas compartidas.", sharedNotesReferenceHighlights, openReferenceDetail)}</p>
+                </div>
                 {sharedNotesReferenceHighlights.length > 0 ? (
                   <div className="compendium-tags">
                     {sharedNotesReferenceHighlights.map((reference) => (
@@ -948,7 +986,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     <article key={entry.id} className="card">
                       <strong>{entry.name}</strong>
                       <span>{entry.ownerEmail}</span>
-                      <span>PX total: {entry.experienceTotal} Â· PX gastada: {entry.experienceSpent}</span>
+                      <span>PX total: {entry.experienceTotal} | PX gastada: {entry.experienceSpent}</span>
                       <span>Actualizado: {formatDate(entry.updatedAt)}</span>
                       <div className="card-actions">
                         {isDirector && entry.sheet ? (
@@ -962,7 +1000,14 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                           </button>
                         ) : null}
                         {canManageLink ? (
-                          <button type="button" disabled={isSaving} onClick={() => void handleUnlinkCharacter(entry.id)}>
+                          <button
+                            type="button"
+                            disabled={isSaving}
+                            onClick={() => {
+                              setFormError(null);
+                              setPendingUnlinkCharacter(entry);
+                            }}
+                          >
                             Desvincular
                           </button>
                         ) : null}
@@ -996,6 +1041,94 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         </section>
       ) : null}
 
+      {isSharedNotesModalOpen && selectedCampaign ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setFormError(null);
+              setIsSharedNotesModalOpen(false);
+            }
+          }}
+        >
+          <div className="panel modal-panel campaign-shared-notes-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="row-actions">
+              <div>
+                <h3>Editar notas compartidas</h3>
+                <p className="section-help">Estos apuntes son visibles para los miembros de la campaña.</p>
+              </div>
+              <div className="toolbar">
+                <button type="button" disabled={isSaving} onClick={() => void handleSaveSharedNotes()}>
+                  {isSaving ? "Guardando..." : "Guardar"}
+                </button>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setFormError(null);
+                    setIsSharedNotesModalOpen(false);
+                  }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            {formError ? <p className="error-text">{formError}</p> : null}
+            <label className="field">
+              <span>Notas visibles para los miembros de la campaña</span>
+              <textarea
+                rows={16}
+                value={draft.sharedNotes}
+                onChange={(event) => setDraft((current) => ({ ...current, sharedNotes: event.target.value }))}
+                placeholder="Apuntes de sesion, acuerdos del grupo, pistas, recordatorios..."
+              />
+            </label>
+          </div>
+        </section>
+      ) : null}
+
+      {pendingUnlinkCharacter ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setPendingUnlinkCharacter(null);
+            }
+          }}
+        >
+          <div className="panel modal-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="row-actions">
+              <div>
+                <h3>Confirmar desvinculacion</h3>
+                <p className="section-help">
+                  Vas a desvincular a {pendingUnlinkCharacter.name} de esta campana. Su ficha no se borra, pero dejara de aparecer aqui.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => {
+                  setPendingUnlinkCharacter(null);
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+            {formError ? <p className="error-text">{formError}</p> : null}
+            <div className="toolbar">
+              <button
+                type="button"
+                className="danger-button"
+                disabled={isSaving}
+                onClick={() => void handleUnlinkCharacter(pendingUnlinkCharacter.id)}
+              >
+                {isSaving ? "Desvinculando..." : "Confirmar desvinculacion"}
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {campaignSheetModalEntry ? (
         <section
           className="modal-backdrop"
@@ -1010,7 +1143,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             <div className="row-actions campaign-character-sheet-modal-header">
               <div>
                 <h3>{campaignSheetModalEntry.name}</h3>
-                <p className="section-help">{campaignSheetModalEntry.ownerEmail} Â· Hoja vinculada a campana</p>
+                <p className="section-help">{campaignSheetModalEntry.ownerEmail} | Hoja vinculada a campana</p>
               </div>
               <button type="button" onClick={() => setSelectedSheetId(null)}>
                 Cerrar
@@ -1019,7 +1152,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             <div className="campaign-character-sheet-modal-body">
               <UnifiedCharacterSheet
                 title={campaignSheetModalEntry.name}
-                subtitle={`${campaignSheetModalEntry.ownerEmail} Â· Hoja vinculada a campana`}
+                subtitle={`${campaignSheetModalEntry.ownerEmail} | Hoja vinculada a campana`}
                 sheet={campaignSheetModalEntry.sheet!}
                 editable={false}
                 busy={isSaving}
