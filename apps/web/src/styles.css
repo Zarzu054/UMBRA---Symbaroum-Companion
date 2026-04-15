@@ -329,7 +329,7 @@ td {
 .app-content {
   position: relative;
   min-width: 0;
-  padding: 9px 20px 28px 20px;
+  padding: 0 20px 28px 20px;
 }
 
 .module-theme {
@@ -2979,7 +2979,7 @@ td {
   }
 
   .app-content {
-    padding: 8px 12px 24px;
+    padding: 0 12px 24px;
   }
 }
 

@@ -136,6 +136,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [isReferenceDetailModalOpen, setIsReferenceDetailModalOpen] = useState(false);
   const [isCreateCampaignModalOpen, setIsCreateCampaignModalOpen] = useState(false);
   const [isCampaignDetailsModalOpen, setIsCampaignDetailsModalOpen] = useState(false);
+  const [isBurdenSummaryModalOpen, setIsBurdenSummaryModalOpen] = useState(false);
 
   const selectedCampaign = useMemo(
     () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
@@ -191,6 +192,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     isCampaignDetailsModalOpen ||
     isReferenceCreateModalOpen ||
     isReferenceDetailModalOpen ||
+    isBurdenSummaryModalOpen ||
     isSheetModalOpen;
 
   useBodyScrollLock(isAnyModalOpen);
