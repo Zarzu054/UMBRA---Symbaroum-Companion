@@ -1413,6 +1413,58 @@ button.subtle-button {
   background: rgba(255, 252, 245, 0.34);
 }
 
+.campaign-reference-detail-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.campaign-reference-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid rgba(139, 109, 77, 0.18);
+}
+
+.campaign-reference-detail-header h4 {
+  margin: 0.2rem 0 0;
+  font-size: 1.65rem;
+  letter-spacing: 0.03em;
+}
+
+.campaign-reference-detail-kicker {
+  margin: 0;
+  color: var(--rubric-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.76rem;
+}
+
+.campaign-reference-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 0.5rem;
+}
+
+.campaign-reference-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.campaign-reference-preview > .meta-text {
+  display: block;
+  margin-bottom: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.campaign-reference-preview--content {
+  gap: 0.6rem;
+}
+
 .monster-module,
 .monster-module-layout,
 .monster-section,
@@ -2013,6 +2065,67 @@ td {
 
 .campaign-shared-notes-modal {
   width: min(760px, 100%);
+}
+
+.campaign-markdown {
+  color: #433126;
+  font-size: 1.05rem;
+  line-height: 1.85;
+}
+
+.campaign-markdown > :first-child {
+  margin-top: 0;
+}
+
+.campaign-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.campaign-markdown p,
+.campaign-markdown ul,
+.campaign-markdown ol,
+.campaign-markdown blockquote,
+.campaign-markdown pre {
+  margin: 0 0 1rem;
+}
+
+.campaign-markdown ul,
+.campaign-markdown ol {
+  padding-left: 1.5rem;
+}
+
+.campaign-markdown h3,
+.campaign-markdown h4,
+.campaign-markdown h5,
+.campaign-markdown h6 {
+  margin: 0 0 0.8rem;
+  color: #6f3e2d;
+  letter-spacing: 0.06em;
+}
+
+.campaign-markdown blockquote {
+  padding-left: 1rem;
+  border-left: 3px solid rgba(156, 74, 46, 0.28);
+  color: #5f4639;
+}
+
+.campaign-markdown code {
+  padding: 0.08rem 0.35rem;
+  border-radius: 6px;
+  background: rgba(88, 64, 45, 0.08);
+  font-size: 0.94em;
+}
+
+.campaign-markdown-code-block {
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: rgba(88, 64, 45, 0.08);
+  overflow-x: auto;
+}
+
+.campaign-markdown-code-block code {
+  padding: 0;
+  background: transparent;
 }
 
 .campaign-header-actions {

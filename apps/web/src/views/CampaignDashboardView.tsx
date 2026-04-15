@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   createCampaignReferenceSchema,
   createCampaignSchema,
@@ -94,8 +94,9 @@ function findReferenceForTerm(term: string, references: CampaignReference[]): Ca
 function renderHighlightedText(
   text: string,
   references: CampaignReference[],
-  onOpenReference: (referenceId: string) => void
-) {
+  onOpenReference: (referenceId: string) => void,
+  keyPrefix = "highlight"
+): ReactNode[] | string {
   if (!text.trim() || references.length === 0) {
     return text;
   }
@@ -116,12 +117,12 @@ function renderHighlightedText(
       ? (() => {
           const reference = findReferenceForTerm(part, references);
           if (!reference) {
-            return <mark key={`${part}-${index}`} className="compendium-highlight">{part}</mark>;
+            return <mark key={`${keyPrefix}-${part}-${index}`} className="compendium-highlight">{part}</mark>;
           }
 
           return (
             <button
-              key={`${part}-${index}`}
+              key={`${keyPrefix}-${part}-${index}`}
               type="button"
               className="compendium-highlight compendium-highlight-button"
               onClick={() => onOpenReference(reference.id)}
@@ -132,6 +133,176 @@ function renderHighlightedText(
         })()
       : part
   );
+}
+
+function renderMarkdownInline(
+  text: string,
+  references: CampaignReference[],
+  onOpenReference: (referenceId: string) => void,
+  keyPrefix: string
+): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const pattern = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    const [fullMatch, , linkLabel, linkUrl, inlineCode, boldText, italicText] = match;
+    if (match.index > lastIndex) {
+      const textNodes = renderHighlightedText(text.slice(lastIndex, match.index), references, onOpenReference, `${keyPrefix}-text-${lastIndex}`);
+      nodes.push(...(Array.isArray(textNodes) ? textNodes : [textNodes]));
+    }
+
+    if (linkLabel && linkUrl) {
+      nodes.push(
+        <a key={`${keyPrefix}-link-${match.index}`} href={linkUrl} target="_blank" rel="noreferrer">
+          {linkLabel}
+        </a>
+      );
+    } else if (inlineCode) {
+      nodes.push(<code key={`${keyPrefix}-code-${match.index}`}>{inlineCode}</code>);
+    } else if (boldText) {
+      nodes.push(<strong key={`${keyPrefix}-bold-${match.index}`}>{renderMarkdownInline(boldText, references, onOpenReference, `${keyPrefix}-bold-inner-${match.index}`)}</strong>);
+    } else if (italicText) {
+      nodes.push(<em key={`${keyPrefix}-italic-${match.index}`}>{renderMarkdownInline(italicText, references, onOpenReference, `${keyPrefix}-italic-inner-${match.index}`)}</em>);
+    } else {
+      nodes.push(fullMatch);
+    }
+
+    lastIndex = match.index + fullMatch.length;
+  }
+
+  if (lastIndex < text.length) {
+    const textNodes = renderHighlightedText(text.slice(lastIndex), references, onOpenReference, `${keyPrefix}-tail-${lastIndex}`);
+    nodes.push(...(Array.isArray(textNodes) ? textNodes : [textNodes]));
+  }
+
+  return nodes;
+}
+
+function renderMarkdownBlocks(
+  text: string,
+  references: CampaignReference[],
+  onOpenReference: (referenceId: string) => void
+): ReactNode {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const blocks: ReactNode[] = [];
+  let index = 0;
+  let codeBlockIndex = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      index += 1;
+      continue;
+    }
+
+    if (trimmed.startsWith("```")) {
+      const codeLines: string[] = [];
+      index += 1;
+      while (index < lines.length && !lines[index].trim().startsWith("```")) {
+        codeLines.push(lines[index]);
+        index += 1;
+      }
+      if (index < lines.length) index += 1;
+      blocks.push(
+        <pre key={`code-${codeBlockIndex}`} className="campaign-markdown-code-block">
+          <code>{codeLines.join("\n")}</code>
+        </pre>
+      );
+      codeBlockIndex += 1;
+      continue;
+    }
+
+    const headingMatch = line.match(/^(#{1,4})\s+(.+)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const content = headingMatch[2];
+      const headingNodes = renderMarkdownInline(content, references, onOpenReference, `heading-${index}`);
+      if (level === 1) {
+        blocks.push(<h3 key={`heading-${index}`}>{headingNodes}</h3>);
+      } else if (level === 2) {
+        blocks.push(<h4 key={`heading-${index}`}>{headingNodes}</h4>);
+      } else if (level === 3) {
+        blocks.push(<h5 key={`heading-${index}`}>{headingNodes}</h5>);
+      } else {
+        blocks.push(<h6 key={`heading-${index}`}>{headingNodes}</h6>);
+      }
+      index += 1;
+      continue;
+    }
+
+    const unorderedMatch = line.match(/^[-*]\s+(.+)$/);
+    if (unorderedMatch) {
+      const items: ReactNode[] = [];
+      while (index < lines.length) {
+        const itemMatch = lines[index].match(/^[-*]\s+(.+)$/);
+        if (!itemMatch) break;
+        items.push(<li key={`ul-${index}`}>{renderMarkdownInline(itemMatch[1], references, onOpenReference, `ul-${index}`)}</li>);
+        index += 1;
+      }
+      blocks.push(<ul key={`ul-block-${index}`}>{items}</ul>);
+      continue;
+    }
+
+    const orderedMatch = line.match(/^\d+\.\s+(.+)$/);
+    if (orderedMatch) {
+      const items: ReactNode[] = [];
+      while (index < lines.length) {
+        const itemMatch = lines[index].match(/^\d+\.\s+(.+)$/);
+        if (!itemMatch) break;
+        items.push(<li key={`ol-${index}`}>{renderMarkdownInline(itemMatch[1], references, onOpenReference, `ol-${index}`)}</li>);
+        index += 1;
+      }
+      blocks.push(<ol key={`ol-block-${index}`}>{items}</ol>);
+      continue;
+    }
+
+    const quoteMatch = line.match(/^>\s+(.+)$/);
+    if (quoteMatch) {
+      const quoteLines: string[] = [];
+      while (index < lines.length) {
+        const itemMatch = lines[index].match(/^>\s+(.+)$/);
+        if (!itemMatch) break;
+        quoteLines.push(itemMatch[1]);
+        index += 1;
+      }
+      blocks.push(
+        <blockquote key={`quote-${index}`}>
+          {quoteLines.map((quoteLine, quoteIndex) => (
+            <p key={`quote-line-${index}-${quoteIndex}`}>{renderMarkdownInline(quoteLine, references, onOpenReference, `quote-${index}-${quoteIndex}`)}</p>
+          ))}
+        </blockquote>
+      );
+      continue;
+    }
+
+    const paragraphLines: string[] = [];
+    while (index < lines.length && lines[index].trim()) {
+      if (/^(#{1,4})\s+/.test(lines[index]) || /^[-*]\s+/.test(lines[index]) || /^\d+\.\s+/.test(lines[index]) || /^>\s+/.test(lines[index]) || lines[index].trim().startsWith("```")) {
+        break;
+      }
+      paragraphLines.push(lines[index]);
+      index += 1;
+    }
+
+    const paragraphText = paragraphLines.join("\n");
+    const paragraphParts = paragraphText.split("\n");
+    blocks.push(
+      <p key={`paragraph-${index}`}>
+        {paragraphParts.map((part, partIndex) => (
+          <span key={`paragraph-part-${index}-${partIndex}`}>
+            {partIndex > 0 ? <br /> : null}
+            {renderMarkdownInline(part, references, onOpenReference, `paragraph-${index}-${partIndex}`)}
+          </span>
+        ))}
+      </p>
+    );
+  }
+
+  return blocks;
 }
 
 function describeReferenceVisibility(reference: CampaignReference): string {
@@ -229,6 +400,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [referenceAliasesText, setReferenceAliasesText] = useState("");
   const [isReferenceCreateModalOpen, setIsReferenceCreateModalOpen] = useState(false);
   const [isReferenceDetailModalOpen, setIsReferenceDetailModalOpen] = useState(false);
+  const [isReferenceEditMode, setIsReferenceEditMode] = useState(false);
   const [isCreateCampaignModalOpen, setIsCreateCampaignModalOpen] = useState(false);
   const [isCampaignDetailsModalOpen, setIsCampaignDetailsModalOpen] = useState(false);
   const [isSharedNotesModalOpen, setIsSharedNotesModalOpen] = useState(false);
@@ -343,6 +515,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setIsSharedNotesModalOpen(false);
       setPendingUnlinkCharacter(null);
       setIsReferenceCreateModalOpen(false);
+      setIsReferenceEditMode(false);
       setIsReferenceDetailModalOpen(false);
       return;
     }
@@ -359,6 +532,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   useEffect(() => {
     if (selectedReferenceId && !selectedCampaign?.references.some((entry) => entry.id === selectedReferenceId)) {
       setSelectedReferenceId(null);
+      setIsReferenceEditMode(false);
       setIsReferenceDetailModalOpen(false);
     }
   }, [selectedCampaign, selectedReferenceId]);
@@ -654,6 +828,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     setSelectedReferenceId(null);
     setReferenceForm(emptyReferenceForm);
     setReferenceAliasesText("");
+    setIsReferenceEditMode(false);
     setIsReferenceDetailModalOpen(false);
     setIsReferenceCreateModalOpen(true);
   }
@@ -661,6 +836,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   function openReferenceDetail(referenceId: string): void {
     setFormError(null);
     setSelectedReferenceId(referenceId);
+    setIsReferenceEditMode(false);
     setIsReferenceCreateModalOpen(false);
     setIsReferenceDetailModalOpen(true);
   }
@@ -847,7 +1023,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   <span className="meta-text">{sharedNotesReferenceHighlights.length} coincidencias</span>
                 </div>
                 <div className="campaign-shared-notes-copy">
-                  <p>{renderHighlightedText(draft.sharedNotes || "Sin notas compartidas.", sharedNotesReferenceHighlights, openReferenceDetail)}</p>
+                  <div className="campaign-markdown">
+                    {renderMarkdownBlocks(draft.sharedNotes || "Sin notas compartidas.", sharedNotesReferenceHighlights, openReferenceDetail)}
+                  </div>
                 </div>
                 {sharedNotesReferenceHighlights.length > 0 ? (
                   <div className="compendium-tags">
@@ -1055,7 +1233,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             <div className="row-actions">
               <div>
                 <h3>Editar notas compartidas</h3>
-                <p className="section-help">Estos apuntes son visibles para los miembros de la campaña.</p>
+                <p className="section-help">Estos apuntes son visibles para los miembros de la campaña y aceptan Markdown.</p>
               </div>
               <div className="toolbar">
                 <button type="button" disabled={isSaving} onClick={() => void handleSaveSharedNotes()}>
@@ -1468,7 +1646,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 <p className="section-help">{selectedReference.label} · {describeReferenceVisibility(selectedReference)}</p>
               </div>
               <div className="toolbar">
-                {canEditSelectedReference ? (
+                {canEditSelectedReference && isReferenceEditMode ? (
                   <>
                     <button type="button" disabled={isSaving} onClick={() => void handleSaveReference()}>
                       {isSaving ? "Guardando..." : "Guardar"}
@@ -1483,11 +1661,48 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     </button>
                   </>
                 ) : null}
+                {canEditSelectedReference && !isReferenceEditMode ? (
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => {
+                      setFormError(null);
+                      setIsReferenceEditMode(true);
+                    }}
+                  >
+                    Editar
+                  </button>
+                ) : null}
+                {canEditSelectedReference && isReferenceEditMode ? (
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => {
+                      setFormError(null);
+                      setIsReferenceEditMode(false);
+                      if (selectedReference) {
+                        setReferenceForm({
+                          name: selectedReference.name,
+                          label: selectedReference.label,
+                          aliases: selectedReference.aliases,
+                          summary: selectedReference.summary,
+                          content: selectedReference.content,
+                          visibility: selectedReference.visibility,
+                          sharedWithUserIds: selectedReference.sharedWithUserIds
+                        });
+                        setReferenceAliasesText(selectedReference.aliases.join(", "));
+                      }
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   disabled={isSaving}
                   onClick={() => {
                     setFormError(null);
+                    setIsReferenceEditMode(false);
                     setIsReferenceDetailModalOpen(false);
                   }}
                 >
@@ -1497,7 +1712,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             </div>
             {formError ? <p className="error-text">{formError}</p> : null}
 
-            {canEditSelectedReference ? (
+            {canEditSelectedReference && isReferenceEditMode ? (
               <>
                 <div className="form-grid">
                   <label className="field">
@@ -1590,12 +1805,49 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 )}
               </>
             ) : (
-              <div className="campaign-reference-preview">
-                {selectedReference.summary ? <p>{selectedReference.summary}</p> : null}
-                <p>{selectedReference.content || "Sin contenido detallado."}</p>
-                {selectedReference.aliases.length > 0 ? <p>Alias: {selectedReference.aliases.join(", ")}</p> : null}
-                <p>Autor: {selectedReference.authorEmail}</p>
-              </div>
+              <article className="campaign-reference-detail-card">
+                <div className="campaign-reference-detail-header">
+                  <div>
+                    <p className="campaign-reference-detail-kicker">Entrada de wiki</p>
+                    <h4>{selectedReference.name}</h4>
+                  </div>
+                  <div className="campaign-reference-detail-meta">
+                    <span className="compendium-chip">{selectedReference.label}</span>
+                    <span className="compendium-chip">{describeReferenceVisibility(selectedReference)}</span>
+                  </div>
+                </div>
+
+                <div className="campaign-reference-detail-grid">
+                  <article className="campaign-reference-preview">
+                    <span className="meta-text">Resumen</span>
+                    <p>{selectedReference.summary || "Sin resumen breve."}</p>
+                  </article>
+                  <article className="campaign-reference-preview">
+                    <span className="meta-text">Autor</span>
+                    <p>{selectedReference.authorEmail}</p>
+                  </article>
+                </div>
+
+                {selectedReference.aliases.length > 0 ? (
+                  <article className="campaign-reference-preview">
+                    <span className="meta-text">Alias</span>
+                    <div className="compendium-tags">
+                      {selectedReference.aliases.map((alias) => (
+                        <span key={`${selectedReference.id}-${alias}`} className="compendium-chip">
+                          {alias}
+                        </span>
+                      ))}
+                    </div>
+                  </article>
+                ) : null}
+
+                <article className="campaign-reference-preview campaign-reference-preview--content">
+                  <span className="meta-text">Contenido</span>
+                  <div className="campaign-markdown">
+                    {renderMarkdownBlocks(selectedReference.content || "Sin contenido detallado.", [selectedReference], openReferenceDetail)}
+                  </div>
+                </article>
+              </article>
             )}
           </div>
         </section>
