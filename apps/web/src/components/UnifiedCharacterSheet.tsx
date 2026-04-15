@@ -668,6 +668,39 @@ function getCustomArmorQualities(item: CharacterSheet["inventoryItems"][number])
     .filter((quality) => !knownIds.has(normalizeWeaponQualityKey(quality)));
 }
 
+function getArmorDefensePenaltyDetail(item: CharacterSheet["inventoryItems"][number]): string {
+  if (item.category !== "armor") {
+    return "";
+  }
+
+  const qualityIds = new Set(parseWeaponQualities(item.qualities).map((quality) => normalizeWeaponQualityKey(quality)));
+  let basePenalty = 0;
+  let label = "";
+  if (qualityIds.has("ligera")) {
+    basePenalty = -2;
+    label = "Ligera";
+  } else if (qualityIds.has("media")) {
+    basePenalty = -3;
+    label = "Media";
+  } else if (qualityIds.has("pesada")) {
+    basePenalty = -4;
+    label = "Pesada";
+  }
+
+  if (basePenalty === 0) {
+    return "";
+  }
+
+  if (qualityIds.has("flexible")) {
+    const reducedPenalty = Math.min(0, basePenalty + 2);
+    return reducedPenalty === 0
+      ? `Defensa: Flexible anula la penalizacion de ${label.toLowerCase()}.`
+      : `Defensa: ${label} ${basePenalty} por incomoda, reducida a ${reducedPenalty} por Flexible.`;
+  }
+
+  return `Defensa: ${label} ${basePenalty} por incomoda.`;
+}
+
 function getKnownItemQualities(item: CharacterSheet["inventoryItems"][number]): string[] {
   const knownIds = new Set(ITEM_QUALITY_OPTIONS.map((entry) => entry.id));
   return parseWeaponQualities(item.qualities)
@@ -759,6 +792,7 @@ export function UnifiedCharacterSheet({
     editable,
     onSave
   });
+  const isReadOnly = !editable;
   const canEditNotes = editMode && editable;
   const canEditInventory = editable;
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>(ITEM_CATALOG[0]?.templateId ?? "");
@@ -855,8 +889,14 @@ export function UnifiedCharacterSheet({
   const experience = useMemo(() => getCharacterExperienceSummary(normalizedSheet), [normalizedSheet]);
   const displayedSpentExperience = Math.max(normalizedSheet.progreso.experienciaGastada, experience.computedSpent);
   const activeArmor = useMemo(
-    () => normalizedSheet.inventoryItems.find((item) => item.category === "armor" && item.quantity > 0) ?? null,
-    [normalizedSheet.inventoryItems]
+    () => {
+      const equippedArmorId = normalizedSheet.equipmentSlots.armor;
+      if (equippedArmorId) {
+        return normalizedSheet.inventoryItems.find((item) => item.id === equippedArmorId && item.category === "armor" && item.quantity > 0) ?? null;
+      }
+      return normalizedSheet.inventoryItems.find((item) => item.category === "armor" && item.equipped && item.quantity > 0) ?? null;
+    },
+    [normalizedSheet.equipmentSlots.armor, normalizedSheet.inventoryItems]
   );
   const moneyCounters = useMemo(() => parseMoneyCounters(normalizedSheet.recursos.dinero), [normalizedSheet.recursos.dinero]);
   const inventorySections = useMemo(
@@ -1066,6 +1106,11 @@ export function UnifiedCharacterSheet({
     const ammoInfo = getAmmoInfoForWeapon(item, normalizedSheet.inventoryItems);
     if (ammoInfo) {
       notes.unshift(`Municion disponible: ${ammoInfo.quantity} ${ammoInfo.label}`);
+    }
+
+    const armorPenaltyDetail = getArmorDefensePenaltyDetail(item);
+    if (armorPenaltyDetail) {
+      notes.unshift(armorPenaltyDetail);
     }
 
     setActiveWeaponQualityInfoId("");
@@ -1916,7 +1961,23 @@ export function UnifiedCharacterSheet({
     updateField("recursos.dinero", formatMoneyCounters(nextCounters));
   }
 
+  function setEquippedArmor(index: number): void {
+    const armor = draft.inventoryItems[index];
+    if (!armor || armor.category !== "armor") return;
+    const nextArmorId = draft.equipmentSlots.armor === armor.id ? "" : armor.id;
+    setDraft({
+      ...draft,
+      equipmentSlots: {
+        ...draft.equipmentSlots,
+        armor: nextArmorId
+      }
+    });
+  }
+
   function toggleFavoriteAction(actionId: string): void {
+    if (!editable) {
+      return;
+    }
     const currentFavorites = new Set(normalizedSheet.actionFavorites ?? []);
     if (currentFavorites.has(actionId)) {
       currentFavorites.delete(actionId);
@@ -1934,11 +1995,12 @@ export function UnifiedCharacterSheet({
     const isInventoryCombatItem = item.category === "weapon" || item.category === "armor";
     const isManagedInventoryItem = !isInventoryCombatItem;
     const ammoInfo = item.category === "weapon" ? getAmmoInfoForWeapon(item, normalizedSheet.inventoryItems) : null;
+    const isEquippedArmor = item.category === "armor" && normalizedSheet.equipmentSlots.armor === item.id;
 
     return (
         <article
           key={item.id}
-          className={`campaign-structured-card${(isInventoryCombatItem || isManagedInventoryItem) ? " is-clickable-card" : ""}`}
+          className={`campaign-structured-card${appCardCategoryClass(item.category)}${(isInventoryCombatItem || isManagedInventoryItem) ? " is-clickable-card" : ""}`}
         onClick={item.category === "weapon" ? () => openInventoryWeaponDetail(item) : item.category === "armor" ? () => openInventoryArmorDetail(item) : () => openManagedInventoryItemDetail(item)}
         onKeyDown={(isInventoryCombatItem || isManagedInventoryItem) ? (event) => {
           if (event.key === "Enter" || event.key === " ") {
@@ -1962,6 +2024,7 @@ export function UnifiedCharacterSheet({
                 <div className="unified-sheet-weapon-list-summary">
                   <p className="meta-text">{item.qualities || (item.category === "artifact" ? "Mistico" : item.category === "consumable" ? "Consumible" : item.category === "treasure" ? "Valioso" : "Equipo")}</p>
                   {ammoInfo ? <p className="meta-text">{ammoInfo.label}: {ammoInfo.quantity}</p> : null}
+                  {isEquippedArmor ? <p className="meta-text">Equipada</p> : null}
                 </div>
               ) : (
                 <p className="meta-text">
@@ -1976,6 +2039,18 @@ export function UnifiedCharacterSheet({
             {item.category === "armor" && item.protectionFormula ? <span className="unified-sheet-weapon-list-damage">{item.protectionFormula}</span> : null}
             {isManagedInventoryItem && !stackable && item.value ? <span className="unified-sheet-weapon-list-damage">{item.value}</span> : null}
             {stackable ? <span className="info-chip">x{item.quantity}</span> : null}
+            {canEditInventory && item.category === "armor" ? (
+              <button
+                type="button"
+                className={`subtle-button${isEquippedArmor ? " is-active" : ""}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setEquippedArmor(index);
+                }}
+              >
+                {isEquippedArmor ? "Equipada" : "Equipar"}
+              </button>
+            ) : null}
             {canEditInventory && stackable ? (
               <div className="unified-sheet-stack-controls">
                 <button type="button" className="subtle-button" onClick={(event) => {
@@ -2118,6 +2193,9 @@ export function UnifiedCharacterSheet({
   }
 
   function adjustNumber(path: string, delta: number, min = 0): void {
+    if (!editable) {
+      return;
+    }
     const parts = path.split(".");
     let cursor: Record<string, unknown> = normalizedSheet as unknown as Record<string, unknown>;
     for (let index = 0; index < parts.length - 1; index += 1) {
@@ -2360,7 +2438,7 @@ export function UnifiedCharacterSheet({
                 </nav>
 
                 {activeCapabilityTab === "traits" ? (
-                  <SimpleStringList title="Rasgos" entries={normalizedSheet.rasgos} emptyText="Sin rasgos registrados." />
+                  <SimpleStringList title="Rasgos" entries={normalizedSheet.rasgos} emptyText="Sin rasgos registrados." categoryKey="rasgo" />
                 ) : null}
 
                 {activeCapabilityTab === "blessings" ? (
@@ -2368,6 +2446,7 @@ export function UnifiedCharacterSheet({
                     title="Bendiciones"
                     entries={normalizedSheet.bendiciones}
                     emptyText="Sin bendiciones registradas."
+                    categoryKey="bendicion"
                     onOpenDetail={(entry) => openSimpleCompendiumDetail("bendicion", "Bendicion", entry)}
                   />
                 ) : null}
@@ -2377,6 +2456,7 @@ export function UnifiedCharacterSheet({
                     title="Cargas"
                     entries={normalizedSheet.cargas}
                     emptyText="Sin cargas registradas."
+                    categoryKey="carga"
                     onOpenDetail={(entry) => openSimpleCompendiumDetail("carga", "Carga", entry)}
                   />
                 ) : null}
@@ -2385,6 +2465,7 @@ export function UnifiedCharacterSheet({
                   <CapabilityTextList
                     title="Habilidades"
                     entries={normalizedSheet.habilidades}
+                    categoryKey="habilidad"
                     onOpenDetail={(entry) => openCapabilityDetail("habilidad", entry)}
                     onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("habilidad", name) : undefined}
                   />
@@ -2394,6 +2475,7 @@ export function UnifiedCharacterSheet({
                   <CapabilityTextList
                     title="Poderes misticos"
                     entries={normalizedSheet.poderesMisticos}
+                    categoryKey="poder_mistico"
                     onOpenDetail={(entry) => openCapabilityDetail("poder_mistico", entry)}
                     onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("poder_mistico", name) : undefined}
                   />
@@ -2403,6 +2485,7 @@ export function UnifiedCharacterSheet({
                   <CapabilityTextList
                     title="Rituales"
                     entries={normalizedSheet.rituales}
+                    categoryKey="ritual"
                     onOpenDetail={(entry) => openCapabilityDetail("ritual", entry)}
                     onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("ritual", name) : undefined}
                   />
@@ -2478,7 +2561,7 @@ export function UnifiedCharacterSheet({
               <h2 className="unified-sheet-title">{displayName}</h2>
               {subtitle ? <span className="unified-sheet-inline-subtitle">{subtitle}</span> : null}
             </div>
-            {onOpenBuilder ? (
+            {editable && onOpenBuilder ? (
               <button type="button" className="unified-sheet-builder-launch" onClick={onOpenBuilder}>
                 <span aria-hidden="true">⚒</span>
                 <span>Constructor</span>
@@ -2487,11 +2570,15 @@ export function UnifiedCharacterSheet({
             <div className="unified-sheet-xp-card">
               <div className="unified-sheet-xp-row">
                 <span>PX total</span>
-                <div className="unified-sheet-xp-controls">
-                  <button type="button" className="vital-action subtle" onClick={() => adjustNumber("progreso.experienciaTotal", -1)}>-</button>
+                {editable ? (
+                  <div className="unified-sheet-xp-controls">
+                    <button type="button" className="vital-action subtle" onClick={() => adjustNumber("progreso.experienciaTotal", -1)}>-</button>
+                    <strong>{normalizedSheet.progreso.experienciaTotal}</strong>
+                    <button type="button" className="vital-action gain" onClick={() => adjustNumber("progreso.experienciaTotal", 1)}>+</button>
+                  </div>
+                ) : (
                   <strong>{normalizedSheet.progreso.experienciaTotal}</strong>
-                  <button type="button" className="vital-action gain" onClick={() => adjustNumber("progreso.experienciaTotal", 1)}>+</button>
-                </div>
+                )}
               </div>
               <div className="unified-sheet-xp-row is-static">
                 <span>PX gastada</span>
@@ -2507,10 +2594,12 @@ export function UnifiedCharacterSheet({
                 <strong>{derived.robustezActualTotal} / {derived.robustezMaximaTotal}</strong>
               </div>
               <div className="unified-sheet-vital-track"><div style={{ width: `${Math.min(100, derived.robustezMaximaTotal > 0 ? (derived.robustezActualTotal / derived.robustezMaximaTotal) * 100 : 0)}%` }} /></div>
-              <div className="unified-sheet-vital-actions">
-                <button type="button" className="vital-action loss" onClick={() => adjustNumber("combate.robustezActual", -1)}>-1 Danio</button>
-                <button type="button" className="vital-action gain" onClick={() => adjustNumber("combate.robustezActual", 1)}>+1 Vida</button>
-              </div>
+              {editable ? (
+                <div className="unified-sheet-vital-actions">
+                  <button type="button" className="vital-action loss" onClick={() => adjustNumber("combate.robustezActual", -1)}>-1 Danio</button>
+                  <button type="button" className="vital-action gain" onClick={() => adjustNumber("combate.robustezActual", 1)}>+1 Vida</button>
+                </div>
+              ) : null}
             </div>
 
             <div className="unified-sheet-vital-card is-corruption">
@@ -2519,10 +2608,12 @@ export function UnifiedCharacterSheet({
                 <strong>{normalizedSheet.corrupcion.temporal}</strong>
               </div>
               <div className="unified-sheet-vital-track"><div style={{ width: `${Math.min(100, derived.umbralCorrupcionTotal > 0 ? (normalizedSheet.corrupcion.temporal / derived.umbralCorrupcionTotal) * 100 : 0)}%` }} /></div>
-              <div className="unified-sheet-vital-actions">
-                <button type="button" className="vital-action recovery" onClick={() => adjustNumber("corrupcion.temporal", -1)}>-1 Temp</button>
-                <button type="button" className="vital-action corruption" onClick={() => adjustNumber("corrupcion.temporal", 1)}>+1 Temp</button>
-              </div>
+              {editable ? (
+                <div className="unified-sheet-vital-actions">
+                  <button type="button" className="vital-action recovery" onClick={() => adjustNumber("corrupcion.temporal", -1)}>-1 Temp</button>
+                  <button type="button" className="vital-action corruption" onClick={() => adjustNumber("corrupcion.temporal", 1)}>+1 Temp</button>
+                </div>
+              ) : null}
             </div>
 
             <div className="unified-sheet-vital-card is-corruption-deep">
@@ -2531,10 +2622,12 @@ export function UnifiedCharacterSheet({
                 <strong>{normalizedSheet.corrupcion.permanente}</strong>
               </div>
               <div className="unified-sheet-vital-track"><div style={{ width: `${Math.min(100, derived.umbralCorrupcionTotal > 0 ? (normalizedSheet.corrupcion.permanente / derived.umbralCorrupcionTotal) * 100 : 0)}%` }} /></div>
-              <div className="unified-sheet-vital-actions">
-                <button type="button" className="vital-action recovery" onClick={() => adjustNumber("corrupcion.permanente", -1)}>-1 Perm</button>
-                <button type="button" className="vital-action corruption-deep" onClick={() => adjustNumber("corrupcion.permanente", 1)}>+1 Perm</button>
-              </div>
+              {editable ? (
+                <div className="unified-sheet-vital-actions">
+                  <button type="button" className="vital-action recovery" onClick={() => adjustNumber("corrupcion.permanente", -1)}>-1 Perm</button>
+                  <button type="button" className="vital-action corruption-deep" onClick={() => adjustNumber("corrupcion.permanente", 1)}>+1 Perm</button>
+                </div>
+              ) : null}
             </div>
           </section>
         </div>
@@ -2547,7 +2640,7 @@ export function UnifiedCharacterSheet({
                 <div key={key} className="unified-sheet-attribute-chip">
                   <span>{ATTRIBUTE_LABELS[key]}</span>
                   <strong>{normalizedSheet.atributos[key]}</strong>
-                  <button type="button" className="vital-action subtle" onClick={() => runAttributeRoll(key)}>Tirar</button>
+                  {isReadOnly ? null : <button type="button" className="vital-action subtle" onClick={() => runAttributeRoll(key)}>Tirar</button>}
                 </div>
               ))}
             </div>
@@ -2558,9 +2651,12 @@ export function UnifiedCharacterSheet({
                     <h3>Defensa</h3>
                     <strong>{derived.defensaTotal}</strong>
                   </div>
-                  <div className="unified-sheet-vital-actions">
-                    <button type="button" className="vital-action subtle is-defense-roll" onClick={runDefenseRoll}>Tirar Defensa</button>
-                  </div>
+                  {derived.defensaArmaduraDetalle ? <p className="section-help">{derived.defensaArmaduraDetalle}</p> : null}
+                  {isReadOnly ? null : (
+                    <div className="unified-sheet-vital-actions">
+                      <button type="button" className="vital-action subtle is-defense-roll" onClick={runDefenseRoll}>Tirar Defensa</button>
+                    </div>
+                  )}
                 </article>
 
                 <article className="unified-sheet-quick-card">
@@ -2569,9 +2665,11 @@ export function UnifiedCharacterSheet({
                     <strong>{activeArmor?.protectionFormula || derived.armaduraActiva || "-"}</strong>
                   </div>
                   <strong>{activeArmor?.name || normalizedSheet.combate.armadura || (derived.armaduraNatural ? "Armadura natural" : "Sin armadura")}</strong>
-                  <div className="unified-sheet-vital-actions">
-                    <button type="button" className="vital-action subtle" onClick={runArmorRoll} disabled={!(activeArmor?.protectionFormula || derived.armaduraActiva)}>Tirar Armadura</button>
-                  </div>
+                  {isReadOnly ? null : (
+                    <div className="unified-sheet-vital-actions">
+                      <button type="button" className="vital-action subtle" onClick={runArmorRoll} disabled={!(activeArmor?.protectionFormula || derived.armaduraActiva)}>Tirar Armadura</button>
+                    </div>
+                  )}
                 </article>
               </div>
 
@@ -2660,6 +2758,7 @@ export function UnifiedCharacterSheet({
                     <button
                       type="button"
                       className={`campaign-action-favorite-toggle${favoriteActionIds.has(action.id) ? " is-active" : ""}`}
+                      disabled={!editable}
                       onClick={() => toggleFavoriteAction(action.id)}
                       aria-label={favoriteActionIds.has(action.id) ? "Quitar de favoritas" : "Guardar en favoritas"}
                       title={favoriteActionIds.has(action.id) ? "Quitar de favoritas" : "Guardar en favoritas"}
@@ -2669,14 +2768,14 @@ export function UnifiedCharacterSheet({
                     <strong>{formatActionDisplayLabel(action.label)}</strong>
                   </div>
                   <div className="campaign-action-slot">
-                    {action.rollAttribute ? (
+                    {action.rollAttribute && editable ? (
                       <button type="button" onClick={() => runAttackAction(action)}>{getActionRollLabel(action)}</button>
                     ) : (
                       <span aria-hidden="true" className="campaign-action-slot-placeholder" />
                     )}
                       </div>
                       <div className="campaign-action-slot is-damage">
-                        {action.damageFormula && !isIntegratedDamageBonusAction(action) ? <button type="button" onClick={() => runDamageAction(action)}>Danio</button> : <span aria-hidden="true" className="campaign-action-slot-placeholder" />}
+                        {action.damageFormula && !isIntegratedDamageBonusAction(action) && editable ? <button type="button" onClick={() => runDamageAction(action)}>Danio</button> : <span aria-hidden="true" className="campaign-action-slot-placeholder" />}
                       </div>
                       <div className="campaign-action-slot">
                         <button type="button" className="subtle-button" onClick={() => openActionDetail(action)}>Detalle</button>
@@ -2803,6 +2902,7 @@ export function UnifiedCharacterSheet({
               <SimpleStringListEditor
                 title="Rasgos"
                 entries={normalizedSheet.rasgos}
+                categoryKey="rasgo"
                 editable={editMode}
                 rows={6}
                 helpText="Rasgos de personaje como Contactos se guardan aqui y se exportan/importan como tipo Rasgo."
@@ -2816,6 +2916,7 @@ export function UnifiedCharacterSheet({
               <SimpleStringListEditor
                 title="Bendiciones"
                 entries={normalizedSheet.bendiciones}
+                categoryKey="bendicion"
                 editable={editMode}
                 rows={6}
                 helpText="Cada bendicion cuenta como 5 PX gastados."
@@ -2829,6 +2930,7 @@ export function UnifiedCharacterSheet({
               <SimpleStringListEditor
                 title="Cargas"
                 entries={normalizedSheet.cargas}
+                categoryKey="carga"
                 editable={editMode}
                 rows={6}
                 helpText="Cada carga aporta 5 PX extra disponibles."
@@ -2839,13 +2941,13 @@ export function UnifiedCharacterSheet({
             ) : null}
           </article>
           {activeCapabilityTab === "abilities" ? (
-            <CapabilityEditor title="Habilidades" entries={normalizedSheet.habilidades} editable={editMode} onAdd={() => addRatedEntry("habilidades")} onRemove={(index) => removeRatedEntry("habilidades", index)} onUpdate={(index, field, value) => updateRatedEntry("habilidades", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("habilidad", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("habilidad", name) : undefined} />
+            <CapabilityEditor title="Habilidades" categoryKey="habilidad" entries={normalizedSheet.habilidades} editable={editMode} onAdd={() => addRatedEntry("habilidades")} onRemove={(index) => removeRatedEntry("habilidades", index)} onUpdate={(index, field, value) => updateRatedEntry("habilidades", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("habilidad", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("habilidad", name) : undefined} />
           ) : null}
           {activeCapabilityTab === "powers" ? (
-            <CapabilityEditor title="Poderes misticos" entries={normalizedSheet.poderesMisticos} editable={editMode} onAdd={() => addRatedEntry("poderesMisticos")} onRemove={(index) => removeRatedEntry("poderesMisticos", index)} onUpdate={(index, field, value) => updateRatedEntry("poderesMisticos", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("poder_mistico", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("poder_mistico", name) : undefined} />
+            <CapabilityEditor title="Poderes misticos" categoryKey="poder_mistico" entries={normalizedSheet.poderesMisticos} editable={editMode} onAdd={() => addRatedEntry("poderesMisticos")} onRemove={(index) => removeRatedEntry("poderesMisticos", index)} onUpdate={(index, field, value) => updateRatedEntry("poderesMisticos", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("poder_mistico", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("poder_mistico", name) : undefined} />
           ) : null}
           {activeCapabilityTab === "rituals" ? (
-            <CapabilityEditor title="Rituales" entries={normalizedSheet.rituales} editable={editMode} onAdd={() => addRatedEntry("rituales")} onRemove={(index) => removeRatedEntry("rituales", index)} onUpdate={(index, field, value) => updateRatedEntry("rituales", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("ritual", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("ritual", name) : undefined} />
+            <CapabilityEditor title="Rituales" categoryKey="ritual" entries={normalizedSheet.rituales} editable={editMode} onAdd={() => addRatedEntry("rituales")} onRemove={(index) => removeRatedEntry("rituales", index)} onUpdate={(index, field, value) => updateRatedEntry("rituales", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("ritual", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("ritual", name) : undefined} />
           ) : null}
         </section>
       ) : null}
@@ -3586,15 +3688,21 @@ function slotLabel(slot: "mainHand" | "offHand" | "ranged" | "armor" | "artifact
   }
 }
 
+function appCardCategoryClass(category: string | null | undefined): string {
+  return category ? ` app-card-accent app-card-accent--${category}` : "";
+}
+
 function CapabilityTextList({
   title,
   entries,
-  onOpenDetail
+  onOpenDetail,
+  categoryKey
 }: {
   title: string;
   entries: RatedEntry[];
   onOpenDetail?: (entry: RatedEntry) => void;
   onOpenCompendium?: (name: string) => void;
+  categoryKey?: string;
 }) {
   return (
     <div className="unified-sheet-list">
@@ -3602,7 +3710,7 @@ function CapabilityTextList({
         entries.map((entry, index) => (
           <article
             key={`${title}-${index}-${entry.nombre}`}
-            className={`unified-sheet-capability-card${onOpenDetail ? " is-clickable" : ""}`}
+            className={`unified-sheet-capability-card${onOpenDetail ? " is-clickable" : ""}${appCardCategoryClass(categoryKey)}`}
             onClick={onOpenDetail ? () => onOpenDetail(entry) : undefined}
             onKeyDown={onOpenDetail ? (event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -3634,12 +3742,14 @@ function SimpleStringList({
   title,
   entries,
   emptyText,
-  onOpenDetail
+  onOpenDetail,
+  categoryKey
 }: {
   title: string;
   entries: string[];
   emptyText: string;
   onOpenDetail?: (entry: string) => void;
+  categoryKey?: string;
 }) {
   return (
     <div className="unified-sheet-list">
@@ -3647,7 +3757,7 @@ function SimpleStringList({
         entries.map((entry, index) => (
           <article
             key={`${title}-${index}-${entry}`}
-            className={`unified-sheet-capability-card${onOpenDetail ? " is-clickable" : ""}`}
+            className={`unified-sheet-capability-card${onOpenDetail ? " is-clickable" : ""}${appCardCategoryClass(categoryKey)}`}
             onClick={onOpenDetail ? () => onOpenDetail(entry) : undefined}
             onKeyDown={onOpenDetail ? (event) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -3679,7 +3789,8 @@ function SimpleStringListEditor({
   helpText,
   onChange,
   onAdd,
-  onRemove
+  onRemove,
+  categoryKey
 }: {
   title: string;
   entries: string[];
@@ -3689,6 +3800,7 @@ function SimpleStringListEditor({
   onChange: (value: string) => void;
   onAdd: () => void;
   onRemove: (index: number) => void;
+  categoryKey?: string;
 }) {
   return (
     <article className="campaign-sheet-card">
@@ -3708,7 +3820,7 @@ function SimpleStringListEditor({
       <div className="unified-sheet-list">
         {entries.length > 0 ? (
           entries.map((entry, index) => (
-            <article key={`${title}-editor-${index}-${entry}`} className="campaign-structured-card">
+            <article key={`${title}-editor-${index}-${entry}`} className={`campaign-structured-card${appCardCategoryClass(categoryKey)}`}>
               <div className="row-actions">
                 <strong>{entry || `${title} ${index + 1}`}</strong>
                 {editable ? <button type="button" className="subtle-button" onClick={() => onRemove(index)}>Quitar</button> : null}
@@ -3732,9 +3844,10 @@ type CapabilityEditorProps = {
   onUpdate: (index: number, field: "nombre" | "tipo" | "efecto" | "nivel" | "fuente" | "pagina" | "notas", value: string | number) => void;
   onOpenDetail?: (entry: CharacterSheet["habilidades"][number]) => void;
   onOpenCompendium?: (name: string) => void;
+  categoryKey?: string;
 };
 
-function CapabilityEditor({ title, entries, editable, onAdd, onRemove, onUpdate, onOpenDetail, onOpenCompendium }: CapabilityEditorProps) {
+function CapabilityEditor({ title, entries, editable, onAdd, onRemove, onUpdate, onOpenDetail, onOpenCompendium, categoryKey }: CapabilityEditorProps) {
   return (
     <article className="campaign-sheet-card">
       <div className="row-actions">
@@ -3743,7 +3856,7 @@ function CapabilityEditor({ title, entries, editable, onAdd, onRemove, onUpdate,
       </div>
       <div className="unified-sheet-list">
         {entries.map((entry, index) => (
-          <article key={`${title}-${index}-${entry.nombre}`} className="campaign-structured-card">
+          <article key={`${title}-${index}-${entry.nombre}`} className={`campaign-structured-card${appCardCategoryClass(categoryKey)}`}>
             <div className="form-grid">
               <Field label="Nombre"><input disabled={!editable} value={entry.nombre} onChange={(event) => onUpdate(index, "nombre", event.target.value)} /></Field>
               <Field label="Tipo"><input disabled={!editable} value={entry.tipo} onChange={(event) => onUpdate(index, "tipo", event.target.value)} /></Field>

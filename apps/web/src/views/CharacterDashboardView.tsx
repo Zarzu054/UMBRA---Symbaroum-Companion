@@ -34,6 +34,7 @@ import { CampaignDashboardView } from "./CampaignDashboardView";
 import { CharacterBuilderView } from "./CharacterBuilderView";
 import { CompendiumView } from "./CompendiumView";
 import { MonsterDashboardView } from "./MonsterDashboardView";
+import { NpcDashboardView } from "./NpcDashboardView";
 
 
 type Props = {
@@ -42,7 +43,7 @@ type Props = {
   onLogout: () => Promise<void>;
 };
 
-type AppModule = "characters" | "compendium" | "campaigns" | "monsters";
+type AppModule = "characters" | "compendium" | "campaigns" | "monsters" | "npcs";
 type CharacterPageMode = "sheet" | "builder";
 
 type CompendiumFocus = {
@@ -62,6 +63,10 @@ function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"
   const rawHash = window.location.hash.replace(/^#/, "");
   if (rawHash.startsWith("monsters")) {
     return { module: "monsters" };
+  }
+
+  if (rawHash.startsWith("npcs")) {
+    return { module: "npcs" };
   }
 
   if (rawHash.startsWith("campaigns")) {
@@ -101,8 +106,9 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   const isCapabilityLocked = controller.isEditing;
   const canAccessCharacters = user.role !== "gm";
   const canAccessMonsters = user.role === "gm" || user.role === "superadmin";
+  const canAccessNpcs = user.role === "gm" || user.role === "superadmin";
   const [activeModule, setActiveModule] = useState<AppModule>(
-    canAccessCharacters ? "characters" : canAccessMonsters ? "monsters" : "campaigns"
+    canAccessCharacters ? "characters" : canAccessNpcs ? "npcs" : canAccessMonsters ? "monsters" : "campaigns"
   );
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [compendiumFocus, setCompendiumFocus] = useState<CompendiumFocus>({
@@ -135,6 +141,13 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         return;
       }
 
+      if (!canAccessNpcs && parsed.module === "npcs") {
+        const fallbackModule = canAccessCharacters ? "characters" : canAccessMonsters ? "monsters" : "campaigns";
+        setActiveModule(fallbackModule);
+        window.location.hash = fallbackModule;
+        return;
+      }
+
       switch (parsed.module) {
         case "compendium":
           setActiveModule("compendium");
@@ -151,6 +164,9 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         case "monsters":
           setActiveModule("monsters");
           return;
+        case "npcs":
+          setActiveModule("npcs");
+          return;
         case "characters":
         default:
           setActiveModule("characters");
@@ -163,7 +179,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     syncWithHash();
     window.addEventListener("hashchange", syncWithHash);
     return () => window.removeEventListener("hashchange", syncWithHash);
-  }, [canAccessCharacters, canAccessMonsters]);
+  }, [canAccessCharacters, canAccessMonsters, canAccessNpcs]);
 
   function openCompendiumCapability(tipo: "habilidad" | "poder_mistico" | "ritual" | "bendicion" | "carga", nombre: string): void {
     const entryId = tipo === "bendicion" || tipo === "carga"
@@ -231,6 +247,13 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     }
   }
 
+  function openNpcsModule(): void {
+    setActiveModule("npcs");
+    if (!window.location.hash.startsWith("#npcs")) {
+      window.location.hash = "npcs";
+    }
+  }
+
   return (
     <main className="page">
       <div className={`app-shell${isSidebarOpen ? "" : " is-sidebar-collapsed"}`}>
@@ -257,6 +280,11 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               <button className={activeModule === "campaigns" ? "active-toggle" : ""} onClick={openCampaignsModule}>
                 Campañas
               </button>
+              {canAccessNpcs ? (
+                <button className={activeModule === "npcs" ? "active-toggle" : ""} onClick={openNpcsModule}>
+                  PNJ
+                </button>
+              ) : null}
               {canAccessMonsters ? (
                 <button className={activeModule === "monsters" ? "active-toggle" : ""} onClick={openMonstersModule}>
                   Monstruos
@@ -276,7 +304,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           </div>
         </aside>
 
-        <section className="app-content">
+        <section className={`app-content module-theme module-theme--${activeModule}`}>
           {!isSidebarOpen ? (
             <div className="content-topbar">
               <button
@@ -299,6 +327,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             />
           ) : activeModule === "monsters" ? (
             <MonsterDashboardView user={user} ensureAccessToken={ensureAccessToken} />
+          ) : activeModule === "npcs" ? (
+            <NpcDashboardView ensureAccessToken={ensureAccessToken} />
           ) : activeModule === "campaigns" ? (
             <CampaignDashboardView user={user} ensureAccessToken={ensureAccessToken} />
           ) : selectedCharacterSheet ? (

@@ -891,7 +891,7 @@ export const SYMBAROUM_ABILITIES = [
     makeCapability("habilidad", "Arma natural", "Códice de monstruos", 1, [], "Novato: ganas un ataque de Arma natural que inflige 1D6. Adepto: el ataque de Arma natural inflige 1D8. Maestro: el ataque de Arma natural inflige 1D10. Ref: Códice de monstruos, p.1."),
     makeCapability("habilidad", "Duro", "Códice de monstruos", 1, [], "Novato: obtienes armadura natural 1D4. Adepto: obtienes armadura natural 1D6. Maestro: obtienes armadura natural 1D8. Ref: Códice de monstruos, p.1."),
     makeCapability("habilidad", "Venenos", LIBRO_BASICO, 113),
-    makeCapability("habilidad", "Versado en criaturas", LIBRO_BASICO, 116),
+    makeCapability("habilidad", "Versado en criaturas", LIBRO_BASICO, 124),
     makeCapability("habilidad", "Viento de acero", LIBRO_BASICO, 116)
 ];
 export const SYMBAROUM_MYSTIC_POWERS = [

@@ -52,6 +52,10 @@ function requireDirectorRole(role: UserRole): void {
   }
 }
 
+function isDirectorRole(role: UserRole): boolean {
+  return role === "gm" || role === "superadmin";
+}
+
 function randomFrom<const T>(items: readonly T[]): T {
   return items[Math.floor(Math.random() * items.length)];
 }
@@ -85,6 +89,44 @@ function toSessionPayload(input: CreateCampaignSessionInput | UpdateCampaignSess
 
 export class CampaignService {
   constructor(private readonly model: CampaignModel) {}
+
+  private normalizeReferencePayload(
+    campaign: Campaign,
+    userId: string,
+    userRole: UserRole,
+    input: CreateCampaignReferenceInput | UpdateCampaignReferenceInput
+  ) {
+    const isDirector = userRole === "superadmin" || campaign.gmId === userId;
+    const sharedWithUserIds = input.sharedWithUserIds
+      ? Array.from(new Set(input.sharedWithUserIds))
+      : [];
+
+    if (!isDirector) {
+      if ((input.visibility && input.visibility !== "campaign") || sharedWithUserIds.length > 0) {
+        throw new AppError(
+          "CAMPAIGN_FORBIDDEN",
+          "Las aportaciones de jugadores siempre son visibles para toda la campana",
+          403
+        );
+      }
+    }
+
+    if (sharedWithUserIds.length > 0) {
+      const validPlayerIds = new Set(
+        campaign.members.filter((member) => member.role === "player").map((member) => member.userId)
+      );
+      const invalidTarget = sharedWithUserIds.find((memberId) => !validPlayerIds.has(memberId));
+      if (invalidTarget) {
+        throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes compartir entradas con jugadores de la campana", 400);
+      }
+    }
+
+    return {
+      ...input,
+      visibility: isDirector ? input.visibility : "campaign",
+      sharedWithUserIds: isDirector && input.visibility === "selected_players" ? sharedWithUserIds : []
+    };
+  }
 
   async listCampaigns(userId: string, userRole: UserRole): Promise<Campaign[]> {
     return this.model.listAccessible(userId, userRole);
@@ -120,7 +162,7 @@ export class CampaignService {
         throw new AppError("CAMPAIGN_CHARACTER_NOT_LINKED", "El personaje no esta vinculado a la campana", 404);
       }
 
-      const isDirector = userRole === "gm" || userRole === "superadmin";
+      const isDirector = isDirectorRole(userRole);
       if (!isDirector && linkedCharacter.ownerId !== userId) {
         throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes ejecutar acciones con tus propios personajes", 403);
       }
@@ -161,7 +203,7 @@ export class CampaignService {
 
   async updateCampaign(userId: string, userRole: UserRole, campaignId: string, input: UpdateCampaignInput): Promise<Campaign> {
     const payload = updateCampaignSchema.parse(input);
-    const isDirector = userRole === "gm" || userRole === "superadmin";
+    const isDirector = isDirectorRole(userRole);
 
     if (isDirector) {
       await this.assertCampaignManagedBy(userId, userRole, campaignId);
@@ -309,7 +351,7 @@ export class CampaignService {
       throw new AppError("CAMPAIGN_CHARACTER_LINK_NOT_FOUND", "Vinculo de personaje no encontrado", 404);
     }
 
-    const isDirector = userRole === "gm" || userRole === "superadmin";
+    const isDirector = isDirectorRole(userRole);
     if (!isDirector && link.ownerId !== userId) {
       throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes modificar la hoja de tus propios personajes", 403);
     }
@@ -404,13 +446,19 @@ export class CampaignService {
     campaignId: string,
     input: CreateCampaignReferenceInput
   ): Promise<Campaign> {
-    requireDirectorRole(userRole);
-    await this.assertCampaignManagedBy(userId, userRole, campaignId);
-    const payload = createCampaignReferenceSchema.parse({
-      ...input,
-      aliases: input.aliases.map((alias: string) => alias.trim()).filter(Boolean)
-    });
-    await this.model.createReference(campaignId, payload);
+    const campaign = await this.getCampaign(userId, userRole, campaignId);
+    const isDirector = userRole === "superadmin" || campaign.gmId === userId;
+    if (isDirector) {
+      await this.assertCampaignManagedBy(userId, userRole, campaignId);
+    }
+
+    const payload = createCampaignReferenceSchema.parse(
+      this.normalizeReferencePayload(campaign, userId, userRole, {
+        ...input,
+        aliases: input.aliases.map((alias: string) => alias.trim()).filter(Boolean)
+      })
+    );
+    await this.model.createReference(campaignId, userId, payload);
     return this.getCampaign(userId, userRole, campaignId);
   }
 
@@ -420,29 +468,43 @@ export class CampaignService {
     referenceId: string,
     input: UpdateCampaignReferenceInput
   ): Promise<Campaign> {
-    requireDirectorRole(userRole);
     const reference = await this.model.findReferenceById(referenceId);
     if (!reference) {
       throw new AppError("CAMPAIGN_REFERENCE_NOT_FOUND", "Referencia de campaña no encontrada", 404);
     }
 
-    await this.assertCampaignManagedBy(userId, userRole, reference.campaignId);
-    const payload = updateCampaignReferenceSchema.parse({
-      ...input,
-      aliases: input.aliases?.map((alias: string) => alias.trim()).filter(Boolean)
-    });
+    const campaign = await this.getCampaign(userId, userRole, reference.campaignId);
+    const isDirector = userRole === "superadmin" || campaign.gmId === userId;
+    if (isDirector) {
+      await this.assertCampaignManagedBy(userId, userRole, reference.campaignId);
+    } else if (reference.authorId !== userId) {
+      throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes editar tus propias entradas de la wiki", 403);
+    }
+
+    const payload = updateCampaignReferenceSchema.parse(
+      this.normalizeReferencePayload(campaign, userId, userRole, {
+        ...input,
+        aliases: input.aliases?.map((alias: string) => alias.trim()).filter(Boolean)
+      })
+    );
     await this.model.updateReference(referenceId, payload);
     return this.getCampaign(userId, userRole, reference.campaignId);
   }
 
   async deleteReference(userId: string, userRole: UserRole, referenceId: string): Promise<Campaign> {
-    requireDirectorRole(userRole);
     const reference = await this.model.findReferenceById(referenceId);
     if (!reference) {
       throw new AppError("CAMPAIGN_REFERENCE_NOT_FOUND", "Referencia de campaña no encontrada", 404);
     }
 
-    await this.assertCampaignManagedBy(userId, userRole, reference.campaignId);
+    const campaign = await this.getCampaign(userId, userRole, reference.campaignId);
+    const isDirector = userRole === "superadmin" || campaign.gmId === userId;
+    if (isDirector) {
+      await this.assertCampaignManagedBy(userId, userRole, reference.campaignId);
+    } else if (reference.authorId !== userId) {
+      throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes eliminar tus propias entradas de la wiki", 403);
+    }
+
     await this.model.deleteReference(referenceId);
     return this.getCampaign(userId, userRole, reference.campaignId);
   }

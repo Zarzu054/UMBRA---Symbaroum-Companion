@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { SYMBAROUM_ABILITIES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS } from "./symbaroumCompendium.js";
 import { getCharacterMonsterTraitEffects } from "./monsterTraitRules.js";
-import { STARTER_MONSTER_CODEX } from "./monsterCodex.js";
+import { STARTER_MONSTER_CODEX, monsterSheetSchema } from "./monsterCodex.js";
 export * from "./symbaroumCompendium.js";
 export * from "./campaignActionEngine.js";
 export * from "./monsterCodex.js";
@@ -41,8 +41,8 @@ export const SYMBAROUM_ARCHETYPES = [
 export const ATTRIBUTE_KEYS = [
     "agil",
     "atento",
-    "discreto",
     "diestro",
+    "discreto",
     "fuerte",
     "inteligente",
     "persuasivo",
@@ -640,6 +640,13 @@ function synchronizeInventoryEquipment(items, rawSlots) {
     });
     return { inventoryItems, equipmentSlots };
 }
+function getEquippedInventoryItem(items, equipmentSlots, slot) {
+    const itemId = equipmentSlots[slot];
+    if (!itemId) {
+        return null;
+    }
+    return items.find((item) => item.id === itemId) ?? null;
+}
 function buildLegacyConditions(sheet) {
     const conditions = [];
     if (sheet.corrupcion.temporal > 0 || sheet.corrupcion.permanente > 0) {
@@ -1085,8 +1092,11 @@ function migrateCharacterSheetInput(input) {
         rituales,
         combate: {
             ...candidate.combate,
-            armadura: hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armadura,
-            armaduraProteccion: hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armaduraProteccion,
+            armadura: getEquippedInventoryItem(inventoryItems, equipmentSlots, "armor")?.name
+                ?? (hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armadura),
+            armaduraProteccion: getEquippedInventoryItem(inventoryItems, equipmentSlots, "armor")?.protectionFormula
+                ?? (hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armaduraProteccion),
+            armaduraCualidad: getEquippedInventoryItem(inventoryItems, equipmentSlots, "armor")?.qualities ?? candidate.combate.armaduraCualidad,
             robustezMax: syncedRobustezMax,
             robustezActual: Math.min(candidate.combate?.robustezActual ?? syncedRobustezMax, syncedRobustezMax)
         },
@@ -1123,8 +1133,11 @@ function buildSynchronizedCharacterSheet(input) {
         rituales,
         combate: {
             ...input.combate,
-            armadura: hasCharacterTraitBasedNaturalArmor(input) && isNaturalArmorPlaceholderName(input.combate.armadura ?? "") ? "" : input.combate.armadura,
-            armaduraProteccion: hasCharacterTraitBasedNaturalArmor(input) && isNaturalArmorPlaceholderName(input.combate.armadura ?? "") ? "" : input.combate.armaduraProteccion,
+            armadura: getEquippedInventoryItem(syncedEquipment.inventoryItems, syncedEquipment.equipmentSlots, "armor")?.name
+                ?? (hasCharacterTraitBasedNaturalArmor(input) && isNaturalArmorPlaceholderName(input.combate.armadura ?? "") ? "" : input.combate.armadura),
+            armaduraProteccion: getEquippedInventoryItem(syncedEquipment.inventoryItems, syncedEquipment.equipmentSlots, "armor")?.protectionFormula
+                ?? (hasCharacterTraitBasedNaturalArmor(input) && isNaturalArmorPlaceholderName(input.combate.armadura ?? "") ? "" : input.combate.armaduraProteccion),
+            armaduraCualidad: getEquippedInventoryItem(syncedEquipment.inventoryItems, syncedEquipment.equipmentSlots, "armor")?.qualities ?? input.combate.armaduraCualidad,
             robustezMax: syncedRobustezMax,
             robustezActual: Math.min(input.combate.robustezActual, syncedRobustezMax)
         },
@@ -1299,6 +1312,52 @@ export function parseCharacterSheet(input) {
 }
 export function synchronizeCharacterSheet(input) {
     return importedCharacterSheetSchema.parse(buildSynchronizedCharacterSheet(parseCharacterSheet(input)));
+}
+export const npcDepthSchema = z.enum(["notes", "stat_block", "full_sheet"]);
+const npcLabelSchema = z.string().min(1).max(80);
+export const createNpcSchema = z.object({
+    name: z.string().min(2).max(120),
+    depth: npcDepthSchema.default("notes"),
+    race: z.string().max(80).default(""),
+    archetype: z.string().max(80).default(""),
+    occupation: z.string().max(120).default(""),
+    faction: z.string().max(120).default(""),
+    labels: z.array(npcLabelSchema).max(20).default([]),
+    summary: z.string().max(500).default(""),
+    notes: z.string().max(4000).default(""),
+    statBlock: monsterSheetSchema.nullable().default(null),
+    sheet: importedCharacterSheetSchema.nullable().default(null)
+});
+export const updateNpcSchema = createNpcSchema.partial();
+export function createNpcSheetSeed(input) {
+    const sheet = createEmptyCharacterSheet();
+    return synchronizeCharacterSheet({
+        ...sheet,
+        identidad: {
+            ...sheet.identidad,
+            nombrePersonaje: input.name.trim(),
+            raza: input.race.trim() || "Humano",
+            arquetipo: input.archetype.trim() || "Guerrero",
+            profesion: input.occupation.trim(),
+            apariencia: input.summary.trim(),
+            trasfondo: input.notes.trim()
+        }
+    });
+}
+export function createEmptyNpcInput() {
+    return {
+        name: "",
+        depth: "notes",
+        race: "",
+        archetype: "",
+        occupation: "",
+        faction: "",
+        labels: [],
+        summary: "",
+        notes: "",
+        statBlock: null,
+        sheet: null
+    };
 }
 export const createCharacterSchema = z.object({
     name: z.string().min(2).max(80),

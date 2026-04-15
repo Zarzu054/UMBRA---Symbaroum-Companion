@@ -34,6 +34,12 @@ enum CampaignChatMessageType {
   action
 }
 
+enum CampaignReferenceVisibility {
+  gm_only
+  campaign
+  selected_players
+}
+
 model User {
   id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email               String             @unique
@@ -43,12 +49,15 @@ model User {
   createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   characters          Character[]
   monsters            Monster[]
+  npcs                Npc[]
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   gmCampaigns         Campaign[]         @relation("CampaignGm")
   campaignMemberships CampaignMember[]
   campaignXpGrants    CampaignXpLog[]    @relation("CampaignXpGrantUser")
   campaignChatMessages CampaignChatMessage[]
+  authoredCampaignReferences CampaignReference[] @relation("CampaignReferenceAuthor")
+  campaignReferenceShares CampaignReferenceShare[]
 
   @@map("users")
 }
@@ -88,6 +97,29 @@ model Monster {
 
   @@index([ownerId])
   @@map("monsters")
+}
+
+model Npc {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId    String   @map("owner_id") @db.Uuid
+  name       String
+  depth      String
+  race       String   @default("")
+  archetype  String   @default("")
+  occupation String   @default("")
+  faction    String   @default("")
+  labels     Json     @default("[]")
+  summary    String   @default("")
+  notes      String   @default("")
+  statBlock  Json?
+  sheet      Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@index([depth])
+  @@map("npcs")
 }
 
 model RefreshToken {
@@ -255,17 +287,34 @@ model CampaignSession {
 model CampaignReference {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   campaignId String   @map("campaign_id") @db.Uuid
+  authorId   String   @map("author_id") @db.Uuid
   name       String
   label      String
   aliases    Json     @default("[]")
   summary    String   @default("")
   content    String   @default("")
-  isPublic   Boolean  @default(false) @map("is_public")
+  visibility CampaignReferenceVisibility @default(gm_only)
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  author     User     @relation("CampaignReferenceAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  sharedWith CampaignReferenceShare[]
 
   @@index([campaignId])
   @@index([name])
+  @@index([authorId])
   @@map("campaign_references")
+}
+
+model CampaignReferenceShare {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referenceId String            @map("reference_id") @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  reference   CampaignReference @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([referenceId, userId])
+  @@index([userId])
+  @@map("campaign_reference_shares")
 }

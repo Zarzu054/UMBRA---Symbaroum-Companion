@@ -9,19 +9,11 @@ import type {
   SupportUser
 } from "@umbra/shared";
 import { fromSession, type AuthState } from "../models/authModel";
+import { readFriendlyApiError } from "./apiError";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
 type ApiResponse<T> = { data: T };
-
-async function parseError(response: Response): Promise<string> {
-  try {
-    const payload = (await response.json()) as { message?: string; error?: string };
-    return payload.message ?? payload.error ?? `Fallo de solicitud (${response.status})`;
-  } catch {
-    return `Fallo de solicitud (${response.status})`;
-  }
-}
 
 async function postJson<TBody, TData>(url: string, body: TBody, token?: string): Promise<TData> {
   const headers: Record<string, string> = { ...JSON_HEADERS };
@@ -34,7 +26,7 @@ async function postJson<TBody, TData>(url: string, body: TBody, token?: string):
   });
 
   if (!response.ok) {
-    throw new Error(await parseError(response));
+    throw new Error(await readFriendlyApiError(response));
   }
 
   if (response.status === 204) {
@@ -83,7 +75,7 @@ export async function getCurrentUser(accessToken: string) {
   });
 
   if (!response.ok) {
-    throw new Error(await parseError(response));
+    throw new Error(await readFriendlyApiError(response));
   }
 
   const payload = (await response.json()) as ApiResponse<AuthSession["user"]>;
@@ -96,7 +88,7 @@ export async function fetchSupportUsers(accessToken: string): Promise<SupportUse
   });
 
   if (!response.ok) {
-    throw new Error(await parseError(response));
+    throw new Error(await readFriendlyApiError(response));
   }
 
   const payload = (await response.json()) as ApiResponse<SupportUser[]>;

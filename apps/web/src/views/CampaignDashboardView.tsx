@@ -1,20 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
+  createCampaignReferenceSchema,
   createCampaignSchema,
   type AuthUser,
   type Campaign,
+  type CampaignReference,
+  type CreateCampaignReferenceInput,
   type CreateCampaignInput
 } from "@umbra/shared";
 import {
   addCampaignMember,
   createCampaign,
+  createCampaignReference,
+  deleteCampaignReference,
   fetchCampaigns,
   linkCampaignCharacter,
   removeCampaignMember,
   unlinkCampaignCharacter,
-  updateCampaign
+  updateCampaign,
+  updateCampaignReference
 } from "../services/campaignService";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { ALL_ENTRIES } from "../models/compendiumEntries";
 
 type Props = {
   user: AuthUser;
@@ -24,9 +32,10 @@ type Props = {
 type CampaignHashState = {
   campaignId: string | null;
   sheetId: string | null;
+  section: CampaignSection | null;
 };
 
-type CampaignSection = "dmNotes" | "sharedNotes" | "members" | "characters" | "sheet";
+type CampaignSection = "dmNotes" | "sharedNotes" | "wiki" | "members" | "characters";
 
 const emptyCampaignForm: CreateCampaignInput = {
   name: "",
@@ -36,27 +45,121 @@ const emptyCampaignForm: CreateCampaignInput = {
   sharedNotes: ""
 };
 
+const emptyReferenceForm: CreateCampaignReferenceInput = {
+  name: "",
+  label: "",
+  aliases: [],
+  summary: "",
+  content: "",
+  visibility: "campaign",
+  sharedWithUserIds: []
+};
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeLookupValue(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function getReferenceTerms(reference: CampaignReference): string[] {
+  return [reference.name, ...reference.aliases]
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .sort((left, right) => right.length - left.length);
+}
+
+function referenceMatchesText(reference: CampaignReference, text: string): boolean {
+  if (!text.trim()) {
+    return false;
+  }
+
+  const normalizedText = normalizeLookupValue(text);
+  return getReferenceTerms(reference).some((term) => {
+    const escaped = escapeRegExp(normalizeLookupValue(term));
+    return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}([^\\p{L}\\p{N}]|$)`, "iu").test(normalizedText);
+  });
+}
+
+function renderHighlightedText(text: string, references: CampaignReference[]) {
+  if (!text.trim() || references.length === 0) {
+    return text;
+  }
+
+  const terms = references
+    .flatMap((reference) => getReferenceTerms(reference))
+    .map((term) => term.trim())
+    .filter(Boolean)
+    .sort((left, right) => right.length - left.length);
+
+  if (terms.length === 0) {
+    return text;
+  }
+
+  const matcher = new RegExp(`(${terms.map((term) => escapeRegExp(term)).join("|")})`, "gi");
+  return text.split(matcher).map((part, index) =>
+    terms.some((term) => part.localeCompare(term, undefined, { sensitivity: "base" }) === 0)
+      ? <mark key={`${part}-${index}`} className="compendium-highlight">{part}</mark>
+      : part
+  );
+}
+
+function describeReferenceVisibility(reference: CampaignReference): string {
+  if (reference.visibility === "campaign") {
+    return "Visible para toda la campaña";
+  }
+
+  if (reference.visibility === "selected_players") {
+    return reference.sharedWithEmails.length > 0
+      ? `Compartida con ${reference.sharedWithEmails.length} jugador(es)`
+      : "Compartida con jugadores concretos";
+  }
+
+  return "Solo DJ";
+}
+
 function parseCampaignHash(): CampaignHashState {
   const rawHash = window.location.hash.replace(/^#/, "");
   if (!rawHash.startsWith("campaigns")) {
-    return { campaignId: null, sheetId: null };
+    return { campaignId: null, sheetId: null, section: null };
   }
 
   const [, search = ""] = rawHash.split("?");
   const params = new URLSearchParams(search);
+  const rawSection = params.get("section");
+  const section: CampaignSection | null =
+    rawSection === "dmNotes" ||
+    rawSection === "sharedNotes" ||
+    rawSection === "wiki" ||
+    rawSection === "members" ||
+    rawSection === "characters"
+      ? rawSection
+      : null;
   return {
     campaignId: params.get("id"),
-    sheetId: params.get("sheetId")
+    sheetId: params.get("sheetId"),
+    section
   };
 }
 
-function replaceCampaignHash(campaignId: string | null, sheetId: string | null): void {
+function replaceCampaignHash(
+  campaignId: string | null,
+  sheetId: string | null,
+  section: CampaignSection | null
+): void {
   const params = new URLSearchParams();
   if (campaignId) {
     params.set("id", campaignId);
   }
   if (sheetId) {
     params.set("sheetId", sheetId);
+  }
+  if (campaignId && section) {
+    params.set("section", section);
   }
 
   const nextHash = params.toString() ? `#campaigns?${params.toString()}` : "#campaigns";
@@ -69,22 +172,40 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleString();
 }
 
+function normalizeCompendiumName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const initialHash = parseCampaignHash();
   const isDirector = user.role === "gm" || user.role === "superadmin";
+  const defaultSection: CampaignSection = isDirector ? "dmNotes" : "sharedNotes";
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(initialHash.campaignId);
   const [selectedSheetId, setSelectedSheetId] = useState<string | null>(initialHash.sheetId);
-  const [activeSection, setActiveSection] = useState<CampaignSection>(isDirector ? "dmNotes" : "sharedNotes");
+  const [activeSection, setActiveSection] = useState<CampaignSection>(
+    initialHash.section && (isDirector || initialHash.section !== "dmNotes") ? initialHash.section : defaultSection
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [campaignForm, setCampaignForm] = useState<CreateCampaignInput>(emptyCampaignForm);
   const [draft, setDraft] = useState<CreateCampaignInput>(emptyCampaignForm);
   const [memberEmail, setMemberEmail] = useState("");
   const [selectedAvailableCharacterId, setSelectedAvailableCharacterId] = useState("");
+  const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(null);
+  const [referenceForm, setReferenceForm] = useState<CreateCampaignReferenceInput>(emptyReferenceForm);
+  const [referenceAliasesText, setReferenceAliasesText] = useState("");
+  const [isReferenceCreateModalOpen, setIsReferenceCreateModalOpen] = useState(false);
+  const [isReferenceDetailModalOpen, setIsReferenceDetailModalOpen] = useState(false);
   const [isCreateCampaignModalOpen, setIsCreateCampaignModalOpen] = useState(false);
   const [isCampaignDetailsModalOpen, setIsCampaignDetailsModalOpen] = useState(false);
+  const [isBurdenSummaryModalOpen, setIsBurdenSummaryModalOpen] = useState(false);
 
   const selectedCampaign = useMemo(
     () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
@@ -94,6 +215,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     () => selectedCampaign?.characters.find((entry) => entry.id === selectedSheetId) ?? null,
     [selectedCampaign, selectedSheetId]
   );
+  const selectedReference = useMemo(
+    () => selectedCampaign?.references.find((entry) => entry.id === selectedReferenceId) ?? null,
+    [selectedCampaign, selectedReferenceId]
+  );
+  const canEditSelectedReference = isDirector || selectedReference?.authorId === user.id;
+  const shareableMembers = useMemo(
+    () => (selectedCampaign?.members ?? []).filter((member) => member.role === "player"),
+    [selectedCampaign]
+  );
   const linkableCharacters = useMemo(
     () =>
       (selectedCampaign?.availableCharacters ?? []).filter(
@@ -101,6 +231,49 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       ),
     [isDirector, selectedCampaign, user.id]
   );
+  const sharedNotesReferenceHighlights = useMemo(
+    () => (selectedCampaign?.references ?? []).filter((reference) => referenceMatchesText(reference, draft.sharedNotes)),
+    [draft.sharedNotes, selectedCampaign]
+  );
+  const burdenEntries = useMemo(
+    () => ALL_ENTRIES.filter((entry) => entry.tipo === "carga"),
+    []
+  );
+  const campaignBurdenDigest = useMemo(() => {
+    if (!selectedCampaign || !isDirector) {
+      return [];
+    }
+
+    return selectedCampaign.characters.flatMap((entry) => {
+      const burdens = entry.sheet?.cargas ?? [];
+      return burdens.map((burdenName) => {
+        const match = burdenEntries.find(
+          (candidate) => normalizeCompendiumName(candidate.nombre) === normalizeCompendiumName(burdenName)
+        );
+
+        return {
+          id: `${entry.id}-${normalizeCompendiumName(burdenName)}`,
+          burdenName,
+          characterName: entry.name,
+          ownerEmail: entry.ownerEmail,
+          summary: match?.resumen ?? "Carga registrada en la ficha del personaje.",
+          detail: match?.detalle ?? "Consulta el compendio o la hoja del personaje para el detalle completo.",
+          source: match ? `${match.fuente}${match.pagina ? ` · p.${match.pagina}` : ""}` : "Sin referencia enlazada"
+        };
+      });
+    });
+  }, [burdenEntries, isDirector, selectedCampaign]);
+  const campaignSheetModalEntry = isDirector && selectedSheetEntry?.sheet ? selectedSheetEntry : null;
+  const isSheetModalOpen = Boolean(campaignSheetModalEntry);
+  const isAnyModalOpen =
+    isCreateCampaignModalOpen ||
+    isCampaignDetailsModalOpen ||
+    isReferenceCreateModalOpen ||
+    isReferenceDetailModalOpen ||
+    isBurdenSummaryModalOpen ||
+    isSheetModalOpen;
+
+  useBodyScrollLock(isAnyModalOpen);
 
   useEffect(() => {
     void refresh();
@@ -111,16 +284,17 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const next = parseCampaignHash();
       setSelectedCampaignId(next.campaignId);
       setSelectedSheetId(next.sheetId);
+      setActiveSection(next.section && (isDirector || next.section !== "dmNotes") ? next.section : defaultSection);
     }
 
     syncSelectionFromHash();
     window.addEventListener("hashchange", syncSelectionFromHash);
     return () => window.removeEventListener("hashchange", syncSelectionFromHash);
-  }, []);
+  }, [defaultSection, isDirector]);
 
   useEffect(() => {
-    replaceCampaignHash(selectedCampaignId, selectedSheetId);
-  }, [selectedCampaignId, selectedSheetId]);
+    replaceCampaignHash(selectedCampaignId, selectedSheetId, selectedCampaignId ? activeSection : null);
+  }, [activeSection, selectedCampaignId, selectedSheetId]);
 
   useEffect(() => {
     if (!isDirector && activeSection === "dmNotes") {
@@ -133,6 +307,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setDraft(emptyCampaignForm);
       setSelectedAvailableCharacterId("");
       setSelectedSheetId(null);
+      setSelectedReferenceId(null);
+      setReferenceForm(emptyReferenceForm);
+      setReferenceAliasesText("");
+      setIsReferenceCreateModalOpen(false);
+      setIsReferenceDetailModalOpen(false);
       return;
     }
 
@@ -146,11 +325,41 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   }, [selectedCampaign]);
 
   useEffect(() => {
+    if (selectedReferenceId && !selectedCampaign?.references.some((entry) => entry.id === selectedReferenceId)) {
+      setSelectedReferenceId(null);
+      setIsReferenceDetailModalOpen(false);
+    }
+  }, [selectedCampaign, selectedReferenceId]);
+
+  useEffect(() => {
+    if (!selectedReference) {
+      setReferenceForm(emptyReferenceForm);
+      setReferenceAliasesText("");
+      return;
+    }
+
+    setReferenceForm({
+      name: selectedReference.name,
+      label: selectedReference.label,
+      aliases: selectedReference.aliases,
+      summary: selectedReference.summary,
+      content: selectedReference.content,
+      visibility: selectedReference.visibility,
+      sharedWithUserIds: selectedReference.sharedWithUserIds
+    });
+    setReferenceAliasesText(selectedReference.aliases.join(", "));
+  }, [selectedReference]);
+
+  useEffect(() => {
     setSelectedAvailableCharacterId(linkableCharacters[0]?.characterId ?? "");
   }, [linkableCharacters]);
 
   useEffect(() => {
     if (!selectedCampaignId) {
+      return;
+    }
+
+    if (isLoading) {
       return;
     }
 
@@ -162,20 +371,17 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
     if (selectedSheetId && !selectedCampaign.characters.some((entry) => entry.id === selectedSheetId)) {
       setSelectedSheetId(null);
-      if (activeSection === "sheet") {
-        setActiveSection("characters");
-      }
     }
-  }, [activeSection, selectedCampaign, selectedCampaignId, selectedSheetId]);
+  }, [activeSection, isLoading, selectedCampaign, selectedCampaignId, selectedSheetId]);
 
   async function refresh(): Promise<void> {
     setIsLoading(true);
-    setError(null);
+    setLoadError(null);
     try {
       const token = await ensureAccessToken();
       setCampaigns(await fetchCampaigns(token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron cargar las campanas");
+      setLoadError(err instanceof Error ? err.message : "No se pudieron cargar las campanas");
     } finally {
       setIsLoading(false);
     }
@@ -192,17 +398,18 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   }
 
   async function handleCreateCampaign(): Promise<void> {
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
       const created = await createCampaign(createCampaignSchema.parse(campaignForm), token);
       upsertCampaign(created);
       setCampaignForm(emptyCampaignForm);
+      setFormError(null);
       setIsCreateCampaignModalOpen(false);
       setActiveSection("dmNotes");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear la campana");
+      setFormError(err instanceof Error ? err.message : "No se pudo crear la campana");
     } finally {
       setIsSaving(false);
     }
@@ -213,7 +420,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
@@ -224,9 +431,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           setting: draft.setting
         }, token)
       );
+      setFormError(null);
       setIsCampaignDetailsModalOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron guardar los detalles");
+      setFormError(err instanceof Error ? err.message : "No se pudieron guardar los detalles");
     } finally {
       setIsSaving(false);
     }
@@ -237,13 +445,13 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
       upsertCampaign(await updateCampaign(selectedCampaign.id, { notes: draft.notes }, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron guardar las notas del DJ");
+      setFormError(err instanceof Error ? err.message : "No se pudieron guardar las notas del DJ");
     } finally {
       setIsSaving(false);
     }
@@ -254,13 +462,13 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
       upsertCampaign(await updateCampaign(selectedCampaign.id, { sharedNotes: draft.sharedNotes }, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron guardar las notas compartidas");
+      setFormError(err instanceof Error ? err.message : "No se pudieron guardar las notas compartidas");
     } finally {
       setIsSaving(false);
     }
@@ -271,27 +479,27 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
       upsertCampaign(await addCampaignMember(selectedCampaign.id, { email: memberEmail.trim() }, token));
       setMemberEmail("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo agregar el miembro");
+      setFormError(err instanceof Error ? err.message : "No se pudo agregar el miembro");
     } finally {
       setIsSaving(false);
     }
   }
 
   async function handleRemoveMember(memberId: string): Promise<void> {
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
       upsertCampaign(await removeCampaignMember(memberId, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo quitar el miembro");
+      setFormError(err instanceof Error ? err.message : "No se pudo quitar el miembro");
     } finally {
       setIsSaving(false);
     }
@@ -302,20 +510,20 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
       upsertCampaign(await linkCampaignCharacter(selectedCampaign.id, selectedAvailableCharacterId, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo vincular el personaje");
+      setFormError(err instanceof Error ? err.message : "No se pudo vincular el personaje");
     } finally {
       setIsSaving(false);
     }
   }
 
   async function handleUnlinkCharacter(linkId: string): Promise<void> {
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
@@ -325,64 +533,167 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         setActiveSection("characters");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo desvincular el personaje");
+      setFormError(err instanceof Error ? err.message : "No se pudo desvincular el personaje");
     } finally {
       setIsSaving(false);
     }
   }
 
+  async function handleCreateReference(): Promise<void> {
+    if (!selectedCampaign) {
+      return;
+    }
+
+    setFormError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      const aliases = referenceAliasesText
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+      const payload = createCampaignReferenceSchema.parse({
+        ...referenceForm,
+        aliases
+      });
+      const updated = await createCampaignReference(selectedCampaign.id, payload, token);
+      upsertCampaign(updated);
+      const createdReference = updated.references.find(
+        (entry) => entry.name === payload.name && entry.label === payload.label && entry.content === payload.content
+      );
+      setSelectedReferenceId(createdReference?.id ?? null);
+      setFormError(null);
+      setIsReferenceCreateModalOpen(false);
+      setIsReferenceDetailModalOpen(Boolean(createdReference));
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo crear la referencia");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleSaveReference(): Promise<void> {
+    if (!selectedReference) {
+      return;
+    }
+
+    setFormError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      const aliases = referenceAliasesText
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+      const payload = createCampaignReferenceSchema.parse({
+        ...referenceForm,
+        aliases
+      });
+      upsertCampaign(await updateCampaignReference(selectedReference.id, payload, token));
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo guardar la referencia");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDeleteReference(referenceId: string): Promise<void> {
+    setFormError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      const updated = await deleteCampaignReference(referenceId, token);
+      upsertCampaign(updated);
+      setSelectedReferenceId(null);
+      setFormError(null);
+      setIsReferenceDetailModalOpen(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo eliminar la referencia");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function handlePrepareNewReference(): void {
+    setFormError(null);
+    setSelectedReferenceId(null);
+    setReferenceForm(emptyReferenceForm);
+    setReferenceAliasesText("");
+    setIsReferenceDetailModalOpen(false);
+    setIsReferenceCreateModalOpen(true);
+  }
+
+  function openReferenceDetail(referenceId: string): void {
+    setFormError(null);
+    setSelectedReferenceId(referenceId);
+    setIsReferenceCreateModalOpen(false);
+    setIsReferenceDetailModalOpen(true);
+  }
+
   return (
     <main className="campaign-dashboard">
-      <section className="panel campaign-list-panel">
-        <div className="row-actions">
-          <div>
-            <h1>Campanas</h1>
-            <p className="section-help">Notas compartidas, notas del DJ y personajes vinculados.</p>
-          </div>
-          <div className="toolbar">
-            {isDirector ? (
-              <button type="button" onClick={() => setIsCreateCampaignModalOpen(true)}>
-                Nueva campana
+      {!selectedCampaign ? (
+        <section className="panel campaign-list-panel">
+          <div className="row-actions">
+            <div>
+              <h1>Campanas</h1>
+              <p className="section-help">Notas compartidas, notas del DJ y personajes vinculados.</p>
+            </div>
+            <div className="toolbar">
+              {isDirector ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormError(null);
+                    setIsCreateCampaignModalOpen(true);
+                  }}
+                >
+                  Nueva campana
+                </button>
+              ) : null}
+              <button type="button" disabled={isLoading} onClick={() => void refresh()}>
+                Recargar
               </button>
-            ) : null}
-            <button type="button" disabled={isLoading} onClick={() => void refresh()}>
-              Recargar
-            </button>
+            </div>
           </div>
-        </div>
 
-        {error ? <p className="error-text">{error}</p> : null}
-        {isLoading ? <p>Cargando campanas...</p> : null}
+          {loadError ? <p className="error-text">{loadError}</p> : null}
+          {isLoading ? <p>Cargando campanas...</p> : null}
 
-        <div className="campaign-list">
-          {campaigns.map((campaign) => (
-            <button
-              key={campaign.id}
-              type="button"
-              className={`campaign-list-item${selectedCampaignId === campaign.id ? " is-active" : ""}`}
-              onClick={() => {
-                setSelectedCampaignId(campaign.id);
-                setSelectedSheetId(null);
-                setActiveSection(isDirector ? "dmNotes" : "sharedNotes");
-              }}
-            >
-              <strong>{campaign.name}</strong>
-              <span>{campaign.setting || campaign.summary || "Sin ambientacion"}</span>
-              <span>{campaign.members.length} miembros</span>
-              <span>{campaign.characters.length} personajes vinculados</span>
-            </button>
-          ))}
-          {!isLoading && campaigns.length === 0 ? (
-            <p className="section-help">Aun no hay campanas accesibles.</p>
-          ) : null}
-        </div>
-      </section>
+          <div className="campaign-list">
+            {campaigns.map((campaign) => (
+              <button
+                key={campaign.id}
+                type="button"
+                className={`campaign-list-item${selectedCampaignId === campaign.id ? " is-active" : ""}`}
+                onClick={() => {
+                  setSelectedCampaignId(campaign.id);
+                  setSelectedSheetId(null);
+                  setActiveSection(isDirector ? "dmNotes" : "sharedNotes");
+                }}
+              >
+                <strong>{campaign.name}</strong>
+                <span>{campaign.setting || campaign.summary || "Sin ambientacion"}</span>
+                <span>{campaign.members.length} miembros</span>
+                <span>{campaign.characters.length} personajes vinculados</span>
+              </button>
+            ))}
+            {!isLoading && campaigns.length === 0 ? (
+              <p className="section-help">Aun no hay campanas accesibles.</p>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       {selectedCampaign ? (
         <section className="campaign-main">
           <section className="panel">
             <div className="row-actions">
               <div>
+                <h2>{selectedCampaign.name}</h2>
+                {selectedCampaign.summary ? <p className="section-help">{selectedCampaign.summary}</p> : null}
+              </div>
+              <div className="campaign-header-actions">
                 <button
                   type="button"
                   className="subtle-button"
@@ -394,20 +705,24 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 >
                   Volver a campanas
                 </button>
-                <h2>{selectedCampaign.name}</h2>
-                <p className="meta-text">
-                  DJ: <strong>{selectedCampaign.gmEmail}</strong>
-                </p>
-                {selectedCampaign.summary ? <p className="section-help">{selectedCampaign.summary}</p> : null}
-              </div>
-              {isDirector ? (
-                <div className="campaign-header-actions">
-                  <button type="button" disabled={isSaving} onClick={() => setIsCampaignDetailsModalOpen(true)}>
+                {isDirector ? (
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => {
+                      setFormError(null);
+                      setIsCampaignDetailsModalOpen(true);
+                    }}
+                  >
                     Detalles
                   </button>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
             </div>
+
+            {formError && !isCampaignDetailsModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen ? (
+              <p className="error-text">{formError}</p>
+            ) : null}
 
             <div className="toolbar campaign-section-nav">
               {isDirector ? (
@@ -428,6 +743,13 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               </button>
               <button
                 type="button"
+                className={activeSection === "wiki" ? "is-active" : ""}
+                onClick={() => setActiveSection("wiki")}
+              >
+                Wiki
+              </button>
+              <button
+                type="button"
                 className={activeSection === "members" ? "is-active" : ""}
                 onClick={() => setActiveSection("members")}
               >
@@ -440,15 +762,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               >
                 Personajes
               </button>
-              {isDirector && selectedSheetEntry?.sheet ? (
-                <button
-                  type="button"
-                  className={activeSection === "sheet" ? "is-active" : ""}
-                  onClick={() => setActiveSection("sheet")}
-                >
-                  Hoja abierta
-                </button>
-              ) : null}
             </div>
           </section>
 
@@ -489,6 +802,65 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   placeholder="Apuntes de sesion, acuerdos del grupo, pistas, recordatorios..."
                 />
               </label>
+              <article className="campaign-sheet-card">
+                <div className="row-actions">
+                  <div>
+                    <h4>Resaltados de la wiki</h4>
+                    <p className="section-help">Solo aparecen las referencias visibles para tu usuario dentro de estas notas.</p>
+                  </div>
+                  <span className="meta-text">{sharedNotesReferenceHighlights.length} coincidencias</span>
+                </div>
+                <p>{renderHighlightedText(draft.sharedNotes || "Sin notas compartidas.", sharedNotesReferenceHighlights)}</p>
+                {sharedNotesReferenceHighlights.length > 0 ? (
+                  <div className="compendium-tags">
+                    {sharedNotesReferenceHighlights.map((reference) => (
+                      <button
+                        key={reference.id}
+                        type="button"
+                        className="compendium-chip"
+                        onClick={() => openReferenceDetail(reference.id)}
+                      >
+                        {reference.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </article>
+            </section>
+          ) : null}
+
+          {activeSection === "wiki" ? (
+            <section className="panel">
+              <div className="row-actions">
+                <div>
+                  <h3>Wiki de campana</h3>
+                  <p className="section-help">Jugadores pueden aportar entradas visibles para toda la campaña. El DJ puede mantener entradas privadas o compartirlas con jugadores concretos.</p>
+                </div>
+                <button type="button" disabled={isSaving} onClick={handlePrepareNewReference}>
+                  Nueva referencia
+                </button>
+              </div>
+
+              <div className="campaign-reference-list">
+                {selectedCampaign.references.map((reference) => (
+                  <button
+                    key={reference.id}
+                    type="button"
+                    className="campaign-list-item"
+                    onClick={() => openReferenceDetail(reference.id)}
+                  >
+                    <strong>{reference.name}</strong>
+                    <span>{reference.label}</span>
+                    <span>{reference.summary || "Sin resumen breve"}</span>
+                    {reference.aliases.length > 0 ? <span>Alias: {reference.aliases.join(", ")}</span> : null}
+                    <span>{describeReferenceVisibility(reference)}</span>
+                    <span>Autor: {reference.authorEmail}</span>
+                  </button>
+                ))}
+                {selectedCampaign.references.length === 0 ? (
+                  <p className="section-help">Aun no hay referencias en esta campana.</p>
+                ) : null}
+              </div>
             </section>
           ) : null}
 
@@ -557,6 +929,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   >
                     Vincular
                   </button>
+                  {isDirector ? (
+                    <button
+                      type="button"
+                      className="subtle-button"
+                      onClick={() => setIsBurdenSummaryModalOpen(true)}
+                    >
+                      Resumen de cargas
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
@@ -567,7 +948,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     <article key={entry.id} className="card">
                       <strong>{entry.name}</strong>
                       <span>{entry.ownerEmail}</span>
-                      <span>PX total: {entry.experienceTotal} · PX gastada: {entry.experienceSpent}</span>
+                      <span>PX total: {entry.experienceTotal} Â· PX gastada: {entry.experienceSpent}</span>
                       <span>Actualizado: {formatDate(entry.updatedAt)}</span>
                       <div className="card-actions">
                         {isDirector && entry.sheet ? (
@@ -575,7 +956,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                             type="button"
                             onClick={() => {
                               setSelectedSheetId(entry.id);
-                              setActiveSection("sheet");
                             }}
                           >
                             Abrir hoja
@@ -594,15 +974,16 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   <p className="section-help">Todavia no hay personajes vinculados.</p>
                 ) : null}
               </div>
+
             </section>
           ) : null}
 
-          {isDirector && activeSection === "sheet" && selectedSheetEntry?.sheet ? (
+          {selectedSheetEntry && false ? (
             <section className="campaign-sheet-shell">
               <UnifiedCharacterSheet
-                title={selectedSheetEntry.name}
-                subtitle={`${selectedSheetEntry.ownerEmail} · Hoja vinculada a campana`}
-                sheet={selectedSheetEntry.sheet}
+                title={campaignSheetModalEntry?.name ?? ""}
+                subtitle={`${selectedSheetEntry?.ownerEmail ?? ""} · Hoja vinculada a campana`}
+                sheet={selectedSheetEntry!.sheet!}
                 editable={false}
                 busy={isSaving}
                 onBack={() => {
@@ -615,8 +996,98 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         </section>
       ) : null}
 
+      {campaignSheetModalEntry ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            setSelectedSheetId(null);
+          }}
+        >
+          <div
+            className="panel modal-panel campaign-character-sheet-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="row-actions campaign-character-sheet-modal-header">
+              <div>
+                <h3>{campaignSheetModalEntry.name}</h3>
+                <p className="section-help">{campaignSheetModalEntry.ownerEmail} Â· Hoja vinculada a campana</p>
+              </div>
+              <button type="button" onClick={() => setSelectedSheetId(null)}>
+                Cerrar
+              </button>
+            </div>
+            <div className="campaign-character-sheet-modal-body">
+              <UnifiedCharacterSheet
+                title={campaignSheetModalEntry.name}
+                subtitle={`${campaignSheetModalEntry.ownerEmail} Â· Hoja vinculada a campana`}
+                sheet={campaignSheetModalEntry.sheet!}
+                editable={false}
+                busy={isSaving}
+              />
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {isDirector && isBurdenSummaryModalOpen ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            setIsBurdenSummaryModalOpen(false);
+          }}
+        >
+          <div className="panel modal-panel campaign-character-sheet-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="row-actions campaign-character-sheet-modal-header">
+              <div>
+                <h3>Resumen de cargas</h3>
+                <p className="section-help">
+                  Vista rapida para el DJ con las cargas activas de los personajes vinculados y su explicacion.
+                </p>
+              </div>
+              <div className="toolbar">
+                <span className="meta-text">{campaignBurdenDigest.length} registradas</span>
+                <button type="button" onClick={() => setIsBurdenSummaryModalOpen(false)}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            <div className="campaign-character-sheet-modal-body">
+              <div className="cards">
+                {campaignBurdenDigest.map((burden) => (
+                  <article key={burden.id} className="campaign-structured-card app-card-accent app-card-accent--carga">
+                    <div className="row-actions">
+                      <div>
+                        <strong>{burden.burdenName}</strong>
+                        <p className="section-help">
+                          {burden.characterName} · {burden.ownerEmail}
+                        </p>
+                      </div>
+                      <span className="compendium-chip">Carga</span>
+                    </div>
+                    <p>{burden.summary}</p>
+                    <p className="section-help">{burden.detail}</p>
+                    <span className="meta-text">{burden.source}</span>
+                  </article>
+                ))}
+                {campaignBurdenDigest.length === 0 ? (
+                  <p className="section-help">No hay cargas registradas en los personajes vinculados.</p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {isCreateCampaignModalOpen ? (
-        <section className="modal-backdrop" onClick={() => !isSaving && setIsCreateCampaignModalOpen(false)}>
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setFormError(null);
+              setIsCreateCampaignModalOpen(false);
+            }
+          }}
+        >
           <div className="panel modal-panel" onClick={(event) => event.stopPropagation()}>
             <div className="row-actions">
               <h3>Nueva campana</h3>
@@ -624,11 +1095,19 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 <button type="button" disabled={isSaving} onClick={() => void handleCreateCampaign()}>
                   Crear
                 </button>
-                <button type="button" disabled={isSaving} onClick={() => setIsCreateCampaignModalOpen(false)}>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setFormError(null);
+                    setIsCreateCampaignModalOpen(false);
+                  }}
+                >
                   Cerrar
                 </button>
               </div>
             </div>
+            {formError ? <p className="error-text">{formError}</p> : null}
             <div className="form-grid">
               <label className="field">
                 <span>Nombre</span>
@@ -658,7 +1137,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       ) : null}
 
       {isDirector && isCampaignDetailsModalOpen && selectedCampaign ? (
-        <section className="modal-backdrop" onClick={() => !isSaving && setIsCampaignDetailsModalOpen(false)}>
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setFormError(null);
+              setIsCampaignDetailsModalOpen(false);
+            }
+          }}
+        >
           <div className="panel modal-panel" onClick={(event) => event.stopPropagation()}>
             <div className="row-actions">
               <h3>Detalles de campana</h3>
@@ -666,11 +1153,19 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 <button type="button" disabled={isSaving} onClick={() => void handleSaveCampaignDetails()}>
                   Guardar
                 </button>
-                <button type="button" disabled={isSaving} onClick={() => setIsCampaignDetailsModalOpen(false)}>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setFormError(null);
+                    setIsCampaignDetailsModalOpen(false);
+                  }}
+                >
                   Cerrar
                 </button>
               </div>
             </div>
+            {formError ? <p className="error-text">{formError}</p> : null}
             <div className="form-grid">
               <label className="field">
                 <span>Nombre</span>
@@ -695,6 +1190,285 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           </div>
         </section>
       ) : null}
+
+      {isReferenceCreateModalOpen ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setFormError(null);
+              setIsReferenceCreateModalOpen(false);
+            }
+          }}
+        >
+          <div className="panel modal-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="row-actions">
+              <h3>Nueva referencia</h3>
+              <div className="toolbar">
+                <button type="button" disabled={isSaving} onClick={() => void handleCreateReference()}>
+                  {isSaving ? "Creando..." : "Crear"}
+                </button>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setFormError(null);
+                    setIsReferenceCreateModalOpen(false);
+                  }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            {formError ? <p className="error-text">{formError}</p> : null}
+
+            <div className="form-grid">
+              <label className="field">
+                <span>Nombre</span>
+                <input
+                  value={referenceForm.name}
+                  onChange={(event) => setReferenceForm((current) => ({ ...current, name: event.target.value }))}
+                />
+              </label>
+              <label className="field">
+                <span>Categoria</span>
+                <input
+                  value={referenceForm.label}
+                  onChange={(event) => setReferenceForm((current) => ({ ...current, label: event.target.value }))}
+                  placeholder="PNJ, lugar, faccion, trama..."
+                />
+              </label>
+            </div>
+
+            <label className="field">
+              <span>Resumen</span>
+              <input
+                value={referenceForm.summary}
+                onChange={(event) => setReferenceForm((current) => ({ ...current, summary: event.target.value }))}
+              />
+            </label>
+
+            <label className="field">
+              <span>Alias</span>
+              <input
+                value={referenceAliasesText}
+                onChange={(event) => setReferenceAliasesText(event.target.value)}
+                placeholder="Nombres alternativos separados por comas"
+              />
+            </label>
+
+            <label className="field">
+              <span>Contenido</span>
+              <textarea
+                rows={12}
+                value={referenceForm.content}
+                onChange={(event) => setReferenceForm((current) => ({ ...current, content: event.target.value }))}
+                placeholder="Detalle extenso de la referencia, usos, relaciones, pistas..."
+              />
+            </label>
+
+            {isDirector ? (
+              <>
+                <label className="field">
+                  <span>Visibilidad</span>
+                  <select
+                    value={referenceForm.visibility}
+                    onChange={(event) =>
+                      setReferenceForm((current) => ({
+                        ...current,
+                        visibility: event.target.value as CreateCampaignReferenceInput["visibility"],
+                        sharedWithUserIds: event.target.value === "selected_players" ? current.sharedWithUserIds : []
+                      }))
+                    }
+                  >
+                    <option value="campaign">Toda la campaña</option>
+                    <option value="selected_players">Jugadores concretos</option>
+                    <option value="gm_only">Solo DJ</option>
+                  </select>
+                </label>
+                {referenceForm.visibility === "selected_players" ? (
+                  <div className="field">
+                    <span>Jugadores con acceso</span>
+                    <div className="cards">
+                      {shareableMembers.map((member) => (
+                        <label key={member.id} className="checkbox-field">
+                          <input
+                            type="checkbox"
+                            checked={referenceForm.sharedWithUserIds.includes(member.userId)}
+                            onChange={(event) =>
+                              setReferenceForm((current) => ({
+                                ...current,
+                                sharedWithUserIds: event.target.checked
+                                  ? [...current.sharedWithUserIds, member.userId]
+                                  : current.sharedWithUserIds.filter((entry) => entry !== member.userId)
+                              }))
+                            }
+                          />
+                          <span>{member.email}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <p className="section-help">Las entradas creadas por jugadores siempre se comparten con toda la campaña.</p>
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {isReferenceDetailModalOpen && selectedReference ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setFormError(null);
+              setIsReferenceDetailModalOpen(false);
+            }
+          }}
+        >
+          <div className="panel modal-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="row-actions">
+              <div>
+                <h3>{selectedReference.name}</h3>
+                <p className="section-help">{selectedReference.label} · {describeReferenceVisibility(selectedReference)}</p>
+              </div>
+              <div className="toolbar">
+                {canEditSelectedReference ? (
+                  <>
+                    <button type="button" disabled={isSaving} onClick={() => void handleSaveReference()}>
+                      {isSaving ? "Guardando..." : "Guardar"}
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-button"
+                      disabled={isSaving}
+                      onClick={() => void handleDeleteReference(selectedReference.id)}
+                    >
+                      Eliminar
+                    </button>
+                  </>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setFormError(null);
+                    setIsReferenceDetailModalOpen(false);
+                  }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            {formError ? <p className="error-text">{formError}</p> : null}
+
+            {canEditSelectedReference ? (
+              <>
+                <div className="form-grid">
+                  <label className="field">
+                    <span>Nombre</span>
+                    <input
+                      value={referenceForm.name}
+                      onChange={(event) => setReferenceForm((current) => ({ ...current, name: event.target.value }))}
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Categoria</span>
+                    <input
+                      value={referenceForm.label}
+                      onChange={(event) => setReferenceForm((current) => ({ ...current, label: event.target.value }))}
+                    />
+                  </label>
+                </div>
+
+                <label className="field">
+                  <span>Resumen</span>
+                  <input
+                    value={referenceForm.summary}
+                    onChange={(event) => setReferenceForm((current) => ({ ...current, summary: event.target.value }))}
+                  />
+                </label>
+
+                <label className="field">
+                  <span>Alias</span>
+                  <input
+                    value={referenceAliasesText}
+                    onChange={(event) => setReferenceAliasesText(event.target.value)}
+                  />
+                </label>
+
+                <label className="field">
+                  <span>Contenido</span>
+                  <textarea
+                    rows={12}
+                    value={referenceForm.content}
+                    onChange={(event) => setReferenceForm((current) => ({ ...current, content: event.target.value }))}
+                  />
+                </label>
+
+                {isDirector ? (
+                  <>
+                    <label className="field">
+                      <span>Visibilidad</span>
+                      <select
+                        value={referenceForm.visibility}
+                        onChange={(event) =>
+                          setReferenceForm((current) => ({
+                            ...current,
+                            visibility: event.target.value as CreateCampaignReferenceInput["visibility"],
+                            sharedWithUserIds: event.target.value === "selected_players" ? current.sharedWithUserIds : []
+                          }))
+                        }
+                      >
+                        <option value="campaign">Toda la campaña</option>
+                        <option value="selected_players">Jugadores concretos</option>
+                        <option value="gm_only">Solo DJ</option>
+                      </select>
+                    </label>
+                    {referenceForm.visibility === "selected_players" ? (
+                      <div className="field">
+                        <span>Jugadores con acceso</span>
+                        <div className="cards">
+                          {shareableMembers.map((member) => (
+                            <label key={member.id} className="checkbox-field">
+                              <input
+                                type="checkbox"
+                                checked={referenceForm.sharedWithUserIds.includes(member.userId)}
+                                onChange={(event) =>
+                                  setReferenceForm((current) => ({
+                                    ...current,
+                                    sharedWithUserIds: event.target.checked
+                                      ? [...current.sharedWithUserIds, member.userId]
+                                      : current.sharedWithUserIds.filter((entry) => entry !== member.userId)
+                                  }))
+                                }
+                              />
+                              <span>{member.email}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="section-help">Tu entrada sigue siendo visible para toda la campaña.</p>
+                )}
+              </>
+            ) : (
+              <div className="campaign-reference-preview">
+                {selectedReference.summary ? <p>{selectedReference.summary}</p> : null}
+                <p>{selectedReference.content || "Sin contenido detallado."}</p>
+                {selectedReference.aliases.length > 0 ? <p>Alias: {selectedReference.aliases.join(", ")}</p> : null}
+                <p>Autor: {selectedReference.authorEmail}</p>
+              </div>
+            )}
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }
+
+

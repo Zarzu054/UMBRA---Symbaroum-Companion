@@ -1,7 +1,7 @@
 import { readFriendlyApiError } from "./apiError";
 const JSON_HEADERS = { "Content-Type": "application/json" };
-export async function fetchMonsterCodex(accessToken) {
-    const response = await fetch("/api/monsters/codex", {
+export async function fetchNpcs(accessToken) {
+    const response = await fetch("/api/npcs", {
         headers: { Authorization: `Bearer ${accessToken}` }
     });
     if (!response.ok)
@@ -9,17 +9,8 @@ export async function fetchMonsterCodex(accessToken) {
     const payload = (await response.json());
     return payload.data;
 }
-export async function fetchCustomMonsters(accessToken) {
-    const response = await fetch("/api/monsters", {
-        headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (!response.ok)
-        throw new Error(await readFriendlyApiError(response));
-    const payload = (await response.json());
-    return payload.data;
-}
-export async function createMonster(input, accessToken) {
-    const response = await fetch("/api/monsters", {
+export async function createNpc(input, accessToken) {
+    const response = await fetch("/api/npcs", {
         method: "POST",
         headers: { ...JSON_HEADERS, Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(input)
@@ -29,8 +20,8 @@ export async function createMonster(input, accessToken) {
     const payload = (await response.json());
     return payload.data;
 }
-export async function updateMonster(monsterId, input, accessToken) {
-    const response = await fetch(`/api/monsters/${monsterId}`, {
+export async function updateNpc(npcId, input, accessToken) {
+    const response = await fetch(`/api/npcs/${npcId}`, {
         method: "PUT",
         headers: { ...JSON_HEADERS, Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify(input)
@@ -40,8 +31,8 @@ export async function updateMonster(monsterId, input, accessToken) {
     const payload = (await response.json());
     return payload.data;
 }
-export async function deleteMonster(monsterId, accessToken) {
-    const response = await fetch(`/api/monsters/${monsterId}`, {
+export async function deleteNpc(npcId, accessToken) {
+    const response = await fetch(`/api/npcs/${npcId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${accessToken}` }
     });

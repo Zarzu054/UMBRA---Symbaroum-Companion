@@ -16,27 +16,19 @@ import type {
   UpdateCampaignReferenceInput,
   UpdateCampaignSessionInput
 } from "@umbra/shared";
+import { readFriendlyApiError } from "./apiError";
 
 type CampaignListResponse = { data: Campaign[] };
 type CampaignSingleResponse = { data: Campaign };
 type CampaignChatListResponse = { data: CampaignChatMessage[] };
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
-async function parseError(response: Response): Promise<string> {
-  try {
-    const payload = (await response.json()) as { message?: string; error?: string };
-    return payload.message ?? payload.error ?? `Fallo de solicitud (${response.status})`;
-  } catch {
-    return `Fallo de solicitud (${response.status})`;
-  }
-}
-
 async function request<T>(url: string, accessToken: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
     headers: { ...(init?.body ? JSON_HEADERS : {}), ...(init?.headers ?? {}), Authorization: `Bearer ${accessToken}` }
   });
-  if (!response.ok) throw new Error(await parseError(response));
+  if (!response.ok) throw new Error(await readFriendlyApiError(response));
   return (await response.json()) as T;
 }
 

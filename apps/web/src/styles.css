@@ -329,7 +329,49 @@ td {
 .app-content {
   position: relative;
   min-width: 0;
-  padding: 18px 20px 28px 20px;
+  padding: 0 20px 28px 20px;
+}
+
+.module-theme {
+  --module-panel-accent: rgba(66, 102, 82, 0.58);
+  --module-panel-glow: rgba(66, 102, 82, 0.12);
+  --module-panel-top: rgba(252, 250, 246, 0.96);
+  --module-panel-bottom: rgba(241, 232, 218, 0.92);
+}
+
+.module-theme--characters {
+  --module-panel-accent: rgba(25, 91, 110, 0.78);
+  --module-panel-glow: rgba(25, 91, 110, 0.14);
+  --module-panel-top: rgba(248, 252, 253, 0.98);
+  --module-panel-bottom: rgba(233, 242, 244, 0.94);
+}
+
+.module-theme--campaigns {
+  --module-panel-accent: rgba(62, 94, 79, 0.76);
+  --module-panel-glow: rgba(62, 94, 79, 0.13);
+  --module-panel-top: rgba(248, 251, 246, 0.98);
+  --module-panel-bottom: rgba(233, 239, 227, 0.94);
+}
+
+.module-theme--monsters {
+  --module-panel-accent: rgba(138, 76, 48, 0.8);
+  --module-panel-glow: rgba(138, 76, 48, 0.14);
+  --module-panel-top: rgba(252, 248, 244, 0.98);
+  --module-panel-bottom: rgba(241, 229, 220, 0.94);
+}
+
+.module-theme--compendium {
+  --module-panel-accent: rgba(94, 79, 126, 0.76);
+  --module-panel-glow: rgba(94, 79, 126, 0.13);
+  --module-panel-top: rgba(249, 248, 252, 0.98);
+  --module-panel-bottom: rgba(236, 231, 243, 0.94);
+}
+
+.module-theme--npcs {
+  --module-panel-accent: rgba(90, 84, 124, 0.76);
+  --module-panel-glow: rgba(90, 84, 124, 0.13);
+  --module-panel-top: rgba(249, 248, 252, 0.98);
+  --module-panel-bottom: rgba(235, 231, 243, 0.94);
 }
 
 .content-topbar {
@@ -364,6 +406,32 @@ td {
     inset 0 0 0 1px rgba(255, 255, 255, 0.22),
     0 10px 24px rgba(82, 58, 32, 0.08);
   position: relative;
+}
+
+.module-theme .panel:not(.modal-panel):not(.error-list):not(.warning-block),
+.module-theme .campaign-sheet-card:not(.app-card-accent),
+.module-theme .card:not(.character-record-card) {
+  border-color: color-mix(in srgb, var(--module-panel-accent) 34%, rgba(112, 87, 61, 0.26));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0.06)),
+    linear-gradient(180deg, rgba(197, 162, 116, 0.05), rgba(197, 162, 116, 0)),
+    var(--paper);
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--module-panel-accent) 88%, rgba(255, 255, 255, 0.12)),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+    0 10px 24px rgba(82, 58, 32, 0.08);
+  overflow: hidden;
+}
+
+.module-theme .campaign-sheet-card:not(.app-card-accent)::before,
+.module-theme .panel:not(.modal-panel):not(.error-list):not(.warning-block)::before,
+.module-theme .card:not(.character-record-card)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--module-panel-accent) 2.5%, transparent), transparent 10%);
+  opacity: 0.18;
 }
 
 .lore-panel {
@@ -756,34 +824,98 @@ button.subtle-button {
 }
 
 .compendium-layout {
-  display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.3fr);
-  gap: 18px;
-  align-items: start;
+  display: block;
 }
 
 .compendium-results,
 .compendium-detail {
-  min-height: 520px;
+  min-height: 0;
 }
 
 .compendium-list {
   margin-top: 14px;
   display: grid;
-  gap: 10px;
-  max-height: 700px;
-  overflow: auto;
+  gap: 8px;
 }
 
 .compendium-list-item {
   width: 100%;
   text-align: left;
   display: grid;
-  gap: 7px;
-  padding: 14px;
+  gap: 6px;
+  padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid rgba(139, 109, 77, 0.4);
   background: rgba(255, 251, 245, 0.42);
+}
+
+.compendium-detail-modal {
+  width: min(1040px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.compendium-detail-modal-header {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 6px;
+}
+
+.compendium-detail-modal-titlebar {
+  align-items: start;
+}
+
+.compendium-detail-modal-heading {
+  display: grid;
+  gap: 2px;
+}
+
+.compendium-detail-modal-heading h3,
+.compendium-detail-modal-heading p {
+  margin: 0;
+}
+
+.compendium-detail-modal-close {
+  justify-self: end;
+}
+
+.compendium-detail-modal-toolbar {
+  gap: 10px;
+}
+
+.compendium-detail-modal-body {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 14px;
+  padding-top: 8px;
+}
+
+.campaign-character-sheet-modal {
+  width: min(1380px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.campaign-character-sheet-modal-header {
+  align-items: start;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.campaign-character-sheet-modal-header h3,
+.campaign-character-sheet-modal-header p {
+  margin: 0;
+}
+
+.campaign-character-sheet-modal-body {
+  min-height: 0;
+  overflow: auto;
+  padding-top: 8px;
 }
 
 .compendium-list-item.is-active {
@@ -1290,13 +1422,13 @@ button.subtle-button {
 }
 
 .monster-browser-layout {
-  grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
 }
 
 .monster-browser-list {
-  max-height: 920px;
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .monster-browser-detail,
@@ -1307,6 +1439,37 @@ button.subtle-button {
 .monster-record-list {
   display: grid;
   gap: 12px;
+}
+
+.npc-faction-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.npc-faction-group {
+  display: grid;
+  gap: 12px;
+}
+
+.npc-record-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.npc-record-card {
+  display: grid;
+  gap: 10px;
+}
+
+.npc-record-card p {
+  margin: 0;
+}
+
+.npc-editor-modal .monster-builder-card {
+  min-height: 0;
+}
+
+.npc-detail-notes {
+  margin-top: 14px;
 }
 
 .monster-record-item {
@@ -1362,6 +1525,73 @@ button.subtle-button {
 
 .monster-sheet-modal {
   width: min(1100px, 100%);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.monster-sheet-modal-header {
+  display: grid;
+  gap: 10px;
+}
+
+.monster-sheet-modal-body {
+  min-height: 0;
+  overflow: auto;
+}
+
+.monster-sheet-modal .monster-statblock {
+  gap: 10px;
+  padding: 14px;
+}
+
+.monster-sheet-modal .monster-statblock-header {
+  gap: 10px;
+}
+
+.monster-sheet-modal .monster-statblock-header h3 {
+  margin: 0;
+  font-size: 1.28rem;
+}
+
+.monster-sheet-modal .monster-statblock-header p {
+  margin-top: 4px;
+  font-size: 0.92rem;
+}
+
+.monster-sheet-modal .monster-statblock-meta {
+  gap: 6px;
+}
+
+.monster-sheet-modal .monster-stat-grid {
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.monster-sheet-modal .info-box {
+  padding: 8px 10px;
+  font-size: 0.86rem;
+}
+
+.monster-sheet-modal .monster-attribute-table th,
+.monster-sheet-modal .monster-attribute-table td {
+  padding: 6px 8px;
+  font-size: 0.82rem;
+}
+
+.monster-sheet-modal .monster-detail-grid {
+  gap: 8px;
+}
+
+.monster-sheet-modal .monster-detail-grid .entry-row {
+  gap: 6px;
+  padding: 10px 12px;
+}
+
+.monster-sheet-modal .monster-detail-grid .entry-row p,
+.monster-sheet-modal .monster-detail-grid .entry-row strong,
+.monster-sheet-modal .monster-detail-grid .tag-list {
+  font-size: 0.9rem;
 }
 
 .monster-editor-layout {
@@ -1446,8 +1676,10 @@ td {
   inset: 0;
   z-index: 30;
   display: grid;
-  place-items: center;
+  justify-items: center;
+  align-items: start;
   padding: 20px;
+  overflow-y: auto;
   background: rgba(30, 20, 14, 0.42);
   backdrop-filter: blur(4px);
 }
@@ -1456,6 +1688,7 @@ td {
   width: min(1260px, 100%);
   max-height: 92vh;
   margin-top: 0;
+  align-self: start;
   overflow: auto;
   background: var(--paper);
 }
@@ -2142,7 +2375,8 @@ td {
 .character-builder-shell {
   min-height: calc(100dvh - 52px);
   grid-template-rows: auto auto minmax(0, 1fr);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .character-directory-header-band,
@@ -2179,7 +2413,7 @@ td {
 
 .character-builder-stage {
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
   padding-right: 0.12rem;
   align-content: start;
 }
@@ -2189,6 +2423,7 @@ td {
   gap: 12px;
   min-height: 0;
   align-content: start;
+  overflow: visible;
 }
 
 .character-builder-tabs {
@@ -2204,6 +2439,17 @@ td {
 
 .character-builder-panel {
   align-content: start;
+  overflow: visible;
+}
+
+.module-theme .character-builder-panel.campaign-sheet-card,
+.module-theme .character-builder-shell.campaign-sheet-card {
+  overflow: visible;
+}
+
+.module-theme .character-builder-shell.campaign-sheet-card {
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .character-directory-toolbar-row {
@@ -2339,13 +2585,55 @@ td {
 
 .character-builder-purchase-stack {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .character-builder-block {
   display: grid;
-  gap: 10px;
-  padding: 0.9rem 1rem;
+  gap: 8px;
+  padding: 0.72rem 0.82rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.character-builder-block::before,
+.character-builder-entry-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  border-radius: 16px 0 0 16px;
+  background: rgba(127, 52, 31, 0.2);
+}
+
+.character-builder-block--habilidades::before,
+.character-builder-entry-card--habilidades::before {
+  background: linear-gradient(180deg, rgba(113, 66, 31, 0.8), rgba(163, 111, 63, 0.36));
+}
+
+.character-builder-block--poderesMisticos::before,
+.character-builder-entry-card--poderesMisticos::before {
+  background: linear-gradient(180deg, rgba(42, 93, 99, 0.82), rgba(113, 158, 161, 0.38));
+}
+
+.character-builder-block--rituales::before,
+.character-builder-entry-card--rituales::before {
+  background: linear-gradient(180deg, rgba(78, 89, 49, 0.82), rgba(149, 158, 104, 0.38));
+}
+
+.character-builder-block--habilidades {
+  background:
+    linear-gradient(180deg, rgba(255, 251, 245, 0.96), rgba(244, 233, 218, 0.84));
+}
+
+.character-builder-block--poderesMisticos {
+  background:
+    linear-gradient(180deg, rgba(246, 252, 251, 0.96), rgba(227, 239, 236, 0.84));
+}
+
+.character-builder-block--rituales {
+  background:
+    linear-gradient(180deg, rgba(249, 251, 243, 0.96), rgba(236, 240, 224, 0.84));
 }
 
 .character-builder-inline-form {
@@ -2357,22 +2645,100 @@ td {
 
 .character-builder-entry-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .character-builder-entry-card {
-  padding: 0.85rem 0.95rem;
+  padding: 0.68rem 0.82rem 0.72rem 0.96rem;
+  position: relative;
+  overflow: hidden;
 }
 
 .character-builder-entry-head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   align-items: start;
+}
+
+.character-builder-entry-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  flex: 1 1 320px;
+}
+
+.character-builder-entry-copy strong {
+  display: block;
+  line-height: 1.1;
+  color: #1d1713;
+}
+
+.character-builder-entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: #6f5946;
+}
+
+.character-builder-entry-meta span {
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.character-builder-entry-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+  flex: 0 1 auto;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.character-builder-entry-actions .meta-text {
+  text-align: right;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(122, 92, 62, 0.08);
+  border: 1px solid rgba(122, 92, 62, 0.14);
+  color: #6a5140;
+  line-height: 1.1;
 }
 
 .character-builder-entry-head .card-actions {
   align-items: end;
+}
+
+.character-builder-entry-card .section-help {
+  margin-bottom: 0;
+  font-size: 0.92rem;
+  line-height: 1.18;
+}
+
+.character-builder-entry-actions button {
+  min-height: 30px;
+  padding: 0.28rem 0.72rem;
+  font-size: 0.82rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+@media (max-width: 1400px) {
+  .character-builder-entry-actions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    white-space: normal;
+    margin-left: 0;
+  }
+
+  .character-builder-entry-actions .meta-text {
+    text-align: left;
+  }
 }
 
 .character-builder-acquisition-modal {
@@ -2448,6 +2814,35 @@ td {
   border: 1px solid rgba(141, 112, 77, 0.2);
   border-radius: 16px;
   background: rgba(255, 248, 240, 0.72);
+}
+
+.character-builder-confirmation-modal {
+  width: min(560px, 100%);
+  display: grid;
+  gap: 14px;
+}
+
+.character-builder-confirmation-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.character-builder-confirmation-tier {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(127, 52, 31, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 249, 241, 0.98), rgba(244, 234, 219, 0.94));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.48),
+    0 8px 18px rgba(82, 58, 32, 0.08);
+}
+
+.character-builder-confirmation-tier h4,
+.character-builder-confirmation-tier p {
+  margin: 0;
 }
 
 .character-builder-tier-preview h4,
@@ -2541,6 +2936,17 @@ td {
     grid-template-columns: 1fr;
   }
 
+  .character-builder-entry-actions {
+    min-width: 0;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+
+  .character-builder-entry-actions .meta-text {
+    text-align: left;
+  }
+
   .character-builder-header-band {
     grid-template-columns: 1fr;
     justify-items: start;
@@ -2573,7 +2979,7 @@ td {
   }
 
   .app-content {
-    padding: 16px 12px 24px;
+    padding: 0 12px 24px;
   }
 }
 
@@ -3599,6 +4005,162 @@ td {
   box-shadow: 0 10px 24px rgba(41, 57, 69, 0.08);
   transform: translateY(-1px);
   outline: none;
+}
+
+.app-card-accent {
+  position: relative;
+  overflow: hidden;
+  --app-card-accent-color: rgba(134, 103, 70, 0.72);
+  --app-card-bg-top: rgba(255, 251, 245, 0.96);
+  --app-card-bg-bottom: rgba(243, 235, 223, 0.84);
+}
+
+.campaign-structured-card.app-card-accent,
+.panel.app-card-accent.compendium-detail,
+.compendium-list-item.app-card-accent,
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card.app-card-accent {
+  border-color: rgba(126, 100, 76, 0.26);
+  background: linear-gradient(180deg, var(--app-card-bg-top), var(--app-card-bg-bottom));
+  box-shadow:
+    inset 4px 0 0 var(--app-card-accent-color),
+    inset 0 0 0 1px rgba(255, 253, 247, 0.72);
+}
+
+.campaign-structured-card.app-card-accent.is-clickable-card:hover,
+.campaign-structured-card.app-card-accent.is-clickable-card:focus-visible,
+.panel.app-card-accent.compendium-detail:hover,
+.panel.app-card-accent.compendium-detail:focus-visible,
+.compendium-list-item.app-card-accent:hover,
+.compendium-list-item.app-card-accent:focus-visible,
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card.app-card-accent.is-clickable:hover,
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card.app-card-accent.is-clickable:focus-visible {
+  box-shadow:
+    inset 4px 0 0 var(--app-card-accent-color),
+    inset 0 0 0 1px rgba(255, 253, 247, 0.72),
+    0 10px 24px rgba(41, 57, 69, 0.08);
+}
+
+.app-card-accent--habilidad {
+  --app-card-accent-color: rgba(132, 82, 43, 0.82);
+  --app-card-bg-top: rgba(255, 251, 245, 0.98);
+  --app-card-bg-bottom: rgba(245, 232, 215, 0.88);
+}
+
+.app-card-accent--poder_mistico {
+  --app-card-accent-color: rgba(46, 103, 107, 0.82);
+  --app-card-bg-top: rgba(245, 252, 251, 0.98);
+  --app-card-bg-bottom: rgba(225, 239, 235, 0.9);
+}
+
+.app-card-accent--ritual {
+  --app-card-accent-color: rgba(86, 99, 54, 0.82);
+  --app-card-bg-top: rgba(248, 251, 243, 0.98);
+  --app-card-bg-bottom: rgba(233, 239, 220, 0.9);
+}
+
+.app-card-accent--bendicion {
+  --app-card-accent-color: rgba(170, 129, 48, 0.84);
+  --app-card-bg-top: rgba(255, 252, 242, 0.99);
+  --app-card-bg-bottom: rgba(246, 236, 205, 0.9);
+}
+
+.app-card-accent--carga {
+  --app-card-accent-color: rgba(150, 70, 52, 0.82);
+  --app-card-bg-top: rgba(255, 248, 244, 0.98);
+  --app-card-bg-bottom: rgba(243, 223, 214, 0.9);
+}
+
+.app-card-accent--rasgo {
+  --app-card-accent-color: rgba(89, 88, 106, 0.8);
+  --app-card-bg-top: rgba(249, 249, 252, 0.98);
+  --app-card-bg-bottom: rgba(232, 233, 241, 0.9);
+}
+
+.app-card-accent--weapon {
+  --app-card-accent-color: rgba(120, 63, 46, 0.84);
+  --app-card-bg-top: rgba(255, 249, 245, 0.98);
+  --app-card-bg-bottom: rgba(242, 227, 219, 0.9);
+}
+
+.app-card-accent--armor {
+  --app-card-accent-color: rgba(80, 102, 122, 0.84);
+  --app-card-bg-top: rgba(247, 250, 253, 0.98);
+  --app-card-bg-bottom: rgba(226, 235, 242, 0.9);
+}
+
+.app-card-accent--artifact {
+  --app-card-accent-color: rgba(61, 107, 101, 0.84);
+  --app-card-bg-top: rgba(245, 252, 250, 0.98);
+  --app-card-bg-bottom: rgba(223, 238, 233, 0.9);
+}
+
+.app-card-accent--consumable,
+.app-card-accent--ammunition {
+  --app-card-accent-color: rgba(167, 109, 54, 0.82);
+  --app-card-bg-top: rgba(255, 251, 244, 0.98);
+  --app-card-bg-bottom: rgba(244, 231, 214, 0.9);
+}
+
+.app-card-accent--tool,
+.app-card-accent--material,
+.app-card-accent--travel {
+  --app-card-accent-color: rgba(103, 96, 74, 0.78);
+  --app-card-bg-top: rgba(251, 250, 246, 0.98);
+  --app-card-bg-bottom: rgba(236, 233, 224, 0.9);
+}
+
+.app-card-accent--treasure {
+  --app-card-accent-color: rgba(174, 135, 45, 0.84);
+  --app-card-bg-top: rgba(255, 252, 244, 0.98);
+  --app-card-bg-bottom: rgba(246, 236, 207, 0.9);
+}
+
+.app-card-accent--regla {
+  --app-card-accent-color: rgba(101, 84, 140, 0.78);
+  --app-card-bg-top: rgba(250, 248, 253, 0.98);
+  --app-card-bg-bottom: rgba(236, 230, 246, 0.9);
+}
+
+.app-card-accent--raza {
+  --app-card-accent-color: rgba(86, 111, 72, 0.82);
+  --app-card-bg-top: rgba(248, 251, 245, 0.98);
+  --app-card-bg-bottom: rgba(231, 239, 225, 0.9);
+}
+
+.app-card-accent--cultura {
+  --app-card-accent-color: rgba(110, 91, 54, 0.82);
+  --app-card-bg-top: rgba(252, 249, 243, 0.98);
+  --app-card-bg-bottom: rgba(240, 232, 216, 0.9);
+}
+
+.app-card-accent--arquetipo {
+  --app-card-accent-color: rgba(116, 65, 88, 0.82);
+  --app-card-bg-top: rgba(252, 247, 250, 0.98);
+  --app-card-bg-bottom: rgba(239, 226, 234, 0.9);
+}
+
+.app-card-accent--tradicion {
+  --app-card-accent-color: rgba(50, 103, 86, 0.82);
+  --app-card-bg-top: rgba(245, 251, 249, 0.98);
+  --app-card-bg-bottom: rgba(225, 238, 233, 0.9);
+}
+
+.app-card-accent--npc-notes {
+  --app-card-accent-color: rgba(94, 84, 122, 0.8);
+  --app-card-bg-top: rgba(250, 248, 252, 0.98);
+  --app-card-bg-bottom: rgba(236, 231, 243, 0.9);
+}
+
+.app-card-accent--npc-stat_block {
+  --app-card-accent-color: rgba(129, 88, 52, 0.82);
+  --app-card-bg-top: rgba(253, 250, 245, 0.98);
+  --app-card-bg-bottom: rgba(241, 231, 218, 0.9);
+}
+
+.app-card-accent--npc-full_sheet {
+  --app-card-accent-color: rgba(30, 94, 112, 0.8);
+  --app-card-bg-top: rgba(247, 252, 253, 0.98);
+  --app-card-bg-bottom: rgba(229, 241, 244, 0.9);
 }
 
 .unified-sheet-action-detail-modal {

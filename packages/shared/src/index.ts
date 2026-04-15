@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { SYMBAROUM_ABILITIES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS } from "./symbaroumCompendium.js";
 import { getCharacterMonsterTraitEffects } from "./monsterTraitRules.js";
-import { STARTER_MONSTER_CODEX } from "./monsterCodex.js";
+import { STARTER_MONSTER_CODEX, createDefaultMonsterSheet, monsterSheetSchema, type MonsterSheet } from "./monsterCodex.js";
 export * from "./symbaroumCompendium.js";
 export * from "./campaignActionEngine.js";
 export * from "./monsterCodex.js";
@@ -53,8 +53,8 @@ export const SYMBAROUM_ARCHETYPES = [
 export const ATTRIBUTE_KEYS = [
   "agil",
   "atento",
-  "discreto",
   "diestro",
+  "discreto",
   "fuerte",
   "inteligente",
   "persuasivo",
@@ -727,6 +727,18 @@ function synchronizeInventoryEquipment(
   return { inventoryItems, equipmentSlots };
 }
 
+function getEquippedInventoryItem(
+  items: z.infer<typeof inventoryItemSchema>[],
+  equipmentSlots: z.infer<typeof equipmentSlotsSchema>,
+  slot: keyof z.infer<typeof equipmentSlotsSchema>
+): z.infer<typeof inventoryItemSchema> | null {
+  const itemId = equipmentSlots[slot];
+  if (!itemId) {
+    return null;
+  }
+  return items.find((item) => item.id === itemId) ?? null;
+}
+
 function buildLegacyConditions(sheet: z.infer<typeof characterSheetObjectSchema>): z.infer<typeof conditionSchema>[] {
   const conditions: z.infer<typeof conditionSchema>[] = [];
   if (sheet.corrupcion.temporal > 0 || sheet.corrupcion.permanente > 0) {
@@ -1229,8 +1241,11 @@ function migrateCharacterSheetInput(input: unknown): unknown {
     rituales,
     combate: {
       ...candidate.combate,
-      armadura: hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armadura,
-      armaduraProteccion: hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armaduraProteccion,
+      armadura: getEquippedInventoryItem(inventoryItems, equipmentSlots, "armor")?.name
+        ?? (hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armadura),
+      armaduraProteccion: getEquippedInventoryItem(inventoryItems, equipmentSlots, "armor")?.protectionFormula
+        ?? (hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armaduraProteccion),
+      armaduraCualidad: getEquippedInventoryItem(inventoryItems, equipmentSlots, "armor")?.qualities ?? candidate.combate.armaduraCualidad,
       robustezMax: syncedRobustezMax,
       robustezActual: Math.min(candidate.combate?.robustezActual ?? syncedRobustezMax, syncedRobustezMax)
     },
@@ -1274,8 +1289,11 @@ function buildSynchronizedCharacterSheet(input: CharacterSheet): CharacterSheet 
     rituales,
     combate: {
       ...input.combate,
-      armadura: hasCharacterTraitBasedNaturalArmor(input) && isNaturalArmorPlaceholderName(input.combate.armadura ?? "") ? "" : input.combate.armadura,
-      armaduraProteccion: hasCharacterTraitBasedNaturalArmor(input) && isNaturalArmorPlaceholderName(input.combate.armadura ?? "") ? "" : input.combate.armaduraProteccion,
+      armadura: getEquippedInventoryItem(syncedEquipment.inventoryItems, syncedEquipment.equipmentSlots, "armor")?.name
+        ?? (hasCharacterTraitBasedNaturalArmor(input) && isNaturalArmorPlaceholderName(input.combate.armadura ?? "") ? "" : input.combate.armadura),
+      armaduraProteccion: getEquippedInventoryItem(syncedEquipment.inventoryItems, syncedEquipment.equipmentSlots, "armor")?.protectionFormula
+        ?? (hasCharacterTraitBasedNaturalArmor(input) && isNaturalArmorPlaceholderName(input.combate.armadura ?? "") ? "" : input.combate.armaduraProteccion),
+      armaduraCualidad: getEquippedInventoryItem(syncedEquipment.inventoryItems, syncedEquipment.equipmentSlots, "armor")?.qualities ?? input.combate.armaduraCualidad,
       robustezMax: syncedRobustezMax,
       robustezActual: Math.min(input.combate.robustezActual, syncedRobustezMax)
     },
@@ -1461,6 +1479,79 @@ export function synchronizeCharacterSheet(input: CharacterSheet): CharacterSheet
   return importedCharacterSheetSchema.parse(buildSynchronizedCharacterSheet(parseCharacterSheet(input)));
 }
 
+export const npcDepthSchema = z.enum(["notes", "stat_block", "full_sheet"]);
+const npcLabelSchema = z.string().min(1).max(80);
+
+export type NpcDepth = z.infer<typeof npcDepthSchema>;
+
+export const createNpcSchema = z.object({
+  name: z.string().min(2).max(120),
+  depth: npcDepthSchema.default("notes"),
+  race: z.string().max(80).default(""),
+  archetype: z.string().max(80).default(""),
+  occupation: z.string().max(120).default(""),
+  faction: z.string().max(120).default(""),
+  labels: z.array(npcLabelSchema).max(20).default([]),
+  summary: z.string().max(500).default(""),
+  notes: z.string().max(4000).default(""),
+  statBlock: monsterSheetSchema.nullable().default(null),
+  sheet: importedCharacterSheetSchema.nullable().default(null)
+});
+
+export const updateNpcSchema = createNpcSchema.partial();
+
+export type CreateNpcInput = z.infer<typeof createNpcSchema>;
+export type UpdateNpcInput = z.infer<typeof updateNpcSchema>;
+
+export type Npc = {
+  id: string;
+  name: string;
+  depth: NpcDepth;
+  race: string;
+  archetype: string;
+  occupation: string;
+  faction: string;
+  labels: string[];
+  summary: string;
+  notes: string;
+  statBlock: MonsterSheet | null;
+  sheet: CharacterSheet | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export function createNpcSheetSeed(input: Pick<CreateNpcInput, "name" | "race" | "archetype" | "occupation" | "summary" | "notes">): CharacterSheet {
+  const sheet = createEmptyCharacterSheet();
+  return synchronizeCharacterSheet({
+    ...sheet,
+    identidad: {
+      ...sheet.identidad,
+      nombrePersonaje: input.name.trim(),
+      raza: input.race.trim() || "Humano",
+      arquetipo: input.archetype.trim() || "Guerrero",
+      profesion: input.occupation.trim(),
+      apariencia: input.summary.trim(),
+      trasfondo: input.notes.trim()
+    }
+  });
+}
+
+export function createEmptyNpcInput(): CreateNpcInput {
+  return {
+    name: "",
+    depth: "notes",
+    race: "",
+    archetype: "",
+    occupation: "",
+    faction: "",
+    labels: [],
+    summary: "",
+    notes: "",
+    statBlock: null,
+    sheet: null
+  };
+}
+
 export const createCharacterSchema = z.object({
   name: z.string().min(2).max(80),
   archetype: z.string().min(2).max(80),
@@ -1543,6 +1634,7 @@ export const resetPasswordSchema = z.object({
 
 export const campaignMemberRoleSchema = z.enum(["gm", "player"]);
 export const campaignSessionStatusSchema = z.enum(["planned", "completed", "cancelled"]);
+export const campaignReferenceVisibilitySchema = z.enum(["gm_only", "campaign", "selected_players"]);
 
 export const createCampaignSchema = z.object({
   name: z.string().min(3).max(120),
@@ -1643,7 +1735,8 @@ export const createCampaignReferenceSchema = z.object({
   aliases: z.array(z.string().min(1).max(120)).max(20).default([]),
   summary: z.string().max(300).default(""),
   content: z.string().max(6000).default(""),
-  isPublic: z.boolean().default(false)
+  visibility: campaignReferenceVisibilitySchema.default("campaign"),
+  sharedWithUserIds: z.array(z.string().uuid()).max(50).default([])
 });
 
 export const updateCampaignReferenceSchema = createCampaignReferenceSchema.partial();
@@ -1656,6 +1749,7 @@ export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchem
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type CampaignMemberRole = z.infer<typeof campaignMemberRoleSchema>;
 export type CampaignSessionStatus = z.infer<typeof campaignSessionStatusSchema>;
+export type CampaignReferenceVisibility = z.infer<typeof campaignReferenceVisibilitySchema>;
 export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
 export type UpdateCampaignInput = z.infer<typeof updateCampaignSchema>;
 export type AddCampaignMemberInput = z.infer<typeof addCampaignMemberSchema>;
@@ -1776,7 +1870,11 @@ export type CampaignReference = {
   aliases: string[];
   summary: string;
   content: string;
-  isPublic: boolean;
+  authorId: string;
+  authorEmail: string;
+  visibility: CampaignReferenceVisibility;
+  sharedWithUserIds: string[];
+  sharedWithEmails: string[];
   createdAt: string;
   updatedAt: string;
 };

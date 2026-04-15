@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import {
   createDefaultMonsterSheet,
   monsterSheetSchema,
+  normalizeMonsterThreat,
   type CreateMonsterInput,
   type Monster,
   type MonsterSheet,
@@ -34,7 +35,7 @@ function mapRow(row: {
     id: row.id,
     name: row.name,
     category: row.category as Monster["category"],
-    threat: row.threat as Monster["threat"],
+    threat: normalizeMonsterThreat(row.threat),
     source: row.source,
     summary: row.summary,
     sheet: normalizeSheet(row.sheet),
