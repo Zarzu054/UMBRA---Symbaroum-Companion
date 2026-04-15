@@ -216,10 +216,10 @@ function renderMarkdownBlocks(
       continue;
     }
 
-    const headingMatch = line.match(/^(#{1,4})\s+(.+)$/);
+    const headingMatch = trimmed.match(/^(#{1,4})(?:\s+(.*))?$/);
     if (headingMatch) {
       const level = headingMatch[1].length;
-      const content = headingMatch[2];
+      const content = headingMatch[2] ?? "";
       const headingNodes = renderMarkdownInline(content, references, onOpenReference, `heading-${index}`);
       if (level === 1) {
         blocks.push(<h3 key={`heading-${index}`}>{headingNodes}</h3>);
@@ -286,6 +286,11 @@ function renderMarkdownBlocks(
       }
       paragraphLines.push(lines[index]);
       index += 1;
+    }
+
+    if (paragraphLines.length === 0) {
+      index += 1;
+      continue;
     }
 
     const paragraphText = paragraphLines.join("\n");
