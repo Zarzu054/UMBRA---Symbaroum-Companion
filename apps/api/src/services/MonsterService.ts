@@ -1,5 +1,6 @@
 import {
   createMonsterSchema,
+  normalizeMonsterThreat,
   STARTER_MONSTER_CODEX,
   updateMonsterSchema,
   type CreateMonsterInput,
@@ -33,6 +34,7 @@ export class MonsterService {
     requireDirectorRole(role);
     const payload = createMonsterSchema.parse({
       ...input,
+      threat: normalizeMonsterThreat(input.threat),
       source: input.source?.trim() || "Mis monstruos",
       name: input.name.trim(),
       summary: input.summary.trim()
@@ -44,6 +46,7 @@ export class MonsterService {
     requireDirectorRole(role);
     const payload = updateMonsterSchema.parse({
       ...input,
+      threat: input.threat ? normalizeMonsterThreat(input.threat) : input.threat,
       source: input.source?.trim() || input.source,
       name: input.name?.trim() || input.name,
       summary: input.summary?.trim() || input.summary

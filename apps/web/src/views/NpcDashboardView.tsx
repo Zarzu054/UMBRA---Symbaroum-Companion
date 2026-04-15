@@ -29,6 +29,47 @@ const DEPTH_LABELS: Record<NpcDepth, string> = {
   full_sheet: "Hoja completa"
 };
 
+const DEPTH_HELP: Record<NpcDepth, string> = {
+  notes: "PNJ puramente narrativo, pensado para contactos, testigos o secundarios sociales.",
+  stat_block: "PNJ con bloque de stats ligero, siguiendo el formato de monstruos.",
+  full_sheet: "PNJ tratado como un personaje completo, con hoja, calculos, inventario y constructor."
+};
+
+type NpcNoteSectionKey = "personality" | "behavior" | "hooks";
+
+const NPC_NOTE_SECTIONS: Array<{ key: NpcNoteSectionKey; label: string; placeholder: string }> = [
+  { key: "personality", label: "Personalidad", placeholder: "Temperamento, valores, sesgos..." },
+  { key: "behavior", label: "Forma de actuar", placeholder: "Como negocia, amenaza, ayuda o se mueve..." },
+  { key: "hooks", label: "Motivaciones y ganchos", placeholder: "Objetivos, secretos, relaciones, usos en partida..." }
+];
+
+function parseNpcNotesSections(notes: string): Record<NpcNoteSectionKey, string> {
+  const empty = { personality: "", behavior: "", hooks: "" };
+  if (!notes.trim()) {
+    return empty;
+  }
+
+  const personality = notes.match(/Personalidad:\s*([\s\S]*?)(?:\nForma de actuar:|\nMotivaciones y ganchos:|$)/i)?.[1]?.trim() ?? "";
+  const behavior = notes.match(/Forma de actuar:\s*([\s\S]*?)(?:\nMotivaciones y ganchos:|$)/i)?.[1]?.trim() ?? "";
+  const hooks = notes.match(/Motivaciones y ganchos:\s*([\s\S]*)$/i)?.[1]?.trim() ?? "";
+
+  if (personality || behavior || hooks) {
+    return { personality, behavior, hooks };
+  }
+
+  return { ...empty, personality: notes.trim() };
+}
+
+function buildNpcNotesSections(sections: Record<NpcNoteSectionKey, string>): string {
+  return NPC_NOTE_SECTIONS
+    .map(({ key, label }) => {
+      const value = sections[key].trim();
+      return value ? `${label}: ${value}` : "";
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 function normalizeSearchValue(value: string): string {
   return value
     .normalize("NFD")
@@ -139,14 +180,17 @@ function renderNpcStatBlock(npc: Pick<Npc, "name" | "summary" | "statBlock" | "f
 type NpcEditorModalProps = {
   controller: ReturnType<typeof useNpcController>;
   onClose: () => void;
+  onSaved: (npc: Npc) => void;
 };
 
-function NpcEditorModal({ controller, onClose }: NpcEditorModalProps) {
+function NpcEditorModal({ controller, onClose, onSaved }: NpcEditorModalProps) {
   const draft = controller.draft;
+  const noteSections = parseNpcNotesSections(draft.notes);
 
   async function handleSave(): Promise<void> {
     const saved = await controller.saveDraft();
     if (saved) {
+      onSaved(saved);
       onClose();
     }
   }
@@ -157,7 +201,7 @@ function NpcEditorModal({ controller, onClose }: NpcEditorModalProps) {
         <div className="row-actions">
           <div>
             <h2>{controller.selectedNpcId ? "Editar PNJ" : "Crear PNJ"}</h2>
-            <p className="section-help">Tres profundidades: notas, bloque rapido o hoja completa con constructor.</p>
+            <p className="section-help">Elige primero el nivel del PNJ y el formulario se ajusta a ese formato.</p>
           </div>
           <div className="toolbar">
             <button type="button" disabled={controller.isSaving} onClick={() => void handleSave()}>
@@ -172,29 +216,18 @@ function NpcEditorModal({ controller, onClose }: NpcEditorModalProps) {
         <div className="monster-editor-layout">
           <section className="monster-builder-card">
             <div className="form-grid">
+              <label className="field field-span-2">
+                <span>Nivel del PNJ</span>
+                <select value={draft.depth} onChange={(event) => controller.updateDepth(event.target.value as NpcDepth)}>
+                  <option value="notes">Solo notas</option>
+                  <option value="stat_block">Bloque de stats</option>
+                  <option value="full_sheet">Hoja completa</option>
+                </select>
+                <small className="meta-text">{DEPTH_HELP[draft.depth]}</small>
+              </label>
               <label className="field">
                 <span>Nombre</span>
                 <input value={draft.name} onChange={(event) => controller.updateField("name", event.target.value)} />
-              </label>
-              <label className="field">
-                <span>Profundidad</span>
-                <select value={draft.depth} onChange={(event) => controller.updateDepth(event.target.value as NpcDepth)}>
-                  <option value="notes">Solo notas</option>
-                  <option value="stat_block">Bloque rapido</option>
-                  <option value="full_sheet">Hoja completa</option>
-                </select>
-              </label>
-              <label className="field">
-                <span>Raza</span>
-                <input value={draft.race} onChange={(event) => controller.updateField("race", event.target.value)} />
-              </label>
-              <label className="field">
-                <span>Arquetipo</span>
-                <input value={draft.archetype} onChange={(event) => controller.updateField("archetype", event.target.value)} />
-              </label>
-              <label className="field">
-                <span>Ocupacion</span>
-                <input value={draft.occupation} onChange={(event) => controller.updateField("occupation", event.target.value)} />
               </label>
               <label className="field">
                 <span>Faccion</span>
@@ -208,19 +241,66 @@ function NpcEditorModal({ controller, onClose }: NpcEditorModalProps) {
                   onChange={(event) => controller.updateLabels(event.target.value)}
                 />
               </label>
-              <label className="field field-span-2">
-                <span>Resumen</span>
-                <input value={draft.summary} onChange={(event) => controller.updateField("summary", event.target.value)} />
-              </label>
-              <label className="field field-span-2">
-                <span>Notas</span>
-                <textarea rows={6} value={draft.notes} onChange={(event) => controller.updateField("notes", event.target.value)} />
-              </label>
+              {draft.depth === "notes" ? (
+                <>
+                  <label className="field field-span-2">
+                    <span>Rol narrativo</span>
+                    <input
+                      value={draft.summary}
+                      placeholder="Contacto, noble local, guia, testigo..."
+                      onChange={(event) => controller.updateField("summary", event.target.value)}
+                    />
+                  </label>
+                  {NPC_NOTE_SECTIONS.map((section) => (
+                    <label key={section.key} className="field field-span-2">
+                      <span>{section.label}</span>
+                      <textarea
+                        rows={4}
+                        value={noteSections[section.key]}
+                        placeholder={section.placeholder}
+                        onChange={(event) =>
+                          controller.updateField(
+                            "notes",
+                            buildNpcNotesSections({
+                              ...noteSections,
+                              [section.key]: event.target.value
+                            })
+                          )
+                        }
+                      />
+                    </label>
+                  ))}
+                </>
+              ) : null}
+              {draft.depth !== "notes" ? (
+                <>
+                  <label className="field">
+                    <span>Raza</span>
+                    <input value={draft.race} onChange={(event) => controller.updateField("race", event.target.value)} />
+                  </label>
+                  <label className="field">
+                    <span>Arquetipo</span>
+                    <input value={draft.archetype} onChange={(event) => controller.updateField("archetype", event.target.value)} />
+                  </label>
+                  <label className="field">
+                    <span>Ocupacion</span>
+                    <input value={draft.occupation} onChange={(event) => controller.updateField("occupation", event.target.value)} />
+                  </label>
+                  <label className="field field-span-2">
+                    <span>Resumen</span>
+                    <input value={draft.summary} onChange={(event) => controller.updateField("summary", event.target.value)} />
+                  </label>
+                  <label className="field field-span-2">
+                    <span>Notas</span>
+                    <textarea rows={6} value={draft.notes} onChange={(event) => controller.updateField("notes", event.target.value)} />
+                  </label>
+                </>
+              ) : null}
             </div>
 
-            {draft.depth !== "notes" ? (
+            {draft.depth === "stat_block" ? (
               <>
-                <div className="section-title">Bloque rapido</div>
+                <div className="section-title">Bloque de stats</div>
                 <div className="form-grid">
                   <label className="field"><span>Ataque</span><input value={draft.statBlock?.attack ?? ""} onChange={(event) => controller.updateStatBlockField("attack", event.target.value)} /></label>
                   <label className="field"><span>Daño</span><input value={draft.statBlock?.damage ?? ""} onChange={(event) => controller.updateStatBlockField("damage", event.target.value)} /></label>
@@ -272,6 +352,13 @@ function NpcEditorModal({ controller, onClose }: NpcEditorModalProps) {
                 </div>
               </>
             ) : null}
+            {draft.depth === "full_sheet" ? (
+              <article className="campaign-sheet-card npc-full-sheet-guide">
+                <h3>Hoja completa</h3>
+                <p className="meta-text">Este PNJ se guardara como personaje completo.</p>
+                <p>Al guardar, se abrira directamente el constructor de personaje para terminar atributos, capacidades, acciones, inventario y contadores como si fuera un PJ.</p>
+              </article>
+            ) : null}
           </section>
 
           <section className="monster-builder-card">
@@ -283,10 +370,16 @@ function NpcEditorModal({ controller, onClose }: NpcEditorModalProps) {
                   <span className="compendium-chip">{DEPTH_LABELS[draft.depth]}</span>
                 </div>
                 <p className="meta-text">{draft.faction || "Sin faccion"}</p>
-                <p>{draft.summary || "Añade un resumen para definir el rol narrativo del PNJ."}</p>
-                <p className="section-help">{draft.notes || "Las notas largas del PNJ apareceran aqui."}</p>
+                <p>{draft.summary || "Anade un resumen para definir el rol narrativo del PNJ."}</p>
+                {NPC_NOTE_SECTIONS.map((section) => (
+                  <div key={section.key}>
+                    <strong>{section.label}</strong>
+                    <p className="section-help">{noteSections[section.key] || `Sin ${section.label.toLowerCase()}.`}</p>
+                  </div>
+                ))}
               </article>
-            ) : (
+            ) : null}
+            {draft.depth === "stat_block" ? (
               renderNpcStatBlock({
                 name: draft.name || "PNJ sin nombre",
                 summary: draft.summary,
@@ -294,7 +387,19 @@ function NpcEditorModal({ controller, onClose }: NpcEditorModalProps) {
                 faction: draft.faction,
                 labels: draft.labels
               })
-            )}
+            ) : null}
+            {draft.depth === "full_sheet" ? (
+              <article className="campaign-sheet-card npc-notes-preview npc-full-sheet-preview">
+                <div className="row-actions">
+                  <strong>{draft.name || "PNJ sin nombre"}</strong>
+                  <span className="compendium-chip">{DEPTH_LABELS[draft.depth]}</span>
+                </div>
+                <p className="meta-text">{draft.race || "Humano"} · {draft.archetype || "Guerrero"}{draft.occupation ? ` · ${draft.occupation}` : ""}</p>
+                <p>{draft.summary || "Se creara un PNJ con hoja completa y acceso al constructor."}</p>
+                <p className="section-help">{draft.notes || "Al guardar podras continuar en la hoja completa del PNJ."}</p>
+              </article>
+            ) : null}
+            {null}
           </section>
         </div>
       </div>
@@ -383,9 +488,9 @@ export function NpcDashboardView({ ensureAccessToken }: Props) {
     await controller.refresh();
   }
 
-  function openCreateModal(depth: NpcDepth = "notes"): void {
+  function openCreateModal(): void {
     controller.selectNpc(null);
-    controller.resetDraft(depth);
+    controller.resetDraft("notes");
     setIsEditorOpen(true);
   }
 
@@ -393,6 +498,11 @@ export function NpcDashboardView({ ensureAccessToken }: Props) {
     controller.selectNpc(npc.id);
     controller.loadDraftFromNpc(npc);
     setIsEditorOpen(true);
+  }
+
+  function handleEditorSaved(npc: Npc): void {
+    controller.selectNpc(npc.id);
+    setPageMode(npc.depth === "full_sheet" ? "builder" : "detail");
   }
 
   if (pageMode === "builder" && selectedNpcCharacter) {
@@ -461,7 +571,7 @@ export function NpcDashboardView({ ensureAccessToken }: Props) {
           {selectedNpc.depth !== "notes" ? renderNpcStatBlock(selectedNpc) : null}
         </section>
 
-        {isEditorOpen ? <NpcEditorModal controller={controller} onClose={() => setIsEditorOpen(false)} /> : null}
+        {isEditorOpen ? <NpcEditorModal controller={controller} onClose={() => setIsEditorOpen(false)} onSaved={handleEditorSaved} /> : null}
       </div>
     );
   }
@@ -485,9 +595,7 @@ export function NpcDashboardView({ ensureAccessToken }: Props) {
             <p className="section-help">Agrupados por faccion y filtrables por profundidad, etiquetas y nombre.</p>
           </div>
           <div className="toolbar">
-            <button type="button" onClick={() => openCreateModal("notes")}>Nuevo PNJ</button>
-            <button type="button" className="subtle-button" onClick={() => openCreateModal("stat_block")}>Nuevo bloque rapido</button>
-            <button type="button" className="subtle-button" onClick={() => openCreateModal("full_sheet")}>Nueva hoja completa</button>
+            <button type="button" onClick={() => openCreateModal()}>Nuevo PNJ</button>
           </div>
         </div>
 
@@ -569,7 +677,7 @@ export function NpcDashboardView({ ensureAccessToken }: Props) {
         </div>
       </section>
 
-      {isEditorOpen ? <NpcEditorModal controller={controller} onClose={() => setIsEditorOpen(false)} /> : null}
+      {isEditorOpen ? <NpcEditorModal controller={controller} onClose={() => setIsEditorOpen(false)} onSaved={handleEditorSaved} /> : null}
     </div>
   );
 }

@@ -1972,7 +1972,7 @@ export const SYMBAROUM_ABILITIES: SymbaroumCapability[] = [
     "Novato: obtienes armadura natural 1D4. Adepto: obtienes armadura natural 1D6. Maestro: obtienes armadura natural 1D8. Ref: Códice de monstruos, p.1."
   ),
   makeCapability("habilidad", "Venenos", LIBRO_BASICO, 113),
-  makeCapability("habilidad", "Versado en criaturas", LIBRO_BASICO, 116),
+  makeCapability("habilidad", "Versado en criaturas", LIBRO_BASICO, 124),
   makeCapability("habilidad", "Viento de acero", LIBRO_BASICO, 116)
 ];
 

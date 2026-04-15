@@ -792,6 +792,7 @@ export function UnifiedCharacterSheet({
     editable,
     onSave
   });
+  const isReadOnly = !editable;
   const canEditNotes = editMode && editable;
   const canEditInventory = editable;
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>(ITEM_CATALOG[0]?.templateId ?? "");
@@ -1974,6 +1975,9 @@ export function UnifiedCharacterSheet({
   }
 
   function toggleFavoriteAction(actionId: string): void {
+    if (!editable) {
+      return;
+    }
     const currentFavorites = new Set(normalizedSheet.actionFavorites ?? []);
     if (currentFavorites.has(actionId)) {
       currentFavorites.delete(actionId);
@@ -2189,6 +2193,9 @@ export function UnifiedCharacterSheet({
   }
 
   function adjustNumber(path: string, delta: number, min = 0): void {
+    if (!editable) {
+      return;
+    }
     const parts = path.split(".");
     let cursor: Record<string, unknown> = normalizedSheet as unknown as Record<string, unknown>;
     for (let index = 0; index < parts.length - 1; index += 1) {
@@ -2554,7 +2561,7 @@ export function UnifiedCharacterSheet({
               <h2 className="unified-sheet-title">{displayName}</h2>
               {subtitle ? <span className="unified-sheet-inline-subtitle">{subtitle}</span> : null}
             </div>
-            {onOpenBuilder ? (
+            {editable && onOpenBuilder ? (
               <button type="button" className="unified-sheet-builder-launch" onClick={onOpenBuilder}>
                 <span aria-hidden="true">⚒</span>
                 <span>Constructor</span>
@@ -2563,11 +2570,15 @@ export function UnifiedCharacterSheet({
             <div className="unified-sheet-xp-card">
               <div className="unified-sheet-xp-row">
                 <span>PX total</span>
-                <div className="unified-sheet-xp-controls">
-                  <button type="button" className="vital-action subtle" onClick={() => adjustNumber("progreso.experienciaTotal", -1)}>-</button>
+                {editable ? (
+                  <div className="unified-sheet-xp-controls">
+                    <button type="button" className="vital-action subtle" onClick={() => adjustNumber("progreso.experienciaTotal", -1)}>-</button>
+                    <strong>{normalizedSheet.progreso.experienciaTotal}</strong>
+                    <button type="button" className="vital-action gain" onClick={() => adjustNumber("progreso.experienciaTotal", 1)}>+</button>
+                  </div>
+                ) : (
                   <strong>{normalizedSheet.progreso.experienciaTotal}</strong>
-                  <button type="button" className="vital-action gain" onClick={() => adjustNumber("progreso.experienciaTotal", 1)}>+</button>
-                </div>
+                )}
               </div>
               <div className="unified-sheet-xp-row is-static">
                 <span>PX gastada</span>
@@ -2583,10 +2594,12 @@ export function UnifiedCharacterSheet({
                 <strong>{derived.robustezActualTotal} / {derived.robustezMaximaTotal}</strong>
               </div>
               <div className="unified-sheet-vital-track"><div style={{ width: `${Math.min(100, derived.robustezMaximaTotal > 0 ? (derived.robustezActualTotal / derived.robustezMaximaTotal) * 100 : 0)}%` }} /></div>
-              <div className="unified-sheet-vital-actions">
-                <button type="button" className="vital-action loss" onClick={() => adjustNumber("combate.robustezActual", -1)}>-1 Danio</button>
-                <button type="button" className="vital-action gain" onClick={() => adjustNumber("combate.robustezActual", 1)}>+1 Vida</button>
-              </div>
+              {editable ? (
+                <div className="unified-sheet-vital-actions">
+                  <button type="button" className="vital-action loss" onClick={() => adjustNumber("combate.robustezActual", -1)}>-1 Danio</button>
+                  <button type="button" className="vital-action gain" onClick={() => adjustNumber("combate.robustezActual", 1)}>+1 Vida</button>
+                </div>
+              ) : null}
             </div>
 
             <div className="unified-sheet-vital-card is-corruption">
@@ -2595,10 +2608,12 @@ export function UnifiedCharacterSheet({
                 <strong>{normalizedSheet.corrupcion.temporal}</strong>
               </div>
               <div className="unified-sheet-vital-track"><div style={{ width: `${Math.min(100, derived.umbralCorrupcionTotal > 0 ? (normalizedSheet.corrupcion.temporal / derived.umbralCorrupcionTotal) * 100 : 0)}%` }} /></div>
-              <div className="unified-sheet-vital-actions">
-                <button type="button" className="vital-action recovery" onClick={() => adjustNumber("corrupcion.temporal", -1)}>-1 Temp</button>
-                <button type="button" className="vital-action corruption" onClick={() => adjustNumber("corrupcion.temporal", 1)}>+1 Temp</button>
-              </div>
+              {editable ? (
+                <div className="unified-sheet-vital-actions">
+                  <button type="button" className="vital-action recovery" onClick={() => adjustNumber("corrupcion.temporal", -1)}>-1 Temp</button>
+                  <button type="button" className="vital-action corruption" onClick={() => adjustNumber("corrupcion.temporal", 1)}>+1 Temp</button>
+                </div>
+              ) : null}
             </div>
 
             <div className="unified-sheet-vital-card is-corruption-deep">
@@ -2607,10 +2622,12 @@ export function UnifiedCharacterSheet({
                 <strong>{normalizedSheet.corrupcion.permanente}</strong>
               </div>
               <div className="unified-sheet-vital-track"><div style={{ width: `${Math.min(100, derived.umbralCorrupcionTotal > 0 ? (normalizedSheet.corrupcion.permanente / derived.umbralCorrupcionTotal) * 100 : 0)}%` }} /></div>
-              <div className="unified-sheet-vital-actions">
-                <button type="button" className="vital-action recovery" onClick={() => adjustNumber("corrupcion.permanente", -1)}>-1 Perm</button>
-                <button type="button" className="vital-action corruption-deep" onClick={() => adjustNumber("corrupcion.permanente", 1)}>+1 Perm</button>
-              </div>
+              {editable ? (
+                <div className="unified-sheet-vital-actions">
+                  <button type="button" className="vital-action recovery" onClick={() => adjustNumber("corrupcion.permanente", -1)}>-1 Perm</button>
+                  <button type="button" className="vital-action corruption-deep" onClick={() => adjustNumber("corrupcion.permanente", 1)}>+1 Perm</button>
+                </div>
+              ) : null}
             </div>
           </section>
         </div>
@@ -2623,7 +2640,7 @@ export function UnifiedCharacterSheet({
                 <div key={key} className="unified-sheet-attribute-chip">
                   <span>{ATTRIBUTE_LABELS[key]}</span>
                   <strong>{normalizedSheet.atributos[key]}</strong>
-                  <button type="button" className="vital-action subtle" onClick={() => runAttributeRoll(key)}>Tirar</button>
+                  {isReadOnly ? null : <button type="button" className="vital-action subtle" onClick={() => runAttributeRoll(key)}>Tirar</button>}
                 </div>
               ))}
             </div>
@@ -2635,9 +2652,11 @@ export function UnifiedCharacterSheet({
                     <strong>{derived.defensaTotal}</strong>
                   </div>
                   {derived.defensaArmaduraDetalle ? <p className="section-help">{derived.defensaArmaduraDetalle}</p> : null}
-                  <div className="unified-sheet-vital-actions">
-                    <button type="button" className="vital-action subtle is-defense-roll" onClick={runDefenseRoll}>Tirar Defensa</button>
-                  </div>
+                  {isReadOnly ? null : (
+                    <div className="unified-sheet-vital-actions">
+                      <button type="button" className="vital-action subtle is-defense-roll" onClick={runDefenseRoll}>Tirar Defensa</button>
+                    </div>
+                  )}
                 </article>
 
                 <article className="unified-sheet-quick-card">
@@ -2646,9 +2665,11 @@ export function UnifiedCharacterSheet({
                     <strong>{activeArmor?.protectionFormula || derived.armaduraActiva || "-"}</strong>
                   </div>
                   <strong>{activeArmor?.name || normalizedSheet.combate.armadura || (derived.armaduraNatural ? "Armadura natural" : "Sin armadura")}</strong>
-                  <div className="unified-sheet-vital-actions">
-                    <button type="button" className="vital-action subtle" onClick={runArmorRoll} disabled={!(activeArmor?.protectionFormula || derived.armaduraActiva)}>Tirar Armadura</button>
-                  </div>
+                  {isReadOnly ? null : (
+                    <div className="unified-sheet-vital-actions">
+                      <button type="button" className="vital-action subtle" onClick={runArmorRoll} disabled={!(activeArmor?.protectionFormula || derived.armaduraActiva)}>Tirar Armadura</button>
+                    </div>
+                  )}
                 </article>
               </div>
 
@@ -2737,6 +2758,7 @@ export function UnifiedCharacterSheet({
                     <button
                       type="button"
                       className={`campaign-action-favorite-toggle${favoriteActionIds.has(action.id) ? " is-active" : ""}`}
+                      disabled={!editable}
                       onClick={() => toggleFavoriteAction(action.id)}
                       aria-label={favoriteActionIds.has(action.id) ? "Quitar de favoritas" : "Guardar en favoritas"}
                       title={favoriteActionIds.has(action.id) ? "Quitar de favoritas" : "Guardar en favoritas"}
@@ -2746,14 +2768,14 @@ export function UnifiedCharacterSheet({
                     <strong>{formatActionDisplayLabel(action.label)}</strong>
                   </div>
                   <div className="campaign-action-slot">
-                    {action.rollAttribute ? (
+                    {action.rollAttribute && editable ? (
                       <button type="button" onClick={() => runAttackAction(action)}>{getActionRollLabel(action)}</button>
                     ) : (
                       <span aria-hidden="true" className="campaign-action-slot-placeholder" />
                     )}
                       </div>
                       <div className="campaign-action-slot is-damage">
-                        {action.damageFormula && !isIntegratedDamageBonusAction(action) ? <button type="button" onClick={() => runDamageAction(action)}>Danio</button> : <span aria-hidden="true" className="campaign-action-slot-placeholder" />}
+                        {action.damageFormula && !isIntegratedDamageBonusAction(action) && editable ? <button type="button" onClick={() => runDamageAction(action)}>Danio</button> : <span aria-hidden="true" className="campaign-action-slot-placeholder" />}
                       </div>
                       <div className="campaign-action-slot">
                         <button type="button" className="subtle-button" onClick={() => openActionDetail(action)}>Detalle</button>

@@ -824,34 +824,73 @@ button.subtle-button {
 }
 
 .compendium-layout {
-  display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.3fr);
-  gap: 18px;
-  align-items: start;
+  display: block;
 }
 
 .compendium-results,
 .compendium-detail {
-  min-height: 520px;
+  min-height: 0;
 }
 
 .compendium-list {
   margin-top: 14px;
   display: grid;
-  gap: 10px;
-  max-height: 700px;
-  overflow: auto;
+  gap: 8px;
 }
 
 .compendium-list-item {
   width: 100%;
   text-align: left;
   display: grid;
-  gap: 7px;
-  padding: 14px;
+  gap: 6px;
+  padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid rgba(139, 109, 77, 0.4);
   background: rgba(255, 251, 245, 0.42);
+}
+
+.compendium-detail-modal {
+  width: min(1040px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.compendium-detail-modal-header {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 6px;
+}
+
+.compendium-detail-modal-titlebar {
+  align-items: start;
+}
+
+.compendium-detail-modal-heading {
+  display: grid;
+  gap: 2px;
+}
+
+.compendium-detail-modal-heading h3,
+.compendium-detail-modal-heading p {
+  margin: 0;
+}
+
+.compendium-detail-modal-close {
+  justify-self: end;
+}
+
+.compendium-detail-modal-toolbar {
+  gap: 10px;
+}
+
+.compendium-detail-modal-body {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 14px;
+  padding-top: 8px;
 }
 
 .compendium-list-item.is-active {
@@ -1358,13 +1397,13 @@ button.subtle-button {
 }
 
 .monster-browser-layout {
-  grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
 }
 
 .monster-browser-list {
-  max-height: 920px;
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .monster-browser-detail,
@@ -1461,6 +1500,73 @@ button.subtle-button {
 
 .monster-sheet-modal {
   width: min(1100px, 100%);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.monster-sheet-modal-header {
+  display: grid;
+  gap: 10px;
+}
+
+.monster-sheet-modal-body {
+  min-height: 0;
+  overflow: auto;
+}
+
+.monster-sheet-modal .monster-statblock {
+  gap: 10px;
+  padding: 14px;
+}
+
+.monster-sheet-modal .monster-statblock-header {
+  gap: 10px;
+}
+
+.monster-sheet-modal .monster-statblock-header h3 {
+  margin: 0;
+  font-size: 1.28rem;
+}
+
+.monster-sheet-modal .monster-statblock-header p {
+  margin-top: 4px;
+  font-size: 0.92rem;
+}
+
+.monster-sheet-modal .monster-statblock-meta {
+  gap: 6px;
+}
+
+.monster-sheet-modal .monster-stat-grid {
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.monster-sheet-modal .info-box {
+  padding: 8px 10px;
+  font-size: 0.86rem;
+}
+
+.monster-sheet-modal .monster-attribute-table th,
+.monster-sheet-modal .monster-attribute-table td {
+  padding: 6px 8px;
+  font-size: 0.82rem;
+}
+
+.monster-sheet-modal .monster-detail-grid {
+  gap: 8px;
+}
+
+.monster-sheet-modal .monster-detail-grid .entry-row {
+  gap: 6px;
+  padding: 10px 12px;
+}
+
+.monster-sheet-modal .monster-detail-grid .entry-row p,
+.monster-sheet-modal .monster-detail-grid .entry-row strong,
+.monster-sheet-modal .monster-detail-grid .tag-list {
+  font-size: 0.9rem;
 }
 
 .monster-editor-layout {
@@ -1545,8 +1651,10 @@ td {
   inset: 0;
   z-index: 30;
   display: grid;
-  place-items: center;
+  justify-items: center;
+  align-items: start;
   padding: 20px;
+  overflow-y: auto;
   background: rgba(30, 20, 14, 0.42);
   backdrop-filter: blur(4px);
 }
@@ -1555,6 +1663,7 @@ td {
   width: min(1260px, 100%);
   max-height: 92vh;
   margin-top: 0;
+  align-self: start;
   overflow: auto;
   background: var(--paper);
 }

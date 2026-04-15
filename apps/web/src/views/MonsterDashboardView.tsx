@@ -9,6 +9,7 @@ import {
   type Monster
 } from "@umbra/shared";
 import { useMonsterController } from "../controllers/monsterController";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 
 type Props = {
   user: AuthUser;
@@ -112,6 +113,8 @@ type MonsterEditorModalProps = {
 };
 
 function MonsterEditorModal({ controller, onClose }: MonsterEditorModalProps) {
+  useBodyScrollLock(true);
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="panel modal-panel monster-modal-panel" onClick={(event) => event.stopPropagation()}>
@@ -320,14 +323,20 @@ type MonsterSheetModalProps = {
 };
 
 function MonsterSheetModal({ monster, onClose }: MonsterSheetModalProps) {
+  useBodyScrollLock(true);
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="panel modal-panel monster-sheet-modal" onClick={(event) => event.stopPropagation()}>
-        <div className="row-actions">
+        <div className="monster-sheet-modal-header">
+          <div className="row-actions">
           <h2>Hoja rápida</h2>
           <button type="button" onClick={onClose}>Cerrar</button>
+          </div>
         </div>
-        {renderMonsterTable(monster)}
+        <div className="monster-sheet-modal-body">
+          {renderMonsterTable(monster)}
+        </div>
       </div>
     </div>
   );
@@ -337,6 +346,7 @@ export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
   const controller = useMonsterController(user, ensureAccessToken);
   const [activeTab, setActiveTab] = useState<MonsterModuleTab>("codex");
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isCodexSheetOpen, setIsCodexSheetOpen] = useState(false);
   const [detailMonsterId, setDetailMonsterId] = useState<string | null>(null);
   const [sheetPreviewMonsterId, setSheetPreviewMonsterId] = useState<string | null>(null);
   const [codexSearch, setCodexSearch] = useState("");
@@ -392,6 +402,11 @@ export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
     setDetailMonsterId(null);
   }
 
+  function openCodexDetail(monsterId: string): void {
+    controller.setSelectedCodexId(monsterId);
+    setIsCodexSheetOpen(true);
+  }
+
   return (
     <div className="monster-module">
       <section className="panel lore-panel">
@@ -434,12 +449,12 @@ export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
 
             <div className="compendium-filters">
               <label className="field compendium-search">
-                <span>Buscar en el cÃ³dice</span>
+                <span>Buscar en el códice</span>
                 <input
                   type="search"
                   value={codexSearch}
                   onChange={(event) => setCodexSearch(event.target.value)}
-                  placeholder="Nombre, rasgo, categorÃ­a, acciÃ³n..."
+                  placeholder="Nombre, rasgo, categoría, acción..."
                 />
               </label>
             </div>
@@ -451,7 +466,7 @@ export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
                     <button
                       key={monster.id}
                       className={`compendium-list-item${visibleCodexMonster?.id === monster.id ? " is-active" : ""}`}
-                      onClick={() => controller.setSelectedCodexId(monster.id)}
+                      onClick={() => openCodexDetail(monster.id)}
                     >
                       <strong>{monster.name}</strong>
                       <span>{monster.category} · {monster.threat}</span>
@@ -466,9 +481,6 @@ export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
                 )}
               </div>
 
-              <div className="monster-browser-detail">
-                {visibleCodexMonster ? renderMonsterTable(visibleCodexMonster) : null}
-              </div>
             </div>
           </section>
         ) : null}
@@ -552,6 +564,9 @@ export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
       {isEditorOpen ? <MonsterEditorModal controller={controller} onClose={() => setIsEditorOpen(false)} /> : null}
       {sheetPreviewMonster ? (
         <MonsterSheetModal monster={sheetPreviewMonster} onClose={() => setSheetPreviewMonsterId(null)} />
+      ) : null}
+      {isCodexSheetOpen && visibleCodexMonster ? (
+        <MonsterSheetModal monster={visibleCodexMonster} onClose={() => setIsCodexSheetOpen(false)} />
       ) : null}
     </div>
   );

@@ -8,6 +8,7 @@ import {
   type CompendiumEntry,
   type EntryType
 } from "../models/compendiumEntries";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 
 type Props = {
   onBackToCharacters: () => void;
@@ -28,6 +29,29 @@ function includesQuery(entry: CompendiumEntry, query: string): boolean {
     .join(" ")
     .toLowerCase();
   return haystack.includes(query);
+}
+
+function getEntrySearchRank(entry: CompendiumEntry, query: string): number {
+  if (!query) {
+    return 3;
+  }
+
+  const normalizedName = entry.nombre.toLowerCase();
+  const normalizedDescription = `${entry.resumen} ${entry.detalle}`.toLowerCase();
+  const nameMatch = normalizedName.includes(query);
+  const descriptionMatch = normalizedDescription.includes(query);
+
+  if (nameMatch && descriptionMatch) {
+    return 0;
+  }
+  if (nameMatch) {
+    return 1;
+  }
+  if (descriptionMatch) {
+    return 2;
+  }
+
+  return 3;
 }
 
 function renderHighlightedText(text: string, query: string): React.ReactNode {
@@ -135,11 +159,14 @@ export function CompendiumView({
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | EntryType>("all");
   const [sourceFilter, setSourceFilter] = useState("all");
-  const [selectedId, setSelectedId] = useState<string>(ALL_ENTRIES[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [historyStack, setHistoryStack] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const suppressHistoryRef = useRef(false);
+
+  useBodyScrollLock(isDetailOpen);
 
   const sources = useMemo(
     () => [
@@ -166,6 +193,7 @@ export function CompendiumView({
     if (initialEntryId) {
       suppressHistoryRef.current = true;
       setSelectedId(initialEntryId);
+      setIsDetailOpen(true);
       setHistoryStack([initialEntryId]);
       setHistoryIndex(0);
     }
@@ -194,10 +222,16 @@ export function CompendiumView({
         return false;
       }
       return true;
-    }).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    }).sort((a, b) => {
+      const rankDifference = getEntrySearchRank(a, normalizedQuery) - getEntrySearchRank(b, normalizedQuery);
+      if (rankDifference !== 0) {
+        return rankDifference;
+      }
+      return a.nombre.localeCompare(b.nombre, "es");
+    });
   }, [query, typeFilter, sourceFilter]);
 
-  const selectedEntry = filteredEntries.find((entry) => entry.id === selectedId) ?? filteredEntries[0] ?? null;
+  const selectedEntry = filteredEntries.find((entry) => entry.id === selectedId) ?? null;
   const canonicalSelectedSource = selectedEntry ? canonicalizeCompendiumSourceName(selectedEntry.fuente) : "";
   const sourcePdfUrl = selectedEntry
     ? getCompendiumSourcePdfUrl(selectedEntry.fuente, selectedEntry.pagina, selectedEntry.nombre)
@@ -232,9 +266,6 @@ export function CompendiumView({
 
   useEffect(() => {
     const params = new URLSearchParams();
-    if (selectedEntry) {
-      params.set("id", selectedEntry.id);
-    }
     if (query.trim()) {
       params.set("q", query.trim());
     }
@@ -249,7 +280,7 @@ export function CompendiumView({
     if (window.location.hash !== nextHash) {
       window.history.replaceState(null, "", nextHash);
     }
-  }, [query, selectedEntry, sourceFilter, typeFilter]);
+  }, [query, sourceFilter, typeFilter]);
 
   function clearFilters(): void {
     setQuery("");
@@ -258,7 +289,23 @@ export function CompendiumView({
   }
 
   async function copyDeepLink(): Promise<void> {
-    await navigator.clipboard.writeText(window.location.href);
+    const params = new URLSearchParams();
+    if (selectedEntry) {
+      params.set("id", selectedEntry.id);
+    }
+    if (query.trim()) {
+      params.set("q", query.trim());
+    }
+    if (sourceFilter !== "all") {
+      params.set("source", sourceFilter);
+    }
+    if (typeFilter !== "all") {
+      params.set("type", typeFilter);
+    }
+
+    const url = new URL(window.location.href);
+    url.hash = params.toString() ? `compendium?${params.toString()}` : "compendium";
+    await navigator.clipboard.writeText(url.toString());
     setLinkCopied(true);
     window.setTimeout(() => setLinkCopied(false), 1500);
   }
@@ -289,6 +336,11 @@ export function CompendiumView({
     }
 
     window.open(summaryLink.url, "_blank", "noopener,noreferrer");
+  }
+
+  function openEntryDetail(entryId: string): void {
+    setSelectedId(entryId);
+    setIsDetailOpen(true);
   }
 
   return (
@@ -351,7 +403,7 @@ export function CompendiumView({
                 <button
                   key={entry.id}
                   className={`compendium-list-item app-card-accent app-card-accent--${entry.tipo}${selectedEntry?.id === entry.id ? " is-active" : ""}`}
-                  onClick={() => setSelectedId(entry.id)}
+                  onClick={() => openEntryDetail(entry.id)}
                 >
                   <span className="compendium-list-top">
                     <strong>{renderHighlightedText(entry.nombre, query)}</strong>
@@ -369,19 +421,26 @@ export function CompendiumView({
             )}
           </div>
         </div>
+      </section>
 
-        <div className={`panel compendium-detail${selectedEntry ? ` app-card-accent app-card-accent--${selectedEntry.tipo}` : ""}`}>
-          {selectedEntry ? (
-            <>
-              <div className="row-actions">
-                <div>
+      {isDetailOpen && selectedEntry ? (
+        <section className="modal-backdrop" onClick={() => setIsDetailOpen(false)}>
+          <div
+            className={`panel modal-panel compendium-detail compendium-detail-modal app-card-accent app-card-accent--${selectedEntry.tipo}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="compendium-detail-modal-header">
+              <div className="row-actions compendium-detail-modal-titlebar">
+                <div className="compendium-detail-modal-heading">
                   <h3>{renderHighlightedText(selectedEntry.nombre, query)}</h3>
                   <p className="meta-text">
                     {TYPE_LABELS[selectedEntry.tipo]} · {canonicalSelectedSource}
                     {selectedEntry.pagina ? ` · p.${selectedEntry.pagina}` : ""}
                   </p>
                 </div>
-                <div className="toolbar">
+                <button className="subtle-button compendium-detail-modal-close" onClick={() => setIsDetailOpen(false)}>Cerrar</button>
+              </div>
+              <div className="toolbar compendium-detail-modal-toolbar">
                   <button className="subtle-button" disabled={historyIndex <= 0} onClick={() => goToHistory(-1)}>
                     Anterior
                   </button>
@@ -406,13 +465,9 @@ export function CompendiumView({
                       {summaryLink.documentLabel}
                     </button>
                   ) : null}
-                </div>
               </div>
-              {summaryLink ? (
-                <p className="meta-text">
-                  Sección en resumen: <strong>{summaryLink.sectionLabel}</strong>
-                </p>
-              ) : null}
+            </div>
+            <div className="compendium-detail-modal-body">
               {parsedCapabilityDetail && parsedCapabilityDetail.tiers.length > 0 ? (
                 <div className="capability-tier-list">
                   {parsedCapabilityDetail.tiers.map((tier) => (
@@ -448,12 +503,10 @@ export function CompendiumView({
                   ))}
                 </div>
               ) : null}
-            </>
-          ) : (
-            <p className="section-help">Selecciona una entrada del compendio para ver su detalle.</p>
-          )}
-        </div>
-      </section>
+            </div>
+          </div>
+        </section>
+      ) : null}
     </>
   );
 }

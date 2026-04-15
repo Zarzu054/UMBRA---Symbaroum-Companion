@@ -1,6 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { ALL_ENTRIES, TYPE_LABELS, canonicalizeCompendiumSourceName, getCompendiumSummaryLink, getCompendiumSourcePdfUrl } from "../models/compendiumEntries";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 function includesQuery(entry, query) {
     const haystack = [
         entry.nombre,
@@ -12,6 +13,25 @@ function includesQuery(entry, query) {
         .join(" ")
         .toLowerCase();
     return haystack.includes(query);
+}
+function getEntrySearchRank(entry, query) {
+    if (!query) {
+        return 3;
+    }
+    const normalizedName = entry.nombre.toLowerCase();
+    const normalizedDescription = `${entry.resumen} ${entry.detalle}`.toLowerCase();
+    const nameMatch = normalizedName.includes(query);
+    const descriptionMatch = normalizedDescription.includes(query);
+    if (nameMatch && descriptionMatch) {
+        return 0;
+    }
+    if (nameMatch) {
+        return 1;
+    }
+    if (descriptionMatch) {
+        return 2;
+    }
+    return 3;
 }
 function renderHighlightedText(text, query) {
     const normalizedQuery = query.trim();
@@ -74,11 +94,13 @@ export function CompendiumView({ onBackToCharacters, initialEntryId = null, init
     const [query, setQuery] = useState("");
     const [typeFilter, setTypeFilter] = useState("all");
     const [sourceFilter, setSourceFilter] = useState("all");
-    const [selectedId, setSelectedId] = useState(ALL_ENTRIES[0]?.id ?? "");
+    const [selectedId, setSelectedId] = useState("");
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
     const [historyStack, setHistoryStack] = useState([]);
     const [historyIndex, setHistoryIndex] = useState(-1);
     const suppressHistoryRef = useRef(false);
+    useBodyScrollLock(isDetailOpen);
     const sources = useMemo(() => [
         "all",
         ...new Set(ALL_ENTRIES
@@ -96,6 +118,7 @@ export function CompendiumView({ onBackToCharacters, initialEntryId = null, init
         if (initialEntryId) {
             suppressHistoryRef.current = true;
             setSelectedId(initialEntryId);
+            setIsDetailOpen(true);
             setHistoryStack([initialEntryId]);
             setHistoryIndex(0);
         }
@@ -121,9 +144,15 @@ export function CompendiumView({ onBackToCharacters, initialEntryId = null, init
                 return false;
             }
             return true;
-        }).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+        }).sort((a, b) => {
+            const rankDifference = getEntrySearchRank(a, normalizedQuery) - getEntrySearchRank(b, normalizedQuery);
+            if (rankDifference !== 0) {
+                return rankDifference;
+            }
+            return a.nombre.localeCompare(b.nombre, "es");
+        });
     }, [query, typeFilter, sourceFilter]);
-    const selectedEntry = filteredEntries.find((entry) => entry.id === selectedId) ?? filteredEntries[0] ?? null;
+    const selectedEntry = filteredEntries.find((entry) => entry.id === selectedId) ?? null;
     const canonicalSelectedSource = selectedEntry ? canonicalizeCompendiumSourceName(selectedEntry.fuente) : "";
     const sourcePdfUrl = selectedEntry
         ? getCompendiumSourcePdfUrl(selectedEntry.fuente, selectedEntry.pagina, selectedEntry.nombre)
@@ -153,9 +182,6 @@ export function CompendiumView({ onBackToCharacters, initialEntryId = null, init
     }, [historyIndex, selectedEntry?.id]);
     useEffect(() => {
         const params = new URLSearchParams();
-        if (selectedEntry) {
-            params.set("id", selectedEntry.id);
-        }
         if (query.trim()) {
             params.set("q", query.trim());
         }
@@ -169,14 +195,29 @@ export function CompendiumView({ onBackToCharacters, initialEntryId = null, init
         if (window.location.hash !== nextHash) {
             window.history.replaceState(null, "", nextHash);
         }
-    }, [query, selectedEntry, sourceFilter, typeFilter]);
+    }, [query, sourceFilter, typeFilter]);
     function clearFilters() {
         setQuery("");
         setTypeFilter("all");
         setSourceFilter("all");
     }
     async function copyDeepLink() {
-        await navigator.clipboard.writeText(window.location.href);
+        const params = new URLSearchParams();
+        if (selectedEntry) {
+            params.set("id", selectedEntry.id);
+        }
+        if (query.trim()) {
+            params.set("q", query.trim());
+        }
+        if (sourceFilter !== "all") {
+            params.set("source", sourceFilter);
+        }
+        if (typeFilter !== "all") {
+            params.set("type", typeFilter);
+        }
+        const url = new URL(window.location.href);
+        url.hash = params.toString() ? `compendium?${params.toString()}` : "compendium";
+        await navigator.clipboard.writeText(url.toString());
         setLinkCopied(true);
         window.setTimeout(() => setLinkCopied(false), 1500);
     }
@@ -202,5 +243,9 @@ export function CompendiumView({ onBackToCharacters, initialEntryId = null, init
         }
         window.open(summaryLink.url, "_blank", "noopener,noreferrer");
     }
-    return (_jsxs(_Fragment, { children: [_jsxs("section", { className: "panel lore-panel compendium-hero", children: [_jsxs("div", { children: [_jsx("h2", { children: "Compendio Central" }), _jsx("p", { children: "Consulta r\u00E1pida de reglas, rasgos de monstruo, habilidades, poderes m\u00EDsticos, rituales y referencias base de personaje desde un \u00FAnico m\u00F3dulo." })] }), _jsx("div", { className: "toolbar", children: _jsx("button", { onClick: onBackToCharacters, children: "Volver a personajes" }) })] }), _jsx("section", { className: "panel", children: _jsxs("div", { className: "compendium-filters", children: [_jsxs("label", { className: "field compendium-search", children: [_jsx("span", { children: "B\u00FAsqueda global" }), _jsx("input", { placeholder: "Busca nombre, efecto, tradici\u00F3n, regla, libro...", value: query, onChange: (event) => setQuery(event.target.value) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Tipo" }), _jsx("select", { value: typeFilter, onChange: (event) => setTypeFilter(event.target.value), children: Object.entries(TYPE_LABELS).map(([value, label]) => (_jsx("option", { value: value, children: label }, value))) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Fuente" }), _jsx("select", { value: sourceFilter, onChange: (event) => setSourceFilter(event.target.value), children: sources.map((source) => (_jsx("option", { value: source, children: source === "all" ? "Todas" : source }, source))) })] })] }) }), _jsxs("section", { className: "compendium-layout", children: [_jsxs("div", { className: "panel compendium-results", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Resultados" }), _jsxs("span", { className: "meta-text", children: [filteredEntries.length, " coincidencias"] })] }), _jsx("div", { className: "compendium-list", children: filteredEntries.length > 0 ? (filteredEntries.map((entry) => (_jsxs("button", { className: `compendium-list-item app-card-accent app-card-accent--${entry.tipo}${selectedEntry?.id === entry.id ? " is-active" : ""}`, onClick: () => setSelectedId(entry.id), children: [_jsxs("span", { className: "compendium-list-top", children: [_jsx("strong", { children: renderHighlightedText(entry.nombre, query) }), _jsx("span", { className: "compendium-chip", children: TYPE_LABELS[entry.tipo] })] }), _jsxs("span", { className: "meta-text", children: [canonicalizeCompendiumSourceName(entry.fuente), entry.pagina ? `, p.${entry.pagina}` : ""] }), renderListSummary(entry, query)] }, entry.id)))) : (_jsx("p", { className: "section-help", children: "No hay entradas que coincidan con la b\u00FAsqueda actual." })) })] }), _jsx("div", { className: `panel compendium-detail${selectedEntry ? ` app-card-accent app-card-accent--${selectedEntry.tipo}` : ""}`, children: selectedEntry ? (_jsxs(_Fragment, { children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: renderHighlightedText(selectedEntry.nombre, query) }), _jsxs("p", { className: "meta-text", children: [TYPE_LABELS[selectedEntry.tipo], " \u00B7 ", canonicalSelectedSource, selectedEntry.pagina ? ` · p.${selectedEntry.pagina}` : ""] })] }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { className: "subtle-button", disabled: historyIndex <= 0, onClick: () => goToHistory(-1), children: "Anterior" }), _jsx("button", { className: "subtle-button", disabled: historyIndex < 0 || historyIndex >= historyStack.length - 1, onClick: () => goToHistory(1), children: "Siguiente" }), _jsx("button", { className: "subtle-button", onClick: clearFilters, children: "Limpiar filtros" }), _jsx("button", { className: "subtle-button", onClick: () => void copyDeepLink(), children: linkCopied ? "Enlace copiado" : "Copiar enlace" }), sourcePdfUrl ? (_jsx("button", { className: "subtle-button", onClick: openSelectedPdf, children: selectedEntry.pagina ? `Abrir PDF p.${selectedEntry.pagina}` : "Abrir PDF" })) : null, summaryLink ? (_jsx("button", { className: "subtle-button", onClick: openSummaryDocument, children: summaryLink.documentLabel })) : null] })] }), summaryLink ? (_jsxs("p", { className: "meta-text", children: ["Secci\u00F3n en resumen: ", _jsx("strong", { children: summaryLink.sectionLabel })] })) : null, parsedCapabilityDetail && parsedCapabilityDetail.tiers.length > 0 ? (_jsxs("div", { className: "capability-tier-list", children: [parsedCapabilityDetail.tiers.map((tier) => (_jsxs("section", { className: "capability-tier", children: [_jsx("h4", { className: "capability-tier-title", children: tier.label }), _jsx("p", { children: renderHighlightedText(tier.content, query) })] }, `${selectedEntry.id}-${tier.label}`))), parsedCapabilityDetail.reference ? (_jsx("p", { className: "capability-reference", children: renderHighlightedText(parsedCapabilityDetail.reference, query) })) : null] })) : (_jsx("p", { children: renderHighlightedText(selectedEntry.detalle, query) })), selectedEntry.media?.length ? (_jsx("div", { className: "compendium-media-list", children: selectedEntry.media.map((asset) => (_jsxs("figure", { className: "compendium-media-card", children: [_jsx("img", { src: asset.src, alt: asset.alt, className: "compendium-media-image" }), asset.caption ? _jsx("figcaption", { className: "meta-text", children: asset.caption }) : null] }, `${selectedEntry.id}-${asset.src}`))) })) : null, selectedEntry.tags.length > 0 ? (_jsx("div", { className: "compendium-tags", children: selectedEntry.tags.map((tag) => (_jsx("span", { className: "compendium-tag", children: renderHighlightedText(tag, query) }, `${selectedEntry.id}-${tag}`))) })) : null] })) : (_jsx("p", { className: "section-help", children: "Selecciona una entrada del compendio para ver su detalle." })) })] })] }));
+    function openEntryDetail(entryId) {
+        setSelectedId(entryId);
+        setIsDetailOpen(true);
+    }
+    return (_jsxs(_Fragment, { children: [_jsxs("section", { className: "panel lore-panel compendium-hero", children: [_jsxs("div", { children: [_jsx("h2", { children: "Compendio Central" }), _jsx("p", { children: "Consulta r\u00E1pida de reglas, rasgos de monstruo, habilidades, poderes m\u00EDsticos, rituales y referencias base de personaje desde un \u00FAnico m\u00F3dulo." })] }), _jsx("div", { className: "toolbar", children: _jsx("button", { onClick: onBackToCharacters, children: "Volver a personajes" }) })] }), _jsx("section", { className: "panel", children: _jsxs("div", { className: "compendium-filters", children: [_jsxs("label", { className: "field compendium-search", children: [_jsx("span", { children: "B\u00FAsqueda global" }), _jsx("input", { placeholder: "Busca nombre, efecto, tradici\u00F3n, regla, libro...", value: query, onChange: (event) => setQuery(event.target.value) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Tipo" }), _jsx("select", { value: typeFilter, onChange: (event) => setTypeFilter(event.target.value), children: Object.entries(TYPE_LABELS).map(([value, label]) => (_jsx("option", { value: value, children: label }, value))) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Fuente" }), _jsx("select", { value: sourceFilter, onChange: (event) => setSourceFilter(event.target.value), children: sources.map((source) => (_jsx("option", { value: source, children: source === "all" ? "Todas" : source }, source))) })] })] }) }), _jsx("section", { className: "compendium-layout", children: _jsxs("div", { className: "panel compendium-results", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Resultados" }), _jsxs("span", { className: "meta-text", children: [filteredEntries.length, " coincidencias"] })] }), _jsx("div", { className: "compendium-list", children: filteredEntries.length > 0 ? (filteredEntries.map((entry) => (_jsxs("button", { className: `compendium-list-item app-card-accent app-card-accent--${entry.tipo}${selectedEntry?.id === entry.id ? " is-active" : ""}`, onClick: () => openEntryDetail(entry.id), children: [_jsxs("span", { className: "compendium-list-top", children: [_jsx("strong", { children: renderHighlightedText(entry.nombre, query) }), _jsx("span", { className: "compendium-chip", children: TYPE_LABELS[entry.tipo] })] }), _jsxs("span", { className: "meta-text", children: [canonicalizeCompendiumSourceName(entry.fuente), entry.pagina ? `, p.${entry.pagina}` : ""] }), renderListSummary(entry, query)] }, entry.id)))) : (_jsx("p", { className: "section-help", children: "No hay entradas que coincidan con la b\u00FAsqueda actual." })) })] }) }), isDetailOpen && selectedEntry ? (_jsx("section", { className: "modal-backdrop", onClick: () => setIsDetailOpen(false), children: _jsxs("div", { className: `panel modal-panel compendium-detail compendium-detail-modal app-card-accent app-card-accent--${selectedEntry.tipo}`, onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "compendium-detail-modal-header", children: [_jsxs("div", { className: "row-actions compendium-detail-modal-titlebar", children: [_jsxs("div", { className: "compendium-detail-modal-heading", children: [_jsx("h3", { children: renderHighlightedText(selectedEntry.nombre, query) }), _jsxs("p", { className: "meta-text", children: [TYPE_LABELS[selectedEntry.tipo], " \u00B7 ", canonicalSelectedSource, selectedEntry.pagina ? ` · p.${selectedEntry.pagina}` : ""] })] }), _jsx("button", { className: "subtle-button compendium-detail-modal-close", onClick: () => setIsDetailOpen(false), children: "Cerrar" })] }), _jsxs("div", { className: "toolbar compendium-detail-modal-toolbar", children: [_jsx("button", { className: "subtle-button", disabled: historyIndex <= 0, onClick: () => goToHistory(-1), children: "Anterior" }), _jsx("button", { className: "subtle-button", disabled: historyIndex < 0 || historyIndex >= historyStack.length - 1, onClick: () => goToHistory(1), children: "Siguiente" }), _jsx("button", { className: "subtle-button", onClick: clearFilters, children: "Limpiar filtros" }), _jsx("button", { className: "subtle-button", onClick: () => void copyDeepLink(), children: linkCopied ? "Enlace copiado" : "Copiar enlace" }), sourcePdfUrl ? (_jsx("button", { className: "subtle-button", onClick: openSelectedPdf, children: selectedEntry.pagina ? `Abrir PDF p.${selectedEntry.pagina}` : "Abrir PDF" })) : null, summaryLink ? (_jsx("button", { className: "subtle-button", onClick: openSummaryDocument, children: summaryLink.documentLabel })) : null] })] }), _jsxs("div", { className: "compendium-detail-modal-body", children: [parsedCapabilityDetail && parsedCapabilityDetail.tiers.length > 0 ? (_jsxs("div", { className: "capability-tier-list", children: [parsedCapabilityDetail.tiers.map((tier) => (_jsxs("section", { className: "capability-tier", children: [_jsx("h4", { className: "capability-tier-title", children: tier.label }), _jsx("p", { children: renderHighlightedText(tier.content, query) })] }, `${selectedEntry.id}-${tier.label}`))), parsedCapabilityDetail.reference ? (_jsx("p", { className: "capability-reference", children: renderHighlightedText(parsedCapabilityDetail.reference, query) })) : null] })) : (_jsx("p", { children: renderHighlightedText(selectedEntry.detalle, query) })), selectedEntry.media?.length ? (_jsx("div", { className: "compendium-media-list", children: selectedEntry.media.map((asset) => (_jsxs("figure", { className: "compendium-media-card", children: [_jsx("img", { src: asset.src, alt: asset.alt, className: "compendium-media-image" }), asset.caption ? _jsx("figcaption", { className: "meta-text", children: asset.caption }) : null] }, `${selectedEntry.id}-${asset.src}`))) })) : null, selectedEntry.tags.length > 0 ? (_jsx("div", { className: "compendium-tags", children: selectedEntry.tags.map((tag) => (_jsx("span", { className: "compendium-tag", children: renderHighlightedText(tag, query) }, `${selectedEntry.id}-${tag}`))) })) : null] })] }) })) : null] }));
 }

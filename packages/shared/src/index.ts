@@ -53,8 +53,8 @@ export const SYMBAROUM_ARCHETYPES = [
 export const ATTRIBUTE_KEYS = [
   "agil",
   "atento",
-  "discreto",
   "diestro",
+  "discreto",
   "fuerte",
   "inteligente",
   "persuasivo",
