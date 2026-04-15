@@ -40,6 +40,9 @@ type Props = {
   onBackToCharacters: () => void;
   onOpenSheet: () => void;
   onSave: (sheet: CharacterSheet) => Promise<void>;
+  backLabel?: string;
+  sheetLabel?: string;
+  saveLabel?: string;
 };
 
 type CatalogSelections = {
@@ -182,7 +185,16 @@ function getCapabilityTierForLevel(tiers: CapabilityTier[], level: SkillLevel): 
   return tiers.find((tier) => tier.label === targetLabel) ?? null;
 }
 
-export function CharacterBuilderView({ character, busy = false, onBackToCharacters, onOpenSheet, onSave }: Props) {
+export function CharacterBuilderView({
+  character,
+  busy = false,
+  onBackToCharacters,
+  onOpenSheet,
+  onSave,
+  backLabel = "Volver a personajes",
+  sheetLabel = "Abrir hoja",
+  saveLabel = "Guardar constructor"
+}: Props) {
   const [draft, setDraft] = useState<CharacterSheet>(() => parseCharacterSheet(character.sheet));
   const [catalogSelections, setCatalogSelections] = useState<CatalogSelections>(INITIAL_CATALOG_SELECTIONS);
   const [simpleInputs, setSimpleInputs] = useState<SimpleInputs>({
@@ -560,10 +572,10 @@ export function CharacterBuilderView({ character, busy = false, onBackToCharacte
             <p className="unified-sheet-inline-subtitle">{subtitle}</p>
           </div>
           <div className="toolbar character-builder-toolbar">
-            <button type="button" className="subtle-button" onClick={onBackToCharacters}>Volver a personajes</button>
-            <button type="button" className="subtle-button" onClick={onOpenSheet}>Abrir hoja</button>
+            <button type="button" className="subtle-button" onClick={onBackToCharacters}>{backLabel}</button>
+            <button type="button" className="subtle-button" onClick={onOpenSheet}>{sheetLabel}</button>
             <button type="button" onClick={() => void handleSave()} disabled={busy || isSaving}>
-              {isSaving ? "Guardando..." : "Guardar constructor"}
+              {isSaving ? "Guardando..." : saveLabel}
             </button>
           </div>
         </div>

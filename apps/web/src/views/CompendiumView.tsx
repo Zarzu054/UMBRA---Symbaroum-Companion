@@ -370,7 +370,7 @@ export function CompendiumView({
           </div>
         </div>
 
-        <div className="panel compendium-detail">
+        <div className={`panel compendium-detail${selectedEntry ? ` app-card-accent app-card-accent--${selectedEntry.tipo}` : ""}`}>
           {selectedEntry ? (
             <>
               <div className="row-actions">

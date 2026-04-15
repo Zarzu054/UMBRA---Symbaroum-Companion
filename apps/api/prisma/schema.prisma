@@ -43,6 +43,7 @@ model User {
   createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   characters          Character[]
   monsters            Monster[]
+  npcs                Npc[]
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   gmCampaigns         Campaign[]         @relation("CampaignGm")
@@ -88,6 +89,29 @@ model Monster {
 
   @@index([ownerId])
   @@map("monsters")
+}
+
+model Npc {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId    String   @map("owner_id") @db.Uuid
+  name       String
+  depth      String
+  race       String   @default("")
+  archetype  String   @default("")
+  occupation String   @default("")
+  faction    String   @default("")
+  labels     Json     @default("[]")
+  summary    String   @default("")
+  notes      String   @default("")
+  statBlock  Json?
+  sheet      Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@index([depth])
+  @@map("npcs")
 }
 
 model RefreshToken {

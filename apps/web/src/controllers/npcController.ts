@@ -1,0 +1,216 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  createEmptyNpcInput,
+  createNpcSheetSeed,
+  createDefaultMonsterSheet,
+  type CreateNpcInput,
+  type Npc,
+  type NpcDepth,
+  type UpdateNpcInput
+} from "@umbra/shared";
+import { createNpc, deleteNpc, fetchNpcs, updateNpc } from "../services/npcService";
+
+function normalizeListValue(value: string): string[] {
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+export function useNpcController(ensureAccessToken: () => Promise<string>) {
+  const [npcs, setNpcs] = useState<Npc[]>([]);
+  const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<CreateNpcInput>(() => createEmptyNpcInput());
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  async function refresh(): Promise<void> {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const token = await ensureAccessToken();
+      const nextNpcs = await fetchNpcs(token);
+      setNpcs(nextNpcs);
+      setSelectedNpcId((current) => current && nextNpcs.some((entry) => entry.id === current) ? current : null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo cargar el archivo de PNJ");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function resetDraft(depth: NpcDepth = "notes"): void {
+    const nextDraft = createEmptyNpcInput();
+    nextDraft.depth = depth;
+    if (depth === "stat_block") {
+      nextDraft.statBlock = createDefaultMonsterSheet();
+    }
+    if (depth === "full_sheet") {
+      nextDraft.sheet = createNpcSheetSeed(nextDraft);
+    }
+    setDraft(nextDraft);
+    setError(null);
+  }
+
+  function selectNpc(npcId: string | null): void {
+    setSelectedNpcId(npcId);
+  }
+
+  function loadDraftFromNpc(npc: Npc): void {
+    setDraft({
+      name: npc.name,
+      depth: npc.depth,
+      race: npc.race,
+      archetype: npc.archetype,
+      occupation: npc.occupation,
+      faction: npc.faction,
+      labels: [...npc.labels],
+      summary: npc.summary,
+      notes: npc.notes,
+      statBlock: npc.statBlock ? structuredClone(npc.statBlock) : null,
+      sheet: npc.sheet ? structuredClone(npc.sheet) : null
+    });
+    setError(null);
+  }
+
+  function updateField(field: keyof Omit<CreateNpcInput, "labels" | "statBlock" | "sheet">, value: string): void {
+    setDraft((current) => ({ ...current, [field]: value }));
+    setError(null);
+  }
+
+  function updateDepth(depth: NpcDepth): void {
+    setDraft((current) => ({
+      ...current,
+      depth,
+      statBlock: depth === "notes" ? null : current.statBlock ?? createDefaultMonsterSheet(),
+      sheet: depth === "full_sheet" ? current.sheet ?? createNpcSheetSeed(current) : null
+    }));
+    setError(null);
+  }
+
+  function updateLabels(value: string): void {
+    setDraft((current) => ({
+      ...current,
+      labels: normalizeListValue(value).slice(0, 20)
+    }));
+    setError(null);
+  }
+
+  function updateStatBlockField(
+    field: keyof NonNullable<CreateNpcInput["statBlock"]>,
+    value: string | number | string[]
+  ): void {
+    setDraft((current) => ({
+      ...current,
+      statBlock: {
+        ...(current.statBlock ?? createDefaultMonsterSheet()),
+        [field]: value
+      }
+    }));
+    setError(null);
+  }
+
+  function updateStatBlockAttribute(attribute: keyof NonNullable<CreateNpcInput["statBlock"]>["attributes"], value: number): void {
+    setDraft((current) => ({
+      ...current,
+      statBlock: {
+        ...(current.statBlock ?? createDefaultMonsterSheet()),
+        attributes: {
+          ...(current.statBlock?.attributes ?? createDefaultMonsterSheet().attributes),
+          [attribute]: value
+        }
+      }
+    }));
+    setError(null);
+  }
+
+  async function saveDraft(): Promise<Npc | null> {
+    setIsSaving(true);
+    setError(null);
+    try {
+      const token = await ensureAccessToken();
+      const payload: UpdateNpcInput = {
+        ...draft,
+        name: draft.name.trim(),
+        race: draft.race.trim(),
+        archetype: draft.archetype.trim(),
+        occupation: draft.occupation.trim(),
+        faction: draft.faction.trim(),
+        summary: draft.summary.trim(),
+        notes: draft.notes.trim()
+      };
+      const saved = selectedNpcId
+        ? await updateNpc(selectedNpcId, payload, token)
+        : await createNpc(payload as CreateNpcInput, token);
+      setNpcs((current) => {
+        const index = current.findIndex((entry) => entry.id === saved.id);
+        if (index === -1) {
+          return [saved, ...current];
+        }
+        const next = current.slice();
+        next[index] = saved;
+        return next;
+      });
+      setSelectedNpcId(saved.id);
+      loadDraftFromNpc(saved);
+      return saved;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo guardar el PNJ");
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function removeNpc(npcId: string): Promise<void> {
+    setIsSaving(true);
+    setError(null);
+    try {
+      const token = await ensureAccessToken();
+      await deleteNpc(npcId, token);
+      setNpcs((current) => current.filter((entry) => entry.id !== npcId));
+      if (selectedNpcId === npcId) {
+        setSelectedNpcId(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo eliminar el PNJ");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const selectedNpc = useMemo(
+    () => npcs.find((entry) => entry.id === selectedNpcId) ?? null,
+    [npcs, selectedNpcId]
+  );
+
+  return useMemo(
+    () => ({
+      npcs,
+      selectedNpcId,
+      selectedNpc,
+      draft,
+      isLoading,
+      isSaving,
+      error,
+      refresh,
+      resetDraft,
+      selectNpc,
+      loadDraftFromNpc,
+      updateField,
+      updateDepth,
+      updateLabels,
+      updateStatBlockField,
+      updateStatBlockAttribute,
+      saveDraft,
+      removeNpc,
+      setDraft
+    }),
+    [npcs, selectedNpcId, selectedNpc, draft, isLoading, isSaving, error]
+  );
+}

@@ -332,6 +332,48 @@ td {
   padding: 18px 20px 28px 20px;
 }
 
+.module-theme {
+  --module-panel-accent: rgba(66, 102, 82, 0.58);
+  --module-panel-glow: rgba(66, 102, 82, 0.12);
+  --module-panel-top: rgba(252, 250, 246, 0.96);
+  --module-panel-bottom: rgba(241, 232, 218, 0.92);
+}
+
+.module-theme--characters {
+  --module-panel-accent: rgba(25, 91, 110, 0.78);
+  --module-panel-glow: rgba(25, 91, 110, 0.14);
+  --module-panel-top: rgba(248, 252, 253, 0.98);
+  --module-panel-bottom: rgba(233, 242, 244, 0.94);
+}
+
+.module-theme--campaigns {
+  --module-panel-accent: rgba(62, 94, 79, 0.76);
+  --module-panel-glow: rgba(62, 94, 79, 0.13);
+  --module-panel-top: rgba(248, 251, 246, 0.98);
+  --module-panel-bottom: rgba(233, 239, 227, 0.94);
+}
+
+.module-theme--monsters {
+  --module-panel-accent: rgba(138, 76, 48, 0.8);
+  --module-panel-glow: rgba(138, 76, 48, 0.14);
+  --module-panel-top: rgba(252, 248, 244, 0.98);
+  --module-panel-bottom: rgba(241, 229, 220, 0.94);
+}
+
+.module-theme--compendium {
+  --module-panel-accent: rgba(94, 79, 126, 0.76);
+  --module-panel-glow: rgba(94, 79, 126, 0.13);
+  --module-panel-top: rgba(249, 248, 252, 0.98);
+  --module-panel-bottom: rgba(236, 231, 243, 0.94);
+}
+
+.module-theme--npcs {
+  --module-panel-accent: rgba(90, 84, 124, 0.76);
+  --module-panel-glow: rgba(90, 84, 124, 0.13);
+  --module-panel-top: rgba(249, 248, 252, 0.98);
+  --module-panel-bottom: rgba(235, 231, 243, 0.94);
+}
+
 .content-topbar {
   position: absolute;
   top: 18px;
@@ -364,6 +406,32 @@ td {
     inset 0 0 0 1px rgba(255, 255, 255, 0.22),
     0 10px 24px rgba(82, 58, 32, 0.08);
   position: relative;
+}
+
+.module-theme .panel:not(.modal-panel):not(.error-list):not(.warning-block),
+.module-theme .campaign-sheet-card:not(.app-card-accent),
+.module-theme .card:not(.character-record-card) {
+  border-color: color-mix(in srgb, var(--module-panel-accent) 34%, rgba(112, 87, 61, 0.26));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0.06)),
+    linear-gradient(180deg, rgba(197, 162, 116, 0.05), rgba(197, 162, 116, 0)),
+    var(--paper);
+  box-shadow:
+    inset 3px 0 0 color-mix(in srgb, var(--module-panel-accent) 88%, rgba(255, 255, 255, 0.12)),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+    0 10px 24px rgba(82, 58, 32, 0.08);
+  overflow: hidden;
+}
+
+.module-theme .campaign-sheet-card:not(.app-card-accent)::before,
+.module-theme .panel:not(.modal-panel):not(.error-list):not(.warning-block)::before,
+.module-theme .card:not(.character-record-card)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--module-panel-accent) 2.5%, transparent), transparent 10%);
+  opacity: 0.18;
 }
 
 .lore-panel {
@@ -1309,6 +1377,37 @@ button.subtle-button {
   gap: 12px;
 }
 
+.npc-faction-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.npc-faction-group {
+  display: grid;
+  gap: 12px;
+}
+
+.npc-record-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.npc-record-card {
+  display: grid;
+  gap: 10px;
+}
+
+.npc-record-card p {
+  margin: 0;
+}
+
+.npc-editor-modal .monster-builder-card {
+  min-height: 0;
+}
+
+.npc-detail-notes {
+  margin-top: 14px;
+}
+
 .monster-record-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2142,7 +2241,8 @@ td {
 .character-builder-shell {
   min-height: calc(100dvh - 52px);
   grid-template-rows: auto auto minmax(0, 1fr);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .character-directory-header-band,
@@ -2179,7 +2279,7 @@ td {
 
 .character-builder-stage {
   min-height: 0;
-  overflow: auto;
+  overflow: visible;
   padding-right: 0.12rem;
   align-content: start;
 }
@@ -2189,6 +2289,7 @@ td {
   gap: 12px;
   min-height: 0;
   align-content: start;
+  overflow: visible;
 }
 
 .character-builder-tabs {
@@ -2204,6 +2305,17 @@ td {
 
 .character-builder-panel {
   align-content: start;
+  overflow: visible;
+}
+
+.module-theme .character-builder-panel.campaign-sheet-card,
+.module-theme .character-builder-shell.campaign-sheet-card {
+  overflow: visible;
+}
+
+.module-theme .character-builder-shell.campaign-sheet-card {
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .character-directory-toolbar-row {
@@ -3770,6 +3882,7 @@ td {
 }
 
 .campaign-structured-card.app-card-accent,
+.panel.app-card-accent.compendium-detail,
 .compendium-list-item.app-card-accent,
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card.app-card-accent {
   border-color: rgba(126, 100, 76, 0.26);
@@ -3781,6 +3894,8 @@ td {
 
 .campaign-structured-card.app-card-accent.is-clickable-card:hover,
 .campaign-structured-card.app-card-accent.is-clickable-card:focus-visible,
+.panel.app-card-accent.compendium-detail:hover,
+.panel.app-card-accent.compendium-detail:focus-visible,
 .compendium-list-item.app-card-accent:hover,
 .compendium-list-item.app-card-accent:focus-visible,
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card.app-card-accent.is-clickable:hover,
@@ -3894,6 +4009,24 @@ td {
   --app-card-accent-color: rgba(50, 103, 86, 0.82);
   --app-card-bg-top: rgba(245, 251, 249, 0.98);
   --app-card-bg-bottom: rgba(225, 238, 233, 0.9);
+}
+
+.app-card-accent--npc-notes {
+  --app-card-accent-color: rgba(94, 84, 122, 0.8);
+  --app-card-bg-top: rgba(250, 248, 252, 0.98);
+  --app-card-bg-bottom: rgba(236, 231, 243, 0.9);
+}
+
+.app-card-accent--npc-stat_block {
+  --app-card-accent-color: rgba(129, 88, 52, 0.82);
+  --app-card-bg-top: rgba(253, 250, 245, 0.98);
+  --app-card-bg-bottom: rgba(241, 231, 218, 0.9);
+}
+
+.app-card-accent--npc-full_sheet {
+  --app-card-accent-color: rgba(30, 94, 112, 0.8);
+  --app-card-bg-top: rgba(247, 252, 253, 0.98);
+  --app-card-bg-bottom: rgba(229, 241, 244, 0.9);
 }
 
 .unified-sheet-action-detail-modal {
