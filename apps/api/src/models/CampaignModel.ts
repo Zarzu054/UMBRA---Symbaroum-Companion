@@ -45,6 +45,17 @@ const campaignInclude = {
     }
   },
   references: {
+    include: {
+      author: true,
+      sharedWith: {
+        include: {
+          user: true
+        },
+        orderBy: {
+          createdAt: "asc"
+        }
+      }
+    },
     orderBy: {
       updatedAt: "desc"
     }
@@ -135,7 +146,11 @@ function mapCampaign(
   const linkedIds = new Set(row.characters.map((entry) => entry.characterId));
   const isDirector = viewerRole === "superadmin" || row.gmId === viewerId;
   const visibleSessions = row.sessions;
-  const visibleReferences = row.references.filter((reference) => isDirector || reference.isPublic);
+  const visibleReferences = row.references.filter((reference) =>
+    isDirector ||
+    reference.visibility === "campaign" ||
+    (reference.visibility === "selected_players" && reference.sharedWith.some((entry) => entry.userId === viewerId))
+  );
   const visibleChatMessages = row.chatMessages.filter(
     (message) => isDirector || message.userId === viewerId || message.visibility === "all"
   );
@@ -228,7 +243,11 @@ function mapCampaign(
       aliases: Array.isArray(reference.aliases) ? reference.aliases.filter((entry): entry is string => typeof entry === "string") : [],
       summary: reference.summary,
       content: reference.content,
-      isPublic: reference.isPublic,
+      authorId: reference.authorId,
+      authorEmail: reference.author.email,
+      visibility: reference.visibility,
+      sharedWithUserIds: isDirector ? reference.sharedWith.map((entry) => entry.userId) : [],
+      sharedWithEmails: isDirector ? reference.sharedWith.map((entry) => entry.user.email) : [],
       createdAt: reference.createdAt.toISOString(),
       updatedAt: reference.updatedAt.toISOString()
     })),
@@ -477,24 +496,32 @@ export class CampaignModel {
 
   async createReference(
     campaignId: string,
+    authorId: string,
     payload: {
       name: string;
       label: string;
       aliases: string[];
       summary: string;
       content: string;
-      isPublic: boolean;
+      visibility: "gm_only" | "campaign" | "selected_players";
+      sharedWithUserIds: string[];
     }
   ): Promise<void> {
     await prisma.campaignReference.create({
       data: {
         campaignId,
+        authorId,
         name: payload.name,
         label: payload.label,
         aliases: payload.aliases,
         summary: payload.summary,
         content: payload.content,
-        isPublic: payload.isPublic
+        visibility: payload.visibility,
+        sharedWith: payload.sharedWithUserIds.length > 0 ? {
+          createMany: {
+            data: payload.sharedWithUserIds.map((userId) => ({ userId }))
+          }
+        } : undefined
       }
     });
   }
@@ -507,7 +534,8 @@ export class CampaignModel {
       aliases: string[];
       summary: string;
       content: string;
-      isPublic: boolean;
+      visibility: "gm_only" | "campaign" | "selected_players";
+      sharedWithUserIds: string[];
     }>
   ): Promise<void> {
     await prisma.campaignReference.update({
@@ -518,7 +546,21 @@ export class CampaignModel {
         aliases: payload.aliases,
         summary: payload.summary,
         content: payload.content,
-        isPublic: payload.isPublic
+        visibility: payload.visibility,
+        ...(payload.sharedWithUserIds
+          ? {
+              sharedWith: {
+                deleteMany: {},
+                ...(payload.sharedWithUserIds.length > 0
+                  ? {
+                      createMany: {
+                        data: payload.sharedWithUserIds.map((userId) => ({ userId }))
+                      }
+                    }
+                  : {})
+              }
+            }
+          : {})
       }
     });
   }
@@ -664,10 +706,12 @@ export class CampaignModel {
     });
   }
 
-  async findReferenceById(referenceId: string): Promise<{ id: string; campaignId: string } | null> {
+  async findReferenceById(
+    referenceId: string
+  ): Promise<{ id: string; campaignId: string; authorId: string; visibility: "gm_only" | "campaign" | "selected_players" } | null> {
     return prisma.campaignReference.findUnique({
       where: { id: referenceId },
-      select: { id: true, campaignId: true }
+      select: { id: true, campaignId: true, authorId: true, visibility: true }
     });
   }
 

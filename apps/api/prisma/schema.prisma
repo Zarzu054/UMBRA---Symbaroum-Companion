@@ -34,6 +34,12 @@ enum CampaignChatMessageType {
   action
 }
 
+enum CampaignReferenceVisibility {
+  gm_only
+  campaign
+  selected_players
+}
+
 model User {
   id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email               String             @unique
@@ -50,6 +56,8 @@ model User {
   campaignMemberships CampaignMember[]
   campaignXpGrants    CampaignXpLog[]    @relation("CampaignXpGrantUser")
   campaignChatMessages CampaignChatMessage[]
+  authoredCampaignReferences CampaignReference[] @relation("CampaignReferenceAuthor")
+  campaignReferenceShares CampaignReferenceShare[]
 
   @@map("users")
 }
@@ -279,17 +287,34 @@ model CampaignSession {
 model CampaignReference {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   campaignId String   @map("campaign_id") @db.Uuid
+  authorId   String   @map("author_id") @db.Uuid
   name       String
   label      String
   aliases    Json     @default("[]")
   summary    String   @default("")
   content    String   @default("")
-  isPublic   Boolean  @default(false) @map("is_public")
+  visibility CampaignReferenceVisibility @default(gm_only)
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  author     User     @relation("CampaignReferenceAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  sharedWith CampaignReferenceShare[]
 
   @@index([campaignId])
   @@index([name])
+  @@index([authorId])
   @@map("campaign_references")
+}
+
+model CampaignReferenceShare {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  referenceId String            @map("reference_id") @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  reference   CampaignReference @relation(fields: [referenceId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([referenceId, userId])
+  @@index([userId])
+  @@map("campaign_reference_shares")
 }

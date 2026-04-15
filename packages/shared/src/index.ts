@@ -1634,6 +1634,7 @@ export const resetPasswordSchema = z.object({
 
 export const campaignMemberRoleSchema = z.enum(["gm", "player"]);
 export const campaignSessionStatusSchema = z.enum(["planned", "completed", "cancelled"]);
+export const campaignReferenceVisibilitySchema = z.enum(["gm_only", "campaign", "selected_players"]);
 
 export const createCampaignSchema = z.object({
   name: z.string().min(3).max(120),
@@ -1734,7 +1735,8 @@ export const createCampaignReferenceSchema = z.object({
   aliases: z.array(z.string().min(1).max(120)).max(20).default([]),
   summary: z.string().max(300).default(""),
   content: z.string().max(6000).default(""),
-  isPublic: z.boolean().default(false)
+  visibility: campaignReferenceVisibilitySchema.default("campaign"),
+  sharedWithUserIds: z.array(z.string().uuid()).max(50).default([])
 });
 
 export const updateCampaignReferenceSchema = createCampaignReferenceSchema.partial();
@@ -1747,6 +1749,7 @@ export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchem
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type CampaignMemberRole = z.infer<typeof campaignMemberRoleSchema>;
 export type CampaignSessionStatus = z.infer<typeof campaignSessionStatusSchema>;
+export type CampaignReferenceVisibility = z.infer<typeof campaignReferenceVisibilitySchema>;
 export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
 export type UpdateCampaignInput = z.infer<typeof updateCampaignSchema>;
 export type AddCampaignMemberInput = z.infer<typeof addCampaignMemberSchema>;
@@ -1867,7 +1870,11 @@ export type CampaignReference = {
   aliases: string[];
   summary: string;
   content: string;
-  isPublic: boolean;
+  authorId: string;
+  authorEmail: string;
+  visibility: CampaignReferenceVisibility;
+  sharedWithUserIds: string[];
+  sharedWithEmails: string[];
   createdAt: string;
   updatedAt: string;
 };
