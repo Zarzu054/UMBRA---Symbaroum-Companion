@@ -1039,6 +1039,17 @@ button.subtle-button {
   color: inherit;
 }
 
+.compendium-highlight-button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  line-height: inherit;
+}
+
+.compendium-highlight-button:hover {
+  background: rgba(156, 74, 46, 0.3);
+}
+
 .campaign-layout {
   display: grid;
   grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.45fr);
@@ -1981,6 +1992,27 @@ td {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   font-size: 0.88rem;
+}
+
+.campaign-shared-notes-card {
+  gap: 1rem;
+}
+
+.campaign-shared-notes-copy {
+  min-height: 120px;
+  padding: 0.35rem 0 0.1rem;
+}
+
+.campaign-shared-notes-copy p {
+  margin: 0;
+  color: #433126;
+  font-size: 1.05rem;
+  line-height: 1.85;
+  white-space: pre-wrap;
+}
+
+.campaign-shared-notes-modal {
+  width: min(760px, 100%);
 }
 
 .campaign-header-actions {
