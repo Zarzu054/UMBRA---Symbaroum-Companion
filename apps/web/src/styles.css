@@ -329,7 +329,7 @@ td {
 .app-content {
   position: relative;
   min-width: 0;
-  padding: 18px 20px 28px 20px;
+  padding: 9px 20px 28px 20px;
 }
 
 .module-theme {
@@ -890,6 +890,31 @@ button.subtle-button {
   overflow: auto;
   display: grid;
   gap: 14px;
+  padding-top: 8px;
+}
+
+.campaign-character-sheet-modal {
+  width: min(1380px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.campaign-character-sheet-modal-header {
+  align-items: start;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+.campaign-character-sheet-modal-header h3,
+.campaign-character-sheet-modal-header p {
+  margin: 0;
+}
+
+.campaign-character-sheet-modal-body {
+  min-height: 0;
+  overflow: auto;
   padding-top: 8px;
 }
 
@@ -2954,7 +2979,7 @@ td {
   }
 
   .app-content {
-    padding: 16px 12px 24px;
+    padding: 8px 12px 24px;
   }
 }
 

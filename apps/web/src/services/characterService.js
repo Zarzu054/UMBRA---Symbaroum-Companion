@@ -1,27 +1,11 @@
+import { readFriendlyApiError } from "./apiError";
 const JSON_HEADERS = { "Content-Type": "application/json" };
-async function parseError(response) {
-    try {
-        const payload = (await response.json());
-        const details = Array.isArray(payload.details)
-            ? payload.details
-                .map((item) => (item.path ? `${item.path}: ${item.message ?? "Valor invalido"}` : item.message ?? "Valor invalido"))
-                .filter(Boolean)
-            : [];
-        if (details.length > 0) {
-            return `${payload.message ?? payload.error ?? "Validacion fallida"}\n${details.join("\n")}`;
-        }
-        return payload.message ?? payload.error ?? `Fallo de solicitud (${response.status})`;
-    }
-    catch {
-        return `Fallo de solicitud (${response.status})`;
-    }
-}
 export async function fetchCharacters(accessToken) {
     const response = await fetch("/api/characters", {
         headers: { Authorization: `Bearer ${accessToken}` }
     });
     if (!response.ok)
-        throw new Error(await parseError(response));
+        throw new Error(await readFriendlyApiError(response));
     const payload = (await response.json());
     return payload.data;
 }
@@ -32,7 +16,7 @@ export async function createCharacter(input, accessToken) {
         body: JSON.stringify(input)
     });
     if (!response.ok)
-        throw new Error(await parseError(response));
+        throw new Error(await readFriendlyApiError(response));
     const payload = (await response.json());
     return payload.data;
 }
@@ -43,7 +27,7 @@ export async function importCharacter(input, accessToken) {
         body: JSON.stringify(input)
     });
     if (!response.ok)
-        throw new Error(await parseError(response));
+        throw new Error(await readFriendlyApiError(response));
     const payload = (await response.json());
     return payload.data;
 }
@@ -54,7 +38,7 @@ export async function updateCharacter(characterId, input, accessToken) {
         body: JSON.stringify(input)
     });
     if (!response.ok)
-        throw new Error(await parseError(response));
+        throw new Error(await readFriendlyApiError(response));
     const payload = (await response.json());
     return payload.data;
 }
@@ -64,7 +48,7 @@ export async function duplicateCharacter(characterId, accessToken) {
         headers: { Authorization: `Bearer ${accessToken}` }
     });
     if (!response.ok)
-        throw new Error(await parseError(response));
+        throw new Error(await readFriendlyApiError(response));
     const payload = (await response.json());
     return payload.data;
 }
@@ -74,5 +58,5 @@ export async function deleteCharacter(characterId, accessToken) {
         headers: { Authorization: `Bearer ${accessToken}` }
     });
     if (!response.ok)
-        throw new Error(await parseError(response));
+        throw new Error(await readFriendlyApiError(response));
 }

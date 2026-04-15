@@ -23,7 +23,8 @@ export function useNpcController(ensureAccessToken: () => Promise<string>) {
   const [draft, setDraft] = useState<CreateNpcInput>(() => createEmptyNpcInput());
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     void refresh();
@@ -31,14 +32,14 @@ export function useNpcController(ensureAccessToken: () => Promise<string>) {
 
   async function refresh(): Promise<void> {
     setIsLoading(true);
-    setError(null);
+    setLoadError(null);
     try {
       const token = await ensureAccessToken();
       const nextNpcs = await fetchNpcs(token);
       setNpcs(nextNpcs);
       setSelectedNpcId((current) => current && nextNpcs.some((entry) => entry.id === current) ? current : null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo cargar el archivo de PNJ");
+      setLoadError(err instanceof Error ? err.message : "No se pudo cargar el archivo de PNJ");
     } finally {
       setIsLoading(false);
     }
@@ -54,7 +55,7 @@ export function useNpcController(ensureAccessToken: () => Promise<string>) {
       nextDraft.sheet = createNpcSheetSeed(nextDraft);
     }
     setDraft(nextDraft);
-    setError(null);
+    setFormError(null);
   }
 
   function selectNpc(npcId: string | null): void {
@@ -75,12 +76,12 @@ export function useNpcController(ensureAccessToken: () => Promise<string>) {
       statBlock: npc.statBlock ? structuredClone(npc.statBlock) : null,
       sheet: npc.sheet ? structuredClone(npc.sheet) : null
     });
-    setError(null);
+    setFormError(null);
   }
 
   function updateField(field: keyof Omit<CreateNpcInput, "labels" | "statBlock" | "sheet">, value: string): void {
     setDraft((current) => ({ ...current, [field]: value }));
-    setError(null);
+    setFormError(null);
   }
 
   function updateDepth(depth: NpcDepth): void {
@@ -90,7 +91,7 @@ export function useNpcController(ensureAccessToken: () => Promise<string>) {
       statBlock: depth === "notes" ? null : current.statBlock ?? createDefaultMonsterSheet(),
       sheet: depth === "full_sheet" ? current.sheet ?? createNpcSheetSeed(current) : null
     }));
-    setError(null);
+    setFormError(null);
   }
 
   function updateLabels(value: string): void {
@@ -98,7 +99,7 @@ export function useNpcController(ensureAccessToken: () => Promise<string>) {
       ...current,
       labels: normalizeListValue(value).slice(0, 20)
     }));
-    setError(null);
+    setFormError(null);
   }
 
   function updateStatBlockField(
@@ -112,7 +113,7 @@ export function useNpcController(ensureAccessToken: () => Promise<string>) {
         [field]: value
       }
     }));
-    setError(null);
+    setFormError(null);
   }
 
   function updateStatBlockAttribute(attribute: keyof NonNullable<CreateNpcInput["statBlock"]>["attributes"], value: number): void {
@@ -126,12 +127,12 @@ export function useNpcController(ensureAccessToken: () => Promise<string>) {
         }
       }
     }));
-    setError(null);
+    setFormError(null);
   }
 
   async function saveDraft(): Promise<Npc | null> {
     setIsSaving(true);
-    setError(null);
+    setFormError(null);
     try {
       const token = await ensureAccessToken();
       const payload: UpdateNpcInput = {
@@ -160,7 +161,7 @@ export function useNpcController(ensureAccessToken: () => Promise<string>) {
       loadDraftFromNpc(saved);
       return saved;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar el PNJ");
+      setFormError(err instanceof Error ? err.message : "No se pudo guardar el PNJ");
       return null;
     } finally {
       setIsSaving(false);
@@ -169,7 +170,7 @@ export function useNpcController(ensureAccessToken: () => Promise<string>) {
 
   async function removeNpc(npcId: string): Promise<void> {
     setIsSaving(true);
-    setError(null);
+    setLoadError(null);
     try {
       const token = await ensureAccessToken();
       await deleteNpc(npcId, token);
@@ -178,7 +179,7 @@ export function useNpcController(ensureAccessToken: () => Promise<string>) {
         setSelectedNpcId(null);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo eliminar el PNJ");
+      setLoadError(err instanceof Error ? err.message : "No se pudo eliminar el PNJ");
     } finally {
       setIsSaving(false);
     }
@@ -197,7 +198,8 @@ export function useNpcController(ensureAccessToken: () => Promise<string>) {
       draft,
       isLoading,
       isSaving,
-      error,
+      loadError,
+      formError,
       refresh,
       resetDraft,
       selectNpc,
@@ -211,6 +213,6 @@ export function useNpcController(ensureAccessToken: () => Promise<string>) {
       removeNpc,
       setDraft
     }),
-    [npcs, selectedNpcId, selectedNpc, draft, isLoading, isSaving, error]
+    [npcs, selectedNpcId, selectedNpc, draft, isLoading, isSaving, loadError, formError]
   );
 }

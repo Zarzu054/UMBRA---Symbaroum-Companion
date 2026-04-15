@@ -1,14 +1,6 @@
 import { fromSession } from "../models/authModel";
+import { readFriendlyApiError } from "./apiError";
 const JSON_HEADERS = { "Content-Type": "application/json" };
-async function parseError(response) {
-    try {
-        const payload = (await response.json());
-        return payload.message ?? payload.error ?? `Fallo de solicitud (${response.status})`;
-    }
-    catch {
-        return `Fallo de solicitud (${response.status})`;
-    }
-}
 async function postJson(url, body, token) {
     const headers = { ...JSON_HEADERS };
     if (token)
@@ -19,7 +11,7 @@ async function postJson(url, body, token) {
         body: JSON.stringify(body)
     });
     if (!response.ok) {
-        throw new Error(await parseError(response));
+        throw new Error(await readFriendlyApiError(response));
     }
     if (response.status === 204) {
         return undefined;
@@ -57,7 +49,7 @@ export async function getCurrentUser(accessToken) {
         headers: { Authorization: `Bearer ${accessToken}` }
     });
     if (!response.ok) {
-        throw new Error(await parseError(response));
+        throw new Error(await readFriendlyApiError(response));
     }
     const payload = (await response.json());
     return payload.data;
@@ -67,7 +59,7 @@ export async function fetchSupportUsers(accessToken) {
         headers: { Authorization: `Bearer ${accessToken}` }
     });
     if (!response.ok) {
-        throw new Error(await parseError(response));
+        throw new Error(await readFriendlyApiError(response));
     }
     const payload = (await response.json());
     return payload.data;

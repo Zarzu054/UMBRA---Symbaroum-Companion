@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   createCampaignReferenceSchema,
   createCampaignSchema,
@@ -20,6 +20,8 @@ import {
   updateCampaignReference
 } from "../services/campaignService";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { ALL_ENTRIES } from "../models/compendiumEntries";
 
 type Props = {
   user: AuthUser;
@@ -29,9 +31,10 @@ type Props = {
 type CampaignHashState = {
   campaignId: string | null;
   sheetId: string | null;
+  section: CampaignSection | null;
 };
 
-type CampaignSection = "dmNotes" | "sharedNotes" | "wiki" | "members" | "characters" | "sheet";
+type CampaignSection = "dmNotes" | "sharedNotes" | "wiki" | "members" | "characters";
 
 const emptyCampaignForm: CreateCampaignInput = {
   name: "",
@@ -53,24 +56,41 @@ const emptyReferenceForm: CreateCampaignReferenceInput = {
 function parseCampaignHash(): CampaignHashState {
   const rawHash = window.location.hash.replace(/^#/, "");
   if (!rawHash.startsWith("campaigns")) {
-    return { campaignId: null, sheetId: null };
+    return { campaignId: null, sheetId: null, section: null };
   }
 
   const [, search = ""] = rawHash.split("?");
   const params = new URLSearchParams(search);
+  const rawSection = params.get("section");
+  const section: CampaignSection | null =
+    rawSection === "dmNotes" ||
+    rawSection === "sharedNotes" ||
+    rawSection === "wiki" ||
+    rawSection === "members" ||
+    rawSection === "characters"
+      ? rawSection
+      : null;
   return {
     campaignId: params.get("id"),
-    sheetId: params.get("sheetId")
+    sheetId: params.get("sheetId"),
+    section
   };
 }
 
-function replaceCampaignHash(campaignId: string | null, sheetId: string | null): void {
+function replaceCampaignHash(
+  campaignId: string | null,
+  sheetId: string | null,
+  section: CampaignSection | null
+): void {
   const params = new URLSearchParams();
   if (campaignId) {
     params.set("id", campaignId);
   }
   if (sheetId) {
     params.set("sheetId", sheetId);
+  }
+  if (campaignId && section) {
+    params.set("section", section);
   }
 
   const nextHash = params.toString() ? `#campaigns?${params.toString()}` : "#campaigns";
@@ -83,16 +103,28 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleString();
 }
 
+function normalizeCompendiumName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const initialHash = parseCampaignHash();
   const isDirector = user.role === "gm" || user.role === "superadmin";
+  const defaultSection: CampaignSection = isDirector ? "dmNotes" : "sharedNotes";
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(initialHash.campaignId);
   const [selectedSheetId, setSelectedSheetId] = useState<string | null>(initialHash.sheetId);
-  const [activeSection, setActiveSection] = useState<CampaignSection>(isDirector ? "dmNotes" : "sharedNotes");
+  const [activeSection, setActiveSection] = useState<CampaignSection>(
+    initialHash.section && (isDirector || initialHash.section !== "dmNotes") ? initialHash.section : defaultSection
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [campaignForm, setCampaignForm] = useState<CreateCampaignInput>(emptyCampaignForm);
   const [draft, setDraft] = useState<CreateCampaignInput>(emptyCampaignForm);
   const [memberEmail, setMemberEmail] = useState("");
@@ -124,6 +156,44 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       ),
     [isDirector, selectedCampaign, user.id]
   );
+  const burdenEntries = useMemo(
+    () => ALL_ENTRIES.filter((entry) => entry.tipo === "carga"),
+    []
+  );
+  const campaignBurdenDigest = useMemo(() => {
+    if (!selectedCampaign || !isDirector) {
+      return [];
+    }
+
+    return selectedCampaign.characters.flatMap((entry) => {
+      const burdens = entry.sheet?.cargas ?? [];
+      return burdens.map((burdenName) => {
+        const match = burdenEntries.find(
+          (candidate) => normalizeCompendiumName(candidate.nombre) === normalizeCompendiumName(burdenName)
+        );
+
+        return {
+          id: `${entry.id}-${normalizeCompendiumName(burdenName)}`,
+          burdenName,
+          characterName: entry.name,
+          ownerEmail: entry.ownerEmail,
+          summary: match?.resumen ?? "Carga registrada en la ficha del personaje.",
+          detail: match?.detalle ?? "Consulta el compendio o la hoja del personaje para el detalle completo.",
+          source: match ? `${match.fuente}${match.pagina ? ` · p.${match.pagina}` : ""}` : "Sin referencia enlazada"
+        };
+      });
+    });
+  }, [burdenEntries, isDirector, selectedCampaign]);
+  const campaignSheetModalEntry = isDirector && selectedSheetEntry?.sheet ? selectedSheetEntry : null;
+  const isSheetModalOpen = Boolean(campaignSheetModalEntry);
+  const isAnyModalOpen =
+    isCreateCampaignModalOpen ||
+    isCampaignDetailsModalOpen ||
+    isReferenceCreateModalOpen ||
+    isReferenceDetailModalOpen ||
+    isSheetModalOpen;
+
+  useBodyScrollLock(isAnyModalOpen);
 
   useEffect(() => {
     void refresh();
@@ -134,16 +204,17 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const next = parseCampaignHash();
       setSelectedCampaignId(next.campaignId);
       setSelectedSheetId(next.sheetId);
+      setActiveSection(next.section && (isDirector || next.section !== "dmNotes") ? next.section : defaultSection);
     }
 
     syncSelectionFromHash();
     window.addEventListener("hashchange", syncSelectionFromHash);
     return () => window.removeEventListener("hashchange", syncSelectionFromHash);
-  }, []);
+  }, [defaultSection, isDirector]);
 
   useEffect(() => {
-    replaceCampaignHash(selectedCampaignId, selectedSheetId);
-  }, [selectedCampaignId, selectedSheetId]);
+    replaceCampaignHash(selectedCampaignId, selectedSheetId, selectedCampaignId ? activeSection : null);
+  }, [activeSection, selectedCampaignId, selectedSheetId]);
 
   useEffect(() => {
     if (!isDirector && activeSection === "dmNotes") {
@@ -215,20 +286,17 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
     if (selectedSheetId && !selectedCampaign.characters.some((entry) => entry.id === selectedSheetId)) {
       setSelectedSheetId(null);
-      if (activeSection === "sheet") {
-        setActiveSection("characters");
-      }
     }
   }, [activeSection, selectedCampaign, selectedCampaignId, selectedSheetId]);
 
   async function refresh(): Promise<void> {
     setIsLoading(true);
-    setError(null);
+    setLoadError(null);
     try {
       const token = await ensureAccessToken();
       setCampaigns(await fetchCampaigns(token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron cargar las campanas");
+      setLoadError(err instanceof Error ? err.message : "No se pudieron cargar las campanas");
     } finally {
       setIsLoading(false);
     }
@@ -245,17 +313,18 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   }
 
   async function handleCreateCampaign(): Promise<void> {
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
       const created = await createCampaign(createCampaignSchema.parse(campaignForm), token);
       upsertCampaign(created);
       setCampaignForm(emptyCampaignForm);
+      setFormError(null);
       setIsCreateCampaignModalOpen(false);
       setActiveSection("dmNotes");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear la campana");
+      setFormError(err instanceof Error ? err.message : "No se pudo crear la campana");
     } finally {
       setIsSaving(false);
     }
@@ -266,7 +335,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
@@ -277,9 +346,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           setting: draft.setting
         }, token)
       );
+      setFormError(null);
       setIsCampaignDetailsModalOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron guardar los detalles");
+      setFormError(err instanceof Error ? err.message : "No se pudieron guardar los detalles");
     } finally {
       setIsSaving(false);
     }
@@ -290,13 +360,13 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
       upsertCampaign(await updateCampaign(selectedCampaign.id, { notes: draft.notes }, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron guardar las notas del DJ");
+      setFormError(err instanceof Error ? err.message : "No se pudieron guardar las notas del DJ");
     } finally {
       setIsSaving(false);
     }
@@ -307,13 +377,13 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
       upsertCampaign(await updateCampaign(selectedCampaign.id, { sharedNotes: draft.sharedNotes }, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron guardar las notas compartidas");
+      setFormError(err instanceof Error ? err.message : "No se pudieron guardar las notas compartidas");
     } finally {
       setIsSaving(false);
     }
@@ -324,27 +394,27 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
       upsertCampaign(await addCampaignMember(selectedCampaign.id, { email: memberEmail.trim() }, token));
       setMemberEmail("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo agregar el miembro");
+      setFormError(err instanceof Error ? err.message : "No se pudo agregar el miembro");
     } finally {
       setIsSaving(false);
     }
   }
 
   async function handleRemoveMember(memberId: string): Promise<void> {
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
       upsertCampaign(await removeCampaignMember(memberId, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo quitar el miembro");
+      setFormError(err instanceof Error ? err.message : "No se pudo quitar el miembro");
     } finally {
       setIsSaving(false);
     }
@@ -355,20 +425,20 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
       upsertCampaign(await linkCampaignCharacter(selectedCampaign.id, selectedAvailableCharacterId, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo vincular el personaje");
+      setFormError(err instanceof Error ? err.message : "No se pudo vincular el personaje");
     } finally {
       setIsSaving(false);
     }
   }
 
   async function handleUnlinkCharacter(linkId: string): Promise<void> {
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
@@ -378,7 +448,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         setActiveSection("characters");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo desvincular el personaje");
+      setFormError(err instanceof Error ? err.message : "No se pudo desvincular el personaje");
     } finally {
       setIsSaving(false);
     }
@@ -389,7 +459,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
@@ -407,10 +477,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         (entry) => entry.name === payload.name && entry.label === payload.label && entry.content === payload.content
       );
       setSelectedReferenceId(createdReference?.id ?? null);
+      setFormError(null);
       setIsReferenceCreateModalOpen(false);
       setIsReferenceDetailModalOpen(Boolean(createdReference));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear la referencia");
+      setFormError(err instanceof Error ? err.message : "No se pudo crear la referencia");
     } finally {
       setIsSaving(false);
     }
@@ -421,7 +492,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
@@ -435,29 +506,31 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       });
       upsertCampaign(await updateCampaignReference(selectedReference.id, payload, token));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar la referencia");
+      setFormError(err instanceof Error ? err.message : "No se pudo guardar la referencia");
     } finally {
       setIsSaving(false);
     }
   }
 
   async function handleDeleteReference(referenceId: string): Promise<void> {
-    setError(null);
+    setFormError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
       const updated = await deleteCampaignReference(referenceId, token);
       upsertCampaign(updated);
       setSelectedReferenceId(null);
+      setFormError(null);
       setIsReferenceDetailModalOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo eliminar la referencia");
+      setFormError(err instanceof Error ? err.message : "No se pudo eliminar la referencia");
     } finally {
       setIsSaving(false);
     }
   }
 
   function handlePrepareNewReference(): void {
+    setFormError(null);
     setSelectedReferenceId(null);
     setReferenceForm(emptyReferenceForm);
     setReferenceAliasesText("");
@@ -466,6 +539,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   }
 
   function openReferenceDetail(referenceId: string): void {
+    setFormError(null);
     setSelectedReferenceId(referenceId);
     setIsReferenceCreateModalOpen(false);
     setIsReferenceDetailModalOpen(true);
@@ -482,7 +556,13 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             </div>
             <div className="toolbar">
               {isDirector ? (
-                <button type="button" onClick={() => setIsCreateCampaignModalOpen(true)}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormError(null);
+                    setIsCreateCampaignModalOpen(true);
+                  }}
+                >
                   Nueva campana
                 </button>
               ) : null}
@@ -492,7 +572,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             </div>
           </div>
 
-          {error ? <p className="error-text">{error}</p> : null}
+          {loadError ? <p className="error-text">{loadError}</p> : null}
           {isLoading ? <p>Cargando campanas...</p> : null}
 
           <div className="campaign-list">
@@ -541,12 +621,23 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   Volver a campanas
                 </button>
                 {isDirector ? (
-                  <button type="button" disabled={isSaving} onClick={() => setIsCampaignDetailsModalOpen(true)}>
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => {
+                      setFormError(null);
+                      setIsCampaignDetailsModalOpen(true);
+                    }}
+                  >
                     Detalles
                   </button>
                 ) : null}
               </div>
             </div>
+
+            {formError && !isCampaignDetailsModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen ? (
+              <p className="error-text">{formError}</p>
+            ) : null}
 
             <div className="toolbar campaign-section-nav">
               {isDirector ? (
@@ -586,15 +677,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               >
                 Personajes
               </button>
-              {isDirector && selectedSheetEntry?.sheet ? (
-                <button
-                  type="button"
-                  className={activeSection === "sheet" ? "is-active" : ""}
-                  onClick={() => setActiveSection("sheet")}
-                >
-                  Hoja abierta
-                </button>
-              ) : null}
             </div>
           </section>
 
@@ -749,7 +831,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     <article key={entry.id} className="card">
                       <strong>{entry.name}</strong>
                       <span>{entry.ownerEmail}</span>
-                      <span>PX total: {entry.experienceTotal} · PX gastada: {entry.experienceSpent}</span>
+                      <span>PX total: {entry.experienceTotal} Â· PX gastada: {entry.experienceSpent}</span>
                       <span>Actualizado: {formatDate(entry.updatedAt)}</span>
                       <div className="card-actions">
                         {isDirector && entry.sheet ? (
@@ -757,7 +839,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                             type="button"
                             onClick={() => {
                               setSelectedSheetId(entry.id);
-                              setActiveSection("sheet");
                             }}
                           >
                             Abrir hoja
@@ -776,15 +857,51 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   <p className="section-help">Todavia no hay personajes vinculados.</p>
                 ) : null}
               </div>
+
+              {isDirector ? (
+                <section className="campaign-burden-summary">
+                  <div className="row-actions">
+                    <div>
+                      <h3>Resumen de cargas</h3>
+                      <p className="section-help">
+                        Vista rapida para el DJ con las cargas activas de los personajes vinculados y su explicacion.
+                      </p>
+                    </div>
+                    <span className="meta-text">{campaignBurdenDigest.length} registradas</span>
+                  </div>
+
+                  <div className="cards">
+                    {campaignBurdenDigest.map((burden) => (
+                      <article key={burden.id} className="campaign-structured-card app-card-accent app-card-accent--carga">
+                        <div className="row-actions">
+                          <div>
+                            <strong>{burden.burdenName}</strong>
+                            <p className="section-help">
+                              {burden.characterName} · {burden.ownerEmail}
+                            </p>
+                          </div>
+                          <span className="compendium-chip">Carga</span>
+                        </div>
+                        <p>{burden.summary}</p>
+                        <p className="section-help">{burden.detail}</p>
+                        <span className="meta-text">{burden.source}</span>
+                      </article>
+                    ))}
+                    {campaignBurdenDigest.length === 0 ? (
+                      <p className="section-help">No hay cargas registradas en los personajes vinculados.</p>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
             </section>
           ) : null}
 
-          {isDirector && activeSection === "sheet" && selectedSheetEntry?.sheet ? (
+          {selectedSheetEntry && false ? (
             <section className="campaign-sheet-shell">
               <UnifiedCharacterSheet
-                title={selectedSheetEntry.name}
-                subtitle={`${selectedSheetEntry.ownerEmail} · Hoja vinculada a campana`}
-                sheet={selectedSheetEntry.sheet}
+                title={campaignSheetModalEntry?.name ?? ""}
+                subtitle={`${selectedSheetEntry?.ownerEmail ?? ""} · Hoja vinculada a campana`}
+                sheet={selectedSheetEntry!.sheet!}
                 editable={false}
                 busy={isSaving}
                 onBack={() => {
@@ -797,8 +914,49 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         </section>
       ) : null}
 
+      {campaignSheetModalEntry ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            setSelectedSheetId(null);
+          }}
+        >
+          <div
+            className="panel modal-panel campaign-character-sheet-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="row-actions campaign-character-sheet-modal-header">
+              <div>
+                <h3>{campaignSheetModalEntry.name}</h3>
+                <p className="section-help">{campaignSheetModalEntry.ownerEmail} Â· Hoja vinculada a campana</p>
+              </div>
+              <button type="button" onClick={() => setSelectedSheetId(null)}>
+                Cerrar
+              </button>
+            </div>
+            <div className="campaign-character-sheet-modal-body">
+              <UnifiedCharacterSheet
+                title={campaignSheetModalEntry.name}
+                subtitle={`${campaignSheetModalEntry.ownerEmail} Â· Hoja vinculada a campana`}
+                sheet={campaignSheetModalEntry.sheet!}
+                editable={false}
+                busy={isSaving}
+              />
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {isCreateCampaignModalOpen ? (
-        <section className="modal-backdrop" onClick={() => !isSaving && setIsCreateCampaignModalOpen(false)}>
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setFormError(null);
+              setIsCreateCampaignModalOpen(false);
+            }
+          }}
+        >
           <div className="panel modal-panel" onClick={(event) => event.stopPropagation()}>
             <div className="row-actions">
               <h3>Nueva campana</h3>
@@ -806,11 +964,19 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 <button type="button" disabled={isSaving} onClick={() => void handleCreateCampaign()}>
                   Crear
                 </button>
-                <button type="button" disabled={isSaving} onClick={() => setIsCreateCampaignModalOpen(false)}>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setFormError(null);
+                    setIsCreateCampaignModalOpen(false);
+                  }}
+                >
                   Cerrar
                 </button>
               </div>
             </div>
+            {formError ? <p className="error-text">{formError}</p> : null}
             <div className="form-grid">
               <label className="field">
                 <span>Nombre</span>
@@ -840,7 +1006,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       ) : null}
 
       {isDirector && isCampaignDetailsModalOpen && selectedCampaign ? (
-        <section className="modal-backdrop" onClick={() => !isSaving && setIsCampaignDetailsModalOpen(false)}>
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setFormError(null);
+              setIsCampaignDetailsModalOpen(false);
+            }
+          }}
+        >
           <div className="panel modal-panel" onClick={(event) => event.stopPropagation()}>
             <div className="row-actions">
               <h3>Detalles de campana</h3>
@@ -848,11 +1022,19 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 <button type="button" disabled={isSaving} onClick={() => void handleSaveCampaignDetails()}>
                   Guardar
                 </button>
-                <button type="button" disabled={isSaving} onClick={() => setIsCampaignDetailsModalOpen(false)}>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setFormError(null);
+                    setIsCampaignDetailsModalOpen(false);
+                  }}
+                >
                   Cerrar
                 </button>
               </div>
             </div>
+            {formError ? <p className="error-text">{formError}</p> : null}
             <div className="form-grid">
               <label className="field">
                 <span>Nombre</span>
@@ -879,7 +1061,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       ) : null}
 
       {isDirector && isReferenceCreateModalOpen ? (
-        <section className="modal-backdrop" onClick={() => !isSaving && setIsReferenceCreateModalOpen(false)}>
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setFormError(null);
+              setIsReferenceCreateModalOpen(false);
+            }
+          }}
+        >
           <div className="panel modal-panel" onClick={(event) => event.stopPropagation()}>
             <div className="row-actions">
               <h3>Nueva referencia</h3>
@@ -887,11 +1077,19 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 <button type="button" disabled={isSaving} onClick={() => void handleCreateReference()}>
                   {isSaving ? "Creando..." : "Crear"}
                 </button>
-                <button type="button" disabled={isSaving} onClick={() => setIsReferenceCreateModalOpen(false)}>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setFormError(null);
+                    setIsReferenceCreateModalOpen(false);
+                  }}
+                >
                   Cerrar
                 </button>
               </div>
             </div>
+            {formError ? <p className="error-text">{formError}</p> : null}
 
             <div className="form-grid">
               <label className="field">
@@ -951,7 +1149,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       ) : null}
 
       {isReferenceDetailModalOpen && selectedReference ? (
-        <section className="modal-backdrop" onClick={() => !isSaving && setIsReferenceDetailModalOpen(false)}>
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setFormError(null);
+              setIsReferenceDetailModalOpen(false);
+            }
+          }}
+        >
           <div className="panel modal-panel" onClick={(event) => event.stopPropagation()}>
             <div className="row-actions">
               <div>
@@ -974,11 +1180,19 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     </button>
                   </>
                 ) : null}
-                <button type="button" disabled={isSaving} onClick={() => setIsReferenceDetailModalOpen(false)}>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setFormError(null);
+                    setIsReferenceDetailModalOpen(false);
+                  }}
+                >
                   Cerrar
                 </button>
               </div>
             </div>
+            {formError ? <p className="error-text">{formError}</p> : null}
 
             {isDirector ? (
               <>
@@ -1046,3 +1260,5 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     </main>
   );
 }
+
+

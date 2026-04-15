@@ -13,7 +13,8 @@ export function useMonsterController(user, ensureAccessToken) {
     const [selectedCodexId, setSelectedCodexId] = useState("");
     const [selectedCustomId, setSelectedCustomId] = useState(null);
     const [draft, setDraft] = useState(() => createEmptyMonsterInput());
-    const [error, setError] = useState(null);
+    const [loadError, setLoadError] = useState(null);
+    const [formError, setFormError] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     useEffect(() => {
@@ -21,7 +22,7 @@ export function useMonsterController(user, ensureAccessToken) {
     }, [user.id]);
     async function refresh() {
         setIsLoading(true);
-        setError(null);
+        setLoadError(null);
         try {
             const token = await ensureAccessToken();
             const [codex, custom] = await Promise.all([fetchMonsterCodex(token), fetchCustomMonsters(token)]);
@@ -36,7 +37,7 @@ export function useMonsterController(user, ensureAccessToken) {
             });
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudo cargar el módulo de monstruos");
+            setLoadError(err instanceof Error ? err.message : "No se pudo cargar el módulo de monstruos");
         }
         finally {
             setIsLoading(false);
@@ -44,7 +45,7 @@ export function useMonsterController(user, ensureAccessToken) {
     }
     function resetDraft() {
         setDraft(createEmptyMonsterInput());
-        setError(null);
+        setFormError(null);
         setSelectedCustomId(null);
     }
     function selectCustomMonster(monsterId) {
@@ -61,11 +62,11 @@ export function useMonsterController(user, ensureAccessToken) {
             summary: target.summary,
             sheet: structuredClone(target.sheet)
         });
-        setError(null);
+        setFormError(null);
     }
     function updateField(field, value) {
         setDraft((current) => ({ ...current, [field]: value }));
-        setError(null);
+        setFormError(null);
     }
     function updateSheetField(field, value) {
         setDraft((current) => ({
@@ -75,7 +76,7 @@ export function useMonsterController(user, ensureAccessToken) {
                 [field]: value
             }
         }));
-        setError(null);
+        setFormError(null);
     }
     function updateAttribute(attribute, value) {
         setDraft((current) => ({
@@ -88,7 +89,7 @@ export function useMonsterController(user, ensureAccessToken) {
                 }
             }
         }));
-        setError(null);
+        setFormError(null);
     }
     function updateListField(field, value) {
         setDraft((current) => ({
@@ -98,7 +99,7 @@ export function useMonsterController(user, ensureAccessToken) {
                 [field]: normalizeLines(value)
             }
         }));
-        setError(null);
+        setFormError(null);
     }
     function validateDraft() {
         if (!draft.name.trim()) {
@@ -116,7 +117,7 @@ export function useMonsterController(user, ensureAccessToken) {
     async function saveDraft() {
         const validationError = validateDraft();
         if (validationError) {
-            setError(validationError);
+            setFormError(validationError);
             return;
         }
         const payload = {
@@ -132,7 +133,7 @@ export function useMonsterController(user, ensureAccessToken) {
             }
         };
         setIsSaving(true);
-        setError(null);
+        setFormError(null);
         try {
             const token = await ensureAccessToken();
             const saved = selectedCustomId
@@ -150,7 +151,7 @@ export function useMonsterController(user, ensureAccessToken) {
             });
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudo guardar el monstruo");
+            setFormError(err instanceof Error ? err.message : "No se pudo guardar el monstruo");
         }
         finally {
             setIsSaving(false);
@@ -161,7 +162,7 @@ export function useMonsterController(user, ensureAccessToken) {
             return;
         }
         setIsSaving(true);
-        setError(null);
+        setLoadError(null);
         try {
             const token = await ensureAccessToken();
             await deleteMonster(selectedCustomId, token);
@@ -169,7 +170,7 @@ export function useMonsterController(user, ensureAccessToken) {
             resetDraft();
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudo eliminar el monstruo");
+            setLoadError(err instanceof Error ? err.message : "No se pudo eliminar el monstruo");
         }
         finally {
             setIsSaving(false);
@@ -187,7 +188,8 @@ export function useMonsterController(user, ensureAccessToken) {
         selectedCustomMonster,
         draft,
         draftAttributeTotal,
-        error,
+        loadError,
+        formError,
         isLoading,
         isSaving,
         refresh,
@@ -209,7 +211,8 @@ export function useMonsterController(user, ensureAccessToken) {
         selectedCustomMonster,
         draft,
         draftAttributeTotal,
-        error,
+        loadError,
+        formError,
         isLoading,
         isSaving
     ]);

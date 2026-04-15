@@ -132,7 +132,7 @@ function MonsterEditorModal({ controller, onClose }: MonsterEditorModalProps) {
           </div>
         </div>
 
-        {controller.error ? <p className="error">{controller.error}</p> : null}
+        {controller.formError ? <p className="error">{controller.formError}</p> : null}
 
         <div className="monster-editor-layout">
           <section className="monster-builder-card">
@@ -514,7 +514,7 @@ export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
                 </div>
               </div>
 
-              {controller.error ? <p className="error">{controller.error}</p> : null}
+              {controller.loadError ? <p className="error">{controller.loadError}</p> : null}
 
               <div className="monster-record-list">
                 {controller.customMonsters.length > 0 ? (

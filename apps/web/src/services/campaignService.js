@@ -1,20 +1,12 @@
+import { readFriendlyApiError } from "./apiError";
 const JSON_HEADERS = { "Content-Type": "application/json" };
-async function parseError(response) {
-    try {
-        const payload = (await response.json());
-        return payload.message ?? payload.error ?? `Fallo de solicitud (${response.status})`;
-    }
-    catch {
-        return `Fallo de solicitud (${response.status})`;
-    }
-}
 async function request(url, accessToken, init) {
     const response = await fetch(url, {
         ...init,
         headers: { ...(init?.body ? JSON_HEADERS : {}), ...(init?.headers ?? {}), Authorization: `Bearer ${accessToken}` }
     });
     if (!response.ok)
-        throw new Error(await parseError(response));
+        throw new Error(await readFriendlyApiError(response));
     return (await response.json());
 }
 export async function fetchCampaigns(accessToken) { return (await request("/api/campaigns", accessToken)).data; }

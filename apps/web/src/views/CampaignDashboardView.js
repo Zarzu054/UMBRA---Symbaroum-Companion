@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { createCampaignReferenceSchema, createCampaignSchema } from "@umbra/shared";
 import { addCampaignMember, createCampaign, createCampaignReference, deleteCampaignReference, fetchCampaigns, linkCampaignCharacter, removeCampaignMember, unlinkCampaignCharacter, updateCampaign, updateCampaignReference } from "../services/campaignService";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { ALL_ENTRIES } from "../models/compendiumEntries";
 const emptyCampaignForm = {
     name: "",
     summary: "",
@@ -21,22 +23,34 @@ const emptyReferenceForm = {
 function parseCampaignHash() {
     const rawHash = window.location.hash.replace(/^#/, "");
     if (!rawHash.startsWith("campaigns")) {
-        return { campaignId: null, sheetId: null };
+        return { campaignId: null, sheetId: null, section: null };
     }
     const [, search = ""] = rawHash.split("?");
     const params = new URLSearchParams(search);
+    const rawSection = params.get("section");
+    const section = rawSection === "dmNotes" ||
+        rawSection === "sharedNotes" ||
+        rawSection === "wiki" ||
+        rawSection === "members" ||
+        rawSection === "characters"
+        ? rawSection
+        : null;
     return {
         campaignId: params.get("id"),
-        sheetId: params.get("sheetId")
+        sheetId: params.get("sheetId"),
+        section
     };
 }
-function replaceCampaignHash(campaignId, sheetId) {
+function replaceCampaignHash(campaignId, sheetId, section) {
     const params = new URLSearchParams();
     if (campaignId) {
         params.set("id", campaignId);
     }
     if (sheetId) {
         params.set("sheetId", sheetId);
+    }
+    if (campaignId && section) {
+        params.set("section", section);
     }
     const nextHash = params.toString() ? `#campaigns?${params.toString()}` : "#campaigns";
     if (window.location.hash !== nextHash) {
@@ -46,16 +60,25 @@ function replaceCampaignHash(campaignId, sheetId) {
 function formatDate(value) {
     return new Date(value).toLocaleString();
 }
+function normalizeCompendiumName(value) {
+    return value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+}
 export function CampaignDashboardView({ user, ensureAccessToken }) {
     const initialHash = parseCampaignHash();
     const isDirector = user.role === "gm" || user.role === "superadmin";
+    const defaultSection = isDirector ? "dmNotes" : "sharedNotes";
     const [campaigns, setCampaigns] = useState([]);
     const [selectedCampaignId, setSelectedCampaignId] = useState(initialHash.campaignId);
     const [selectedSheetId, setSelectedSheetId] = useState(initialHash.sheetId);
-    const [activeSection, setActiveSection] = useState(isDirector ? "dmNotes" : "sharedNotes");
+    const [activeSection, setActiveSection] = useState(initialHash.section && (isDirector || initialHash.section !== "dmNotes") ? initialHash.section : defaultSection);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState(null);
+    const [loadError, setLoadError] = useState(null);
+    const [formError, setFormError] = useState(null);
     const [campaignForm, setCampaignForm] = useState(emptyCampaignForm);
     const [draft, setDraft] = useState(emptyCampaignForm);
     const [memberEmail, setMemberEmail] = useState("");
@@ -71,6 +94,35 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
     const selectedSheetEntry = useMemo(() => selectedCampaign?.characters.find((entry) => entry.id === selectedSheetId) ?? null, [selectedCampaign, selectedSheetId]);
     const selectedReference = useMemo(() => selectedCampaign?.references.find((entry) => entry.id === selectedReferenceId) ?? null, [selectedCampaign, selectedReferenceId]);
     const linkableCharacters = useMemo(() => (selectedCampaign?.availableCharacters ?? []).filter((entry) => !entry.linked && (isDirector || entry.ownerId === user.id)), [isDirector, selectedCampaign, user.id]);
+    const burdenEntries = useMemo(() => ALL_ENTRIES.filter((entry) => entry.tipo === "carga"), []);
+    const campaignBurdenDigest = useMemo(() => {
+        if (!selectedCampaign || !isDirector) {
+            return [];
+        }
+        return selectedCampaign.characters.flatMap((entry) => {
+            const burdens = entry.sheet?.cargas ?? [];
+            return burdens.map((burdenName) => {
+                const match = burdenEntries.find((candidate) => normalizeCompendiumName(candidate.nombre) === normalizeCompendiumName(burdenName));
+                return {
+                    id: `${entry.id}-${normalizeCompendiumName(burdenName)}`,
+                    burdenName,
+                    characterName: entry.name,
+                    ownerEmail: entry.ownerEmail,
+                    summary: match?.resumen ?? "Carga registrada en la ficha del personaje.",
+                    detail: match?.detalle ?? "Consulta el compendio o la hoja del personaje para el detalle completo.",
+                    source: match ? `${match.fuente}${match.pagina ? ` · p.${match.pagina}` : ""}` : "Sin referencia enlazada"
+                };
+            });
+        });
+    }, [burdenEntries, isDirector, selectedCampaign]);
+    const campaignSheetModalEntry = isDirector && selectedSheetEntry?.sheet ? selectedSheetEntry : null;
+    const isSheetModalOpen = Boolean(campaignSheetModalEntry);
+    const isAnyModalOpen = isCreateCampaignModalOpen ||
+        isCampaignDetailsModalOpen ||
+        isReferenceCreateModalOpen ||
+        isReferenceDetailModalOpen ||
+        isSheetModalOpen;
+    useBodyScrollLock(isAnyModalOpen);
     useEffect(() => {
         void refresh();
     }, []);
@@ -79,14 +131,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
             const next = parseCampaignHash();
             setSelectedCampaignId(next.campaignId);
             setSelectedSheetId(next.sheetId);
+            setActiveSection(next.section && (isDirector || next.section !== "dmNotes") ? next.section : defaultSection);
         }
         syncSelectionFromHash();
         window.addEventListener("hashchange", syncSelectionFromHash);
         return () => window.removeEventListener("hashchange", syncSelectionFromHash);
-    }, []);
+    }, [defaultSection, isDirector]);
     useEffect(() => {
-        replaceCampaignHash(selectedCampaignId, selectedSheetId);
-    }, [selectedCampaignId, selectedSheetId]);
+        replaceCampaignHash(selectedCampaignId, selectedSheetId, selectedCampaignId ? activeSection : null);
+    }, [activeSection, selectedCampaignId, selectedSheetId]);
     useEffect(() => {
         if (!isDirector && activeSection === "dmNotes") {
             setActiveSection("sharedNotes");
@@ -148,20 +201,17 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         }
         if (selectedSheetId && !selectedCampaign.characters.some((entry) => entry.id === selectedSheetId)) {
             setSelectedSheetId(null);
-            if (activeSection === "sheet") {
-                setActiveSection("characters");
-            }
         }
     }, [activeSection, selectedCampaign, selectedCampaignId, selectedSheetId]);
     async function refresh() {
         setIsLoading(true);
-        setError(null);
+        setLoadError(null);
         try {
             const token = await ensureAccessToken();
             setCampaigns(await fetchCampaigns(token));
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudieron cargar las campanas");
+            setLoadError(err instanceof Error ? err.message : "No se pudieron cargar las campanas");
         }
         finally {
             setIsLoading(false);
@@ -177,18 +227,19 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         setSelectedCampaignId(updated.id);
     }
     async function handleCreateCampaign() {
-        setError(null);
+        setFormError(null);
         setIsSaving(true);
         try {
             const token = await ensureAccessToken();
             const created = await createCampaign(createCampaignSchema.parse(campaignForm), token);
             upsertCampaign(created);
             setCampaignForm(emptyCampaignForm);
+            setFormError(null);
             setIsCreateCampaignModalOpen(false);
             setActiveSection("dmNotes");
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudo crear la campana");
+            setFormError(err instanceof Error ? err.message : "No se pudo crear la campana");
         }
         finally {
             setIsSaving(false);
@@ -198,7 +249,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         if (!selectedCampaign) {
             return;
         }
-        setError(null);
+        setFormError(null);
         setIsSaving(true);
         try {
             const token = await ensureAccessToken();
@@ -207,10 +258,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                 summary: draft.summary,
                 setting: draft.setting
             }, token));
+            setFormError(null);
             setIsCampaignDetailsModalOpen(false);
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudieron guardar los detalles");
+            setFormError(err instanceof Error ? err.message : "No se pudieron guardar los detalles");
         }
         finally {
             setIsSaving(false);
@@ -220,14 +272,14 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         if (!selectedCampaign) {
             return;
         }
-        setError(null);
+        setFormError(null);
         setIsSaving(true);
         try {
             const token = await ensureAccessToken();
             upsertCampaign(await updateCampaign(selectedCampaign.id, { notes: draft.notes }, token));
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudieron guardar las notas del DJ");
+            setFormError(err instanceof Error ? err.message : "No se pudieron guardar las notas del DJ");
         }
         finally {
             setIsSaving(false);
@@ -237,14 +289,14 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         if (!selectedCampaign) {
             return;
         }
-        setError(null);
+        setFormError(null);
         setIsSaving(true);
         try {
             const token = await ensureAccessToken();
             upsertCampaign(await updateCampaign(selectedCampaign.id, { sharedNotes: draft.sharedNotes }, token));
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudieron guardar las notas compartidas");
+            setFormError(err instanceof Error ? err.message : "No se pudieron guardar las notas compartidas");
         }
         finally {
             setIsSaving(false);
@@ -254,7 +306,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         if (!selectedCampaign || !memberEmail.trim()) {
             return;
         }
-        setError(null);
+        setFormError(null);
         setIsSaving(true);
         try {
             const token = await ensureAccessToken();
@@ -262,21 +314,21 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
             setMemberEmail("");
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudo agregar el miembro");
+            setFormError(err instanceof Error ? err.message : "No se pudo agregar el miembro");
         }
         finally {
             setIsSaving(false);
         }
     }
     async function handleRemoveMember(memberId) {
-        setError(null);
+        setFormError(null);
         setIsSaving(true);
         try {
             const token = await ensureAccessToken();
             upsertCampaign(await removeCampaignMember(memberId, token));
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudo quitar el miembro");
+            setFormError(err instanceof Error ? err.message : "No se pudo quitar el miembro");
         }
         finally {
             setIsSaving(false);
@@ -286,21 +338,21 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         if (!selectedCampaign || !selectedAvailableCharacterId) {
             return;
         }
-        setError(null);
+        setFormError(null);
         setIsSaving(true);
         try {
             const token = await ensureAccessToken();
             upsertCampaign(await linkCampaignCharacter(selectedCampaign.id, selectedAvailableCharacterId, token));
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudo vincular el personaje");
+            setFormError(err instanceof Error ? err.message : "No se pudo vincular el personaje");
         }
         finally {
             setIsSaving(false);
         }
     }
     async function handleUnlinkCharacter(linkId) {
-        setError(null);
+        setFormError(null);
         setIsSaving(true);
         try {
             const token = await ensureAccessToken();
@@ -311,7 +363,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
             }
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudo desvincular el personaje");
+            setFormError(err instanceof Error ? err.message : "No se pudo desvincular el personaje");
         }
         finally {
             setIsSaving(false);
@@ -321,7 +373,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         if (!selectedCampaign) {
             return;
         }
-        setError(null);
+        setFormError(null);
         setIsSaving(true);
         try {
             const token = await ensureAccessToken();
@@ -337,11 +389,12 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
             upsertCampaign(updated);
             const createdReference = updated.references.find((entry) => entry.name === payload.name && entry.label === payload.label && entry.content === payload.content);
             setSelectedReferenceId(createdReference?.id ?? null);
+            setFormError(null);
             setIsReferenceCreateModalOpen(false);
             setIsReferenceDetailModalOpen(Boolean(createdReference));
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudo crear la referencia");
+            setFormError(err instanceof Error ? err.message : "No se pudo crear la referencia");
         }
         finally {
             setIsSaving(false);
@@ -351,7 +404,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         if (!selectedReference) {
             return;
         }
-        setError(null);
+        setFormError(null);
         setIsSaving(true);
         try {
             const token = await ensureAccessToken();
@@ -366,30 +419,32 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
             upsertCampaign(await updateCampaignReference(selectedReference.id, payload, token));
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudo guardar la referencia");
+            setFormError(err instanceof Error ? err.message : "No se pudo guardar la referencia");
         }
         finally {
             setIsSaving(false);
         }
     }
     async function handleDeleteReference(referenceId) {
-        setError(null);
+        setFormError(null);
         setIsSaving(true);
         try {
             const token = await ensureAccessToken();
             const updated = await deleteCampaignReference(referenceId, token);
             upsertCampaign(updated);
             setSelectedReferenceId(null);
+            setFormError(null);
             setIsReferenceDetailModalOpen(false);
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudo eliminar la referencia");
+            setFormError(err instanceof Error ? err.message : "No se pudo eliminar la referencia");
         }
         finally {
             setIsSaving(false);
         }
     }
     function handlePrepareNewReference() {
+        setFormError(null);
         setSelectedReferenceId(null);
         setReferenceForm(emptyReferenceForm);
         setReferenceAliasesText("");
@@ -397,11 +452,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         setIsReferenceCreateModalOpen(true);
     }
     function openReferenceDetail(referenceId) {
+        setFormError(null);
         setSelectedReferenceId(referenceId);
         setIsReferenceCreateModalOpen(false);
         setIsReferenceDetailModalOpen(true);
     }
-    return (_jsxs("main", { className: "campaign-dashboard", children: [!selectedCampaign ? (_jsxs("section", { className: "panel campaign-list-panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h1", { children: "Campanas" }), _jsx("p", { className: "section-help", children: "Notas compartidas, notas del DJ y personajes vinculados." })] }), _jsxs("div", { className: "toolbar", children: [isDirector ? (_jsx("button", { type: "button", onClick: () => setIsCreateCampaignModalOpen(true), children: "Nueva campana" })) : null, _jsx("button", { type: "button", disabled: isLoading, onClick: () => void refresh(), children: "Recargar" })] })] }), error ? _jsx("p", { className: "error-text", children: error }) : null, isLoading ? _jsx("p", { children: "Cargando campanas..." }) : null, _jsxs("div", { className: "campaign-list", children: [campaigns.map((campaign) => (_jsxs("button", { type: "button", className: `campaign-list-item${selectedCampaignId === campaign.id ? " is-active" : ""}`, onClick: () => {
+    return (_jsxs("main", { className: "campaign-dashboard", children: [!selectedCampaign ? (_jsxs("section", { className: "panel campaign-list-panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h1", { children: "Campanas" }), _jsx("p", { className: "section-help", children: "Notas compartidas, notas del DJ y personajes vinculados." })] }), _jsxs("div", { className: "toolbar", children: [isDirector ? (_jsx("button", { type: "button", onClick: () => {
+                                            setFormError(null);
+                                            setIsCreateCampaignModalOpen(true);
+                                        }, children: "Nueva campana" })) : null, _jsx("button", { type: "button", disabled: isLoading, onClick: () => void refresh(), children: "Recargar" })] })] }), loadError ? _jsx("p", { className: "error-text", children: loadError }) : null, isLoading ? _jsx("p", { children: "Cargando campanas..." }) : null, _jsxs("div", { className: "campaign-list", children: [campaigns.map((campaign) => (_jsxs("button", { type: "button", className: `campaign-list-item${selectedCampaignId === campaign.id ? " is-active" : ""}`, onClick: () => {
                                     setSelectedCampaignId(campaign.id);
                                     setSelectedSheetId(null);
                                     setActiveSection(isDirector ? "dmNotes" : "sharedNotes");
@@ -409,14 +468,50 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                                                     setSelectedCampaignId(null);
                                                     setSelectedSheetId(null);
                                                     setActiveSection(isDirector ? "dmNotes" : "sharedNotes");
-                                                }, children: "Volver a campanas" }), isDirector ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => setIsCampaignDetailsModalOpen(true), children: "Detalles" })) : null] })] }), _jsxs("div", { className: "toolbar campaign-section-nav", children: [isDirector ? (_jsx("button", { type: "button", className: activeSection === "dmNotes" ? "is-active" : "", onClick: () => setActiveSection("dmNotes"), children: "Notas DJ" })) : null, _jsx("button", { type: "button", className: activeSection === "sharedNotes" ? "is-active" : "", onClick: () => setActiveSection("sharedNotes"), children: "Notas compartidas" }), _jsx("button", { type: "button", className: activeSection === "wiki" ? "is-active" : "", onClick: () => setActiveSection("wiki"), children: "Wiki" }), _jsx("button", { type: "button", className: activeSection === "members" ? "is-active" : "", onClick: () => setActiveSection("members"), children: "Miembros" }), _jsx("button", { type: "button", className: activeSection === "characters" ? "is-active" : "", onClick: () => setActiveSection("characters"), children: "Personajes" }), isDirector && selectedSheetEntry?.sheet ? (_jsx("button", { type: "button", className: activeSection === "sheet" ? "is-active" : "", onClick: () => setActiveSection("sheet"), children: "Hoja abierta" })) : null] })] }), isDirector && activeSection === "dmNotes" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Notas privadas del DJ" }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleSaveDmNotes(), children: isSaving ? "Guardando..." : "Guardar" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Apuntes privados de campana" }), _jsx("textarea", { rows: 14, value: draft.notes, onChange: (event) => setDraft((current) => ({ ...current, notes: event.target.value })), placeholder: "Notas privadas para el director de juego" })] })] })) : null, activeSection === "sharedNotes" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Notas compartidas" }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleSaveSharedNotes(), children: isSaving ? "Guardando..." : "Guardar" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Notas visibles para los miembros de la campana" }), _jsx("textarea", { rows: 14, value: draft.sharedNotes, onChange: (event) => setDraft((current) => ({ ...current, sharedNotes: event.target.value })), placeholder: "Apuntes de sesion, acuerdos del grupo, pistas, recordatorios..." })] })] })) : null, activeSection === "wiki" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Wiki de campana" }), _jsx("p", { className: "section-help", children: "Referencias internas para facciones, lugares, PNJ, tramas y cualquier termino reutilizable." })] }), isDirector ? (_jsx("button", { type: "button", disabled: isSaving, onClick: handlePrepareNewReference, children: "Nueva referencia" })) : null] }), _jsxs("div", { className: "campaign-reference-list", children: [selectedCampaign.references.map((reference) => (_jsxs("button", { type: "button", className: "campaign-list-item", onClick: () => openReferenceDetail(reference.id), children: [_jsx("strong", { children: reference.name }), _jsx("span", { children: reference.label }), _jsx("span", { children: reference.summary || "Sin resumen breve" }), reference.aliases.length > 0 ? _jsxs("span", { children: ["Alias: ", reference.aliases.join(", ")] }) : null, _jsx("span", { children: reference.isPublic ? "Visible para jugadores" : "Solo DJ" })] }, reference.id))), selectedCampaign.references.length === 0 ? (_jsx("p", { className: "section-help", children: "Aun no hay referencias en esta campana." })) : null] })] })) : null, activeSection === "members" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Miembros" }), isDirector ? (_jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Email del jugador" }), _jsx("input", { value: memberEmail, onChange: (event) => setMemberEmail(event.target.value) })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleAddMember(), children: "Agregar" })] })) : null] }), _jsx("div", { className: "cards", children: selectedCampaign.members.map((member) => (_jsxs("article", { className: "card", children: [_jsx("strong", { children: member.email }), _jsx("span", { children: member.role === "gm" ? "Director" : "Jugador" }), _jsxs("span", { children: ["Alta: ", new Date(member.joinedAt).toLocaleDateString()] }), isDirector && member.role !== "gm" ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleRemoveMember(member.id), children: "Quitar" })) : null] }, member.id))) })] })) : null, activeSection === "characters" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Personajes vinculados" }), _jsx("p", { className: "section-help", children: "El director puede revisar todas las hojas vinculadas desde aqui. Los jugadores pueden vincular sus propios personajes." })] }), _jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Personaje disponible" }), _jsxs("select", { value: selectedAvailableCharacterId, onChange: (event) => setSelectedAvailableCharacterId(event.target.value), children: [linkableCharacters.length === 0 ? _jsx("option", { value: "", children: "Sin personajes disponibles" }) : null, linkableCharacters.map((entry) => (_jsxs("option", { value: entry.characterId, children: [entry.name, " - ", entry.ownerEmail] }, entry.characterId)))] })] }), _jsx("button", { type: "button", disabled: isSaving || !selectedAvailableCharacterId, onClick: () => void handleLinkCharacter(), children: "Vincular" })] })] }), _jsxs("div", { className: "cards", children: [selectedCampaign.characters.map((entry) => {
+                                                }, children: "Volver a campanas" }), isDirector ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                    setFormError(null);
+                                                    setIsCampaignDetailsModalOpen(true);
+                                                }, children: "Detalles" })) : null] })] }), formError && !isCampaignDetailsModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen ? (_jsx("p", { className: "error-text", children: formError })) : null, _jsxs("div", { className: "toolbar campaign-section-nav", children: [isDirector ? (_jsx("button", { type: "button", className: activeSection === "dmNotes" ? "is-active" : "", onClick: () => setActiveSection("dmNotes"), children: "Notas DJ" })) : null, _jsx("button", { type: "button", className: activeSection === "sharedNotes" ? "is-active" : "", onClick: () => setActiveSection("sharedNotes"), children: "Notas compartidas" }), _jsx("button", { type: "button", className: activeSection === "wiki" ? "is-active" : "", onClick: () => setActiveSection("wiki"), children: "Wiki" }), _jsx("button", { type: "button", className: activeSection === "members" ? "is-active" : "", onClick: () => setActiveSection("members"), children: "Miembros" }), _jsx("button", { type: "button", className: activeSection === "characters" ? "is-active" : "", onClick: () => setActiveSection("characters"), children: "Personajes" })] })] }), isDirector && activeSection === "dmNotes" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Notas privadas del DJ" }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleSaveDmNotes(), children: isSaving ? "Guardando..." : "Guardar" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Apuntes privados de campana" }), _jsx("textarea", { rows: 14, value: draft.notes, onChange: (event) => setDraft((current) => ({ ...current, notes: event.target.value })), placeholder: "Notas privadas para el director de juego" })] })] })) : null, activeSection === "sharedNotes" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Notas compartidas" }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleSaveSharedNotes(), children: isSaving ? "Guardando..." : "Guardar" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Notas visibles para los miembros de la campana" }), _jsx("textarea", { rows: 14, value: draft.sharedNotes, onChange: (event) => setDraft((current) => ({ ...current, sharedNotes: event.target.value })), placeholder: "Apuntes de sesion, acuerdos del grupo, pistas, recordatorios..." })] })] })) : null, activeSection === "wiki" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Wiki de campana" }), _jsx("p", { className: "section-help", children: "Referencias internas para facciones, lugares, PNJ, tramas y cualquier termino reutilizable." })] }), isDirector ? (_jsx("button", { type: "button", disabled: isSaving, onClick: handlePrepareNewReference, children: "Nueva referencia" })) : null] }), _jsxs("div", { className: "campaign-reference-list", children: [selectedCampaign.references.map((reference) => (_jsxs("button", { type: "button", className: "campaign-list-item", onClick: () => openReferenceDetail(reference.id), children: [_jsx("strong", { children: reference.name }), _jsx("span", { children: reference.label }), _jsx("span", { children: reference.summary || "Sin resumen breve" }), reference.aliases.length > 0 ? _jsxs("span", { children: ["Alias: ", reference.aliases.join(", ")] }) : null, _jsx("span", { children: reference.isPublic ? "Visible para jugadores" : "Solo DJ" })] }, reference.id))), selectedCampaign.references.length === 0 ? (_jsx("p", { className: "section-help", children: "Aun no hay referencias en esta campana." })) : null] })] })) : null, activeSection === "members" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Miembros" }), isDirector ? (_jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Email del jugador" }), _jsx("input", { value: memberEmail, onChange: (event) => setMemberEmail(event.target.value) })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleAddMember(), children: "Agregar" })] })) : null] }), _jsx("div", { className: "cards", children: selectedCampaign.members.map((member) => (_jsxs("article", { className: "card", children: [_jsx("strong", { children: member.email }), _jsx("span", { children: member.role === "gm" ? "Director" : "Jugador" }), _jsxs("span", { children: ["Alta: ", new Date(member.joinedAt).toLocaleDateString()] }), isDirector && member.role !== "gm" ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleRemoveMember(member.id), children: "Quitar" })) : null] }, member.id))) })] })) : null, activeSection === "characters" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Personajes vinculados" }), _jsx("p", { className: "section-help", children: "El director puede revisar todas las hojas vinculadas desde aqui. Los jugadores pueden vincular sus propios personajes." })] }), _jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Personaje disponible" }), _jsxs("select", { value: selectedAvailableCharacterId, onChange: (event) => setSelectedAvailableCharacterId(event.target.value), children: [linkableCharacters.length === 0 ? _jsx("option", { value: "", children: "Sin personajes disponibles" }) : null, linkableCharacters.map((entry) => (_jsxs("option", { value: entry.characterId, children: [entry.name, " - ", entry.ownerEmail] }, entry.characterId)))] })] }), _jsx("button", { type: "button", disabled: isSaving || !selectedAvailableCharacterId, onClick: () => void handleLinkCharacter(), children: "Vincular" })] })] }), _jsxs("div", { className: "cards", children: [selectedCampaign.characters.map((entry) => {
                                         const canManageLink = isDirector || entry.ownerId === user.id;
-                                        return (_jsxs("article", { className: "card", children: [_jsx("strong", { children: entry.name }), _jsx("span", { children: entry.ownerEmail }), _jsxs("span", { children: ["PX total: ", entry.experienceTotal, " \u00B7 PX gastada: ", entry.experienceSpent] }), _jsxs("span", { children: ["Actualizado: ", formatDate(entry.updatedAt)] }), _jsxs("div", { className: "card-actions", children: [isDirector && entry.sheet ? (_jsx("button", { type: "button", onClick: () => {
+                                        return (_jsxs("article", { className: "card", children: [_jsx("strong", { children: entry.name }), _jsx("span", { children: entry.ownerEmail }), _jsxs("span", { children: ["PX total: ", entry.experienceTotal, " \u00C2\u00B7 PX gastada: ", entry.experienceSpent] }), _jsxs("span", { children: ["Actualizado: ", formatDate(entry.updatedAt)] }), _jsxs("div", { className: "card-actions", children: [isDirector && entry.sheet ? (_jsx("button", { type: "button", onClick: () => {
                                                                 setSelectedSheetId(entry.id);
-                                                                setActiveSection("sheet");
                                                             }, children: "Abrir hoja" })) : null, canManageLink ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleUnlinkCharacter(entry.id), children: "Desvincular" })) : null] })] }, entry.id));
-                                    }), selectedCampaign.characters.length === 0 ? (_jsx("p", { className: "section-help", children: "Todavia no hay personajes vinculados." })) : null] })] })) : null, isDirector && activeSection === "sheet" && selectedSheetEntry?.sheet ? (_jsx("section", { className: "campaign-sheet-shell", children: _jsx(UnifiedCharacterSheet, { title: selectedSheetEntry.name, subtitle: `${selectedSheetEntry.ownerEmail} · Hoja vinculada a campana`, sheet: selectedSheetEntry.sheet, editable: false, busy: isSaving, onBack: () => {
+                                    }), selectedCampaign.characters.length === 0 ? (_jsx("p", { className: "section-help", children: "Todavia no hay personajes vinculados." })) : null] }), isDirector ? (_jsxs("section", { className: "campaign-burden-summary", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Resumen de cargas" }), _jsx("p", { className: "section-help", children: "Vista rapida para el DJ con las cargas activas de los personajes vinculados y su explicacion." })] }), _jsxs("span", { className: "meta-text", children: [campaignBurdenDigest.length, " registradas"] })] }), _jsxs("div", { className: "cards", children: [campaignBurdenDigest.map((burden) => (_jsxs("article", { className: "campaign-structured-card app-card-accent app-card-accent--carga", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("strong", { children: burden.burdenName }), _jsxs("p", { className: "section-help", children: [burden.characterName, " \u00B7 ", burden.ownerEmail] })] }), _jsx("span", { className: "compendium-chip", children: "Carga" })] }), _jsx("p", { children: burden.summary }), _jsx("p", { className: "section-help", children: burden.detail }), _jsx("span", { className: "meta-text", children: burden.source })] }, burden.id))), campaignBurdenDigest.length === 0 ? (_jsx("p", { className: "section-help", children: "No hay cargas registradas en los personajes vinculados." })) : null] })] })) : null] })) : null, selectedSheetEntry && false ? (_jsx("section", { className: "campaign-sheet-shell", children: _jsx(UnifiedCharacterSheet, { title: campaignSheetModalEntry?.name ?? "", subtitle: `${selectedSheetEntry?.ownerEmail ?? ""} · Hoja vinculada a campana`, sheet: selectedSheetEntry.sheet, editable: false, busy: isSaving, onBack: () => {
                                 setSelectedSheetId(null);
                                 setActiveSection("characters");
-                            } }) })) : null] })) : null, isCreateCampaignModalOpen ? (_jsx("section", { className: "modal-backdrop", onClick: () => !isSaving && setIsCreateCampaignModalOpen(false), children: _jsxs("div", { className: "panel modal-panel", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Nueva campana" }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleCreateCampaign(), children: "Crear" }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => setIsCreateCampaignModalOpen(false), children: "Cerrar" })] })] }), _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Nombre" }), _jsx("input", { value: campaignForm.name, onChange: (event) => setCampaignForm((current) => ({ ...current, name: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Ambientacion" }), _jsx("input", { value: campaignForm.setting, onChange: (event) => setCampaignForm((current) => ({ ...current, setting: event.target.value })) })] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Resumen" }), _jsx("textarea", { rows: 3, value: campaignForm.summary, onChange: (event) => setCampaignForm((current) => ({ ...current, summary: event.target.value })) })] })] }) })) : null, isDirector && isCampaignDetailsModalOpen && selectedCampaign ? (_jsx("section", { className: "modal-backdrop", onClick: () => !isSaving && setIsCampaignDetailsModalOpen(false), children: _jsxs("div", { className: "panel modal-panel", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Detalles de campana" }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleSaveCampaignDetails(), children: "Guardar" }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => setIsCampaignDetailsModalOpen(false), children: "Cerrar" })] })] }), _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Nombre" }), _jsx("input", { value: draft.name, onChange: (event) => setDraft((current) => ({ ...current, name: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Ambientacion" }), _jsx("input", { value: draft.setting, onChange: (event) => setDraft((current) => ({ ...current, setting: event.target.value })) })] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Resumen" }), _jsx("textarea", { rows: 4, value: draft.summary, onChange: (event) => setDraft((current) => ({ ...current, summary: event.target.value })) })] })] }) })) : null, isDirector && isReferenceCreateModalOpen ? (_jsx("section", { className: "modal-backdrop", onClick: () => !isSaving && setIsReferenceCreateModalOpen(false), children: _jsxs("div", { className: "panel modal-panel", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Nueva referencia" }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleCreateReference(), children: isSaving ? "Creando..." : "Crear" }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => setIsReferenceCreateModalOpen(false), children: "Cerrar" })] })] }), _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Nombre" }), _jsx("input", { value: referenceForm.name, onChange: (event) => setReferenceForm((current) => ({ ...current, name: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Categoria" }), _jsx("input", { value: referenceForm.label, onChange: (event) => setReferenceForm((current) => ({ ...current, label: event.target.value })), placeholder: "PNJ, lugar, faccion, trama..." })] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Resumen" }), _jsx("input", { value: referenceForm.summary, onChange: (event) => setReferenceForm((current) => ({ ...current, summary: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Alias" }), _jsx("input", { value: referenceAliasesText, onChange: (event) => setReferenceAliasesText(event.target.value), placeholder: "Nombres alternativos separados por comas" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Contenido" }), _jsx("textarea", { rows: 12, value: referenceForm.content, onChange: (event) => setReferenceForm((current) => ({ ...current, content: event.target.value })), placeholder: "Detalle extenso de la referencia, usos, relaciones, pistas..." })] }), _jsxs("label", { className: "checkbox-field", children: [_jsx("input", { type: "checkbox", checked: referenceForm.isPublic, onChange: (event) => setReferenceForm((current) => ({ ...current, isPublic: event.target.checked })) }), _jsx("span", { children: "Visible para los jugadores" })] })] }) })) : null, isReferenceDetailModalOpen && selectedReference ? (_jsx("section", { className: "modal-backdrop", onClick: () => !isSaving && setIsReferenceDetailModalOpen(false), children: _jsxs("div", { className: "panel modal-panel", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: selectedReference.name }), _jsx("p", { className: "section-help", children: selectedReference.label })] }), _jsxs("div", { className: "toolbar", children: [isDirector ? (_jsxs(_Fragment, { children: [_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleSaveReference(), children: isSaving ? "Guardando..." : "Guardar" }), _jsx("button", { type: "button", className: "danger-button", disabled: isSaving, onClick: () => void handleDeleteReference(selectedReference.id), children: "Eliminar" })] })) : null, _jsx("button", { type: "button", disabled: isSaving, onClick: () => setIsReferenceDetailModalOpen(false), children: "Cerrar" })] })] }), isDirector ? (_jsxs(_Fragment, { children: [_jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Nombre" }), _jsx("input", { value: referenceForm.name, onChange: (event) => setReferenceForm((current) => ({ ...current, name: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Categoria" }), _jsx("input", { value: referenceForm.label, onChange: (event) => setReferenceForm((current) => ({ ...current, label: event.target.value })) })] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Resumen" }), _jsx("input", { value: referenceForm.summary, onChange: (event) => setReferenceForm((current) => ({ ...current, summary: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Alias" }), _jsx("input", { value: referenceAliasesText, onChange: (event) => setReferenceAliasesText(event.target.value) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Contenido" }), _jsx("textarea", { rows: 12, value: referenceForm.content, onChange: (event) => setReferenceForm((current) => ({ ...current, content: event.target.value })) })] }), _jsxs("label", { className: "checkbox-field", children: [_jsx("input", { type: "checkbox", checked: referenceForm.isPublic, onChange: (event) => setReferenceForm((current) => ({ ...current, isPublic: event.target.checked })) }), _jsx("span", { children: "Visible para los jugadores" })] })] })) : (_jsxs("div", { className: "campaign-reference-preview", children: [selectedReference.summary ? _jsx("p", { children: selectedReference.summary }) : null, _jsx("p", { children: selectedReference.content || "Sin contenido detallado." }), selectedReference.aliases.length > 0 ? _jsxs("p", { children: ["Alias: ", selectedReference.aliases.join(", ")] }) : null] }))] }) })) : null] }));
+                            } }) })) : null] })) : null, campaignSheetModalEntry ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
+                    setSelectedSheetId(null);
+                }, children: _jsxs("div", { className: "panel modal-panel campaign-character-sheet-modal", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions campaign-character-sheet-modal-header", children: [_jsxs("div", { children: [_jsx("h3", { children: campaignSheetModalEntry.name }), _jsxs("p", { className: "section-help", children: [campaignSheetModalEntry.ownerEmail, " \u00C2\u00B7 Hoja vinculada a campana"] })] }), _jsx("button", { type: "button", onClick: () => setSelectedSheetId(null), children: "Cerrar" })] }), _jsx("div", { className: "campaign-character-sheet-modal-body", children: _jsx(UnifiedCharacterSheet, { title: campaignSheetModalEntry.name, subtitle: `${campaignSheetModalEntry.ownerEmail} Â· Hoja vinculada a campana`, sheet: campaignSheetModalEntry.sheet, editable: false, busy: isSaving }) })] }) })) : null, isCreateCampaignModalOpen ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
+                    if (!isSaving) {
+                        setFormError(null);
+                        setIsCreateCampaignModalOpen(false);
+                    }
+                }, children: _jsxs("div", { className: "panel modal-panel", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Nueva campana" }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleCreateCampaign(), children: "Crear" }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                setFormError(null);
+                                                setIsCreateCampaignModalOpen(false);
+                                            }, children: "Cerrar" })] })] }), formError ? _jsx("p", { className: "error-text", children: formError }) : null, _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Nombre" }), _jsx("input", { value: campaignForm.name, onChange: (event) => setCampaignForm((current) => ({ ...current, name: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Ambientacion" }), _jsx("input", { value: campaignForm.setting, onChange: (event) => setCampaignForm((current) => ({ ...current, setting: event.target.value })) })] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Resumen" }), _jsx("textarea", { rows: 3, value: campaignForm.summary, onChange: (event) => setCampaignForm((current) => ({ ...current, summary: event.target.value })) })] })] }) })) : null, isDirector && isCampaignDetailsModalOpen && selectedCampaign ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
+                    if (!isSaving) {
+                        setFormError(null);
+                        setIsCampaignDetailsModalOpen(false);
+                    }
+                }, children: _jsxs("div", { className: "panel modal-panel", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Detalles de campana" }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleSaveCampaignDetails(), children: "Guardar" }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                setFormError(null);
+                                                setIsCampaignDetailsModalOpen(false);
+                                            }, children: "Cerrar" })] })] }), formError ? _jsx("p", { className: "error-text", children: formError }) : null, _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Nombre" }), _jsx("input", { value: draft.name, onChange: (event) => setDraft((current) => ({ ...current, name: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Ambientacion" }), _jsx("input", { value: draft.setting, onChange: (event) => setDraft((current) => ({ ...current, setting: event.target.value })) })] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Resumen" }), _jsx("textarea", { rows: 4, value: draft.summary, onChange: (event) => setDraft((current) => ({ ...current, summary: event.target.value })) })] })] }) })) : null, isDirector && isReferenceCreateModalOpen ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
+                    if (!isSaving) {
+                        setFormError(null);
+                        setIsReferenceCreateModalOpen(false);
+                    }
+                }, children: _jsxs("div", { className: "panel modal-panel", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Nueva referencia" }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleCreateReference(), children: isSaving ? "Creando..." : "Crear" }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                setFormError(null);
+                                                setIsReferenceCreateModalOpen(false);
+                                            }, children: "Cerrar" })] })] }), formError ? _jsx("p", { className: "error-text", children: formError }) : null, _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Nombre" }), _jsx("input", { value: referenceForm.name, onChange: (event) => setReferenceForm((current) => ({ ...current, name: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Categoria" }), _jsx("input", { value: referenceForm.label, onChange: (event) => setReferenceForm((current) => ({ ...current, label: event.target.value })), placeholder: "PNJ, lugar, faccion, trama..." })] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Resumen" }), _jsx("input", { value: referenceForm.summary, onChange: (event) => setReferenceForm((current) => ({ ...current, summary: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Alias" }), _jsx("input", { value: referenceAliasesText, onChange: (event) => setReferenceAliasesText(event.target.value), placeholder: "Nombres alternativos separados por comas" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Contenido" }), _jsx("textarea", { rows: 12, value: referenceForm.content, onChange: (event) => setReferenceForm((current) => ({ ...current, content: event.target.value })), placeholder: "Detalle extenso de la referencia, usos, relaciones, pistas..." })] }), _jsxs("label", { className: "checkbox-field", children: [_jsx("input", { type: "checkbox", checked: referenceForm.isPublic, onChange: (event) => setReferenceForm((current) => ({ ...current, isPublic: event.target.checked })) }), _jsx("span", { children: "Visible para los jugadores" })] })] }) })) : null, isReferenceDetailModalOpen && selectedReference ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
+                    if (!isSaving) {
+                        setFormError(null);
+                        setIsReferenceDetailModalOpen(false);
+                    }
+                }, children: _jsxs("div", { className: "panel modal-panel", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: selectedReference.name }), _jsx("p", { className: "section-help", children: selectedReference.label })] }), _jsxs("div", { className: "toolbar", children: [isDirector ? (_jsxs(_Fragment, { children: [_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleSaveReference(), children: isSaving ? "Guardando..." : "Guardar" }), _jsx("button", { type: "button", className: "danger-button", disabled: isSaving, onClick: () => void handleDeleteReference(selectedReference.id), children: "Eliminar" })] })) : null, _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                setFormError(null);
+                                                setIsReferenceDetailModalOpen(false);
+                                            }, children: "Cerrar" })] })] }), formError ? _jsx("p", { className: "error-text", children: formError }) : null, isDirector ? (_jsxs(_Fragment, { children: [_jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Nombre" }), _jsx("input", { value: referenceForm.name, onChange: (event) => setReferenceForm((current) => ({ ...current, name: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Categoria" }), _jsx("input", { value: referenceForm.label, onChange: (event) => setReferenceForm((current) => ({ ...current, label: event.target.value })) })] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Resumen" }), _jsx("input", { value: referenceForm.summary, onChange: (event) => setReferenceForm((current) => ({ ...current, summary: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Alias" }), _jsx("input", { value: referenceAliasesText, onChange: (event) => setReferenceAliasesText(event.target.value) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Contenido" }), _jsx("textarea", { rows: 12, value: referenceForm.content, onChange: (event) => setReferenceForm((current) => ({ ...current, content: event.target.value })) })] }), _jsxs("label", { className: "checkbox-field", children: [_jsx("input", { type: "checkbox", checked: referenceForm.isPublic, onChange: (event) => setReferenceForm((current) => ({ ...current, isPublic: event.target.checked })) }), _jsx("span", { children: "Visible para los jugadores" })] })] })) : (_jsxs("div", { className: "campaign-reference-preview", children: [selectedReference.summary ? _jsx("p", { children: selectedReference.summary }) : null, _jsx("p", { children: selectedReference.content || "Sin contenido detallado." }), selectedReference.aliases.length > 0 ? _jsxs("p", { children: ["Alias: ", selectedReference.aliases.join(", ")] }) : null] }))] }) })) : null] }));
 }

@@ -13,13 +13,14 @@ export function useNpcController(ensureAccessToken) {
     const [draft, setDraft] = useState(() => createEmptyNpcInput());
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState(null);
+    const [loadError, setLoadError] = useState(null);
+    const [formError, setFormError] = useState(null);
     useEffect(() => {
         void refresh();
     }, []);
     async function refresh() {
         setIsLoading(true);
-        setError(null);
+        setLoadError(null);
         try {
             const token = await ensureAccessToken();
             const nextNpcs = await fetchNpcs(token);
@@ -27,7 +28,7 @@ export function useNpcController(ensureAccessToken) {
             setSelectedNpcId((current) => current && nextNpcs.some((entry) => entry.id === current) ? current : null);
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudo cargar el archivo de PNJ");
+            setLoadError(err instanceof Error ? err.message : "No se pudo cargar el archivo de PNJ");
         }
         finally {
             setIsLoading(false);
@@ -43,7 +44,7 @@ export function useNpcController(ensureAccessToken) {
             nextDraft.sheet = createNpcSheetSeed(nextDraft);
         }
         setDraft(nextDraft);
-        setError(null);
+        setFormError(null);
     }
     function selectNpc(npcId) {
         setSelectedNpcId(npcId);
@@ -62,11 +63,11 @@ export function useNpcController(ensureAccessToken) {
             statBlock: npc.statBlock ? structuredClone(npc.statBlock) : null,
             sheet: npc.sheet ? structuredClone(npc.sheet) : null
         });
-        setError(null);
+        setFormError(null);
     }
     function updateField(field, value) {
         setDraft((current) => ({ ...current, [field]: value }));
-        setError(null);
+        setFormError(null);
     }
     function updateDepth(depth) {
         setDraft((current) => ({
@@ -75,14 +76,14 @@ export function useNpcController(ensureAccessToken) {
             statBlock: depth === "notes" ? null : current.statBlock ?? createDefaultMonsterSheet(),
             sheet: depth === "full_sheet" ? current.sheet ?? createNpcSheetSeed(current) : null
         }));
-        setError(null);
+        setFormError(null);
     }
     function updateLabels(value) {
         setDraft((current) => ({
             ...current,
             labels: normalizeListValue(value).slice(0, 20)
         }));
-        setError(null);
+        setFormError(null);
     }
     function updateStatBlockField(field, value) {
         setDraft((current) => ({
@@ -92,7 +93,7 @@ export function useNpcController(ensureAccessToken) {
                 [field]: value
             }
         }));
-        setError(null);
+        setFormError(null);
     }
     function updateStatBlockAttribute(attribute, value) {
         setDraft((current) => ({
@@ -105,11 +106,11 @@ export function useNpcController(ensureAccessToken) {
                 }
             }
         }));
-        setError(null);
+        setFormError(null);
     }
     async function saveDraft() {
         setIsSaving(true);
-        setError(null);
+        setFormError(null);
         try {
             const token = await ensureAccessToken();
             const payload = {
@@ -139,7 +140,7 @@ export function useNpcController(ensureAccessToken) {
             return saved;
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudo guardar el PNJ");
+            setFormError(err instanceof Error ? err.message : "No se pudo guardar el PNJ");
             return null;
         }
         finally {
@@ -148,7 +149,7 @@ export function useNpcController(ensureAccessToken) {
     }
     async function removeNpc(npcId) {
         setIsSaving(true);
-        setError(null);
+        setLoadError(null);
         try {
             const token = await ensureAccessToken();
             await deleteNpc(npcId, token);
@@ -158,7 +159,7 @@ export function useNpcController(ensureAccessToken) {
             }
         }
         catch (err) {
-            setError(err instanceof Error ? err.message : "No se pudo eliminar el PNJ");
+            setLoadError(err instanceof Error ? err.message : "No se pudo eliminar el PNJ");
         }
         finally {
             setIsSaving(false);
@@ -172,7 +173,8 @@ export function useNpcController(ensureAccessToken) {
         draft,
         isLoading,
         isSaving,
-        error,
+        loadError,
+        formError,
         refresh,
         resetDraft,
         selectNpc,
@@ -185,5 +187,5 @@ export function useNpcController(ensureAccessToken) {
         saveDraft,
         removeNpc,
         setDraft
-    }), [npcs, selectedNpcId, selectedNpc, draft, isLoading, isSaving, error]);
+    }), [npcs, selectedNpcId, selectedNpc, draft, isLoading, isSaving, loadError, formError]);
 }
