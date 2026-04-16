@@ -2477,6 +2477,14 @@ td {
   gap: 12px;
   min-height: calc(100dvh - 52px);
   height: calc(100dvh - 52px);
+  padding-top: 18px;
+  align-content: start;
+}
+
+.character-actions-page > .unified-sheet,
+.character-actions-page > .character-builder-page,
+.character-actions-page > .character-directory-page {
+  margin-top: 8px;
 }
 
 .character-actions-page-header {

@@ -649,7 +649,6 @@ export function CharacterBuilderView({
               <section className="character-builder-panel campaign-sheet-card">
                 <div className="row-actions">
                   <h3>Identidad</h3>
-                  <span className="meta-text">Lo que antes estaba repartido entre crear y editar.</span>
                 </div>
                 <div className="form-grid">
                   <label className="field">
