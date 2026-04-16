@@ -149,7 +149,7 @@ export function getCharacterMonsterTraitEffects(sheet: CharacterSheet): Characte
   const duroLevel = getMonsterTraitLevel(traits, ["duro"]);
   const robustoLevel = getMonsterTraitLevel(traits, ["robusto", "robusta"]);
   const robustezBase = Number(sheet.atributos?.fuerte ?? 0);
-  const robustezMaxima = Math.max(0, Math.round(robustezBase * getRecioMultiplier(recioLevel)));
+  const robustezMaxima = Math.max(0, Math.floor(robustezBase * getRecioMultiplier(recioLevel)));
 
   return {
     recioLevel,
@@ -179,7 +179,7 @@ export function getDerivedMonsterSheetStats(sheet: MonsterSheet): DerivedMonster
   const explicitToughness = parseSignedNumber(sheet.toughness);
   const explicitArmor = parseSignedNumber(sheet.armor);
 
-  const derivedToughness = Math.max(0, Math.round(strong * getRecioMultiplier(recioLevel) || strong));
+  const derivedToughness = Math.max(0, Math.floor(strong * getRecioMultiplier(recioLevel) || strong));
   const derivedArmor = duroLevel > 0 ? getDuroMonsterArmor(duroLevel) : sheet.armor;
   const derivedDefense = formatSignedNumber(10 - quick + getRobustoDefensePenalty(robustoLevel));
 

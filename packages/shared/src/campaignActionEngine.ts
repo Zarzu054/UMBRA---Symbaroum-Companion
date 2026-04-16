@@ -817,13 +817,19 @@ function createUnarmedAttackAction(sheet: CharacterSheet, level?: SkillLevel): C
   };
 }
 
+function getNaturalWeaponDamageFormula(sheet: CharacterSheet, naturalWeaponLevel: number): string {
+  const baseDamage = naturalWeaponLevel === 3 ? "1d10" : naturalWeaponLevel === 2 ? "1d8" : "1d6";
+  const unarmedCombatLevel = getRatedEntryLevel(sheet, "Combate sin armas");
+  return unarmedCombatLevel ? (increaseDamageDie(baseDamage) ?? baseDamage) : baseDamage;
+}
+
 function createNaturalWeaponAttackAction(sheet: CharacterSheet): CharacterActionDefinition | null {
   const naturalWeaponLevel = getTraitLevel(sheet, ["arma natural", "armas naturales"]);
   if (naturalWeaponLevel <= 0) {
     return null;
   }
 
-  const damageFormula = naturalWeaponLevel === 3 ? "1d10" : naturalWeaponLevel === 2 ? "1d8" : "1d6";
+  const damageFormula = getNaturalWeaponDamageFormula(sheet, naturalWeaponLevel);
   return {
     id: `trait:arma-natural:${naturalWeaponLevel}`,
     label: "Ataque con Arma natural",

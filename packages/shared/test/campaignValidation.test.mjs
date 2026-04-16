@@ -799,6 +799,42 @@ test("Arma natural crea un ataque separado y no modifica el ataque desarmado bas
   assert.equal(naturalWeaponAction.damageFormula, "1d6");
 });
 
+test("Combate sin armas aumenta un nivel de dado el ataque con Arma natural", () => {
+  const expectedDamageByNaturalWeaponLevel = {
+    novato: "1d8",
+    adepto: "1d10",
+    maestro: "1d12"
+  };
+
+  for (const [naturalWeaponLevel, expectedDamage] of Object.entries(expectedDamageByNaturalWeaponLevel)) {
+    const sheet = createEmptyCharacterSheet();
+    sheet.habilidades = [
+      {
+        nombre: "Combate sin armas",
+        tipo: "Habilidad",
+        efecto: "",
+        nivel: "novato",
+        fuente: "Libro basico",
+        notas: "",
+        acciones: []
+      },
+      {
+        nombre: "Arma natural",
+        tipo: "Rasgo monstruoso",
+        efecto: "",
+        nivel: naturalWeaponLevel,
+        fuente: "Codice de monstruos",
+        notas: "",
+        acciones: []
+      }
+    ];
+
+    const naturalWeaponAction = deriveCharacterActions(sheet).find((action) => action.label === "Ataque con Arma natural");
+    assert.ok(naturalWeaponAction);
+    assert.equal(naturalWeaponAction.damageFormula, expectedDamage);
+  }
+});
+
 test("las armas heredadas llamadas Natural no generan un arma equipada falsa", () => {
   const baseSheet = createEmptyCharacterSheet();
   const sheet = synchronizeCharacterSheet({
