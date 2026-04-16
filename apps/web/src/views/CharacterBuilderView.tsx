@@ -11,9 +11,10 @@ import {
   type SymbaroumCapability
 } from "@umbra/shared";
 import { getCharacterExperienceSummary } from "../models/characterExperience";
-import { SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS } from "../models/compendiumEntries";
+import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS, type CompendiumEntry } from "../models/compendiumEntries";
 
-type RatedSection = "habilidades" | "poderesMisticos" | "rituales";
+type RatedSection = "habilidades" | "rasgosMonstruosos" | "poderesMisticos" | "rituales";
+type StoredRatedSection = "habilidades" | "poderesMisticos" | "rituales";
 type SimpleSection = "bendiciones" | "cargas" | "rasgos";
 type BuilderTabId = "resumen" | "identidad" | "compras" | "rasgos";
 type BuilderAcquisitionModal = {
@@ -47,6 +48,7 @@ type Props = {
 
 type CatalogSelections = {
   habilidades: string;
+  rasgosMonstruosos: string;
   poderesMisticos: string;
   rituales: string;
   bendiciones: string;
@@ -55,11 +57,29 @@ type CatalogSelections = {
 
 type SimpleInputs = Record<SimpleSection, string>;
 type CapabilityTier = {
-  label: "Novato" | "Adepto" | "Maestro";
+  label: string;
   content: string;
 };
 
 const BUILDER_ABILITIES = SYMBAROUM_ABILITIES.filter((entry) => normalizeName(entry.nombre) !== "rituales");
+const BUILDER_MONSTER_TRAITS: SymbaroumCapability[] = ALL_ENTRIES
+  .filter((entry): entry is CompendiumEntry => entry.tipo === "rasgo")
+  .map((entry) => ({
+    id: entry.id,
+    nombre: entry.nombre,
+    tipo: "habilidad" as const,
+    tradiciones: [],
+    libro: entry.fuente,
+    pagina: entry.pagina ?? 0,
+    efectoResumen: entry.detalle,
+    acciones: []
+  }));
+const BUILDER_MONSTER_TRAIT_NAME_SET = new Set(BUILDER_MONSTER_TRAITS.map((entry) => normalizeName(entry.nombre)));
+const ROMAN_LEVEL_LABELS: Record<SkillLevel, string> = {
+  novato: "I",
+  adepto: "II",
+  maestro: "III"
+};
 
 const LEVEL_OPTIONS: Array<{ value: SkillLevel; label: string }> = [
   { value: "novato", label: "Novato" },
@@ -69,6 +89,7 @@ const LEVEL_OPTIONS: Array<{ value: SkillLevel; label: string }> = [
 
 const INITIAL_CATALOG_SELECTIONS: CatalogSelections = {
   habilidades: BUILDER_ABILITIES[0]?.id ?? "",
+  rasgosMonstruosos: BUILDER_MONSTER_TRAITS[0]?.id ?? "",
   poderesMisticos: SYMBAROUM_MYSTIC_POWERS[0]?.id ?? "",
   rituales: SYMBAROUM_RITUALS[0]?.id ?? "",
   bendiciones: SYMBAROUM_BLESSINGS[0]?.id ?? "",
@@ -119,10 +140,72 @@ function getSimpleEntryDelta(section: SimpleSection): number {
   return 0;
 }
 
-function buildRatedEntry(entry: SymbaroumCapability, section: RatedSection): CharacterSheet[RatedSection][number] {
+function isMonsterTraitCapability(name: string): boolean {
+  return BUILDER_MONSTER_TRAIT_NAME_SET.has(normalizeName(name));
+}
+
+function getStoredRatedSection(section: RatedSection): StoredRatedSection {
+  return section === "rasgosMonstruosos" ? "habilidades" : section;
+}
+
+function getRatedEntriesForSection(sheet: CharacterSheet, section: RatedSection): CharacterSheet["habilidades"] {
+  if (section === "habilidades") {
+    return sheet.habilidades.filter((entry) => !isMonsterTraitCapability(entry.nombre));
+  }
+  if (section === "rasgosMonstruosos") {
+    return sheet.habilidades.filter((entry) => isMonsterTraitCapability(entry.nombre));
+  }
+  return sheet[getStoredRatedSection(section)];
+}
+
+function replaceRatedEntriesForSection(
+  sheet: CharacterSheet,
+  section: RatedSection,
+  nextEntries: CharacterSheet["habilidades"]
+): CharacterSheet {
+  if (section === "habilidades") {
+    return {
+      ...sheet,
+      habilidades: [...nextEntries, ...sheet.habilidades.filter((entry) => isMonsterTraitCapability(entry.nombre))]
+    };
+  }
+  if (section === "rasgosMonstruosos") {
+    return {
+      ...sheet,
+      habilidades: [...sheet.habilidades.filter((entry) => !isMonsterTraitCapability(entry.nombre)), ...nextEntries]
+    };
+  }
+  const storedSection = getStoredRatedSection(section);
+  return {
+    ...sheet,
+    [storedSection]: nextEntries
+  };
+}
+
+function getSectionTitle(section: RatedSection): string {
+  if (section === "habilidades") return "Habilidades";
+  if (section === "rasgosMonstruosos") return "Rasgos monstruosos";
+  if (section === "poderesMisticos") return "Poderes";
+  return "Rituales";
+}
+
+function getAcquireButtonLabel(section: RatedSection): string {
+  if (section === "habilidades") return "Obtener nueva habilidad";
+  if (section === "rasgosMonstruosos") return "Obtener nuevo rasgo";
+  if (section === "poderesMisticos") return "Obtener nuevo poder";
+  return "Obtener nuevo ritual";
+}
+
+function getLevelLabel(section: RatedSection, level: SkillLevel): string {
+  return section === "rasgosMonstruosos"
+    ? ROMAN_LEVEL_LABELS[level]
+    : LEVEL_OPTIONS.find((option) => option.value === level)?.label ?? level;
+}
+
+function buildRatedEntry(entry: SymbaroumCapability, section: RatedSection): CharacterSheet["habilidades"][number] {
   return {
     nombre: entry.nombre,
-    tipo: section === "habilidades" ? "Habilidad" : section === "poderesMisticos" ? "Poder mistico" : "Ritual",
+    tipo: section === "habilidades" ? "Habilidad" : section === "rasgosMonstruosos" ? "Rasgo monstruoso" : section === "poderesMisticos" ? "Poder mistico" : "Ritual",
     efecto: entry.efectoResumen,
     nivel: "novato",
     fuente: entry.libro,
@@ -134,6 +217,7 @@ function buildRatedEntry(entry: SymbaroumCapability, section: RatedSection): Cha
 
 function getCatalogEntries(section: RatedSection): SymbaroumCapability[] {
   if (section === "habilidades") return [...BUILDER_ABILITIES];
+  if (section === "rasgosMonstruosos") return [...BUILDER_MONSTER_TRAITS];
   if (section === "poderesMisticos") return [...SYMBAROUM_MYSTIC_POWERS];
   return [...SYMBAROUM_RITUALS];
 }
@@ -167,27 +251,28 @@ function getUpgradeCost(section: RatedSection, currentLevel: SkillLevel): number
   return 0;
 }
 
-function parseCapabilityTiers(detail: string): CapabilityTier[] {
+function parseCapabilityTiers(detail: string, section: RatedSection): CapabilityTier[] {
   const text = String(detail ?? "").trim();
   if (!text) {
     return [];
   }
-  const matches = [...text.matchAll(/(Novato|Adepto|Maestro):\s*([\s\S]*?)(?=(?:Novato|Adepto|Maestro):|$)/gi)];
-  const order: CapabilityTier["label"][] = ["Novato", "Adepto", "Maestro"];
-  const mapped = new Map<CapabilityTier["label"], CapabilityTier>();
+  const labels = section === "rasgosMonstruosos" ? ["I", "II", "III"] : ["Novato", "Adepto", "Maestro"];
+  const labelPattern = section === "rasgosMonstruosos" ? "I|II|III" : "Novato|Adepto|Maestro";
+  const matches = [...text.matchAll(new RegExp(`(${labelPattern}):\\s*([\\s\\S]*?)(?=(?:${labelPattern}):|$)`, "gi"))];
+  const mapped = new Map<string, CapabilityTier>();
   for (const match of matches) {
-    const rawLabel = match[1]?.toLowerCase();
+    const rawLabel = String(match[1] ?? "").trim();
     const content = match[2]?.trim();
     if (!content) continue;
-    const label = rawLabel === "novato" ? "Novato" : rawLabel === "adepto" ? "Adepto" : rawLabel === "maestro" ? "Maestro" : null;
+    const label = labels.find((entry) => normalizeName(entry) === normalizeName(rawLabel)) ?? null;
     if (!label || mapped.has(label)) continue;
     mapped.set(label, { label, content });
   }
-  return order.map((label) => mapped.get(label)).filter((tier): tier is CapabilityTier => Boolean(tier));
+  return labels.map((label) => mapped.get(label)).filter((tier): tier is CapabilityTier => Boolean(tier));
 }
 
-function getCapabilityTierForLevel(tiers: CapabilityTier[], level: SkillLevel): CapabilityTier | null {
-  const targetLabel = level === "novato" ? "Novato" : level === "adepto" ? "Adepto" : "Maestro";
+function getCapabilityTierForLevel(tiers: CapabilityTier[], level: SkillLevel, section: RatedSection): CapabilityTier | null {
+  const targetLabel = getLevelLabel(section, level);
   return tiers.find((tier) => tier.label === targetLabel) ?? null;
 }
 
@@ -260,8 +345,9 @@ export function CharacterBuilderView({
       return [];
     }
     const query = normalizeName(acquisitionModal.query);
+    const sectionEntries = getRatedEntriesForSection(draft, acquisitionModal.section);
     const entries = acquisitionCatalogEntries.filter((entry) =>
-      !draft[acquisitionModal.section].some((current) => normalizeName(current.nombre) === normalizeName(entry.nombre))
+      !sectionEntries.some((current) => normalizeName(current.nombre) === normalizeName(entry.nombre))
     );
     if (!query) {
       return entries.slice(0, 12);
@@ -274,15 +360,17 @@ export function CharacterBuilderView({
       )
       .slice(0, 12);
   }, [acquisitionCatalogEntries, acquisitionModal, draft]);
-  const selectedAcquisitionEntry = useMemo(
-    () => acquisitionModal
-      ? acquisitionCatalogEntries.find((entry) => entry.id === acquisitionModal.selectedId) ?? filteredAcquisitionEntries[0] ?? null
-      : null,
-    [acquisitionCatalogEntries, acquisitionModal, filteredAcquisitionEntries]
-  );
+  const selectedAcquisitionEntry = useMemo(() => {
+    if (!acquisitionModal) {
+      return null;
+    }
+    return filteredAcquisitionEntries.find((entry) => entry.id === acquisitionModal.selectedId)
+      ?? filteredAcquisitionEntries[0]
+      ?? null;
+  }, [acquisitionModal, filteredAcquisitionEntries]);
   const acquisitionPreviewTiers = useMemo(
-    () => parseCapabilityTiers(selectedAcquisitionEntry?.efectoResumen ?? ""),
-    [selectedAcquisitionEntry]
+    () => parseCapabilityTiers(selectedAcquisitionEntry?.efectoResumen ?? "", acquisitionModal?.section ?? "habilidades"),
+    [acquisitionModal?.section, selectedAcquisitionEntry]
   );
 
   function findCatalogEntryByName(section: RatedSection, name: string): SymbaroumCapability | null {
@@ -314,7 +402,8 @@ export function CharacterBuilderView({
   }
 
   function applyRatedEntryLevelUp(section: RatedSection, index: number): void {
-    const entry = draft[section][index];
+    const sectionEntries = getRatedEntriesForSection(draft, section);
+    const entry = sectionEntries[index];
     if (!entry) {
       return;
     }
@@ -328,16 +417,17 @@ export function CharacterBuilderView({
       return;
     }
     setError(null);
-    setDraft((current) => ({
-      ...current,
-      [section]: current[section].map((ratedEntry, entryIndex) =>
+    setDraft((current) => replaceRatedEntriesForSection(
+      current,
+      section,
+      getRatedEntriesForSection(current, section).map((ratedEntry, entryIndex) =>
         entryIndex === index ? { ...ratedEntry, nivel: nextLevel } : ratedEntry
       )
-    }));
+    ));
   }
 
   function openUpgradeConfirmation(section: RatedSection, index: number): void {
-    const entry = draft[section][index];
+    const entry = getRatedEntriesForSection(draft, section)[index];
     if (!entry) {
       return;
     }
@@ -352,7 +442,7 @@ export function CharacterBuilderView({
     }
     const catalogEntry = findCatalogEntryByName(section, entry.nombre);
     const previewSource = catalogEntry?.efectoResumen ?? entry.efecto ?? entry.notas ?? "";
-    const previewTiers = parseCapabilityTiers(previewSource);
+    const previewTiers = parseCapabilityTiers(previewSource, section);
     setError(null);
     setCapabilityConfirmationModal({
       mode: "upgrade",
@@ -366,8 +456,8 @@ export function CharacterBuilderView({
       targetLevel,
       cost,
       previewSummary: previewSource,
-      targetTier: getCapabilityTierForLevel(previewTiers, targetLevel),
-      confirmLabel: section === "rituales" ? `Subir a ${targetLevel}` : `Gastar ${cost} PX`,
+      targetTier: getCapabilityTierForLevel(previewTiers, targetLevel, section),
+      confirmLabel: section === "rituales" ? `Subir a ${getLevelLabel(section, targetLevel)}` : `Gastar ${cost} PX`,
       onConfirm: () => {
         applyRatedEntryLevelUp(section, index);
         setCapabilityConfirmationModal(null);
@@ -376,7 +466,7 @@ export function CharacterBuilderView({
   }
 
   function levelDownRatedEntry(section: RatedSection, index: number): void {
-    const entry = draft[section][index];
+    const entry = getRatedEntriesForSection(draft, section)[index];
     if (!entry) {
       return;
     }
@@ -385,16 +475,17 @@ export function CharacterBuilderView({
       return;
     }
     setError(null);
-    setDraft((current) => ({
-      ...current,
-      [section]: current[section].map((ratedEntry, entryIndex) =>
+    setDraft((current) => replaceRatedEntriesForSection(
+      current,
+      section,
+      getRatedEntriesForSection(current, section).map((ratedEntry, entryIndex) =>
         entryIndex === index ? { ...ratedEntry, nivel: previousLevel } : ratedEntry
       )
-    }));
+    ));
   }
 
   function openDowngradeConfirmation(section: RatedSection, index: number): void {
-    const entry = draft[section][index];
+    const entry = getRatedEntriesForSection(draft, section)[index];
     if (!entry) {
       return;
     }
@@ -404,7 +495,7 @@ export function CharacterBuilderView({
     }
     const catalogEntry = findCatalogEntryByName(section, entry.nombre);
     const previewSource = catalogEntry?.efectoResumen ?? entry.efecto ?? entry.notas ?? "";
-    const previewTiers = parseCapabilityTiers(previewSource);
+    const previewTiers = parseCapabilityTiers(previewSource, section);
     setError(null);
     setCapabilityConfirmationModal({
       mode: "downgrade",
@@ -418,8 +509,8 @@ export function CharacterBuilderView({
       targetLevel,
       cost: 0,
       previewSummary: previewSource,
-      targetTier: getCapabilityTierForLevel(previewTiers, targetLevel),
-      confirmLabel: `Confirmar bajada a ${targetLevel === "novato" ? "Novato" : "Adepto"}`,
+      targetTier: getCapabilityTierForLevel(previewTiers, targetLevel, section),
+      confirmLabel: `Confirmar bajada a ${getLevelLabel(section, targetLevel)}`,
       onConfirm: () => {
         levelDownRatedEntry(section, index);
         setCapabilityConfirmationModal(null);
@@ -428,20 +519,21 @@ export function CharacterBuilderView({
   }
 
   function removeRatedEntry(section: RatedSection, index: number): void {
-    const entry = draft[section][index];
+    const entry = getRatedEntriesForSection(draft, section)[index];
     if (!entry) {
       return;
     }
     setError(null);
-    setDraft((current) => ({
-      ...current,
-      [section]: current[section].filter((_, entryIndex) => entryIndex !== index)
-    }));
+    setDraft((current) => replaceRatedEntriesForSection(
+      current,
+      section,
+      getRatedEntriesForSection(current, section).filter((_, entryIndex) => entryIndex !== index)
+    ));
   }
 
   function openAcquisitionModal(section: RatedSection): void {
     const entries = getCatalogEntries(section).filter((entry) =>
-      !draft[section].some((current) => normalizeName(current.nombre) === normalizeName(entry.nombre))
+      !getRatedEntriesForSection(draft, section).some((current) => normalizeName(current.nombre) === normalizeName(entry.nombre))
     );
     setAcquisitionModal({
       section,
@@ -464,15 +556,16 @@ export function CharacterBuilderView({
       setError(`No hay PX suficientes para obtener ${entry.nombre}.`);
       return;
     }
-    if (draft[section].some((current) => normalizeName(current.nombre) === normalizeName(entry.nombre))) {
+    if (getRatedEntriesForSection(draft, section).some((current) => normalizeName(current.nombre) === normalizeName(entry.nombre))) {
       setError(`${entry.nombre} ya esta en la hoja.`);
       return;
     }
     setError(null);
-    setDraft((current) => ({
-      ...current,
-      [section]: [...current[section], buildRatedEntry(entry, section)]
-    }));
+    setDraft((current) => replaceRatedEntriesForSection(
+      current,
+      section,
+      [...getRatedEntriesForSection(current, section), buildRatedEntry(entry, section)]
+    ));
     setAcquisitionModal(null);
   }
 
@@ -494,7 +587,7 @@ export function CharacterBuilderView({
       targetLevel: "novato",
       cost,
       previewSummary: selectedAcquisitionEntry.efectoResumen,
-      targetTier: getCapabilityTierForLevel(acquisitionPreviewTiers, "novato"),
+      targetTier: getCapabilityTierForLevel(acquisitionPreviewTiers, "novato", acquisitionModal.section),
       confirmLabel: `Confirmar ${cost} PX`,
       onConfirm: () => {
         applyAcquisition();
@@ -713,21 +806,22 @@ export function CharacterBuilderView({
                   <span className="meta-text">PX disponibles: {effectiveAvailable}</span>
                 </div>
                 <div className="character-builder-purchase-stack">
-                  {(["habilidades", "poderesMisticos", "rituales"] as RatedSection[]).map((section) => {
+                  {(["habilidades", "rasgosMonstruosos", "poderesMisticos", "rituales"] as RatedSection[]).map((section) => {
+                    const sectionEntries = getRatedEntriesForSection(draft, section);
                     return (
                       <article key={section} className={`character-builder-block character-builder-block--${section}`}>
                         <div className="row-actions">
-                          <h4>{section === "habilidades" ? "Habilidades" : section === "poderesMisticos" ? "Poderes" : "Rituales"}</h4>
+                          <h4>{getSectionTitle(section)}</h4>
                           <div className="toolbar">
                             <span className="meta-text">{getSectionCostLabel(section)}</span>
                             <button type="button" onClick={() => openAcquisitionModal(section)}>
                               <span aria-hidden="true">+</span>{" "}
-                              {section === "habilidades" ? "Obtener nueva habilidad" : section === "poderesMisticos" ? "Obtener nuevo poder" : "Obtener nuevo ritual"}
+                              {getAcquireButtonLabel(section)}
                             </button>
                           </div>
                         </div>
                         <div className="character-builder-entry-list">
-                          {draft[section].length > 0 ? draft[section].map((entry, index) => (
+                          {sectionEntries.length > 0 ? sectionEntries.map((entry, index) => (
                             <article key={`${section}-${entry.nombre}-${index}`} className={`character-builder-entry-card character-builder-entry-card--${section}`}>
                               <div className="character-builder-entry-head">
                                 <div className="character-builder-entry-copy">
@@ -739,7 +833,7 @@ export function CharacterBuilderView({
                                 <div className="card-actions character-builder-entry-actions">
                                   {section !== "rituales" ? (
                                     <>
-                                      <span className="meta-text">Nivel actual: {LEVEL_OPTIONS.find((option) => option.value === entry.nivel)?.label ?? entry.nivel}</span>
+                                      <span className="meta-text">Nivel actual: {getLevelLabel(section, entry.nivel)}</span>
                                       {getPreviousLevel(entry.nivel) ? (
                                         <button
                                           type="button"
@@ -747,7 +841,7 @@ export function CharacterBuilderView({
                                           onClick={() => openDowngradeConfirmation(section, index)}
                                         >
                                           <span aria-hidden="true">↓</span>{" "}
-                                          Bajar a {getPreviousLevel(entry.nivel) === "novato" ? "Novato" : "Adepto"}
+                                          Bajar a {getLevelLabel(section, getPreviousLevel(entry.nivel)!)}
                                         </button>
                                       ) : null}
                                       {getNextLevel(entry.nivel) ? (
@@ -757,7 +851,7 @@ export function CharacterBuilderView({
                                           disabled={getUpgradeCost(section, entry.nivel) > effectiveAvailable}
                                         >
                                           <span aria-hidden="true">↑</span>{" "}
-                                          Subir a {getNextLevel(entry.nivel) === "adepto" ? "Adepto" : "Maestro"} ({getUpgradeCost(section, entry.nivel)} PX)
+                                          Subir a {getLevelLabel(section, getNextLevel(entry.nivel)!)} ({getUpgradeCost(section, entry.nivel)} PX)
                                         </button>
                                       ) : (
                                         <span className="meta-text">Nivel maximo</span>
@@ -861,7 +955,7 @@ export function CharacterBuilderView({
         <section className="modal-backdrop" onClick={() => setAcquisitionModal(null)}>
           <div className="panel modal-panel character-builder-acquisition-modal" onClick={(event) => event.stopPropagation()}>
             <div className="row-actions">
-              <h3>{acquisitionModal.section === "habilidades" ? "Obtener nueva habilidad" : acquisitionModal.section === "poderesMisticos" ? "Obtener nuevo poder" : "Obtener nuevo ritual"}</h3>
+              <h3>{getAcquireButtonLabel(acquisitionModal.section)}</h3>
               <span className="meta-text">PX disponibles: {effectiveAvailable}</span>
             </div>
             <div className="character-builder-acquisition-layout">
@@ -942,7 +1036,7 @@ export function CharacterBuilderView({
                     : "Confirmar mejora"}
               </h3>
               <span className="meta-text">
-                Nivel objetivo: {LEVEL_OPTIONS.find((option) => option.value === capabilityConfirmationModal.targetLevel)?.label ?? capabilityConfirmationModal.targetLevel}
+                Nivel objetivo: {getLevelLabel(capabilityConfirmationModal.section, capabilityConfirmationModal.targetLevel)}
               </span>
             </div>
             <div className="character-builder-confirmation-copy">

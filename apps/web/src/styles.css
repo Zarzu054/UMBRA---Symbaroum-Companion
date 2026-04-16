@@ -2904,6 +2904,7 @@ td {
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
   gap: 14px;
   margin: 14px 0;
+  align-items: start;
 }
 
 .character-builder-acquisition-search,
@@ -2911,6 +2912,8 @@ td {
 .character-builder-tier-preview {
   display: grid;
   gap: 10px;
+  align-content: start;
+  align-self: start;
 }
 
 .character-builder-acquisition-results {
@@ -2918,6 +2921,7 @@ td {
   gap: 8px;
   max-height: 52vh;
   overflow: auto;
+  align-content: start;
 }
 
 .character-builder-acquisition-result {
