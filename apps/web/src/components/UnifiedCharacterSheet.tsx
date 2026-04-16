@@ -2745,12 +2745,46 @@ export function UnifiedCharacterSheet({
           {activeTab === "notes" ? (
             <section className="unified-sheet-panel">
               <article className="campaign-sheet-card">
-                <h3>Notas y contexto</h3>
-                <Field label="Notas generales"><textarea disabled={!canEditNotes} rows={6} value={normalizedSheet.noteSections.general} onChange={(event) => updateField("noteSections.general", event.target.value)} /></Field>
-                <Field label="Notas de campana"><textarea disabled={!canEditNotes} rows={4} value={normalizedSheet.noteSections.campaign} onChange={(event) => updateField("noteSections.campaign", event.target.value)} /></Field>
+                <div className="row-actions">
+                  <div>
+                    <h3>Notas personales</h3>
+                    <p className="section-help">Entradas ordenadas en Markdown para diario, pistas, recuerdos y apuntes de campaña del personaje.</p>
+                  </div>
+                  {canEditNotes ? (
+                    <button type="button" onClick={() => {
+                      setPersonalNoteError(null);
+                      setPersonalNoteEditor({ mode: "create", note: buildPersonalNoteDraft() });
+                    }}>
+                      Nueva nota
+                    </button>
+                  ) : null}
+                </div>
+                <div className="unified-sheet-list">
+                  {personalNotes.map((entry) => (
+                    <article key={entry.id} className="campaign-structured-card">
+                      <div className="row-actions">
+                        <div>
+                          <strong>{entry.title}</strong>
+                          <p className="section-help">{summarizeCharacterNote(entry.content)}</p>
+                        </div>
+                        <button type="button" className="subtle-button" onClick={() => {
+                          setPersonalNoteError(null);
+                          setSelectedPersonalNoteId(entry.id);
+                        }}>
+                          Ver nota
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                  {personalNotes.length === 0 ? <p className="section-help">Sin notas personales registradas.</p> : null}
+                </div>
+              </article>
+
+              <article className="campaign-sheet-card">
+                <h3>Contexto</h3>
                 <div className="form-grid">
-                  <Field label="Grupo"><input disabled value={normalizedSheet.grupo.nombre} onChange={(event) => updateField("grupo.nombre", event.target.value)} /></Field>
-                  <Field label="Objetivo del grupo"><textarea disabled rows={2} value={normalizedSheet.grupo.objetivo} onChange={(event) => updateField("grupo.objetivo", event.target.value)} /></Field>
+                  <Field label="Grupo"><input disabled={!editMode} value={normalizedSheet.grupo.nombre} onChange={(event) => updateField("grupo.nombre", event.target.value)} /></Field>
+                  <Field label="Objetivo del grupo"><textarea disabled={!editMode} rows={2} value={normalizedSheet.grupo.objetivo} onChange={(event) => updateField("grupo.objetivo", event.target.value)} /></Field>
                 </div>
               </article>
 
@@ -2760,10 +2794,10 @@ export function UnifiedCharacterSheet({
                   {normalizedSheet.contactosHoja.map((contacto, index) => (
                     <article key={`contacto-${index}`} className="campaign-structured-card">
                       <div className="form-grid">
-                        <Field label="Nombre"><input disabled value={contacto.nombre} onChange={(event) => updateField(`contactosHoja.${index}.nombre`, event.target.value)} /></Field>
-                        <Field label="Raza"><input disabled value={contacto.raza} onChange={(event) => updateField(`contactosHoja.${index}.raza`, event.target.value)} /></Field>
-                        <Field label="Ocupacion"><input disabled value={contacto.ocupacion} onChange={(event) => updateField(`contactosHoja.${index}.ocupacion`, event.target.value)} /></Field>
-                        <Field label="Jugador"><input disabled value={contacto.jugador} onChange={(event) => updateField(`contactosHoja.${index}.jugador`, event.target.value)} /></Field>
+                        <Field label="Nombre"><input disabled={!editMode} value={contacto.nombre} onChange={(event) => updateField(`contactosHoja.${index}.nombre`, event.target.value)} /></Field>
+                        <Field label="Raza"><input disabled={!editMode} value={contacto.raza} onChange={(event) => updateField(`contactosHoja.${index}.raza`, event.target.value)} /></Field>
+                        <Field label="Ocupacion"><input disabled={!editMode} value={contacto.ocupacion} onChange={(event) => updateField(`contactosHoja.${index}.ocupacion`, event.target.value)} /></Field>
+                        <Field label="Jugador"><input disabled={!editMode} value={contacto.jugador} onChange={(event) => updateField(`contactosHoja.${index}.jugador`, event.target.value)} /></Field>
                       </div>
                     </article>
                   ))}
@@ -2771,6 +2805,7 @@ export function UnifiedCharacterSheet({
               </article>
             </section>
           ) : null}
+
         </div>
       </section>
     );
