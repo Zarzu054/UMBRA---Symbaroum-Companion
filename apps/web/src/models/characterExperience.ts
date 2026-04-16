@@ -23,6 +23,7 @@ function getRatedEntryXpCost(level: string): number {
 
 export type CharacterExperienceSummary = {
   spentFromCapabilities: number;
+  spentFromRituals: number;
   spentFromBlessings: number;
   extraFromBurdens: number;
   computedSpent: number;
@@ -41,15 +42,17 @@ export function getCharacterExperienceSummary(sheet: CharacterSheet): CharacterE
     (total, entry) => total + getRatedEntryXpCost(entry.nivel),
     0
   );
+  const spentFromRituals = sheet.rituales.length * 10;
   const spentFromCapabilities = spentFromAbilities + spentFromMysticPowers;
   const spentFromBlessings = (sheet.bendiciones?.length ?? 0) * 5;
   const extraFromBurdens = (sheet.cargas?.length ?? 0) * 5;
-  const computedSpent = spentFromCapabilities + spentFromBlessings;
+  const computedSpent = spentFromCapabilities + spentFromRituals + spentFromBlessings;
   const effectiveTotal = sheet.progreso.experienciaTotal + extraFromBurdens;
   const effectiveAvailable = Math.max(0, effectiveTotal - Math.max(sheet.progreso.experienciaGastada, computedSpent));
 
   return {
     spentFromCapabilities,
+    spentFromRituals,
     spentFromBlessings,
     extraFromBurdens,
     computedSpent,

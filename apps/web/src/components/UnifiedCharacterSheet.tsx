@@ -37,6 +37,7 @@ type CapabilityTabId = "traits" | "blessings" | "burdens" | "abilities" | "power
 type InventoryTabId = "money" | "weapons" | "armors" | "items";
 type RatedEntry = CharacterSheet["habilidades"][number];
 type SimpleSheetListSection = "bendiciones" | "cargas" | "rasgos";
+type CharacterPersonalNoteEntry = CharacterSheet["personalNotes"][number];
 
 type Props = {
   title: string;
@@ -216,6 +217,170 @@ const SPECIAL_ACTION_RULE_NAMES = [
   "Primeros auxilios",
   "Levantarse"
 ] as const;
+
+function buildSheetNoteId(): string {
+  return `sheet-note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function sortCharacterPersonalNotes(entries: CharacterPersonalNoteEntry[]): CharacterPersonalNoteEntry[] {
+  return [...entries].sort((left, right) => {
+    const leftDate = left.updatedAt || left.createdAt || "";
+    const rightDate = right.updatedAt || right.createdAt || "";
+    return rightDate.localeCompare(leftDate);
+  });
+}
+
+function summarizeCharacterNote(content: string): string {
+  const collapsed = content.replace(/\s+/g, " ").trim();
+  if (!collapsed) {
+    return "Sin contenido.";
+  }
+  return collapsed.length > 160 ? `${collapsed.slice(0, 157)}...` : collapsed;
+}
+
+function renderSimpleMarkdownInline(text: string, keyPrefix: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const pattern = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    const [fullMatch, , linkLabel, linkUrl, inlineCode, boldText, italicText] = match;
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+
+    if (linkLabel && linkUrl) {
+      nodes.push(<a key={`${keyPrefix}-link-${match.index}`} href={linkUrl} target="_blank" rel="noreferrer">{linkLabel}</a>);
+    } else if (inlineCode) {
+      nodes.push(<code key={`${keyPrefix}-code-${match.index}`}>{inlineCode}</code>);
+    } else if (boldText) {
+      nodes.push(<strong key={`${keyPrefix}-bold-${match.index}`}>{renderSimpleMarkdownInline(boldText, `${keyPrefix}-bold-${match.index}`)}</strong>);
+    } else if (italicText) {
+      nodes.push(<em key={`${keyPrefix}-italic-${match.index}`}>{renderSimpleMarkdownInline(italicText, `${keyPrefix}-italic-${match.index}`)}</em>);
+    } else {
+      nodes.push(fullMatch);
+    }
+
+    lastIndex = match.index + fullMatch.length;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
+function renderSimpleMarkdownBlocks(text: string): ReactNode {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const blocks: ReactNode[] = [];
+  let paragraphBuffer: string[] = [];
+  let listItems: string[] = [];
+  let listType: "ul" | "ol" | null = null;
+  let codeBlock: string[] = [];
+  let inCodeBlock = false;
+
+  function flushParagraph(): void {
+    if (paragraphBuffer.length === 0) return;
+    const textContent = paragraphBuffer.join(" ").trim();
+    if (textContent) {
+      blocks.push(<p key={`paragraph-${blocks.length}`}>{renderSimpleMarkdownInline(textContent, `paragraph-${blocks.length}`)}</p>);
+    }
+    paragraphBuffer = [];
+  }
+
+  function flushList(): void {
+    if (listItems.length === 0 || !listType) return;
+    const Tag = listType;
+    blocks.push(
+      <Tag key={`list-${blocks.length}`}>
+        {listItems.map((item, index) => <li key={`list-${blocks.length}-${index}`}>{renderSimpleMarkdownInline(item, `list-${blocks.length}-${index}`)}</li>)}
+      </Tag>
+    );
+    listItems = [];
+    listType = null;
+  }
+
+  function flushCodeBlock(): void {
+    if (codeBlock.length === 0) return;
+    blocks.push(<pre key={`code-${blocks.length}`} className="campaign-markdown-code-block"><code>{codeBlock.join("\n")}</code></pre>);
+    codeBlock = [];
+  }
+
+  lines.forEach((rawLine, index) => {
+    const line = rawLine.trimEnd();
+    if (line.trim().startsWith("```")) {
+      flushParagraph();
+      flushList();
+      if (inCodeBlock) {
+        flushCodeBlock();
+        inCodeBlock = false;
+      } else {
+        inCodeBlock = true;
+      }
+      return;
+    }
+    if (inCodeBlock) {
+      codeBlock.push(rawLine);
+      return;
+    }
+    if (!line.trim()) {
+      flushParagraph();
+      flushList();
+      return;
+    }
+
+    const headingMatch = line.match(/^(#{1,4})\s+(.*)$/);
+    if (headingMatch) {
+      flushParagraph();
+      flushList();
+      const level = Math.min(headingMatch[1].length + 2, 6);
+      const content = renderSimpleMarkdownInline(headingMatch[2], `heading-${index}`);
+      if (level === 3) {
+        blocks.push(<h3 key={`heading-${index}`}>{content}</h3>);
+      } else if (level === 4) {
+        blocks.push(<h4 key={`heading-${index}`}>{content}</h4>);
+      } else if (level === 5) {
+        blocks.push(<h5 key={`heading-${index}`}>{content}</h5>);
+      } else {
+        blocks.push(<h6 key={`heading-${index}`}>{content}</h6>);
+      }
+      return;
+    }
+
+    const unorderedMatch = line.match(/^\s*[-*]\s+(.*)$/);
+    if (unorderedMatch) {
+      flushParagraph();
+      if (listType && listType !== "ul") {
+        flushList();
+      }
+      listType = "ul";
+      listItems.push(unorderedMatch[1]);
+      return;
+    }
+
+    const orderedMatch = line.match(/^\s*\d+\.\s+(.*)$/);
+    if (orderedMatch) {
+      flushParagraph();
+      if (listType && listType !== "ol") {
+        flushList();
+      }
+      listType = "ol";
+      listItems.push(orderedMatch[1]);
+      return;
+    }
+
+    flushList();
+    paragraphBuffer.push(line.trim());
+  });
+
+  flushParagraph();
+  flushList();
+  flushCodeBlock();
+
+  return blocks.length > 0 ? blocks : <p>Sin contenido.</p>;
+}
 
 function matchesWeaponCatalogFilter(item: ItemTemplate, filterId: WeaponCatalogFilterId): boolean {
   if (item.category !== "weapon") return false;
@@ -805,6 +970,9 @@ export function UnifiedCharacterSheet({
   const [pendingRollConfirmation, setPendingRollConfirmation] = useState<PendingRollConfirmation | null>(null);
   const [showPendingRollBreakdown, setShowPendingRollBreakdown] = useState(false);
   const [actionDetailModal, setActionDetailModal] = useState<ActionDetailModal | null>(null);
+  const [selectedPersonalNoteId, setSelectedPersonalNoteId] = useState<string | null>(null);
+  const [personalNoteEditor, setPersonalNoteEditor] = useState<{ mode: "create" | "edit"; note: CharacterPersonalNoteEntry } | null>(null);
+  const [personalNoteError, setPersonalNoteError] = useState<string | null>(null);
   const [weaponEditorModal, setWeaponEditorModal] = useState<WeaponEditorModal | null>(null);
   const [armorEditorModal, setArmorEditorModal] = useState<ArmorEditorModal | null>(null);
   const [itemEditorModal, setItemEditorModal] = useState<ItemEditorModal | null>(null);
@@ -840,6 +1008,11 @@ export function UnifiedCharacterSheet({
   const setActiveActionTab = (nextTab: ActionTabId) => setSheetTabState((current) => ({ ...current, activeActionTab: nextTab }));
   const setActiveCapabilityTab = (nextTab: CapabilityTabId) => setSheetTabState((current) => ({ ...current, activeCapabilityTab: nextTab }));
   const setActiveInventoryTab = (nextTab: InventoryTabId) => setSheetTabState((current) => ({ ...current, activeInventoryTab: nextTab }));
+  const personalNotes = useMemo(() => sortCharacterPersonalNotes(normalizedSheet.personalNotes ?? []), [normalizedSheet.personalNotes]);
+  const selectedPersonalNote = useMemo(
+    () => personalNotes.find((entry) => entry.id === selectedPersonalNoteId) ?? null,
+    [personalNotes, selectedPersonalNoteId]
+  );
   const filteredActions = useMemo(() => {
     switch (activeActionTab) {
       case "all":
@@ -1670,6 +1843,63 @@ export function UnifiedCharacterSheet({
       ...draft,
       [section]: draft[section].filter((_, entryIndex) => entryIndex !== index)
     });
+  }
+
+  function buildPersonalNoteDraft(entry?: CharacterPersonalNoteEntry): CharacterPersonalNoteEntry {
+    const now = new Date().toISOString();
+    return {
+      id: entry?.id ?? buildSheetNoteId(),
+      title: entry?.title ?? "",
+      content: entry?.content ?? "",
+      category: entry?.category ?? "general",
+      createdAt: entry?.createdAt || now,
+      updatedAt: entry?.updatedAt || now
+    };
+  }
+
+  function replacePersonalNotes(nextEntries: CharacterPersonalNoteEntry[]): void {
+    setDraft({
+      ...draft,
+      personalNotes: sortCharacterPersonalNotes(nextEntries)
+    });
+  }
+
+  function savePersonalNote(): void {
+    if (!personalNoteEditor) {
+      return;
+    }
+
+    const trimmedTitle = personalNoteEditor.note.title.trim();
+    const trimmedContent = personalNoteEditor.note.content.trim();
+    if (trimmedTitle.length < 2) {
+      setPersonalNoteError("El titulo debe tener al menos 2 caracteres.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const normalized = {
+      ...personalNoteEditor.note,
+      title: trimmedTitle,
+      content: trimmedContent,
+      createdAt: personalNoteEditor.note.createdAt || now,
+      updatedAt: now
+    };
+    const nextEntries = personalNoteEditor.mode === "create"
+      ? [normalized, ...personalNotes]
+      : personalNotes.map((entry) => entry.id === normalized.id ? normalized : entry);
+    replacePersonalNotes(nextEntries);
+    setSelectedPersonalNoteId(normalized.id);
+    setPersonalNoteEditor(null);
+    setPersonalNoteError(null);
+  }
+
+  function deletePersonalNote(noteId: string): void {
+    replacePersonalNotes(personalNotes.filter((entry) => entry.id !== noteId));
+    if (selectedPersonalNoteId === noteId) {
+      setSelectedPersonalNoteId(null);
+    }
+    setPersonalNoteEditor(null);
+    setPersonalNoteError(null);
   }
 
   function updateInventoryItem(index: number, field: keyof CharacterSheet["inventoryItems"][number], value: string | number | boolean | undefined): void {
@@ -2515,12 +2745,46 @@ export function UnifiedCharacterSheet({
           {activeTab === "notes" ? (
             <section className="unified-sheet-panel">
               <article className="campaign-sheet-card">
-                <h3>Notas y contexto</h3>
-                <Field label="Notas generales"><textarea disabled={!canEditNotes} rows={6} value={normalizedSheet.noteSections.general} onChange={(event) => updateField("noteSections.general", event.target.value)} /></Field>
-                <Field label="Notas de campana"><textarea disabled={!canEditNotes} rows={4} value={normalizedSheet.noteSections.campaign} onChange={(event) => updateField("noteSections.campaign", event.target.value)} /></Field>
+                <div className="row-actions">
+                  <div>
+                    <h3>Notas personales</h3>
+                    <p className="section-help">Entradas ordenadas en Markdown para diario, pistas, recuerdos y apuntes de campaña del personaje.</p>
+                  </div>
+                  {canEditNotes ? (
+                    <button type="button" onClick={() => {
+                      setPersonalNoteError(null);
+                      setPersonalNoteEditor({ mode: "create", note: buildPersonalNoteDraft() });
+                    }}>
+                      Nueva nota
+                    </button>
+                  ) : null}
+                </div>
+                <div className="unified-sheet-list">
+                  {personalNotes.map((entry) => (
+                    <article key={entry.id} className="campaign-structured-card">
+                      <div className="row-actions">
+                        <div>
+                          <strong>{entry.title}</strong>
+                          <p className="section-help">{summarizeCharacterNote(entry.content)}</p>
+                        </div>
+                        <button type="button" className="subtle-button" onClick={() => {
+                          setPersonalNoteError(null);
+                          setSelectedPersonalNoteId(entry.id);
+                        }}>
+                          Ver nota
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                  {personalNotes.length === 0 ? <p className="section-help">Sin notas personales registradas.</p> : null}
+                </div>
+              </article>
+
+              <article className="campaign-sheet-card">
+                <h3>Contexto</h3>
                 <div className="form-grid">
-                  <Field label="Grupo"><input disabled value={normalizedSheet.grupo.nombre} onChange={(event) => updateField("grupo.nombre", event.target.value)} /></Field>
-                  <Field label="Objetivo del grupo"><textarea disabled rows={2} value={normalizedSheet.grupo.objetivo} onChange={(event) => updateField("grupo.objetivo", event.target.value)} /></Field>
+                  <Field label="Grupo"><input disabled={!editMode} value={normalizedSheet.grupo.nombre} onChange={(event) => updateField("grupo.nombre", event.target.value)} /></Field>
+                  <Field label="Objetivo del grupo"><textarea disabled={!editMode} rows={2} value={normalizedSheet.grupo.objetivo} onChange={(event) => updateField("grupo.objetivo", event.target.value)} /></Field>
                 </div>
               </article>
 
@@ -2530,10 +2794,10 @@ export function UnifiedCharacterSheet({
                   {normalizedSheet.contactosHoja.map((contacto, index) => (
                     <article key={`contacto-${index}`} className="campaign-structured-card">
                       <div className="form-grid">
-                        <Field label="Nombre"><input disabled value={contacto.nombre} onChange={(event) => updateField(`contactosHoja.${index}.nombre`, event.target.value)} /></Field>
-                        <Field label="Raza"><input disabled value={contacto.raza} onChange={(event) => updateField(`contactosHoja.${index}.raza`, event.target.value)} /></Field>
-                        <Field label="Ocupacion"><input disabled value={contacto.ocupacion} onChange={(event) => updateField(`contactosHoja.${index}.ocupacion`, event.target.value)} /></Field>
-                        <Field label="Jugador"><input disabled value={contacto.jugador} onChange={(event) => updateField(`contactosHoja.${index}.jugador`, event.target.value)} /></Field>
+                        <Field label="Nombre"><input disabled={!editMode} value={contacto.nombre} onChange={(event) => updateField(`contactosHoja.${index}.nombre`, event.target.value)} /></Field>
+                        <Field label="Raza"><input disabled={!editMode} value={contacto.raza} onChange={(event) => updateField(`contactosHoja.${index}.raza`, event.target.value)} /></Field>
+                        <Field label="Ocupacion"><input disabled={!editMode} value={contacto.ocupacion} onChange={(event) => updateField(`contactosHoja.${index}.ocupacion`, event.target.value)} /></Field>
+                        <Field label="Jugador"><input disabled={!editMode} value={contacto.jugador} onChange={(event) => updateField(`contactosHoja.${index}.jugador`, event.target.value)} /></Field>
                       </div>
                     </article>
                   ))}
@@ -2541,6 +2805,7 @@ export function UnifiedCharacterSheet({
               </article>
             </section>
           ) : null}
+
         </div>
       </section>
     );
@@ -2973,9 +3238,43 @@ export function UnifiedCharacterSheet({
       {activeTab === "notes" ? (
         <section className="unified-sheet-panel">
           <article className="campaign-sheet-card">
-            <h3>Notas y contexto</h3>
-            <Field label="Notas generales"><textarea disabled={!editMode} rows={6} value={normalizedSheet.noteSections.general} onChange={(event) => updateField("noteSections.general", event.target.value)} /></Field>
-            <Field label="Notas de campana"><textarea disabled={!editMode} rows={4} value={normalizedSheet.noteSections.campaign} onChange={(event) => updateField("noteSections.campaign", event.target.value)} /></Field>
+            <div className="row-actions">
+              <div>
+                <h3>Notas personales</h3>
+                <p className="section-help">Entradas ordenadas en Markdown para diario, pistas, recuerdos y apuntes de campaña del personaje.</p>
+              </div>
+              {canEditNotes ? (
+                <button type="button" onClick={() => {
+                  setPersonalNoteError(null);
+                  setPersonalNoteEditor({ mode: "create", note: buildPersonalNoteDraft() });
+                }}>
+                  Nueva nota
+                </button>
+              ) : null}
+            </div>
+            <div className="unified-sheet-list">
+              {personalNotes.map((entry) => (
+                <article key={entry.id} className="campaign-structured-card">
+                  <div className="row-actions">
+                    <div>
+                      <strong>{entry.title}</strong>
+                      <p className="section-help">{summarizeCharacterNote(entry.content)}</p>
+                    </div>
+                    <button type="button" className="subtle-button" onClick={() => {
+                      setPersonalNoteError(null);
+                      setSelectedPersonalNoteId(entry.id);
+                    }}>
+                      Ver nota
+                    </button>
+                  </div>
+                </article>
+              ))}
+              {personalNotes.length === 0 ? <p className="section-help">Sin notas personales registradas.</p> : null}
+            </div>
+          </article>
+
+          <article className="campaign-sheet-card">
+            <h3>Contexto</h3>
             <div className="form-grid">
               <Field label="Grupo"><input disabled={!editMode} value={normalizedSheet.grupo.nombre} onChange={(event) => updateField("grupo.nombre", event.target.value)} /></Field>
               <Field label="Objetivo del grupo"><textarea disabled={!editMode} rows={2} value={normalizedSheet.grupo.objetivo} onChange={(event) => updateField("grupo.objetivo", event.target.value)} /></Field>
@@ -2998,6 +3297,71 @@ export function UnifiedCharacterSheet({
             </div>
           </article>
         </section>
+      ) : null}
+      {selectedPersonalNote ? (
+        <div className="modal-backdrop" onClick={() => setSelectedPersonalNoteId(null)}>
+          <div className="panel modal-panel character-roll-confirm-modal unified-sheet-action-detail-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>{selectedPersonalNote.title}</h3>
+            <p className="section-help">Actualizada {selectedPersonalNote.updatedAt || selectedPersonalNote.createdAt || "sin fecha"}</p>
+            <div className="unified-sheet-action-detail-body">
+              <div className="campaign-markdown">
+                {renderSimpleMarkdownBlocks(selectedPersonalNote.content || "Sin contenido detallado.")}
+              </div>
+            </div>
+            <div className="row-actions character-roll-confirm-actions">
+              {canEditNotes ? (
+                <button type="button" onClick={() => {
+                  setPersonalNoteError(null);
+                  setPersonalNoteEditor({ mode: "edit", note: buildPersonalNoteDraft(selectedPersonalNote) });
+                }}>
+                  Editar
+                </button>
+              ) : null}
+              <button type="button" className="subtle-button" onClick={() => setSelectedPersonalNoteId(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {personalNoteEditor ? (
+        <div className="modal-backdrop" onClick={() => setPersonalNoteEditor(null)}>
+          <div className="panel modal-panel character-roll-confirm-modal unified-sheet-action-detail-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>{personalNoteEditor.mode === "create" ? "Nueva nota personal" : "Editar nota personal"}</h3>
+            <p className="section-help">La nota acepta Markdown y se guarda dentro de la hoja del personaje.</p>
+            {personalNoteError ? <p className="error-text">{personalNoteError}</p> : null}
+            <div className="unified-sheet-action-detail-body">
+              <div className="form-grid">
+                <Field label="Titulo">
+                  <input
+                    value={personalNoteEditor.note.title}
+                    onChange={(event) => setPersonalNoteEditor((current) => current ? {
+                      ...current,
+                      note: { ...current.note, title: event.target.value }
+                    } : null)}
+                  />
+                </Field>
+              </div>
+              <Field label="Contenido">
+                <textarea
+                  rows={12}
+                  value={personalNoteEditor.note.content}
+                  onChange={(event) => setPersonalNoteEditor((current) => current ? {
+                    ...current,
+                    note: { ...current.note, content: event.target.value }
+                  } : null)}
+                />
+              </Field>
+            </div>
+            <div className="row-actions character-roll-confirm-actions">
+              <button type="button" onClick={savePersonalNote}>Guardar</button>
+              {personalNoteEditor.mode === "edit" ? (
+                <button type="button" className="destructive-button" onClick={() => deletePersonalNote(personalNoteEditor.note.id)}>
+                  Quitar
+                </button>
+              ) : null}
+              <button type="button" className="subtle-button" onClick={() => setPersonalNoteEditor(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
       ) : null}
       {pendingRollConfirmation ? (
         <div className="modal-backdrop">

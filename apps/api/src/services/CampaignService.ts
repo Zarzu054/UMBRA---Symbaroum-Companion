@@ -212,13 +212,16 @@ export class CampaignService {
 
     await this.getCampaign(userId, userRole, campaignId);
     const payloadKeys = Object.keys(payload);
-    const onlySharedNotesUpdate = payloadKeys.length > 0 && payloadKeys.every((key) => key === "sharedNotes");
+    const onlySharedNotesUpdate = payloadKeys.length > 0 && payloadKeys.every((key) => key === "sharedNotes" || key === "sharedNoteEntries");
 
     if (!onlySharedNotesUpdate) {
       throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes editar las notas compartidas de la campana", 403);
     }
 
-    return this.model.update(campaignId, { sharedNotes: payload.sharedNotes ?? "" }, userId, userRole);
+    return this.model.update(campaignId, {
+      sharedNotes: payload.sharedNotes ?? "",
+      sharedNoteEntries: payload.sharedNoteEntries ?? []
+    }, userId, userRole);
   }
 
   async addMember(userId: string, userRole: UserRole, campaignId: string, input: AddCampaignMemberInput): Promise<Campaign> {
