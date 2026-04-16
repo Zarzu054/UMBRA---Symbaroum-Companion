@@ -224,6 +224,7 @@ const characterSheetObjectSchema = z.object({
   identidad: z.object({
     nombrePersonaje: z.string().max(120).default(""),
     nombreJugador: z.string().max(120).default(""),
+    esFamiliar: z.boolean().default(false),
     raza: z.enum(SYMBAROUM_RACES).or(z.string().min(1).max(80)),
     cultura: z.enum(SYMBAROUM_CULTURES).or(z.string().min(1).max(80)).default("Ambriano"),
     arquetipo: z.enum(SYMBAROUM_ARCHETYPES).or(z.string().min(1).max(80)).default("Guerrero"),
@@ -1359,6 +1360,7 @@ export function createEmptyCharacterSheet(): CharacterSheet {
     identidad: {
       nombrePersonaje: "",
       nombreJugador: "",
+      esFamiliar: false,
       raza: "Humano",
       cultura: "Ambriano",
       arquetipo: "Guerrero",

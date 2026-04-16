@@ -660,7 +660,7 @@ function createUnarmedAttackAction(sheet, level) {
                 ? "Ataque desarmado base. Combate sin armas permite resolver por separado un segundo ataque contra el mismo objetivo."
                 : level === "maestro"
                     ? "Ataque desarmado base mejorado por Combate sin armas. Los ataques desarmados infligen 2d6."
-            : "Ataque desarmado base de Combate sin armas."
+                    : "Ataque desarmado base de Combate sin armas."
     };
 }
 function getNaturalWeaponDamageFormula(sheet, naturalWeaponLevel) {

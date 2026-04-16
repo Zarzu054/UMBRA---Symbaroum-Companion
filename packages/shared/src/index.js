@@ -192,6 +192,7 @@ const characterSheetObjectSchema = z.object({
     identidad: z.object({
         nombrePersonaje: z.string().max(120).default(""),
         nombreJugador: z.string().max(120).default(""),
+        esFamiliar: z.boolean().default(false),
         raza: z.enum(SYMBAROUM_RACES).or(z.string().min(1).max(80)),
         cultura: z.enum(SYMBAROUM_CULTURES).or(z.string().min(1).max(80)).default("Ambriano"),
         arquetipo: z.enum(SYMBAROUM_ARCHETYPES).or(z.string().min(1).max(80)).default("Guerrero"),
@@ -1196,6 +1197,7 @@ export function createEmptyCharacterSheet() {
         identidad: {
             nombrePersonaje: "",
             nombreJugador: "",
+            esFamiliar: false,
             raza: "Humano",
             cultura: "Ambriano",
             arquetipo: "Guerrero",
@@ -1415,6 +1417,7 @@ export const resetPasswordSchema = z.object({
 });
 export const campaignMemberRoleSchema = z.enum(["gm", "player"]);
 export const campaignSessionStatusSchema = z.enum(["planned", "completed", "cancelled"]);
+export const campaignReferenceVisibilitySchema = z.enum(["gm_only", "campaign", "selected_players"]);
 export const createCampaignSchema = z.object({
     name: z.string().min(3).max(120),
     summary: z.string().max(400).default(""),
@@ -1500,6 +1503,7 @@ export const createCampaignReferenceSchema = z.object({
     aliases: z.array(z.string().min(1).max(120)).max(20).default([]),
     summary: z.string().max(300).default(""),
     content: z.string().max(6000).default(""),
-    isPublic: z.boolean().default(false)
+    visibility: campaignReferenceVisibilitySchema.default("campaign"),
+    sharedWithUserIds: z.array(z.string().uuid()).max(50).default([])
 });
 export const updateCampaignReferenceSchema = createCampaignReferenceSchema.partial();

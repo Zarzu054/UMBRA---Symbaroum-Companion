@@ -86,6 +86,10 @@ const BUILDER_TABS: Array<{ id: BuilderTabId; label: string }> = [
   { id: "rasgos", label: "Rasgos y cargas" }
 ];
 
+function getInitialCharacterXp(sheet: CharacterSheet): number {
+  return sheet.identidad.esFamiliar ? 20 : 50;
+}
+
 function normalizeName(value: string): string {
   return String(value ?? "")
     .normalize("NFD")
@@ -133,7 +137,7 @@ function getCatalogEntries(section: RatedSection): SymbaroumCapability[] {
 }
 
 function getSectionCostLabel(section: RatedSection): string {
-  return section === "rituales" ? "Sin coste automatico" : "10 / 30 / 60 PX";
+  return section === "rituales" ? "10 PX por ritual" : "10 / 30 / 60 PX";
 }
 
 function getNextLevel(level: SkillLevel): SkillLevel | null {
@@ -227,9 +231,18 @@ export function CharacterBuilderView({
   }, [character]);
 
   const experience = useMemo(() => getCharacterExperienceSummary(draft), [draft]);
+  const initialCharacterXp = useMemo(() => getInitialCharacterXp(draft), [draft]);
+  const sessionExperience = useMemo(
+    () => Math.max(0, draft.progreso.experienciaTotal - initialCharacterXp - experience.extraFromBurdens),
+    [draft.progreso.experienciaTotal, experience.extraFromBurdens, initialCharacterXp]
+  );
+  const manualSpentTotal = useMemo(
+    () => Math.max(0, manualSpentAdjustment),
+    [manualSpentAdjustment]
+  );
   const effectiveSpent = useMemo(
-    () => Math.max(0, experience.computedSpent + Math.max(0, manualSpentAdjustment)),
-    [experience.computedSpent, manualSpentAdjustment]
+    () => Math.max(0, experience.computedSpent + manualSpentTotal),
+    [experience.computedSpent, manualSpentTotal]
   );
   const effectiveAvailable = useMemo(
     () => Math.max(0, draft.progreso.experienciaTotal - effectiveSpent),
@@ -444,7 +457,7 @@ export function CharacterBuilderView({
       return;
     }
     const section = acquisitionModal.section;
-    const acquisitionCost = section === "rituales" ? 0 : 10;
+    const acquisitionCost = 10;
     if (acquisitionCost > effectiveAvailable) {
       setError(`No hay PX suficientes para obtener ${entry.nombre}.`);
       return;
@@ -465,7 +478,7 @@ export function CharacterBuilderView({
     if (!acquisitionModal || !selectedAcquisitionEntry) {
       return;
     }
-    const cost = acquisitionModal.section === "rituales" ? 0 : 10;
+    const cost = 10;
     if (cost > effectiveAvailable) {
       setError(`No hay PX suficientes para obtener ${selectedAcquisitionEntry.nombre}.`);
       return;
@@ -480,7 +493,7 @@ export function CharacterBuilderView({
       cost,
       previewSummary: selectedAcquisitionEntry.efectoResumen,
       targetTier: getCapabilityTierForLevel(acquisitionPreviewTiers, "novato"),
-      confirmLabel: acquisitionModal.section === "rituales" ? "Confirmar obtencion" : `Confirmar ${cost} PX`,
+      confirmLabel: `Confirmar ${cost} PX`,
       onConfirm: () => {
         applyAcquisition();
         setCapabilityConfirmationModal(null);
@@ -614,7 +627,7 @@ export function CharacterBuilderView({
                   </article>
                   <article className="character-builder-xp-card">
                     <span>PX gastada</span>
-                    <strong>{experience.computedSpent}</strong>
+                    <strong>{effectiveSpent}</strong>
                   </article>
                   <article className="character-builder-xp-card">
                     <span>PX disponible</span>
@@ -623,9 +636,9 @@ export function CharacterBuilderView({
                 </div>
 
                 <div className="character-builder-summary-notes">
-                  <p><strong>Bendiciones:</strong> cada una suma 5 PX gastados.</p>
-                  <p><strong>Cargas:</strong> se registran en la ficha y el constructor, pero no alteran el PX total.</p>
-                  <p><strong>Rituales y rasgos:</strong> se gestionan aqui, pero sin coste automatico.</p>
+                  <p><strong>Origen del PX total:</strong> {initialCharacterXp} inicial + {experience.extraFromBurdens} por cargas + {sessionExperience} ganados en sesiones.</p>
+                  <p><strong>Origen del PX gastado:</strong> {experience.spentFromCapabilities} en capacidades y poderes + {experience.spentFromRituals} en rituales + {experience.spentFromBlessings} en bendiciones{manualSpentTotal > 0 ? ` + ${manualSpentTotal} de ajuste manual` : ""}.</p>
+                  <p><strong>Rituales y rasgos:</strong> los rituales cuestan 10 PX cada uno; los rasgos siguen sin coste automatico.</p>
                 </div>
               </section>
             ) : null}
@@ -644,6 +657,17 @@ export function CharacterBuilderView({
                   <label className="field">
                     <span>Nombre del jugador</span>
                     <input value={draft.identidad.nombreJugador} onChange={(event) => updateIdentityField("nombreJugador", event.target.value)} />
+                  </label>
+                  <label className="field">
+                    <span>Marcador especial</span>
+                    <label className="checkbox-row">
+                      <input
+                        type="checkbox"
+                        checked={draft.identidad.esFamiliar}
+                        onChange={(event) => updateIdentityField("esFamiliar", event.target.checked)}
+                      />
+                      <span>Es familiar (empieza con 20 PX)</span>
+                    </label>
                   </label>
                   <label className="field">
                     <span>Raza</span>
@@ -708,7 +732,7 @@ export function CharacterBuilderView({
                                 <div className="character-builder-entry-copy">
                                   <strong>{entry.nombre}</strong>
                                   <div className="character-builder-entry-meta meta-text">
-                                    {section === "rituales" ? "Sin coste automatico" : `${getRatedEntryCost(entry.nivel)} PX invertidos`}{entry.fuente ? ` · ${entry.fuente}` : ""}
+                                    {section === "rituales" ? "10 PX invertidos" : `${getRatedEntryCost(entry.nivel)} PX invertidos`}{entry.fuente ? ` · ${entry.fuente}` : ""}
                                   </div>
                                 </div>
                                 <div className="card-actions character-builder-entry-actions">
@@ -870,7 +894,7 @@ export function CharacterBuilderView({
                     <div className="character-builder-acquisition-header">
                       <strong>{selectedAcquisitionEntry.nombre}</strong>
                       <span className="meta-text">
-                        {selectedAcquisitionEntry.libro}{selectedAcquisitionEntry.pagina ? ` p. ${selectedAcquisitionEntry.pagina}` : ""} · {acquisitionModal.section === "rituales" ? "Sin coste automatico" : "10 PX"}
+                        {selectedAcquisitionEntry.libro}{selectedAcquisitionEntry.pagina ? ` p. ${selectedAcquisitionEntry.pagina}` : ""} · 10 PX
                       </span>
                     </div>
                     {acquisitionPreviewTiers.length > 0 ? (
@@ -896,7 +920,7 @@ export function CharacterBuilderView({
               <button
                 type="button"
                 onClick={openAcquisitionConfirmation}
-                disabled={!selectedAcquisitionEntry || (acquisitionModal.section !== "rituales" && effectiveAvailable < 10)}
+                disabled={!selectedAcquisitionEntry || effectiveAvailable < 10}
               >
                 Revisar compra
               </button>
@@ -926,9 +950,7 @@ export function CharacterBuilderView({
                 {capabilityConfirmationModal.sourceLabel
                   ? `${capabilityConfirmationModal.sourceLabel} · `
                   : ""}
-                {capabilityConfirmationModal.section === "rituales"
-                  ? "Sin coste automatico"
-                  : `${capabilityConfirmationModal.cost} PX`}
+                {`${capabilityConfirmationModal.cost} PX`}
               </span>
             </div>
             {capabilityConfirmationModal.targetTier ? (
