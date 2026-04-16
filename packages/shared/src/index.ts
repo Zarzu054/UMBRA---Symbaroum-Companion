@@ -218,6 +218,132 @@ const noteSectionsSchema = z.object({
   campaign: z.string().max(4000).default("")
 });
 
+const structuredNoteEntrySchema = z.object({
+  id: z.string().min(1).max(120),
+  title: z.string().min(1).max(160),
+  content: z.string().max(12000).default(""),
+  createdAt: z.string().max(80).default(""),
+  updatedAt: z.string().max(80).default("")
+});
+
+const characterNoteEntrySchema = structuredNoteEntrySchema.extend({
+  category: z.enum(["general", "campaign"]).default("general")
+});
+
+const campaignSharedNoteEntrySchema = structuredNoteEntrySchema.extend({
+  authorId: z.string().max(80).default(""),
+  authorEmail: z.string().max(160).default("")
+});
+
+const STRUCTURED_SHARED_NOTES_PREFIX = "__UMBRA_SHARED_NOTES_V1__:";
+
+function buildLegacyCharacterNoteEntries(
+  input: { noteSections?: Partial<z.infer<typeof noteSectionsSchema>>; notas?: string }
+): z.infer<typeof characterNoteEntrySchema>[] {
+  const entries: z.infer<typeof characterNoteEntrySchema>[] = [];
+  const generalContent = input.noteSections?.general ?? input.notas ?? "";
+  const campaignContent = input.noteSections?.campaign ?? "";
+  if (generalContent.trim()) {
+    entries.push({
+      id: "legacy-note-general",
+      title: "Notas generales",
+      content: generalContent.trim(),
+      category: "general",
+      createdAt: "",
+      updatedAt: ""
+    });
+  }
+  if (campaignContent.trim()) {
+    entries.push({
+      id: "legacy-note-campaign",
+      title: "Notas de campana",
+      content: campaignContent.trim(),
+      category: "campaign",
+      createdAt: "",
+      updatedAt: ""
+    });
+  }
+  return entries;
+}
+
+function normalizeCharacterNoteEntries(entries: unknown): z.infer<typeof characterNoteEntrySchema>[] {
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+  return entries
+    .map((entry) => characterNoteEntrySchema.safeParse(entry))
+    .filter((result): result is { success: true; data: z.infer<typeof characterNoteEntrySchema> } => result.success)
+    .map((result) => ({
+      ...result.data,
+      title: result.data.title.trim(),
+      content: result.data.content.trim()
+    }))
+    .filter((entry) => entry.title.length > 0 || entry.content.length > 0)
+    .slice(0, 200);
+}
+
+function normalizeCampaignSharedNoteEntries(entries: unknown): z.infer<typeof campaignSharedNoteEntrySchema>[] {
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+  return entries
+    .map((entry) => campaignSharedNoteEntrySchema.safeParse(entry))
+    .filter((result): result is { success: true; data: z.infer<typeof campaignSharedNoteEntrySchema> } => result.success)
+    .map((result) => ({
+      ...result.data,
+      title: result.data.title.trim(),
+      content: result.data.content.trim(),
+      authorEmail: result.data.authorEmail.trim()
+    }))
+    .filter((entry) => entry.title.length > 0 || entry.content.length > 0)
+    .slice(0, 200);
+}
+
+export function encodeCampaignSharedNotes(entries: Array<z.infer<typeof campaignSharedNoteEntrySchema>>): string {
+  const normalized = normalizeCampaignSharedNoteEntries(entries);
+  if (normalized.length === 0) {
+    return "";
+  }
+  return `${STRUCTURED_SHARED_NOTES_PREFIX}${JSON.stringify(normalized)}`;
+}
+
+export function decodeCampaignSharedNotes(raw: string): {
+  legacyText: string;
+  entries: Array<z.infer<typeof campaignSharedNoteEntrySchema>>;
+} {
+  const normalizedRaw = String(raw ?? "");
+  if (!normalizedRaw.startsWith(STRUCTURED_SHARED_NOTES_PREFIX)) {
+    const legacyText = normalizedRaw.trim();
+    return {
+      legacyText,
+      entries: legacyText
+        ? [{
+            id: "legacy-shared-note",
+            title: "Notas compartidas",
+            content: legacyText,
+            authorId: "",
+            authorEmail: "",
+            createdAt: "",
+            updatedAt: ""
+          }]
+        : []
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(normalizedRaw.slice(STRUCTURED_SHARED_NOTES_PREFIX.length));
+    return {
+      legacyText: "",
+      entries: normalizeCampaignSharedNoteEntries(parsed)
+    };
+  } catch {
+    return {
+      legacyText: "",
+      entries: []
+    };
+  }
+}
+
 const characterSheetObjectSchema = z.object({
   identidad: z.object({
     nombrePersonaje: z.string().max(120).default(""),
@@ -317,6 +443,7 @@ const characterSheetObjectSchema = z.object({
     worn: ""
   }),
   conditions: z.array(conditionSchema).max(120).default([]),
+  personalNotes: z.array(characterNoteEntrySchema).max(200).default([]),
   noteSections: noteSectionsSchema.default({
     general: "",
     background: "",
@@ -1215,6 +1342,11 @@ function migrateCharacterSheetInput(input: unknown): unknown {
         campaign: candidate.noteSections.campaign ?? ""
       }
     : buildLegacyNotesSections(candidate);
+  const personalNotes = normalizeCharacterNoteEntries(candidate.personalNotes);
+  const effectivePersonalNotes = personalNotes.length > 0 ? personalNotes : buildLegacyCharacterNoteEntries({
+    noteSections,
+    notas: candidate.notas ?? ""
+  });
   const migratedMonsterTraitAbilities = buildMonsterTraitAbilityEntries(candidate.rasgos, candidate.habilidades);
   const habilidades = normalizeRatedEntries([...(candidate.habilidades ?? []), ...migratedMonsterTraitAbilities], "ability");
   const poderesMisticos = normalizeRatedEntries(candidate.poderesMisticos, "power");
@@ -1243,6 +1375,7 @@ function migrateCharacterSheetInput(input: unknown): unknown {
       Array.isArray(candidate.conditions) && candidate.conditions.length > 0 ? candidate.conditions : buildLegacyConditions(candidate),
       candidate
     ),
+    personalNotes: effectivePersonalNotes,
     noteSections,
     actionFavorites: normalizeActionFavorites(candidate.actionFavorites),
     actions: Array.isArray(candidate.actions) && candidate.actions.length > 0 ? candidate.actions : buildCanonicalActions({
@@ -1269,6 +1402,15 @@ function buildSynchronizedCharacterSheet(input: CharacterSheet): CharacterSheet 
   const rituales = normalizeRatedEntries(input.rituales, "ritual");
   const inventoryItemsWithoutNaturalPlaceholder = stripNaturalArmorPlaceholderItems(input.inventoryItems, input);
   const syncedEquipment = synchronizeInventoryEquipment(inventoryItemsWithoutNaturalPlaceholder, input.equipmentSlots);
+  const personalNotes = normalizeCharacterNoteEntries(input.personalNotes);
+  const effectivePersonalNotes = personalNotes.length > 0 ? personalNotes : buildLegacyCharacterNoteEntries({
+    noteSections: input.noteSections,
+    notas: input.notas
+  });
+  const serializedPersonalNotes = effectivePersonalNotes
+    .map((entry) => `## ${entry.title}\n\n${entry.content}`.trim())
+    .filter(Boolean)
+    .join("\n\n");
   const legacyCompatible = {
     ...input,
     rasgos: filterCharacterNonMonsterTraits(input.rasgos),
@@ -1287,11 +1429,13 @@ function buildSynchronizedCharacterSheet(input: CharacterSheet): CharacterSheet 
     },
     noteSections: {
       ...input.noteSections,
-      general: input.noteSections.general || input.notas || "",
+      general: serializedPersonalNotes || input.noteSections.general || input.notas || "",
       background: input.noteSections.background || input.identidad.trasfondo || "",
       traits: input.noteSections.traits || input.rasgos.join(", "),
       campaign: input.noteSections.campaign
     },
+    notas: serializedPersonalNotes || input.notas || "",
+    personalNotes: effectivePersonalNotes,
     conditions: synchronizeAutomaticConditions(input.conditions, input),
     ...syncedEquipment
   };
@@ -1304,6 +1448,7 @@ function buildSynchronizedCharacterSheet(input: CharacterSheet): CharacterSheet 
     rituales,
     inventoryItems: syncedEquipment.inventoryItems,
     equipmentSlots: syncedEquipment.equipmentSlots,
+    personalNotes: effectivePersonalNotes,
     noteSections: legacyCompatible.noteSections,
     actionFavorites: normalizeActionFavorites(input.actionFavorites),
     actions: [...manualUtilityActions, ...autoActions]
@@ -1439,6 +1584,7 @@ export function createEmptyCharacterSheet(): CharacterSheet {
       worn: ""
     },
     conditions: [],
+    personalNotes: [],
     noteSections: {
       general: "",
       background: "",
@@ -1620,7 +1766,8 @@ export const createCampaignSchema = z.object({
   summary: z.string().max(400).default(""),
   setting: z.string().max(200).default(""),
   notes: z.string().max(4000).default(""),
-  sharedNotes: z.string().max(6000).default("")
+  sharedNotes: z.string().max(6000).default(""),
+  sharedNoteEntries: z.array(campaignSharedNoteEntrySchema).max(200).default([])
 });
 
 export const updateCampaignSchema = createCampaignSchema.partial();
@@ -1941,6 +2088,7 @@ export type Campaign = {
   setting: string;
   notes: string;
   sharedNotes: string;
+  sharedNoteEntries: Array<z.infer<typeof campaignSharedNoteEntrySchema>>;
   gmId: string;
   gmEmail: string;
   createdAt: string;

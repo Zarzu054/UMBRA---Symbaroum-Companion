@@ -1,5 +1,5 @@
 ﻿import type { Prisma } from "@prisma/client";
-import { createEmptyCharacterSheet, parseCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CharacterSheet, type UserRole } from "@umbra/shared";
+import { createEmptyCharacterSheet, decodeCampaignSharedNotes, encodeCampaignSharedNotes, parseCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CharacterSheet, type UserRole } from "@umbra/shared";
 import { Prisma as PrismaRuntime } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 
@@ -154,6 +154,7 @@ function mapCampaign(
   const visibleChatMessages = row.chatMessages.filter(
     (message) => isDirector || message.userId === viewerId || message.visibility === "all"
   );
+  const decodedSharedNotes = decodeCampaignSharedNotes(row.sharedNotes);
 
   return {
     id: row.id,
@@ -161,7 +162,8 @@ function mapCampaign(
     summary: row.summary,
     setting: row.setting,
     notes: isDirector ? row.notes : "",
-    sharedNotes: row.sharedNotes,
+    sharedNotes: decodedSharedNotes.legacyText,
+    sharedNoteEntries: decodedSharedNotes.entries,
     gmId: row.gmId,
     gmEmail: row.gm.email,
     createdAt: row.createdAt.toISOString(),
@@ -293,7 +295,7 @@ export class CampaignModel {
 
   async create(
     gmId: string,
-    payload: { name: string; summary: string; setting: string; notes: string; sharedNotes: string },
+    payload: { name: string; summary: string; setting: string; notes: string; sharedNotes: string; sharedNoteEntries?: Campaign["sharedNoteEntries"] },
     userRole: UserRole
   ): Promise<Campaign> {
     const row = await prisma.campaign.create({
@@ -303,7 +305,7 @@ export class CampaignModel {
         summary: payload.summary,
         setting: payload.setting,
         notes: payload.notes,
-        sharedNotes: payload.sharedNotes,
+        sharedNotes: payload.sharedNoteEntries !== undefined ? encodeCampaignSharedNotes(payload.sharedNoteEntries) : payload.sharedNotes,
         members: {
           create: {
             userId: gmId,
@@ -319,13 +321,19 @@ export class CampaignModel {
 
   async update(
     campaignId: string,
-    payload: Partial<{ name: string; summary: string; setting: string; notes: string; sharedNotes: string }>,
+    payload: Partial<{ name: string; summary: string; setting: string; notes: string; sharedNotes: string; sharedNoteEntries: Campaign["sharedNoteEntries"] }>,
     viewerId: string,
     viewerRole: UserRole
   ): Promise<Campaign> {
+    const nextPayload = {
+      ...payload,
+      sharedNotes: payload.sharedNoteEntries !== undefined ? encodeCampaignSharedNotes(payload.sharedNoteEntries) : payload.sharedNotes
+    };
+    delete (nextPayload as { sharedNoteEntries?: Campaign["sharedNoteEntries"] }).sharedNoteEntries;
+
     const row = await prisma.campaign.update({
       where: { id: campaignId },
-      data: payload,
+      data: nextPayload,
       include: campaignInclude
     });
 

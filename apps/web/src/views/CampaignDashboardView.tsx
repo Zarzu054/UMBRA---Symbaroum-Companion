@@ -36,13 +36,15 @@ type CampaignHashState = {
 };
 
 type CampaignSection = "dmNotes" | "sharedNotes" | "wiki" | "members" | "characters";
+type CampaignSharedNoteEntry = Campaign["sharedNoteEntries"][number];
 
 const emptyCampaignForm: CreateCampaignInput = {
   name: "",
   summary: "",
   setting: "",
   notes: "",
-  sharedNotes: ""
+  sharedNotes: "",
+  sharedNoteEntries: []
 };
 
 const emptyReferenceForm: CreateCampaignReferenceInput = {
@@ -54,6 +56,58 @@ const emptyReferenceForm: CreateCampaignReferenceInput = {
   visibility: "campaign",
   sharedWithUserIds: []
 };
+
+function describeReferenceValidationError(error: unknown): string {
+  const issues = typeof error === "object" && error !== null && "issues" in error && Array.isArray((error as { issues?: unknown }).issues)
+    ? (error as { issues: Array<{ path?: unknown[] }> }).issues
+    : null;
+  if (!issues) {
+    return error instanceof Error ? error.message : "No se pudo crear la referencia";
+  }
+
+  const firstIssue = issues[0];
+  if (!firstIssue) {
+    return "Revisa los datos de la referencia.";
+  }
+
+  const field = String(firstIssue.path?.[0] ?? "");
+  if (field === "name") {
+    return "El nombre debe tener al menos 2 caracteres.";
+  }
+  if (field === "label") {
+    return "La categoria no puede superar los 80 caracteres.";
+  }
+  if (field === "content") {
+    return "El contenido no puede superar los 6000 caracteres.";
+  }
+  if (field === "summary") {
+    return "El resumen no puede superar los 300 caracteres.";
+  }
+  if (field === "aliases") {
+    return "Revisa los alias de la referencia.";
+  }
+  return "Revisa los datos de la referencia.";
+}
+
+function buildTimestampedNoteId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function sortSharedNoteEntries(entries: CampaignSharedNoteEntry[]): CampaignSharedNoteEntry[] {
+  return [...entries].sort((left, right) => {
+    const leftDate = left.updatedAt || left.createdAt || "";
+    const rightDate = right.updatedAt || right.createdAt || "";
+    return rightDate.localeCompare(leftDate);
+  });
+}
+
+function summarizeNoteContent(content: string): string {
+  const collapsed = content.replace(/\s+/g, " ").trim();
+  if (!collapsed) {
+    return "Sin contenido.";
+  }
+  return collapsed.length > 180 ? `${collapsed.slice(0, 177)}...` : collapsed;
+}
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -405,11 +459,13 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [referenceForm, setReferenceForm] = useState<CreateCampaignReferenceInput>(emptyReferenceForm);
   const [referenceAliasesText, setReferenceAliasesText] = useState("");
   const [isReferenceCreateModalOpen, setIsReferenceCreateModalOpen] = useState(false);
+  const [selectedSharedNoteId, setSelectedSharedNoteId] = useState<string | null>(null);
+  const [sharedNoteEditor, setSharedNoteEditor] = useState<{ mode: "create" | "edit"; note: CampaignSharedNoteEntry } | null>(null);
+  const [sharedNoteError, setSharedNoteError] = useState<string | null>(null);
   const [isReferenceDetailModalOpen, setIsReferenceDetailModalOpen] = useState(false);
   const [isReferenceEditMode, setIsReferenceEditMode] = useState(false);
   const [isCreateCampaignModalOpen, setIsCreateCampaignModalOpen] = useState(false);
   const [isCampaignDetailsModalOpen, setIsCampaignDetailsModalOpen] = useState(false);
-  const [isSharedNotesModalOpen, setIsSharedNotesModalOpen] = useState(false);
   const [isBurdenSummaryModalOpen, setIsBurdenSummaryModalOpen] = useState(false);
   const [pendingUnlinkCharacter, setPendingUnlinkCharacter] = useState<Campaign["characters"][number] | null>(null);
 
@@ -425,6 +481,14 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     () => selectedCampaign?.references.find((entry) => entry.id === selectedReferenceId) ?? null,
     [selectedCampaign, selectedReferenceId]
   );
+  const sortedSharedNotes = useMemo(
+    () => sortSharedNoteEntries(selectedCampaign?.sharedNoteEntries ?? []),
+    [selectedCampaign]
+  );
+  const selectedSharedNote = useMemo(
+    () => sortedSharedNotes.find((entry) => entry.id === selectedSharedNoteId) ?? null,
+    [selectedSharedNoteId, sortedSharedNotes]
+  );
   const canEditSelectedReference = isDirector || selectedReference?.authorId === user.id;
   const shareableMembers = useMemo(
     () => (selectedCampaign?.members ?? []).filter((member) => member.role === "player"),
@@ -437,9 +501,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       ),
     [isDirector, selectedCampaign, user.id]
   );
-  const sharedNotesReferenceHighlights = useMemo(
-    () => (selectedCampaign?.references ?? []).filter((reference) => referenceMatchesText(reference, draft.sharedNotes)),
-    [draft.sharedNotes, selectedCampaign]
+  const selectedSharedNoteReferenceHighlights = useMemo(
+    () => selectedSharedNote ? (selectedCampaign?.references ?? []).filter((reference) => referenceMatchesText(reference, selectedSharedNote.content)) : [],
+    [selectedCampaign, selectedSharedNote]
   );
   const burdenEntries = useMemo(
     () => ALL_ENTRIES.filter((entry) => entry.tipo === "carga"),
@@ -474,7 +538,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const isAnyModalOpen =
     isCreateCampaignModalOpen ||
     isCampaignDetailsModalOpen ||
-    isSharedNotesModalOpen ||
+    Boolean(selectedSharedNoteId) ||
+    Boolean(sharedNoteEditor) ||
     isReferenceCreateModalOpen ||
     isReferenceDetailModalOpen ||
     isBurdenSummaryModalOpen ||
@@ -518,7 +583,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setSelectedReferenceId(null);
       setReferenceForm(emptyReferenceForm);
       setReferenceAliasesText("");
-      setIsSharedNotesModalOpen(false);
+      setSelectedSharedNoteId(null);
+      setSharedNoteEditor(null);
+      setSharedNoteError(null);
       setPendingUnlinkCharacter(null);
       setReferenceCreateError(null);
       setIsReferenceCreateModalOpen(false);
@@ -532,7 +599,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       summary: selectedCampaign.summary,
       setting: selectedCampaign.setting,
       notes: selectedCampaign.notes,
-      sharedNotes: selectedCampaign.sharedNotes
+      sharedNotes: selectedCampaign.sharedNotes,
+      sharedNoteEntries: selectedCampaign.sharedNoteEntries
     });
   }, [selectedCampaign]);
 
@@ -670,20 +738,82 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     }
   }
 
-  async function handleSaveSharedNotes(): Promise<void> {
+  function buildSharedNoteDraft(entry?: CampaignSharedNoteEntry): CampaignSharedNoteEntry {
+    const now = new Date().toISOString();
+    return {
+      id: entry?.id ?? buildTimestampedNoteId("campaign-note"),
+      title: entry?.title ?? "",
+      content: entry?.content ?? "",
+      authorId: entry?.authorId || user.id,
+      authorEmail: entry?.authorEmail || user.email,
+      createdAt: entry?.createdAt || now,
+      updatedAt: entry?.updatedAt || now
+    };
+  }
+
+  async function persistSharedNotes(nextEntries: CampaignSharedNoteEntry[]): Promise<Campaign | null> {
     if (!selectedCampaign) {
+      return null;
+    }
+    const token = await ensureAccessToken();
+    const updated = await updateCampaign(selectedCampaign.id, {
+      sharedNoteEntries: sortSharedNoteEntries(nextEntries)
+    }, token);
+    upsertCampaign(updated);
+    return updated;
+  }
+
+  async function handleSaveSharedNote(): Promise<void> {
+    if (!selectedCampaign || !sharedNoteEditor) {
       return;
     }
 
+    const trimmedTitle = sharedNoteEditor.note.title.trim();
+    const trimmedContent = sharedNoteEditor.note.content.trim();
+    if (trimmedTitle.length < 2) {
+      setSharedNoteError("El titulo debe tener al menos 2 caracteres.");
+      return;
+    }
+
+    setSharedNoteError(null);
     setFormError(null);
     setIsSaving(true);
     try {
-      const token = await ensureAccessToken();
-      upsertCampaign(await updateCampaign(selectedCampaign.id, { sharedNotes: draft.sharedNotes }, token));
-      setFormError(null);
-      setIsSharedNotesModalOpen(false);
+      const now = new Date().toISOString();
+      const normalized = {
+        ...sharedNoteEditor.note,
+        title: trimmedTitle,
+        content: trimmedContent,
+        updatedAt: now,
+        createdAt: sharedNoteEditor.note.createdAt || now,
+        authorId: sharedNoteEditor.note.authorId || user.id,
+        authorEmail: sharedNoteEditor.note.authorEmail || user.email
+      };
+      const nextEntries = sharedNoteEditor.mode === "create"
+        ? [normalized, ...sortedSharedNotes]
+        : sortedSharedNotes.map((entry) => entry.id === normalized.id ? normalized : entry);
+      await persistSharedNotes(nextEntries);
+      setSelectedSharedNoteId(normalized.id);
+      setSharedNoteEditor(null);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "No se pudieron guardar las notas compartidas");
+      setSharedNoteError(err instanceof Error ? err.message : "No se pudo guardar la nota compartida");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDeleteSharedNote(noteId: string): Promise<void> {
+    setSharedNoteError(null);
+    setFormError(null);
+    setIsSaving(true);
+    try {
+      await persistSharedNotes(sortedSharedNotes.filter((entry) => entry.id !== noteId));
+      if (selectedSharedNoteId === noteId) {
+        setSelectedSharedNoteId(null);
+      }
+      setSharedNoteEditor(null);
+    } catch (err) {
+      setSharedNoteError(err instanceof Error ? err.message : "No se pudo eliminar la nota compartida");
     } finally {
       setIsSaving(false);
     }
@@ -783,7 +913,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setIsReferenceCreateModalOpen(false);
       setIsReferenceDetailModalOpen(Boolean(createdReference));
     } catch (err) {
-      setReferenceCreateError(err instanceof Error ? err.message : "No se pudo crear la referencia");
+      setReferenceCreateError(describeReferenceValidationError(err));
     } finally {
       setIsSaving(false);
     }
@@ -942,7 +1072,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               </div>
             </div>
 
-            {formError && !isCampaignDetailsModalOpen && !isSharedNotesModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen ? (
+            {formError && !selectedSharedNoteId && !sharedNoteEditor && !isCampaignDetailsModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen ? (
               <p className="error-text">{formError}</p>
             ) : null}
 
@@ -1012,47 +1142,36 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               <div className="row-actions">
                 <div>
                   <h3>Notas compartidas</h3>
-                  <p className="section-help">Lectura compartida de la campaña con resaltados de la wiki visibles para cada usuario.</p>
+                  <p className="section-help">Entradas ordenadas en Markdown, visibles para toda la campaña y con enlaces a la wiki detectados dentro de cada nota.</p>
                 </div>
-                <button
-                  type="button"
-                  disabled={isSaving}
-                  onClick={() => {
-                    setFormError(null);
-                    setIsSharedNotesModalOpen(true);
-                  }}
-                >
-                  Editar notas
+                <button type="button" disabled={isSaving} onClick={() => {
+                  setSharedNoteError(null);
+                  setSharedNoteEditor({ mode: "create", note: buildSharedNoteDraft() });
+                }}>
+                  Nueva nota
                 </button>
               </div>
-              <article className="campaign-sheet-card campaign-shared-notes-card">
-                <div className="row-actions">
-                  <div>
-                    <h4>Resaltados de la wiki</h4>
-                    <p className="section-help">Solo aparecen las referencias visibles para tu usuario dentro de estas notas.</p>
-                  </div>
-                  <span className="meta-text">{sharedNotesReferenceHighlights.length} coincidencias</span>
-                </div>
-                <div className="campaign-shared-notes-copy">
-                  <div className="campaign-markdown">
-                    {renderMarkdownBlocks(draft.sharedNotes || "Sin notas compartidas.", sharedNotesReferenceHighlights, openReferenceDetail)}
-                  </div>
-                </div>
-                {sharedNotesReferenceHighlights.length > 0 ? (
-                  <div className="compendium-tags">
-                    {sharedNotesReferenceHighlights.map((reference) => (
-                      <button
-                        key={reference.id}
-                        type="button"
-                        className="compendium-chip"
-                        onClick={() => openReferenceDetail(reference.id)}
-                      >
-                        {reference.name}
-                      </button>
-                    ))}
-                  </div>
+              <div className="campaign-reference-list">
+                {sortedSharedNotes.map((note) => (
+                  <button
+                    key={note.id}
+                    type="button"
+                    className="campaign-list-item"
+                    onClick={() => {
+                      setSharedNoteError(null);
+                      setSelectedSharedNoteId(note.id);
+                    }}
+                  >
+                    <strong>{note.title}</strong>
+                    <span>{summarizeNoteContent(note.content)}</span>
+                    <span>{note.authorEmail ? `Autor: ${note.authorEmail}` : "Nota compartida"}</span>
+                    <span>Actualizada: {formatDate(note.updatedAt || note.createdAt)}</span>
+                  </button>
+                ))}
+                {sortedSharedNotes.length === 0 ? (
+                  <p className="section-help">Aun no hay notas compartidas registradas.</p>
                 ) : null}
-              </article>
+              </div>
             </section>
           ) : null}
 
@@ -1230,45 +1349,112 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         </section>
       ) : null}
 
-      {isSharedNotesModalOpen && selectedCampaign ? (
+      {selectedSharedNote && selectedCampaign ? (
         <section
           className="modal-backdrop"
           onClick={() => {
             if (!isSaving) {
-              setFormError(null);
-              setIsSharedNotesModalOpen(false);
+              setSharedNoteError(null);
+              setSelectedSharedNoteId(null);
             }
           }}
         >
           <div className="panel modal-panel campaign-shared-notes-modal" onClick={(event) => event.stopPropagation()}>
             <div className="row-actions">
               <div>
-                <h3>Editar notas compartidas</h3>
-                <p className="section-help">Estos apuntes son visibles para los miembros de la campaña y aceptan Markdown.</p>
+                <h3>{selectedSharedNote.title}</h3>
+                <p className="section-help">{selectedSharedNote.authorEmail ? `${selectedSharedNote.authorEmail} · ` : ""}Actualizada {formatDate(selectedSharedNote.updatedAt || selectedSharedNote.createdAt)}</p>
               </div>
               <div className="toolbar">
-                <button type="button" disabled={isSaving} onClick={() => void handleSaveSharedNotes()}>
-                  {isSaving ? "Guardando..." : "Guardar"}
+                <button type="button" disabled={isSaving} onClick={() => {
+                  setSharedNoteError(null);
+                  setSharedNoteEditor({ mode: "edit", note: buildSharedNoteDraft(selectedSharedNote) });
+                }}>
+                  Editar
                 </button>
                 <button
                   type="button"
                   disabled={isSaving}
                   onClick={() => {
-                    setFormError(null);
-                    setIsSharedNotesModalOpen(false);
+                    setSharedNoteError(null);
+                    setSelectedSharedNoteId(null);
                   }}
                 >
                   Cerrar
                 </button>
               </div>
             </div>
-            {formError ? <p className="error-text">{formError}</p> : null}
+            {selectedSharedNoteReferenceHighlights.length > 0 ? (
+              <div className="compendium-tags">
+                {selectedSharedNoteReferenceHighlights.map((reference) => (
+                  <button key={reference.id} type="button" className="compendium-chip" onClick={() => openReferenceDetail(reference.id)}>
+                    {reference.name}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <div className="campaign-markdown">
+              {renderMarkdownBlocks(selectedSharedNote.content || "Sin contenido detallado.", selectedSharedNoteReferenceHighlights, openReferenceDetail)}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {sharedNoteEditor && selectedCampaign ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setSharedNoteEditor(null);
+              setSharedNoteError(null);
+            }
+          }}
+        >
+          <div className="panel modal-panel campaign-shared-notes-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="row-actions">
+              <div>
+                <h3>{sharedNoteEditor.mode === "create" ? "Nueva nota compartida" : "Editar nota compartida"}</h3>
+                <p className="section-help">La nota acepta Markdown y sera visible para los miembros de la campaña.</p>
+              </div>
+              <div className="toolbar">
+                <button type="button" disabled={isSaving} onClick={() => void handleSaveSharedNote()}>
+                  {isSaving ? "Guardando..." : "Guardar"}
+                </button>
+                {sharedNoteEditor.mode === "edit" ? (
+                  <button type="button" className="danger-button" disabled={isSaving} onClick={() => void handleDeleteSharedNote(sharedNoteEditor.note.id)}>
+                    Eliminar
+                  </button>
+                ) : null}
+                <button type="button" disabled={isSaving} onClick={() => {
+                  setSharedNoteEditor(null);
+                  setSharedNoteError(null);
+                }}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            {sharedNoteError ? <p className="error-text">{sharedNoteError}</p> : null}
+            <div className="form-grid">
+              <label className="field">
+                <span>Titulo</span>
+                <input
+                  value={sharedNoteEditor.note.title}
+                  onChange={(event) => setSharedNoteEditor((current) => current ? {
+                    ...current,
+                    note: { ...current.note, title: event.target.value }
+                  } : null)}
+                />
+              </label>
+            </div>
             <label className="field">
-              <span>Notas visibles para los miembros de la campaña</span>
+              <span>Contenido</span>
               <textarea
                 rows={16}
-                value={draft.sharedNotes}
-                onChange={(event) => setDraft((current) => ({ ...current, sharedNotes: event.target.value }))}
+                value={sharedNoteEditor.note.content}
+                onChange={(event) => setSharedNoteEditor((current) => current ? {
+                  ...current,
+                  note: { ...current.note, content: event.target.value }
+                } : null)}
                 placeholder="Apuntes de sesion, acuerdos del grupo, pistas, recordatorios..."
               />
             </label>

@@ -64,6 +64,157 @@ const SPECIAL_ACTION_RULE_NAMES = [
     "Primeros auxilios",
     "Levantarse"
 ];
+function buildSheetNoteId() {
+    return `sheet-note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+function sortCharacterPersonalNotes(entries) {
+    return [...entries].sort((left, right) => {
+        const leftDate = left.updatedAt || left.createdAt || "";
+        const rightDate = right.updatedAt || right.createdAt || "";
+        return rightDate.localeCompare(leftDate);
+    });
+}
+function summarizeCharacterNote(content) {
+    const collapsed = content.replace(/\s+/g, " ").trim();
+    if (!collapsed) {
+        return "Sin contenido.";
+    }
+    return collapsed.length > 160 ? `${collapsed.slice(0, 157)}...` : collapsed;
+}
+function renderSimpleMarkdownInline(text, keyPrefix) {
+    const nodes = [];
+    const pattern = /(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*)/g;
+    let lastIndex = 0;
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+        const [fullMatch, , linkLabel, linkUrl, inlineCode, boldText, italicText] = match;
+        if (match.index > lastIndex) {
+            nodes.push(text.slice(lastIndex, match.index));
+        }
+        if (linkLabel && linkUrl) {
+            nodes.push(_jsx("a", { href: linkUrl, target: "_blank", rel: "noreferrer", children: linkLabel }, `${keyPrefix}-link-${match.index}`));
+        }
+        else if (inlineCode) {
+            nodes.push(_jsx("code", { children: inlineCode }, `${keyPrefix}-code-${match.index}`));
+        }
+        else if (boldText) {
+            nodes.push(_jsx("strong", { children: renderSimpleMarkdownInline(boldText, `${keyPrefix}-bold-${match.index}`) }, `${keyPrefix}-bold-${match.index}`));
+        }
+        else if (italicText) {
+            nodes.push(_jsx("em", { children: renderSimpleMarkdownInline(italicText, `${keyPrefix}-italic-${match.index}`) }, `${keyPrefix}-italic-${match.index}`));
+        }
+        else {
+            nodes.push(fullMatch);
+        }
+        lastIndex = match.index + fullMatch.length;
+    }
+    if (lastIndex < text.length) {
+        nodes.push(text.slice(lastIndex));
+    }
+    return nodes;
+}
+function renderSimpleMarkdownBlocks(text) {
+    const lines = text.replace(/\r\n/g, "\n").split("\n");
+    const blocks = [];
+    let paragraphBuffer = [];
+    let listItems = [];
+    let listType = null;
+    let codeBlock = [];
+    let inCodeBlock = false;
+    function flushParagraph() {
+        if (paragraphBuffer.length === 0)
+            return;
+        const textContent = paragraphBuffer.join(" ").trim();
+        if (textContent) {
+            blocks.push(_jsx("p", { children: renderSimpleMarkdownInline(textContent, `paragraph-${blocks.length}`) }, `paragraph-${blocks.length}`));
+        }
+        paragraphBuffer = [];
+    }
+    function flushList() {
+        if (listItems.length === 0 || !listType)
+            return;
+        const Tag = listType;
+        blocks.push(_jsx(Tag, { children: listItems.map((item, index) => _jsx("li", { children: renderSimpleMarkdownInline(item, `list-${blocks.length}-${index}`) }, `list-${blocks.length}-${index}`)) }, `list-${blocks.length}`));
+        listItems = [];
+        listType = null;
+    }
+    function flushCodeBlock() {
+        if (codeBlock.length === 0)
+            return;
+        blocks.push(_jsx("pre", { className: "campaign-markdown-code-block", children: _jsx("code", { children: codeBlock.join("\n") }) }, `code-${blocks.length}`));
+        codeBlock = [];
+    }
+    lines.forEach((rawLine, index) => {
+        const line = rawLine.trimEnd();
+        if (line.trim().startsWith("```")) {
+            flushParagraph();
+            flushList();
+            if (inCodeBlock) {
+                flushCodeBlock();
+                inCodeBlock = false;
+            }
+            else {
+                inCodeBlock = true;
+            }
+            return;
+        }
+        if (inCodeBlock) {
+            codeBlock.push(rawLine);
+            return;
+        }
+        if (!line.trim()) {
+            flushParagraph();
+            flushList();
+            return;
+        }
+        const headingMatch = line.match(/^(#{1,4})\s+(.*)$/);
+        if (headingMatch) {
+            flushParagraph();
+            flushList();
+            const level = Math.min(headingMatch[1].length + 2, 6);
+            const content = renderSimpleMarkdownInline(headingMatch[2], `heading-${index}`);
+            if (level === 3) {
+                blocks.push(_jsx("h3", { children: content }, `heading-${index}`));
+            }
+            else if (level === 4) {
+                blocks.push(_jsx("h4", { children: content }, `heading-${index}`));
+            }
+            else if (level === 5) {
+                blocks.push(_jsx("h5", { children: content }, `heading-${index}`));
+            }
+            else {
+                blocks.push(_jsx("h6", { children: content }, `heading-${index}`));
+            }
+            return;
+        }
+        const unorderedMatch = line.match(/^\s*[-*]\s+(.*)$/);
+        if (unorderedMatch) {
+            flushParagraph();
+            if (listType && listType !== "ul") {
+                flushList();
+            }
+            listType = "ul";
+            listItems.push(unorderedMatch[1]);
+            return;
+        }
+        const orderedMatch = line.match(/^\s*\d+\.\s+(.*)$/);
+        if (orderedMatch) {
+            flushParagraph();
+            if (listType && listType !== "ol") {
+                flushList();
+            }
+            listType = "ol";
+            listItems.push(orderedMatch[1]);
+            return;
+        }
+        flushList();
+        paragraphBuffer.push(line.trim());
+    });
+    flushParagraph();
+    flushList();
+    flushCodeBlock();
+    return blocks.length > 0 ? blocks : _jsx("p", { children: "Sin contenido." });
+}
 function matchesWeaponCatalogFilter(item, filterId) {
     if (item.category !== "weapon")
         return false;
@@ -573,6 +724,9 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
     const [pendingRollConfirmation, setPendingRollConfirmation] = useState(null);
     const [showPendingRollBreakdown, setShowPendingRollBreakdown] = useState(false);
     const [actionDetailModal, setActionDetailModal] = useState(null);
+    const [selectedPersonalNoteId, setSelectedPersonalNoteId] = useState(null);
+    const [personalNoteEditor, setPersonalNoteEditor] = useState(null);
+    const [personalNoteError, setPersonalNoteError] = useState(null);
     const [weaponEditorModal, setWeaponEditorModal] = useState(null);
     const [armorEditorModal, setArmorEditorModal] = useState(null);
     const [itemEditorModal, setItemEditorModal] = useState(null);
@@ -595,6 +749,8 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
     const setActiveActionTab = (nextTab) => setSheetTabState((current) => ({ ...current, activeActionTab: nextTab }));
     const setActiveCapabilityTab = (nextTab) => setSheetTabState((current) => ({ ...current, activeCapabilityTab: nextTab }));
     const setActiveInventoryTab = (nextTab) => setSheetTabState((current) => ({ ...current, activeInventoryTab: nextTab }));
+    const personalNotes = useMemo(() => sortCharacterPersonalNotes(normalizedSheet.personalNotes ?? []), [normalizedSheet.personalNotes]);
+    const selectedPersonalNote = useMemo(() => personalNotes.find((entry) => entry.id === selectedPersonalNoteId) ?? null, [personalNotes, selectedPersonalNoteId]);
     const filteredActions = useMemo(() => {
         switch (activeActionTab) {
             case "all":
@@ -1312,6 +1468,57 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
             [section]: draft[section].filter((_, entryIndex) => entryIndex !== index)
         });
     }
+    function buildPersonalNoteDraft(entry) {
+        const now = new Date().toISOString();
+        return {
+            id: entry?.id ?? buildSheetNoteId(),
+            title: entry?.title ?? "",
+            content: entry?.content ?? "",
+            category: entry?.category ?? "general",
+            createdAt: entry?.createdAt || now,
+            updatedAt: entry?.updatedAt || now
+        };
+    }
+    function replacePersonalNotes(nextEntries) {
+        setDraft({
+            ...draft,
+            personalNotes: sortCharacterPersonalNotes(nextEntries)
+        });
+    }
+    function savePersonalNote() {
+        if (!personalNoteEditor) {
+            return;
+        }
+        const trimmedTitle = personalNoteEditor.note.title.trim();
+        const trimmedContent = personalNoteEditor.note.content.trim();
+        if (trimmedTitle.length < 2) {
+            setPersonalNoteError("El titulo debe tener al menos 2 caracteres.");
+            return;
+        }
+        const now = new Date().toISOString();
+        const normalized = {
+            ...personalNoteEditor.note,
+            title: trimmedTitle,
+            content: trimmedContent,
+            createdAt: personalNoteEditor.note.createdAt || now,
+            updatedAt: now
+        };
+        const nextEntries = personalNoteEditor.mode === "create"
+            ? [normalized, ...personalNotes]
+            : personalNotes.map((entry) => entry.id === normalized.id ? normalized : entry);
+        replacePersonalNotes(nextEntries);
+        setSelectedPersonalNoteId(normalized.id);
+        setPersonalNoteEditor(null);
+        setPersonalNoteError(null);
+    }
+    function deletePersonalNote(noteId) {
+        replacePersonalNotes(personalNotes.filter((entry) => entry.id !== noteId));
+        if (selectedPersonalNoteId === noteId) {
+            setSelectedPersonalNoteId(null);
+        }
+        setPersonalNoteEditor(null);
+        setPersonalNoteError(null);
+    }
     function updateInventoryItem(index, field, value) {
         setDraft({
             ...draft,
@@ -1794,7 +2001,22 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
                                     ["abilities", "Habilidades"],
                                     ["powers", "Poderes"],
                                     ["rituals", "Rituales"]
-                                ].map(([tab, label]) => (_jsx("button", { type: "button", className: activeCapabilityTab === tab ? "is-active" : "", onClick: () => setActiveCapabilityTab(tab), children: label }, tab))) }), activeCapabilityTab === "traits" ? (_jsx(SimpleStringListEditor, { title: "Rasgos", entries: normalizedSheet.rasgos, categoryKey: "rasgo", editable: editMode, rows: 6, helpText: "Rasgos de personaje como Contactos se guardan aqui y se exportan/importan como tipo Rasgo.", onChange: (value) => updateSimpleSheetList("rasgos", value), onAdd: () => addSimpleSheetEntry("rasgos"), onRemove: (index) => removeSimpleSheetEntry("rasgos", index) })) : null, activeCapabilityTab === "blessings" ? (_jsx(SimpleStringListEditor, { title: "Bendiciones", entries: normalizedSheet.bendiciones, categoryKey: "bendicion", editable: editMode, rows: 6, helpText: "Cada bendicion cuenta como 5 PX gastados.", onChange: (value) => updateSimpleSheetList("bendiciones", value), onAdd: () => addSimpleSheetEntry("bendiciones"), onRemove: (index) => removeSimpleSheetEntry("bendiciones", index) })) : null, activeCapabilityTab === "burdens" ? (_jsx(SimpleStringListEditor, { title: "Cargas", entries: normalizedSheet.cargas, categoryKey: "carga", editable: editMode, rows: 6, helpText: "Cada carga aporta 5 PX extra disponibles.", onChange: (value) => updateSimpleSheetList("cargas", value), onAdd: () => addSimpleSheetEntry("cargas"), onRemove: (index) => removeSimpleSheetEntry("cargas", index) })) : null] }), activeCapabilityTab === "abilities" ? (_jsx(CapabilityEditor, { title: "Habilidades", categoryKey: "habilidad", entries: normalizedSheet.habilidades, editable: editMode, onAdd: () => addRatedEntry("habilidades"), onRemove: (index) => removeRatedEntry("habilidades", index), onUpdate: (index, field, value) => updateRatedEntry("habilidades", index, field, value), onOpenDetail: (entry) => openCapabilityDetail("habilidad", entry), onOpenCompendium: onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("habilidad", name) : undefined })) : null, activeCapabilityTab === "powers" ? (_jsx(CapabilityEditor, { title: "Poderes misticos", categoryKey: "poder_mistico", entries: normalizedSheet.poderesMisticos, editable: editMode, onAdd: () => addRatedEntry("poderesMisticos"), onRemove: (index) => removeRatedEntry("poderesMisticos", index), onUpdate: (index, field, value) => updateRatedEntry("poderesMisticos", index, field, value), onOpenDetail: (entry) => openCapabilityDetail("poder_mistico", entry), onOpenCompendium: onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("poder_mistico", name) : undefined })) : null, activeCapabilityTab === "rituals" ? (_jsx(CapabilityEditor, { title: "Rituales", categoryKey: "ritual", entries: normalizedSheet.rituales, editable: editMode, onAdd: () => addRatedEntry("rituales"), onRemove: (index) => removeRatedEntry("rituales", index), onUpdate: (index, field, value) => updateRatedEntry("rituales", index, field, value), onOpenDetail: (entry) => openCapabilityDetail("ritual", entry), onOpenCompendium: onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("ritual", name) : undefined })) : null] })) : null, activeTab === "background" ? (_jsx("section", { className: "unified-sheet-panel", children: _jsxs("article", { className: "campaign-sheet-card", children: [_jsx("h3", { children: "Trasfondo" }), _jsxs("div", { className: "form-grid", children: [_jsx(Field, { label: "Sombra", children: _jsx("input", { disabled: !editMode, value: normalizedSheet.identidad.sombra, onChange: (event) => updateField("identidad.sombra", event.target.value) }) }), _jsx(Field, { label: "Cita", children: _jsx("input", { disabled: !editMode, value: normalizedSheet.identidad.cita, onChange: (event) => updateField("identidad.cita", event.target.value) }) }), _jsx(Field, { label: "Edad", children: _jsx("input", { disabled: !editMode, value: normalizedSheet.identidad.edad, onChange: (event) => updateField("identidad.edad", event.target.value) }) }), _jsx(Field, { label: "Altura", children: _jsx("input", { disabled: !editMode, value: normalizedSheet.identidad.altura, onChange: (event) => updateField("identidad.altura", event.target.value) }) }), _jsx(Field, { label: "Peso", children: _jsx("input", { disabled: !editMode, value: normalizedSheet.identidad.peso, onChange: (event) => updateField("identidad.peso", event.target.value) }) })] }), _jsx(Field, { label: "Apariencia", children: _jsx("textarea", { disabled: !editMode, rows: 2, value: normalizedSheet.identidad.apariencia, onChange: (event) => updateField("identidad.apariencia", event.target.value) }) }), _jsx(Field, { label: "Objetivo personal", children: _jsx("textarea", { disabled: !editMode, rows: 2, value: normalizedSheet.identidad.objetivoPersonal, onChange: (event) => updateField("identidad.objetivoPersonal", event.target.value) }) }), _jsx(Field, { label: "Historia", children: _jsx("textarea", { disabled: !editMode, rows: 8, value: normalizedSheet.noteSections.background, onChange: (event) => updateField("noteSections.background", event.target.value) }) })] }) })) : null, activeTab === "notes" ? (_jsxs("section", { className: "unified-sheet-panel", children: [_jsxs("article", { className: "campaign-sheet-card", children: [_jsx("h3", { children: "Notas y contexto" }), _jsx(Field, { label: "Notas generales", children: _jsx("textarea", { disabled: !editMode, rows: 6, value: normalizedSheet.noteSections.general, onChange: (event) => updateField("noteSections.general", event.target.value) }) }), _jsx(Field, { label: "Notas de campana", children: _jsx("textarea", { disabled: !editMode, rows: 4, value: normalizedSheet.noteSections.campaign, onChange: (event) => updateField("noteSections.campaign", event.target.value) }) }), _jsxs("div", { className: "form-grid", children: [_jsx(Field, { label: "Grupo", children: _jsx("input", { disabled: !editMode, value: normalizedSheet.grupo.nombre, onChange: (event) => updateField("grupo.nombre", event.target.value) }) }), _jsx(Field, { label: "Objetivo del grupo", children: _jsx("textarea", { disabled: !editMode, rows: 2, value: normalizedSheet.grupo.objetivo, onChange: (event) => updateField("grupo.objetivo", event.target.value) }) })] })] }), _jsxs("article", { className: "campaign-sheet-card", children: [_jsx("h3", { children: "Contactos" }), _jsx("div", { className: "unified-sheet-list", children: normalizedSheet.contactosHoja.map((contacto, index) => (_jsx("article", { className: "campaign-structured-card", children: _jsxs("div", { className: "form-grid", children: [_jsx(Field, { label: "Nombre", children: _jsx("input", { disabled: !editMode, value: contacto.nombre, onChange: (event) => updateField(`contactosHoja.${index}.nombre`, event.target.value) }) }), _jsx(Field, { label: "Raza", children: _jsx("input", { disabled: !editMode, value: contacto.raza, onChange: (event) => updateField(`contactosHoja.${index}.raza`, event.target.value) }) }), _jsx(Field, { label: "Ocupacion", children: _jsx("input", { disabled: !editMode, value: contacto.ocupacion, onChange: (event) => updateField(`contactosHoja.${index}.ocupacion`, event.target.value) }) }), _jsx(Field, { label: "Jugador", children: _jsx("input", { disabled: !editMode, value: contacto.jugador, onChange: (event) => updateField(`contactosHoja.${index}.jugador`, event.target.value) }) })] }) }, `contacto-${index}`))) })] })] })) : null, pendingRollConfirmation ? (_jsx("div", { className: "modal-backdrop", children: _jsxs("div", { className: "panel modal-panel character-roll-confirm-modal", children: [_jsx("h3", { children: "Enviar tirada" }), _jsx("p", { className: "section-help", children: pendingRollConfirmation.title }), pendingAttackModifiers.length > 0 ? (_jsxs("div", { className: "character-roll-confirm-modifiers", children: [_jsx("span", { children: "Modificadores de tirada" }), pendingAttackModifiers.map((modifier) => (_jsxs("label", { className: "character-roll-confirm-modifier", children: [_jsx("input", { type: "checkbox", checked: pendingRollConfirmation.selectedAttackModifierIds.includes(modifier.id), onChange: (event) => setPendingRollConfirmation((current) => current ? {
+                                ].map(([tab, label]) => (_jsx("button", { type: "button", className: activeCapabilityTab === tab ? "is-active" : "", onClick: () => setActiveCapabilityTab(tab), children: label }, tab))) }), activeCapabilityTab === "traits" ? (_jsx(SimpleStringListEditor, { title: "Rasgos", entries: normalizedSheet.rasgos, categoryKey: "rasgo", editable: editMode, rows: 6, helpText: "Rasgos de personaje como Contactos se guardan aqui y se exportan/importan como tipo Rasgo.", onChange: (value) => updateSimpleSheetList("rasgos", value), onAdd: () => addSimpleSheetEntry("rasgos"), onRemove: (index) => removeSimpleSheetEntry("rasgos", index) })) : null, activeCapabilityTab === "blessings" ? (_jsx(SimpleStringListEditor, { title: "Bendiciones", entries: normalizedSheet.bendiciones, categoryKey: "bendicion", editable: editMode, rows: 6, helpText: "Cada bendicion cuenta como 5 PX gastados.", onChange: (value) => updateSimpleSheetList("bendiciones", value), onAdd: () => addSimpleSheetEntry("bendiciones"), onRemove: (index) => removeSimpleSheetEntry("bendiciones", index) })) : null, activeCapabilityTab === "burdens" ? (_jsx(SimpleStringListEditor, { title: "Cargas", entries: normalizedSheet.cargas, categoryKey: "carga", editable: editMode, rows: 6, helpText: "Cada carga aporta 5 PX extra disponibles.", onChange: (value) => updateSimpleSheetList("cargas", value), onAdd: () => addSimpleSheetEntry("cargas"), onRemove: (index) => removeSimpleSheetEntry("cargas", index) })) : null] }), activeCapabilityTab === "abilities" ? (_jsx(CapabilityEditor, { title: "Habilidades", categoryKey: "habilidad", entries: normalizedSheet.habilidades, editable: editMode, onAdd: () => addRatedEntry("habilidades"), onRemove: (index) => removeRatedEntry("habilidades", index), onUpdate: (index, field, value) => updateRatedEntry("habilidades", index, field, value), onOpenDetail: (entry) => openCapabilityDetail("habilidad", entry), onOpenCompendium: onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("habilidad", name) : undefined })) : null, activeCapabilityTab === "powers" ? (_jsx(CapabilityEditor, { title: "Poderes misticos", categoryKey: "poder_mistico", entries: normalizedSheet.poderesMisticos, editable: editMode, onAdd: () => addRatedEntry("poderesMisticos"), onRemove: (index) => removeRatedEntry("poderesMisticos", index), onUpdate: (index, field, value) => updateRatedEntry("poderesMisticos", index, field, value), onOpenDetail: (entry) => openCapabilityDetail("poder_mistico", entry), onOpenCompendium: onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("poder_mistico", name) : undefined })) : null, activeCapabilityTab === "rituals" ? (_jsx(CapabilityEditor, { title: "Rituales", categoryKey: "ritual", entries: normalizedSheet.rituales, editable: editMode, onAdd: () => addRatedEntry("rituales"), onRemove: (index) => removeRatedEntry("rituales", index), onUpdate: (index, field, value) => updateRatedEntry("rituales", index, field, value), onOpenDetail: (entry) => openCapabilityDetail("ritual", entry), onOpenCompendium: onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("ritual", name) : undefined })) : null] })) : null, activeTab === "background" ? (_jsx("section", { className: "unified-sheet-panel", children: _jsxs("article", { className: "campaign-sheet-card", children: [_jsx("h3", { children: "Trasfondo" }), _jsxs("div", { className: "form-grid", children: [_jsx(Field, { label: "Sombra", children: _jsx("input", { disabled: !editMode, value: normalizedSheet.identidad.sombra, onChange: (event) => updateField("identidad.sombra", event.target.value) }) }), _jsx(Field, { label: "Cita", children: _jsx("input", { disabled: !editMode, value: normalizedSheet.identidad.cita, onChange: (event) => updateField("identidad.cita", event.target.value) }) }), _jsx(Field, { label: "Edad", children: _jsx("input", { disabled: !editMode, value: normalizedSheet.identidad.edad, onChange: (event) => updateField("identidad.edad", event.target.value) }) }), _jsx(Field, { label: "Altura", children: _jsx("input", { disabled: !editMode, value: normalizedSheet.identidad.altura, onChange: (event) => updateField("identidad.altura", event.target.value) }) }), _jsx(Field, { label: "Peso", children: _jsx("input", { disabled: !editMode, value: normalizedSheet.identidad.peso, onChange: (event) => updateField("identidad.peso", event.target.value) }) })] }), _jsx(Field, { label: "Apariencia", children: _jsx("textarea", { disabled: !editMode, rows: 2, value: normalizedSheet.identidad.apariencia, onChange: (event) => updateField("identidad.apariencia", event.target.value) }) }), _jsx(Field, { label: "Objetivo personal", children: _jsx("textarea", { disabled: !editMode, rows: 2, value: normalizedSheet.identidad.objetivoPersonal, onChange: (event) => updateField("identidad.objetivoPersonal", event.target.value) }) }), _jsx(Field, { label: "Historia", children: _jsx("textarea", { disabled: !editMode, rows: 8, value: normalizedSheet.noteSections.background, onChange: (event) => updateField("noteSections.background", event.target.value) }) })] }) })) : null, activeTab === "notes" ? (_jsxs("section", { className: "unified-sheet-panel", children: [_jsxs("article", { className: "campaign-sheet-card", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Notas personales" }), _jsx("p", { className: "section-help", children: "Entradas ordenadas en Markdown para diario, pistas, recuerdos y apuntes de campa\u00F1a del personaje." })] }), canEditNotes ? (_jsx("button", { type: "button", onClick: () => {
+                                            setPersonalNoteError(null);
+                                            setPersonalNoteEditor({ mode: "create", note: buildPersonalNoteDraft() });
+                                        }, children: "Nueva nota" })) : null] }), _jsxs("div", { className: "unified-sheet-list", children: [personalNotes.map((entry) => (_jsx("article", { className: "campaign-structured-card", children: _jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("strong", { children: entry.title }), _jsx("p", { className: "section-help", children: summarizeCharacterNote(entry.content) })] }), _jsx("button", { type: "button", className: "subtle-button", onClick: () => {
+                                                        setPersonalNoteError(null);
+                                                        setSelectedPersonalNoteId(entry.id);
+                                                    }, children: "Ver nota" })] }) }, entry.id))), personalNotes.length === 0 ? _jsx("p", { className: "section-help", children: "Sin notas personales registradas." }) : null] })] }), _jsxs("article", { className: "campaign-sheet-card", children: [_jsx("h3", { children: "Contexto" }), _jsxs("div", { className: "form-grid", children: [_jsx(Field, { label: "Grupo", children: _jsx("input", { disabled: !editMode, value: normalizedSheet.grupo.nombre, onChange: (event) => updateField("grupo.nombre", event.target.value) }) }), _jsx(Field, { label: "Objetivo del grupo", children: _jsx("textarea", { disabled: !editMode, rows: 2, value: normalizedSheet.grupo.objetivo, onChange: (event) => updateField("grupo.objetivo", event.target.value) }) })] })] }), _jsxs("article", { className: "campaign-sheet-card", children: [_jsx("h3", { children: "Contactos" }), _jsx("div", { className: "unified-sheet-list", children: normalizedSheet.contactosHoja.map((contacto, index) => (_jsx("article", { className: "campaign-structured-card", children: _jsxs("div", { className: "form-grid", children: [_jsx(Field, { label: "Nombre", children: _jsx("input", { disabled: !editMode, value: contacto.nombre, onChange: (event) => updateField(`contactosHoja.${index}.nombre`, event.target.value) }) }), _jsx(Field, { label: "Raza", children: _jsx("input", { disabled: !editMode, value: contacto.raza, onChange: (event) => updateField(`contactosHoja.${index}.raza`, event.target.value) }) }), _jsx(Field, { label: "Ocupacion", children: _jsx("input", { disabled: !editMode, value: contacto.ocupacion, onChange: (event) => updateField(`contactosHoja.${index}.ocupacion`, event.target.value) }) }), _jsx(Field, { label: "Jugador", children: _jsx("input", { disabled: !editMode, value: contacto.jugador, onChange: (event) => updateField(`contactosHoja.${index}.jugador`, event.target.value) }) })] }) }, `contacto-${index}`))) })] })] })) : null, selectedPersonalNote ? (_jsx("div", { className: "modal-backdrop", onClick: () => setSelectedPersonalNoteId(null), children: _jsxs("div", { className: "panel modal-panel character-roll-confirm-modal unified-sheet-action-detail-modal", onClick: (event) => event.stopPropagation(), children: [_jsx("h3", { children: selectedPersonalNote.title }), _jsxs("p", { className: "section-help", children: ["Actualizada ", selectedPersonalNote.updatedAt || selectedPersonalNote.createdAt || "sin fecha"] }), _jsx("div", { className: "unified-sheet-action-detail-body", children: _jsx("div", { className: "campaign-markdown", children: renderSimpleMarkdownBlocks(selectedPersonalNote.content || "Sin contenido detallado.") }) }), _jsxs("div", { className: "row-actions character-roll-confirm-actions", children: [canEditNotes ? (_jsx("button", { type: "button", onClick: () => {
+                                        setPersonalNoteError(null);
+                                        setPersonalNoteEditor({ mode: "edit", note: buildPersonalNoteDraft(selectedPersonalNote) });
+                                    }, children: "Editar" })) : null, _jsx("button", { type: "button", className: "subtle-button", onClick: () => setSelectedPersonalNoteId(null), children: "Cerrar" })] })] }) })) : null, personalNoteEditor ? (_jsx("div", { className: "modal-backdrop", onClick: () => setPersonalNoteEditor(null), children: _jsxs("div", { className: "panel modal-panel character-roll-confirm-modal unified-sheet-action-detail-modal", onClick: (event) => event.stopPropagation(), children: [_jsx("h3", { children: personalNoteEditor.mode === "create" ? "Nueva nota personal" : "Editar nota personal" }), _jsx("p", { className: "section-help", children: "La nota acepta Markdown y se guarda dentro de la hoja del personaje." }), personalNoteError ? _jsx("p", { className: "error-text", children: personalNoteError }) : null, _jsxs("div", { className: "unified-sheet-action-detail-body", children: [_jsx("div", { className: "form-grid", children: _jsx(Field, { label: "Titulo", children: _jsx("input", { value: personalNoteEditor.note.title, onChange: (event) => setPersonalNoteEditor((current) => current ? {
+                                                ...current,
+                                                note: { ...current.note, title: event.target.value }
+                                            } : null) }) }) }), _jsx(Field, { label: "Contenido", children: _jsx("textarea", { rows: 12, value: personalNoteEditor.note.content, onChange: (event) => setPersonalNoteEditor((current) => current ? {
+                                            ...current,
+                                            note: { ...current.note, content: event.target.value }
+                                        } : null) }) })] }), _jsxs("div", { className: "row-actions character-roll-confirm-actions", children: [_jsx("button", { type: "button", onClick: savePersonalNote, children: "Guardar" }), personalNoteEditor.mode === "edit" ? (_jsx("button", { type: "button", className: "destructive-button", onClick: () => deletePersonalNote(personalNoteEditor.note.id), children: "Quitar" })) : null, _jsx("button", { type: "button", className: "subtle-button", onClick: () => setPersonalNoteEditor(null), children: "Cerrar" })] })] }) })) : null, pendingRollConfirmation ? (_jsx("div", { className: "modal-backdrop", children: _jsxs("div", { className: "panel modal-panel character-roll-confirm-modal", children: [_jsx("h3", { children: "Enviar tirada" }), _jsx("p", { className: "section-help", children: pendingRollConfirmation.title }), pendingAttackModifiers.length > 0 ? (_jsxs("div", { className: "character-roll-confirm-modifiers", children: [_jsx("span", { children: "Modificadores de tirada" }), pendingAttackModifiers.map((modifier) => (_jsxs("label", { className: "character-roll-confirm-modifier", children: [_jsx("input", { type: "checkbox", checked: pendingRollConfirmation.selectedAttackModifierIds.includes(modifier.id), onChange: (event) => setPendingRollConfirmation((current) => current ? {
                                                 ...current,
                                                 selectedAttackModifierIds: event.target.checked
                                                     ? [...current.selectedAttackModifierIds, modifier.id]
