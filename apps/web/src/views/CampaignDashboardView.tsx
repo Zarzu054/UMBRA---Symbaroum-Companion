@@ -2041,7 +2041,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 <article className="campaign-reference-preview campaign-reference-preview--content">
                   <span className="meta-text">Contenido</span>
                   <div className="campaign-markdown">
-                    {renderMarkdownBlocks(selectedReference.content || "Sin contenido detallado.", [selectedReference], openReferenceDetail)}
+                    {renderMarkdownBlocks(selectedReference.content || "Sin contenido detallado.", selectedCampaign?.references ?? [selectedReference], openReferenceDetail)}
                   </div>
                 </article>
               </article>
