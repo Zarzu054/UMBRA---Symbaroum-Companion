@@ -59,6 +59,8 @@ type CapabilityTier = {
   content: string;
 };
 
+const BUILDER_ABILITIES = SYMBAROUM_ABILITIES.filter((entry) => normalizeName(entry.nombre) !== "rituales");
+
 const LEVEL_OPTIONS: Array<{ value: SkillLevel; label: string }> = [
   { value: "novato", label: "Novato" },
   { value: "adepto", label: "Adepto" },
@@ -66,7 +68,7 @@ const LEVEL_OPTIONS: Array<{ value: SkillLevel; label: string }> = [
 ];
 
 const INITIAL_CATALOG_SELECTIONS: CatalogSelections = {
-  habilidades: SYMBAROUM_ABILITIES[0]?.id ?? "",
+  habilidades: BUILDER_ABILITIES[0]?.id ?? "",
   poderesMisticos: SYMBAROUM_MYSTIC_POWERS[0]?.id ?? "",
   rituales: SYMBAROUM_RITUALS[0]?.id ?? "",
   bendiciones: SYMBAROUM_BLESSINGS[0]?.id ?? "",
@@ -131,7 +133,7 @@ function buildRatedEntry(entry: SymbaroumCapability, section: RatedSection): Cha
 }
 
 function getCatalogEntries(section: RatedSection): SymbaroumCapability[] {
-  if (section === "habilidades") return [...SYMBAROUM_ABILITIES];
+  if (section === "habilidades") return [...BUILDER_ABILITIES];
   if (section === "poderesMisticos") return [...SYMBAROUM_MYSTIC_POWERS];
   return [...SYMBAROUM_RITUALS];
 }

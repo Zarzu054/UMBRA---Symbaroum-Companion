@@ -1712,8 +1712,8 @@ export const MANUAL_RULES: CompendiumEntry[] = [
     id: "regla-manual-4-requisitos-de-poderes-y-rituales",
     tipo: "regla",
     nombre: "Requisitos de poderes y rituales",
-    resumen: "Los poderes m\u00edsticos exigen habilidad m\u00edstica base; los rituales exigen la habilidad Rituales.",
-    detalle: "Para registrar poderes m\u00edsticos debes incluir una base v\u00e1lida como Poder m\u00edstico, Magia, Te\u00fargia, Brujer\u00eda o Hechicer\u00eda. Para registrar rituales debes tener la habilidad Rituales. UMBRA valida ambos casos en frontend y backend.",
+    resumen: "Los poderes m\u00edsticos exigen habilidad m\u00edstica base; los rituales se gestionan por separado.",
+    detalle: "Para registrar poderes m\u00edsticos debes incluir una base v\u00e1lida como Poder m\u00edstico, Magia, Te\u00fargia, Brujer\u00eda o Hechicer\u00eda. En esta mesa los rituales se compran y registran de forma individual, sin exigir la habilidad Rituales. UMBRA mantiene la validaci\u00f3n de base m\u00edstica para poderes, pero no exige Rituales.",
     fuente: "Reglas UMBRA",
     tags: ["magia", "poderes", "rituales", "requisitos"]
   },

@@ -206,7 +206,7 @@ test("synchronizeCharacterSheet migra rasgos monstruosos del PDF a habilidades c
   assert.match(normalized.habilidades.find((entry) => entry.nombre === "Duro")?.efecto ?? "", /1D6/i);
 });
 
-test("rechaza rituales sin habilidad Rituales", () => {
+test("acepta rituales sin habilidad Rituales", () => {
   const payload = buildPayload();
   payload.sheet.rituales = [
     {
@@ -219,7 +219,8 @@ test("rechaza rituales sin habilidad Rituales", () => {
       notas: ""
     }
   ];
-  expectIssue(payload, "habilidad Rituales");
+  const result = createCharacterSchema.safeParse(payload);
+  assert.equal(result.success, true);
 });
 
 test("rechaza experiencia gastada superior a experiencia total", () => {

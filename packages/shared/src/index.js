@@ -60,10 +60,8 @@ export const ATTRIBUTE_LABELS = {
 };
 const STARTING_ABILITY_PATTERNS = new Set(["5novato", "2novato_1adepto"]);
 const MYSTIC_ABILITY_NAMES = ["Poder místico", "Magia", "Teúrgia", "Brujería", "Hechicería"];
-const RITUAL_ABILITY_NAMES = ["Rituales"];
 const SHEET_HIDDEN_ABILITY_NAMES = ["Poder mÃ­stico"];
 const NORMALIZED_MYSTIC_ABILITY_NAMES = MYSTIC_ABILITY_NAMES.map(normalizeName);
-const NORMALIZED_RITUAL_ABILITY_NAMES = RITUAL_ABILITY_NAMES.map(normalizeName);
 const NORMALIZED_SHEET_HIDDEN_ABILITY_NAMES = SHEET_HIDDEN_ABILITY_NAMES.map(normalizeName);
 const MONSTER_TRAIT_NAME_SET = buildMonsterTraitNameSet();
 function nullableDefaultString(maxLength, fallback = "") {
@@ -327,15 +325,6 @@ export const characterSheetSchema = characterSheetObjectSchema.superRefine((shee
             code: z.ZodIssueCode.custom,
             path: ["atributos"],
             message: "Solo un atributo puede tener valor 15"
-        });
-    }
-    const canonicalAbilityNames = sheet.habilidades.map((entry) => normalizeName(entry.nombre));
-    const hasRitualAbility = canonicalAbilityNames.some((name) => NORMALIZED_RITUAL_ABILITY_NAMES.includes(name));
-    if (sheet.rituales.length > 0 && !hasRitualAbility) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["rituales"],
-            message: "Para registrar rituales debes incluir la habilidad Rituales"
         });
     }
     const novice = sheet.habilidades.filter((entry) => entry.nivel === "novato").length;
@@ -1180,15 +1169,6 @@ export const importedCharacterSheetSchema = characterSheetObjectSchema.superRefi
             code: z.ZodIssueCode.custom,
             path: ["combate", "robustezActual"],
             message: "La robustez actual no puede superar la robustez máxima"
-        });
-    }
-    const canonicalAbilityNames = sheet.habilidades.map((entry) => normalizeName(entry.nombre));
-    const hasRitualAbility = canonicalAbilityNames.some((name) => NORMALIZED_RITUAL_ABILITY_NAMES.includes(name));
-    if (sheet.rituales.length > 0 && !hasRitualAbility) {
-        ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["rituales"],
-            message: "Para registrar rituales debes incluir la habilidad Rituales"
         });
     }
 });

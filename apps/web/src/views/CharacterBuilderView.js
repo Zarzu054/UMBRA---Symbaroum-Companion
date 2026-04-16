@@ -3,13 +3,14 @@ import { useEffect, useMemo, useState } from "react";
 import { SYMBAROUM_ABILITIES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS, parseCharacterSheet, synchronizeCharacterSheet } from "@umbra/shared";
 import { getCharacterExperienceSummary } from "../models/characterExperience";
 import { SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS } from "../models/compendiumEntries";
+const BUILDER_ABILITIES = SYMBAROUM_ABILITIES.filter((entry) => normalizeName(entry.nombre) !== "rituales");
 const LEVEL_OPTIONS = [
     { value: "novato", label: "Novato" },
     { value: "adepto", label: "Adepto" },
     { value: "maestro", label: "Maestro" }
 ];
 const INITIAL_CATALOG_SELECTIONS = {
-    habilidades: SYMBAROUM_ABILITIES[0]?.id ?? "",
+    habilidades: BUILDER_ABILITIES[0]?.id ?? "",
     poderesMisticos: SYMBAROUM_MYSTIC_POWERS[0]?.id ?? "",
     rituales: SYMBAROUM_RITUALS[0]?.id ?? "",
     bendiciones: SYMBAROUM_BLESSINGS[0]?.id ?? "",
@@ -69,7 +70,7 @@ function buildRatedEntry(entry, section) {
 }
 function getCatalogEntries(section) {
     if (section === "habilidades")
-        return [...SYMBAROUM_ABILITIES];
+        return [...BUILDER_ABILITIES];
     if (section === "poderesMisticos")
         return [...SYMBAROUM_MYSTIC_POWERS];
     return [...SYMBAROUM_RITUALS];
