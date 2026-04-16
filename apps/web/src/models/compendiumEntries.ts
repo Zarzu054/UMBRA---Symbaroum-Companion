@@ -302,7 +302,7 @@ function buildBlessingEntries(): CompendiumEntry[] {
   const entries: Array<Omit<CompendiumEntry, "id" | "tags">> = [
     {
       tipo: "bendicion",
-      nombre: "Bushcraft",
+      nombre: "Supervivencia",
       resumen: "El personaje esta curtido para viajar, orientarse y sacar partido del terreno salvaje.",
       detalle: "Bendicion de trasfondo ligada a exploracion y supervivencia. Encaja con cazadores, guias y personajes acostumbrados a Davokar o a la vida en camino.",
       fuente: "Libro Básico",
@@ -560,7 +560,7 @@ function buildBlessingEntries(): CompendiumEntry[] {
     tags: [
       "bendicion",
       slugify(entry.nombre),
-      ...(entry.nombre === "Bushcraft" ? ["supervivencia"] : []),
+      ...(entry.nombre === "Supervivencia" ? ["bushcraft"] : []),
       ...(entry.nombre === "Lengua de bestia" ? ["beast tongue"] : []),
       ...(entry.nombre === "Sabueso" ? ["bloodhound"] : []),
       ...(entry.nombre === "Marcha incansable" ? ["enduring march"] : []),
@@ -635,12 +635,12 @@ function buildBurdenEntries(): CompendiumEntry[] {
       detalle: "Carga de deterioro y dependencia. Funciona bien cuando la mesa quiere que la necesidad del personaje genere costes reales y escenas tensas.",
       fuente: "Guía Avanzada del Jugador"
     },
-    {
-      tipo: "carga",
-      nombre: "Pesadillas",
-      resumen: "El descanso del personaje se ve perseguido por visiones, recuerdos o terrores que no lo sueltan.",
-      detalle: "Carga de trauma y desgaste. Puede estar ligada a corrupcion, guerra, culpa o encuentros con algo que no deberia haberse visto.",
-      fuente: "Guía Avanzada del Jugador"
+      {
+        tipo: "carga",
+        nombre: "Pesadillas",
+        resumen: "El personaje es perseguido por pesadillas todas y cada una de las noches.",
+        detalle: "El personaje es perseguido por pesadillas todas y cada una de las noches, posiblemente debido a algo que ha experimentado o por razones más extrañas, como un presagio siniestro o a consecuencia de una maldición familiar. El personaje debe superar una tirada de Tenaz cada noche para sanar de forma natural. Si falla no se cura ese día, aunque las otras formas de curación no se ven afectadas.",
+        fuente: "Guía Avanzada del Jugador"
     },
     {
       tipo: "carga",
@@ -652,8 +652,8 @@ function buildBurdenEntries(): CompendiumEntry[] {
     {
       tipo: "carga",
       nombre: "Secreto oscuro",
-      resumen: "El personaje oculta una verdad que podria destruir relaciones, posicion o seguridad si saliera a la luz.",
-      detalle: "Carga social excelente para campañas con facciones, juramentos y sospechas. No siempre explota rapido, pero cuando lo hace pesa mucho.",
+      resumen: "El personaje tiene un secreto oscuro que podría destruir su reputación y su vida si se revelara.",
+      detalle: "El personaje tiene una especie de secreto oscuro que podría destruir su reputación y su vida si se revelara. Tal vez el personaje haya sido miembro de una secta corrupta, matado a alguien o protegido a un asesino, y nunca haya sido atrapado. En el caso de que el oscuro secreto se haga público, el personaje obtiene en su lugar una de las cargas de Paria o Fugitivo, según el secreto. Una vez por aventura existe el riesgo ser expuesto; el personaje debe realizar una tirada de Discreto durante cada aventura. En caso de fallo, tiene una segunda oportunidad de realizar una tirada. Si falla, alguien descubre una pista que puede llevar hacia la verdad. ¿Quizás aparece algún tipo de prueba, como una carta? ¿O un testigo que dice haber visto algo? ¿O el personaje habla mientras está dormido? Con independencia de si la persona que sospecha es un personaje jugador o no jugador, el que tiene el secreto oscuro debe poner fin su curiosidad o sufrir las consecuencias. Ten en cuenta que un personaje no jugador puede querer extorsionar al personaje en lugar de exponerlo.",
       fuente: "Guía Avanzada del Jugador"
     },
     {
@@ -663,13 +663,13 @@ function buildBurdenEntries(): CompendiumEntry[] {
       detalle: "Carga clasica para aventureros brillantes pero poco prudentes. Aporta ritmo, problemas y decisiones precipitadas cuando el grupo mas calma necesita.",
       fuente: "Guía Avanzada del Jugador"
     },
-    {
-      tipo: "carga",
-      nombre: "Buscado",
-      resumen: "Hay autoridades, acreedores, enemigos o facciones que reconocen al personaje y quieren encontrarlo.",
-      detalle: "Carga de persecucion. Puede venir de crimen, deudas, traicion, desercion o simplemente de haber sobrevivido a la gente equivocada.",
-      fuente: "Guía Avanzada del Jugador"
-    },
+      {
+        tipo: "carga",
+        nombre: "Fugitivo",
+        resumen: "Se busca al personaje por un delito grave, sea realmente culpable o no.",
+        detalle: "Se busca al personaje por un delito grave, sea realmente culpable o no. El personaje corre el riesgo de ser reconocido y atrapado. Una vez por aventura, el personaje debe superar una tirada de Discreto para evitar ser descubierto.",
+        fuente: "Guía Avanzada del Jugador"
+      },
     {
       tipo: "carga",
       nombre: "Enfermizo",
@@ -680,8 +680,8 @@ function buildBurdenEntries(): CompendiumEntry[] {
     {
       tipo: "carga",
       nombre: "Marca mística",
-      resumen: "El personaje lleva una señal sobrenatural visible para quien sabe que esta viendo.",
-      detalle: "Carga muy apropiada para misticos, malditos o tocados por fuerzas mayores. La marca puede delatar, inquietar o atraer atencion indebida.",
+      resumen: "El personaje tiene una marca mística que puede confundirse con una marca de corrupción.",
+      detalle: "El personaje tiene una marca mística en algún lugar de su cuerpo, que puede ser una mancha de nacimiento o una cicatriz que obtuvo más adelante. Sea cual sea el origen, el personaje corre el riesgo de que la confundan con una marca de corrupción. En situaciones en las que sea pertinente, el personaje debe realizar una tirada de [Discreto←Atento] con éxito o atraer la atención de una muchedumbre con horcas o un cazamonstruos más o menos peligroso.",
       fuente: "Guía Avanzada del Jugador"
     },
     {
@@ -723,7 +723,7 @@ function buildBurdenEntries(): CompendiumEntry[] {
       ...(entry.nombre === "Código de honor" ? ["code of honor"] : []),
       ...(entry.nombre === "Secreto oscuro" ? ["dark secret"] : []),
       ...(entry.nombre === "Impulsivo" ? ["impulsive"] : []),
-      ...(entry.nombre === "Buscado" ? ["wanted"] : []),
+        ...(entry.nombre === "Fugitivo" ? ["wanted"] : []),
       ...(entry.nombre === "Enfermizo" ? ["sickly"] : []),
       ...(entry.nombre === "Marca mística" ? ["mystical mark"] : []),
       ...(entry.nombre === "Protegido" ? ["protege", "protégé"] : []),
@@ -808,12 +808,12 @@ const APG_BLESSING_SUPPLEMENTS: CompendiumEntry[] = [
   {
     id: "bendicion-pulgar-verde",
     tipo: "bendicion",
-    nombre: "Pulgar verde",
-    resumen: "El personaje mantiene una conexion especial con plantas, crecimiento y naturaleza salvaje.",
-    detalle: "Gana +1 en pruebas para orientarse en el bosque, encontrar comida o refugio, detectar o evitar trampas naturales. El bono tambien se aplica a todas las pruebas de Alquimia. Puede comprarse varias veces, hasta +3.",
+    nombre: "Sintonía con las plantas",
+    resumen: "El personaje tiene una conexión mística con la naturaleza y mejora sus desafíos de supervivencia.",
+    detalle: "El personaje tiene una conexión mística con todas las criaturas inanimadas y gana una bonificación de +1 en las tiradas relacionadas con desafíos en la naturaleza, como orientarse en el bosque, encontrar comida y refugio, y detectar o evitar trampas naturales. La bonificación también se aplica en todas las tiradas de Alquimista. Puede ser adquirida varias veces, hasta un máximo de +3 en tiradas pertinentes.",
     fuente: "Guia Avanzada del Jugador",
     pagina: 53,
-    tags: ["bendicion", "pulgar-verde", "green thumb"]
+    tags: ["bendicion", "sintonia-con-las-plantas", "pulgar-verde", "green thumb"]
   },
   {
     id: "bendicion-imitador",
@@ -911,7 +911,7 @@ const APG_BURDEN_SUPPLEMENTS: CompendiumEntry[] = [
 ];
 
 const COMPLETE_BLESSING_OVERRIDES: CompendiumEntry[] = [
-  { id: "bendicion-bushcraft", tipo: "bendicion", nombre: "Bushcraft", resumen: "El personaje esta entrenado para sobrevivir, orientarse y sacar provecho del entorno salvaje.", detalle: "Representa experiencia real en campo abierto. Refuerza escenas de viaje, exploracion, rastreo, comida, refugio y vida en Davokar o regiones agrestes, y define a alguien que se mueve con naturalidad fuera de los caminos seguros.", fuente: "Libro Basico", pagina: 108, tags: ["bendicion", "bushcraft", "supervivencia"] },
+  { id: "bendicion-bushcraft", tipo: "bendicion", nombre: "Supervivencia", resumen: "El personaje esta entrenado para sobrevivir, orientarse y sacar provecho del entorno salvaje.", detalle: "Representa experiencia real en campo abierto. Refuerza escenas de viaje, exploracion, rastreo, comida, refugio y vida en Davokar o regiones agrestes, y define a alguien que se mueve con naturalidad fuera de los caminos seguros.", fuente: "Libro Basico", pagina: 108, tags: ["bendicion", "bushcraft", "supervivencia"] },
   { id: "bendicion-contactos", tipo: "bendicion", nombre: "Contactos", resumen: "El personaje dispone de una red de conocidos que puede abrir puertas, conseguir informacion o facilitar favores.", detalle: "Los contactos pueden representar camaradas, colegas de oficio, informadores, acreedores o amigos en posiciones utiles. La bendicion convierte la vida social del personaje en un recurso estable dentro de la ficcion.", fuente: "Libro Basico", pagina: 108, tags: ["bendicion", "contactos", "contacts"] },
   { id: "bendicion-longevo", tipo: "bendicion", nombre: "Longevo", resumen: "El personaje disfruta de una vida mas larga de lo normal y de una perspectiva marcada por el paso del tiempo.", detalle: "Suele ir asociada a linajes o pueblos cuya existencia se extiende mucho mas alla de lo humano. Afecta la forma de entender memoria, riesgo, legado y compromiso, y puede explicar conocimientos o paciencia fuera de lo comun.", fuente: "Libro Basico", pagina: 108, tags: ["bendicion", "longevo", "long-lived"] },
   { id: "bendicion-privilegiado", tipo: "bendicion", nombre: "Privilegiado", resumen: "El personaje pertenece a un estrato con autoridad social, recursos o trato preferente.", detalle: "Puede proceder de nobleza, apellido, cargo, fortuna o una institucion poderosa. El privilegio no elimina conflictos, pero cambia como reaccionan las personas y que puertas se abren antes incluso de hablar.", fuente: "Libro Basico", pagina: 109, tags: ["bendicion", "privilegiado", "privileged"] },
@@ -936,7 +936,7 @@ const COMPLETE_BLESSING_OVERRIDES: CompendiumEntry[] = [
   { id: "bendicion-escondites", tipo: "bendicion", nombre: "Escondites", resumen: "El personaje dispone de refugios, agujeros o rutas seguras donde ocultarse temporalmente.", detalle: "Representa preparacion territorial, apoyo local o mucha experiencia desapareciendo cuando todo se complica. Es especialmente fuerte en ciudades o regiones conocidas.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "escondites", "hideouts"] },
   { id: "bendicion-espejismo", tipo: "bendicion", nombre: "Espejismo", resumen: "El personaje construye apariencias, distracciones y presencias falsas con enorme eficacia.", detalle: "Sirve para manipular percepciones y jugar con lo que otros creen haber visto. Encaja con ilusionistas sociales, espias y figuras escenicas.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "espejismo", "mirage"] },
   { id: "bendicion-horripilante", tipo: "bendicion", nombre: "Horripilante", resumen: "La sola presencia del personaje provoca miedo, rechazo o inquietud.", detalle: "Puede deberse a apariencia, reputacion, raza o una aura profundamente incomoda. Convierte el aspecto del personaje en una herramienta y tambien en una carga social potencial.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "horripilante", "terrifying"] },
-  { id: "bendicion-pulgar-verde", tipo: "bendicion", nombre: "Pulgar verde", resumen: "El personaje mantiene una conexion especial con plantas, crecimiento y vida salvaje.", detalle: "Gana +1 en pruebas para encontrar camino, comida o refugio en el bosque, detectar o evitar trampas naturales y tambien en todas las pruebas de Alquimia. Puede adquirirse varias veces, hasta +3.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "pulgar-verde", "green thumb"] },
+  { id: "bendicion-pulgar-verde", tipo: "bendicion", nombre: "Sintonía con las plantas", resumen: "El personaje tiene una conexión mística con la naturaleza y mejora sus desafíos de supervivencia.", detalle: "El personaje tiene una conexión mística con todas las criaturas inanimadas y gana una bonificación de +1 en las tiradas relacionadas con desafíos en la naturaleza, como orientarse en el bosque, encontrar comida y refugio, y detectar o evitar trampas naturales. La bonificación también se aplica en todas las tiradas de Alquimista. Puede ser adquirida varias veces, hasta un máximo de +3 en tiradas pertinentes.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "sintonia-con-las-plantas", "pulgar-verde", "green thumb"] },
   { id: "bendicion-imitador", tipo: "bendicion", nombre: "Imitador", resumen: "El personaje imita tipos sociales o individuos concretos con gran credibilidad.", detalle: "Otorga +1 a Discreto al hacerse pasar por otra persona. Si imita un tipo de persona de su propia raza, ademas obtiene una segunda oportunidad para superar la prueba. Puede adquirirse varias veces, hasta +3.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "imitador", "impressionist"] },
   { id: "bendicion-manipulador", tipo: "bendicion", nombre: "Manipulador", resumen: "El personaje dobla la voluntad ajena con adulacion, presion o lectura emocional.", detalle: "Gana +1 a Persuasivo frente a una persona concreta durante la escena cuando tiene tiempo para trabajar la influencia. Puede comprarse varias veces, hasta un maximo de +3.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "manipulador", "manipulator"] },
   { id: "bendicion-medium", tipo: "bendicion", nombre: "Medium", resumen: "El personaje es especialmente sensible a presencias, ecos y senales de lo invisible.", detalle: "Hace del personaje alguien propenso a percibir lo sobrenatural y encaja especialmente bien con rituales, fantasmas, maldiciones y escenas de investigacion oscura.", fuente: "Guia Avanzada del Jugador", pagina: 54, tags: ["bendicion", "medium"] },
@@ -969,15 +969,15 @@ const COMPLETE_BURDEN_OVERRIDES: CompendiumEntry[] = [
   { id: "carga-bestial", tipo: "carga", nombre: "Bestial", resumen: "El personaje arrastra impulsos, presencia o habitos que lo acercan a lo salvaje.", detalle: "Hace mas dificil convivir dentro de estructuras civilizadas y suele venir acompanada de reacciones viscerales por parte de otros. En ciertos conceptos define toda la tension entre humanidad y monstruosidad.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "bestial", "bestial"] },
   { id: "carga-sed-de-sangre", tipo: "carga", nombre: "Sed de sangre", resumen: "El personaje se deja arrastrar con demasiada facilidad por violencia, furia o gusto por el combate.", detalle: "Funciona mejor cuando empuja decisiones de las que luego hay que responder. Es una carga para personas agresivas, traumatizadas o demasiado comodas resolviendo todo a golpes.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "sed-de-sangre", "bloodthirst"] },
   { id: "carga-adiccion", tipo: "carga", nombre: "Adiccion", resumen: "El personaje depende de una sustancia, costumbre o estado que puede arrastrarlo a malas decisiones.", detalle: "La necesidad genera tension real: gastar recursos, romper planes o exponerse. La carga funciona cuando la dependencia del personaje tiene consecuencias dentro de la historia.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "adiccion", "addiction"] },
-  { id: "carga-pesadillas", tipo: "carga", nombre: "Pesadillas", resumen: "El descanso del personaje se ve perseguido por visiones, recuerdos o terrores persistentes.", detalle: "Puede estar ligada a corrupcion, culpa, guerra o encuentros con algo que no deberia haberse visto. Refuerza escenas de cansancio, sobresalto y trauma.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "pesadillas", "nightmares"] },
+  { id: "carga-pesadillas", tipo: "carga", nombre: "Pesadillas", resumen: "El personaje es perseguido por pesadillas todas y cada una de las noches.", detalle: "El personaje es perseguido por pesadillas todas y cada una de las noches, posiblemente debido a algo que ha experimentado o por razones más extrañas, como un presagio siniestro o a consecuencia de una maldición familiar. El personaje debe superar una tirada de Tenaz cada noche para sanar de forma natural. Si falla no se cura ese día, aunque las otras formas de curación no se ven afectadas.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "pesadillas", "nightmares"] },
   { id: "carga-codigo-de-honor", tipo: "carga", nombre: "Codigo de honor", resumen: "El personaje se somete a principios que lo limitan incluso cuando actuar de otro modo seria mas facil.", detalle: "No es una desventaja mecanica constante, sino una fuente de conflictos y renuncias. Cuando importa, obliga al personaje a elegir entre eficacia y coherencia moral.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "codigo-de-honor", "code of honor"] },
-  { id: "carga-secreto-oscuro", tipo: "carga", nombre: "Secreto oscuro", resumen: "El personaje oculta una verdad capaz de destruir relaciones, posicion o seguridad si sale a la luz.", detalle: "Es excelente para campanas con facciones, juramentos y sospechas. No siempre estalla rapido, pero cuando lo hace pesa mucho y cambia dinamicas enteras.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "secreto-oscuro", "dark secret"] },
+  { id: "carga-secreto-oscuro", tipo: "carga", nombre: "Secreto oscuro", resumen: "El personaje tiene un secreto oscuro que podría destruir su reputación y su vida si se revelara.", detalle: "El personaje tiene una especie de secreto oscuro que podría destruir su reputación y su vida si se revelara. Tal vez el personaje haya sido miembro de una secta corrupta, matado a alguien o protegido a un asesino, y nunca haya sido atrapado. En el caso de que el oscuro secreto se haga público, el personaje obtiene en su lugar una de las cargas de Paria o Fugitivo, según el secreto. Una vez por aventura existe el riesgo ser expuesto; el personaje debe realizar una tirada de Discreto durante cada aventura. En caso de fallo, tiene una segunda oportunidad de realizar una tirada. Si falla, alguien descubre una pista que puede llevar hacia la verdad. ¿Quizás aparece algún tipo de prueba, como una carta? ¿O un testigo que dice haber visto algo? ¿O el personaje habla mientras está dormido? Con independencia de si la persona que sospecha es un personaje jugador o no jugador, el que tiene el secreto oscuro debe poner fin su curiosidad o sufrir las consecuencias. Ten en cuenta que un personaje no jugador puede querer extorsionar al personaje en lugar de exponerlo.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "secreto-oscuro", "dark secret"] },
   { id: "carga-anciano", tipo: "carga", nombre: "Anciano", resumen: "El personaje ha dejado atras su mejor momento y depende de si el cuerpo le acompana cada dia.", detalle: "Si la primera prueba del dia es un exito, todo va razonablemente bien. Si falla, arrastra rigidez y fatiga, sufriendo -1 a todas las pruebas durante el resto del dia.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "anciano", "elderly"] },
   { id: "carga-epileptico", tipo: "carga", nombre: "Epileptico", resumen: "Una mente demasiado sensible puede desatar convulsiones en momentos de maxima tension.", detalle: "Si el personaje saca un 20 en una prueba, sufre un ataque y queda fuera de combate durante 1d6 turnos. Despues queda exhausto y sufre -1 a todas las pruebas hasta el final de la escena.", fuente: "Guia Avanzada del Jugador", pagina: 58, tags: ["carga", "epileptico", "epileptic"] },
   { id: "carga-impulsivo", tipo: "carga", nombre: "Impulsivo", resumen: "El personaje actua antes de medir consecuencias y se lanza donde otros habrian esperado.", detalle: "La carga genera ritmo y problemas. Encaja con aventureros brillantes pero poco prudentes, gente con temperamento fuerte o personas incapaces de dejar pasar una provocacion.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "impulsivo", "impulsive"] },
-  { id: "carga-buscado", tipo: "carga", nombre: "Buscado", resumen: "Autoridades, acreedores, enemigos o facciones reconocen al personaje y quieren encontrarlo.", detalle: "Puede provenir de crimen, deudas, desercion, traicion o simplemente de haber sobrevivido a la gente equivocada. La amenaza existe incluso cuando el personaje intenta desaparecer.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "buscado", "wanted"] },
+  { id: "carga-buscado", tipo: "carga", nombre: "Fugitivo", resumen: "Se busca al personaje por un delito grave, sea realmente culpable o no.", detalle: "Se busca al personaje por un delito grave, sea realmente culpable o no. El personaje corre el riesgo de ser reconocido y atrapado. Una vez por aventura, el personaje debe superar una tirada de Discreto para evitar ser descubierto.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "fugitivo", "buscado", "wanted"] },
   { id: "carga-enfermizo", tipo: "carga", nombre: "Enfermizo", resumen: "El personaje convive con una fragilidad fisica persistente o una salud inestable.", detalle: "Es adecuada para conceptos marcados por enfermedad, constitucion debil, viejas heridas o deterioro continuo. La limitacion debe sentirse como parte del personaje, no como un detalle decorativo.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "enfermizo", "sickly"] },
-  { id: "carga-marca-mistica", tipo: "carga", nombre: "Marca mistica", resumen: "El personaje lleva una senal sobrenatural reconocible para quien sepa mirarla.", detalle: "La marca puede delatar, inquietar o atraer atencion indebida. Es especialmente apropiada para misticos, malditos o personajes tocados por fuerzas mayores.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "marca-mistica", "mystical mark"] },
+  { id: "carga-marca-mistica", tipo: "carga", nombre: "Marca mística", resumen: "El personaje tiene una marca mística que puede confundirse con una marca de corrupción.", detalle: "El personaje tiene una marca mística en algún lugar de su cuerpo, que puede ser una mancha de nacimiento o una cicatriz que obtuvo más adelante. Sea cual sea el origen, el personaje corre el riesgo de que la confundan con una marca de corrupción. En situaciones en las que sea pertinente, el personaje debe realizar una tirada de [Discreto←Atento] con éxito o atraer la atención de una muchedumbre con horcas o un cazamonstruos más o menos peligroso.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "marca-mistica", "mystical mark"] },
   { id: "carga-protegido", tipo: "carga", nombre: "Protegido", resumen: "El personaje es responsable de alguien dependiente, vulnerable o demasiado valioso para quedar atras.", detalle: "Obliga a pensar mas alla del propio cuerpo. La carga gana fuerza cuando esa persona importa de verdad y condiciona viajes, decisiones y sacrificios.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "protegido", "protege", "protégé"] },
   { id: "carga-senas-reveladoras", tipo: "carga", nombre: "Senas reveladoras", resumen: "El personaje deja una impresion demasiado marcada como para pasar desapercibido con facilidad.", detalle: "Puede tratarse de cicatrices, voz, olor, gestos, reputacion o cualquier detalle dificil de ocultar. Vuelve mas costoso mezclarse con la multitud o desaparecer.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "senas-reveladoras", "telltale"] },
   { id: "carga-lento", tipo: "carga", nombre: "Lento", resumen: "El personaje es torpe para desplazarse, reaccionar o seguir el ritmo cuando la situacion exige rapidez.", detalle: "Se nota especialmente en huidas, persecuciones y escenas donde colocarse a tiempo importa tanto como actuar. Es apropiada para conceptos pesados, lesionados o poco agiles.", fuente: "Guia Avanzada del Jugador", pagina: 59, tags: ["carga", "lento", "slow"] }
@@ -3364,6 +3364,7 @@ const ADVANCED_GUIDE_ENTRY_PAGE_OVERRIDES: Record<string, number> = {
   "Escondites": 52,
   "Espejismo": 52,
   "Horripilante": 52,
+  "Sintonía con las plantas": 52,
   "Pulgar verde": 52,
   "Imitador": 52,
   "Manipulador": 52,
@@ -3406,6 +3407,7 @@ const ADVANCED_GUIDE_ENTRY_PAGE_OVERRIDES: Record<string, number> = {
   "Epileptico": 56,
   "Epiléptico": 56,
   "Impulsivo": 57,
+  "Fugitivo": 57,
   "Buscado": 57,
   "Enfermizo": 57,
   "Marca mistica": 57,
