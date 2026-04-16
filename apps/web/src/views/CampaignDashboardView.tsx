@@ -396,6 +396,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [referenceCreateError, setReferenceCreateError] = useState<string | null>(null);
   const [campaignForm, setCampaignForm] = useState<CreateCampaignInput>(emptyCampaignForm);
   const [draft, setDraft] = useState<CreateCampaignInput>(emptyCampaignForm);
   const [memberEmail, setMemberEmail] = useState("");
@@ -519,6 +520,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setReferenceAliasesText("");
       setIsSharedNotesModalOpen(false);
       setPendingUnlinkCharacter(null);
+      setReferenceCreateError(null);
       setIsReferenceCreateModalOpen(false);
       setIsReferenceEditMode(false);
       setIsReferenceDetailModalOpen(false);
@@ -758,7 +760,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       return;
     }
 
-    setFormError(null);
+    setReferenceCreateError(null);
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
@@ -768,6 +770,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         .filter(Boolean);
       const payload = createCampaignReferenceSchema.parse({
         ...referenceForm,
+        label: referenceForm.label.trim(),
         aliases
       });
       const updated = await createCampaignReference(selectedCampaign.id, payload, token);
@@ -776,11 +779,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         (entry) => entry.name === payload.name && entry.label === payload.label && entry.content === payload.content
       );
       setSelectedReferenceId(createdReference?.id ?? null);
-      setFormError(null);
+      setReferenceCreateError(null);
       setIsReferenceCreateModalOpen(false);
       setIsReferenceDetailModalOpen(Boolean(createdReference));
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "No se pudo crear la referencia");
+      setReferenceCreateError(err instanceof Error ? err.message : "No se pudo crear la referencia");
     } finally {
       setIsSaving(false);
     }
@@ -801,6 +804,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         .filter(Boolean);
       const payload = createCampaignReferenceSchema.parse({
         ...referenceForm,
+        label: referenceForm.label.trim(),
         aliases
       });
       upsertCampaign(await updateCampaignReference(selectedReference.id, payload, token));
@@ -830,6 +834,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
   function handlePrepareNewReference(): void {
     setFormError(null);
+    setReferenceCreateError(null);
     setSelectedReferenceId(null);
     setReferenceForm(emptyReferenceForm);
     setReferenceAliasesText("");
@@ -840,6 +845,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
   function openReferenceDetail(referenceId: string): void {
     setFormError(null);
+    setReferenceCreateError(null);
     setSelectedReferenceId(referenceId);
     setIsReferenceEditMode(false);
     setIsReferenceCreateModalOpen(false);
@@ -1512,7 +1518,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           className="modal-backdrop"
           onClick={() => {
             if (!isSaving) {
-              setFormError(null);
+              setReferenceCreateError(null);
               setIsReferenceCreateModalOpen(false);
             }
           }}
@@ -1528,7 +1534,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   type="button"
                   disabled={isSaving}
                   onClick={() => {
-                    setFormError(null);
+                    setReferenceCreateError(null);
                     setIsReferenceCreateModalOpen(false);
                   }}
                 >
@@ -1536,7 +1542,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 </button>
               </div>
             </div>
-            {formError ? <p className="error-text">{formError}</p> : null}
+            {referenceCreateError ? <p className="error-text">{referenceCreateError}</p> : null}
 
             <div className="form-grid">
               <label className="field">
@@ -1547,7 +1553,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 />
               </label>
               <label className="field">
-                <span>Categoria</span>
+                <span>Categoria (opcional)</span>
                 <input
                   value={referenceForm.label}
                   onChange={(event) => setReferenceForm((current) => ({ ...current, label: event.target.value }))}

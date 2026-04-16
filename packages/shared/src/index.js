@@ -1479,7 +1479,7 @@ export const createCampaignChatMessageSchema = z
 });
 export const createCampaignReferenceSchema = z.object({
     name: z.string().min(2).max(120),
-    label: z.string().min(2).max(80),
+    label: z.string().max(80).default(""),
     aliases: z.array(z.string().min(1).max(120)).max(20).default([]),
     summary: z.string().max(300).default(""),
     content: z.string().max(6000).default(""),

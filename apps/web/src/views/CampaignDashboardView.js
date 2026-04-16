@@ -278,6 +278,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
     const [isSaving, setIsSaving] = useState(false);
     const [loadError, setLoadError] = useState(null);
     const [formError, setFormError] = useState(null);
+    const [referenceCreateError, setReferenceCreateError] = useState(null);
     const [campaignForm, setCampaignForm] = useState(emptyCampaignForm);
     const [draft, setDraft] = useState(emptyCampaignForm);
     const [memberEmail, setMemberEmail] = useState("");
@@ -364,6 +365,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
             setReferenceAliasesText("");
             setIsSharedNotesModalOpen(false);
             setPendingUnlinkCharacter(null);
+            setReferenceCreateError(null);
             setIsReferenceCreateModalOpen(false);
             setIsReferenceEditMode(false);
             setIsReferenceDetailModalOpen(false);
@@ -593,7 +595,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         if (!selectedCampaign) {
             return;
         }
-        setFormError(null);
+        setReferenceCreateError(null);
         setIsSaving(true);
         try {
             const token = await ensureAccessToken();
@@ -603,18 +605,19 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                 .filter(Boolean);
             const payload = createCampaignReferenceSchema.parse({
                 ...referenceForm,
+                label: referenceForm.label.trim(),
                 aliases
             });
             const updated = await createCampaignReference(selectedCampaign.id, payload, token);
             upsertCampaign(updated);
             const createdReference = updated.references.find((entry) => entry.name === payload.name && entry.label === payload.label && entry.content === payload.content);
             setSelectedReferenceId(createdReference?.id ?? null);
-            setFormError(null);
+            setReferenceCreateError(null);
             setIsReferenceCreateModalOpen(false);
             setIsReferenceDetailModalOpen(Boolean(createdReference));
         }
         catch (err) {
-            setFormError(err instanceof Error ? err.message : "No se pudo crear la referencia");
+            setReferenceCreateError(err instanceof Error ? err.message : "No se pudo crear la referencia");
         }
         finally {
             setIsSaving(false);
@@ -634,6 +637,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                 .filter(Boolean);
             const payload = createCampaignReferenceSchema.parse({
                 ...referenceForm,
+                label: referenceForm.label.trim(),
                 aliases
             });
             upsertCampaign(await updateCampaignReference(selectedReference.id, payload, token));
@@ -665,6 +669,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
     }
     function handlePrepareNewReference() {
         setFormError(null);
+        setReferenceCreateError(null);
         setSelectedReferenceId(null);
         setReferenceForm(emptyReferenceForm);
         setReferenceAliasesText("");
@@ -674,6 +679,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
     }
     function openReferenceDetail(referenceId) {
         setFormError(null);
+        setReferenceCreateError(null);
         setSelectedReferenceId(referenceId);
         setIsReferenceEditMode(false);
         setIsReferenceCreateModalOpen(false);
@@ -743,13 +749,13 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                                                 setIsCampaignDetailsModalOpen(false);
                                             }, children: "Cerrar" })] })] }), formError ? _jsx("p", { className: "error-text", children: formError }) : null, _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Nombre" }), _jsx("input", { value: draft.name, onChange: (event) => setDraft((current) => ({ ...current, name: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Ambientacion" }), _jsx("input", { value: draft.setting, onChange: (event) => setDraft((current) => ({ ...current, setting: event.target.value })) })] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Resumen" }), _jsx("textarea", { rows: 4, value: draft.summary, onChange: (event) => setDraft((current) => ({ ...current, summary: event.target.value })) })] })] }) })) : null, isReferenceCreateModalOpen ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
                     if (!isSaving) {
-                        setFormError(null);
+                        setReferenceCreateError(null);
                         setIsReferenceCreateModalOpen(false);
                     }
                 }, children: _jsxs("div", { className: "panel modal-panel", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Nueva referencia" }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleCreateReference(), children: isSaving ? "Creando..." : "Crear" }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
-                                                setFormError(null);
+                                                setReferenceCreateError(null);
                                                 setIsReferenceCreateModalOpen(false);
-                                            }, children: "Cerrar" })] })] }), formError ? _jsx("p", { className: "error-text", children: formError }) : null, _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Nombre" }), _jsx("input", { value: referenceForm.name, onChange: (event) => setReferenceForm((current) => ({ ...current, name: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Categoria" }), _jsx("input", { value: referenceForm.label, onChange: (event) => setReferenceForm((current) => ({ ...current, label: event.target.value })), placeholder: "PNJ, lugar, faccion, trama..." })] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Resumen" }), _jsx("input", { value: referenceForm.summary, onChange: (event) => setReferenceForm((current) => ({ ...current, summary: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Alias" }), _jsx("input", { value: referenceAliasesText, onChange: (event) => setReferenceAliasesText(event.target.value), placeholder: "Nombres alternativos separados por comas" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Contenido" }), _jsx("textarea", { rows: 12, value: referenceForm.content, onChange: (event) => setReferenceForm((current) => ({ ...current, content: event.target.value })), placeholder: "Detalle extenso de la referencia, usos, relaciones, pistas..." })] }), isDirector ? (_jsxs(_Fragment, { children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Visibilidad" }), _jsxs("select", { value: referenceForm.visibility, onChange: (event) => setReferenceForm((current) => ({
+                                            }, children: "Cerrar" })] })] }), referenceCreateError ? _jsx("p", { className: "error-text", children: referenceCreateError }) : null, _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Nombre" }), _jsx("input", { value: referenceForm.name, onChange: (event) => setReferenceForm((current) => ({ ...current, name: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Categoria (opcional)" }), _jsx("input", { value: referenceForm.label, onChange: (event) => setReferenceForm((current) => ({ ...current, label: event.target.value })), placeholder: "PNJ, lugar, faccion, trama..." })] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Resumen" }), _jsx("input", { value: referenceForm.summary, onChange: (event) => setReferenceForm((current) => ({ ...current, summary: event.target.value })) })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Alias" }), _jsx("input", { value: referenceAliasesText, onChange: (event) => setReferenceAliasesText(event.target.value), placeholder: "Nombres alternativos separados por comas" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Contenido" }), _jsx("textarea", { rows: 12, value: referenceForm.content, onChange: (event) => setReferenceForm((current) => ({ ...current, content: event.target.value })), placeholder: "Detalle extenso de la referencia, usos, relaciones, pistas..." })] }), isDirector ? (_jsxs(_Fragment, { children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Visibilidad" }), _jsxs("select", { value: referenceForm.visibility, onChange: (event) => setReferenceForm((current) => ({
                                                 ...current,
                                                 visibility: event.target.value,
                                                 sharedWithUserIds: event.target.value === "selected_players" ? current.sharedWithUserIds : []
