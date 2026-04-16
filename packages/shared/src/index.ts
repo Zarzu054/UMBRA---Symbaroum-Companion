@@ -487,7 +487,7 @@ export function getEffectiveCharacterRobustezMax(
 ): number {
   const automaticMax = getCharacterMonsterTraitEffects(sheet as z.infer<typeof characterSheetObjectSchema>).robustezMaxima;
   const explicitMax = Number(sheet.combate?.robustezMax ?? 0);
-  return Math.max(explicitMax, automaticMax);
+  return automaticMax > 0 ? automaticMax : explicitMax;
 }
 
 function slugify(value: string): string {

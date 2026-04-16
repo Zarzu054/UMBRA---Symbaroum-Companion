@@ -426,7 +426,7 @@ function getEffectiveExperienceTotal(sheet) {
 export function getEffectiveCharacterRobustezMax(sheet) {
     const automaticMax = getCharacterMonsterTraitEffects(sheet).robustezMaxima;
     const explicitMax = Number(sheet.combate?.robustezMax ?? 0);
-    return Math.max(explicitMax, automaticMax);
+    return automaticMax > 0 ? automaticMax : explicitMax;
 }
 function slugify(value) {
     return normalizeName(value).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "item";

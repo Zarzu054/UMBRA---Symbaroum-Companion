@@ -9,6 +9,7 @@ import {
   createCampaignSessionSchema,
   executeCharacterAction,
   grantCampaignExperienceSchema,
+  getEffectiveCharacterRobustezMax,
   getCharacterMonsterTraitEffects,
   synchronizeCharacterSheet,
   SYMBAROUM_ABILITIES
@@ -833,6 +834,99 @@ test("Combate sin armas aumenta un nivel de dado el ataque con Arma natural", ()
     assert.ok(naturalWeaponAction);
     assert.equal(naturalWeaponAction.damageFormula, expectedDamage);
   }
+});
+
+test("Ataque con Arma natural explica en el desglose cuando Combate sin armas aumenta el dado", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.habilidades = [
+    {
+      nombre: "Combate sin armas",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Libro basico",
+      notas: "",
+      acciones: []
+    },
+    {
+      nombre: "Arma natural",
+      tipo: "Rasgo monstruoso",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Codice de monstruos",
+      notas: "",
+      acciones: []
+    }
+  ];
+
+  const naturalWeaponAction = deriveCharacterActions(sheet).find((action) => action.label === "Ataque con Arma natural");
+  assert.ok(naturalWeaponAction);
+  assert.deepEqual(naturalWeaponAction.damageBreakdown, [
+    { label: "Arma natural", formula: "1d6" },
+    { label: "Combate sin armas", detail: "Mejora el dado base (Novato)." }
+  ]);
+});
+
+test("getEffectiveCharacterRobustezMax no conserva un robustezMax guardado obsoleto cuando Recio recalcula menos", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.atributos.fuerte = 15;
+  sheet.combate.robustezMax = 23;
+  sheet.habilidades = [
+    {
+      nombre: "Recio",
+      tipo: "Rasgo monstruoso",
+      efecto: "",
+      nivel: "novato",
+      fuente: "Codice de monstruos",
+      notas: "",
+      acciones: []
+    }
+  ];
+
+  assert.equal(getCharacterMonsterTraitEffects(sheet).robustezMaxima, 22);
+  assert.equal(getEffectiveCharacterRobustezMax(sheet), 22);
+});
+
+test("deriveCharacterActions reemplaza acciones guardadas obsoletas de Arma natural por la derivada actual", () => {
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    habilidades: [
+      {
+        nombre: "Combate sin armas",
+        tipo: "Habilidad",
+        efecto: "",
+        nivel: "novato",
+        fuente: "Libro basico",
+        notas: "",
+        acciones: []
+      },
+      {
+        nombre: "Arma natural",
+        tipo: "Rasgo monstruoso",
+        efecto: "",
+        nivel: "novato",
+        fuente: "Codice de monstruos",
+        notas: "",
+        acciones: []
+      }
+    ],
+    actions: [
+      {
+        id: "trait:arma-natural:1",
+        label: "Ataque con Arma natural",
+        sourceType: "weapon",
+        sourceName: "Arma natural",
+        cost: "combat",
+        rollAttribute: "diestro",
+        damageFormula: "1d6",
+        effectSummary: "Version guardada obsoleta."
+      }
+    ]
+  });
+
+  const naturalWeaponActions = deriveCharacterActions(sheet).filter((action) => action.label === "Ataque con Arma natural");
+  assert.equal(naturalWeaponActions.length, 1);
+  assert.equal(naturalWeaponActions[0].damageFormula, "1d8");
 });
 
 test("las armas heredadas llamadas Natural no generan un arma equipada falsa", () => {

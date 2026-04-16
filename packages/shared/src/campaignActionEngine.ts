@@ -104,7 +104,8 @@ function hasDerivedCombatOverride(
     normalizeName(derivedAction.sourceName) === normalizeName(action.sourceName) &&
     normalizeName(derivedAction.label) === normalizeName(action.label) &&
     derivedAction.cost === action.cost &&
-    (normalizeFormula(derivedAction.damageFormula ?? "") ?? "") === (normalizeFormula(action.damageFormula ?? "") ?? "")
+    derivedAction.rollAttribute === action.rollAttribute &&
+    (derivedAction.fixedTarget ?? null) === (action.fixedTarget ?? null)
   );
 }
 
@@ -122,8 +123,7 @@ function hasStoredWeaponEquivalent(
     normalizeName(storedAction.label) === normalizeName(action.label) &&
     storedAction.cost === action.cost &&
     storedAction.rollAttribute === action.rollAttribute &&
-    (storedAction.fixedTarget ?? null) === (action.fixedTarget ?? null) &&
-    (normalizeFormula(storedAction.damageFormula ?? "") ?? "") === (normalizeFormula(action.damageFormula ?? "") ?? "")
+    (storedAction.fixedTarget ?? null) === (action.fixedTarget ?? null)
   );
 }
 
@@ -829,7 +829,15 @@ function createNaturalWeaponAttackAction(sheet: CharacterSheet): CharacterAction
     return null;
   }
 
-  const damageFormula = getNaturalWeaponDamageFormula(sheet, naturalWeaponLevel);
+  const baseDamage = naturalWeaponLevel === 3 ? "1d10" : naturalWeaponLevel === 2 ? "1d8" : "1d6";
+  const unarmedCombatLevel = getRatedEntryLevel(sheet, "Combate sin armas");
+  const damageFormula = unarmedCombatLevel ? (increaseDamageDie(baseDamage) ?? baseDamage) : baseDamage;
+  const damageBreakdown: FormulaBreakdownEntry[] = unarmedCombatLevel
+    ? [
+        { label: "Arma natural", formula: baseDamage },
+        { label: "Combate sin armas", detail: `Mejora el dado base (${capitalizeSkillLevel(unarmedCombatLevel)}).` }
+      ]
+    : [{ label: "Arma natural", formula: baseDamage }];
   return {
     id: `trait:arma-natural:${naturalWeaponLevel}`,
     label: "Ataque con Arma natural",
@@ -838,9 +846,7 @@ function createNaturalWeaponAttackAction(sheet: CharacterSheet): CharacterAction
     cost: "combat",
     rollAttribute: "diestro",
     damageFormula,
-    damageBreakdown: [
-      { label: "Arma natural", formula: damageFormula }
-    ],
+    damageBreakdown,
     effectSummary: "Ataque cuerpo a cuerpo realizado con las armas naturales del personaje."
   };
 }
