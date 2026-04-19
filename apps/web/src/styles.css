@@ -765,11 +765,12 @@ button.subtle-button {
 
 .auth-page {
   min-height: 100vh;
-  height: 100vh;
+  min-height: 100dvh;
+  height: auto;
   display: grid;
   place-items: center;
   padding: 24px;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 .auth-page .panel {
@@ -1459,6 +1460,11 @@ button.subtle-button {
   margin-bottom: 0.55rem;
   text-transform: uppercase;
   letter-spacing: 0.14em;
+}
+
+.campaign-reference-preview--author p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .campaign-reference-preview--content {
@@ -3084,6 +3090,11 @@ td {
 
   .app-shell {
     grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .app-shell.is-sidebar-collapsed {
+    grid-template-columns: 1fr;
   }
 
   .character-builder-hero,
@@ -3131,12 +3142,45 @@ td {
   .app-sidebar-inner {
     height: auto;
     min-height: auto;
+    padding: 16px 12px 18px;
     border-right: 0;
     border-bottom: 1px solid rgba(139, 109, 77, 0.28);
   }
 
   .app-content {
     padding: 0 12px 24px;
+  }
+
+  .content-topbar {
+    position: sticky;
+    top: 12px;
+    left: 0;
+    margin: 0 0 10px;
+  }
+
+  .compendium-detail-modal,
+  .campaign-character-sheet-modal,
+  .character-directory-form-modal {
+    width: min(100%, calc(100vw - 1.5rem));
+    max-height: calc(100dvh - 1.5rem);
+  }
+
+  .character-directory-header-band,
+  .character-builder-header-band {
+    grid-template-columns: 68px minmax(0, 1fr);
+  }
+
+  .character-builder-toolbar {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+
+  .character-directory-guidance {
+    grid-template-columns: 1fr;
+  }
+
+  .character-record-grid {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   }
 }
 
@@ -3154,9 +3198,190 @@ td {
     padding: 16px;
   }
 
+  .modal-backdrop {
+    padding: 12px;
+  }
+
+  .modal-panel {
+    width: 100%;
+    max-height: calc(100dvh - 1.5rem);
+  }
+
+  .top-bar {
+    padding: 0 0 16px;
+  }
+
+  .top-bar::after {
+    left: 0;
+    right: 0;
+  }
+
+  .row-actions {
+    align-items: stretch;
+  }
+
+  .row-actions > * {
+    min-width: 0;
+  }
+
+  .toolbar {
+    justify-content: flex-start;
+  }
+
+  .auth-page {
+    place-items: start;
+    padding: 16px;
+  }
+
+  .auth-panel {
+    margin-inline: auto;
+  }
+
+  .compendium-detail-modal-toolbar,
+  .campaign-character-sheet-modal-header,
+  .character-roll-confirm-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .character-roll-confirm-primary {
+    width: 100%;
+  }
+
+  .character-directory-shell,
+  .character-builder-shell,
+  .character-directory-panel,
+  .character-builder-panel,
+  .campaign-sheet-card {
+    padding: 0.8rem;
+  }
+
+  .character-directory-header-band,
+  .character-builder-header-band {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .character-directory-header-band .unified-sheet-portrait,
+  .character-builder-header-band .unified-sheet-portrait {
+    justify-self: center;
+  }
+
+  .character-record-grid,
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  .field-span-2 {
+    grid-column: auto;
+  }
+
+  .unified-sheet-weapon-detail-hero,
+  .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-item-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-inventory-toolbar select {
+    min-width: 0;
+    width: 100%;
+  }
+
   .compendium-results,
   .compendium-detail {
     min-height: auto;
+  }
+
+  .campaign-reference-detail-header {
+    flex-direction: column;
+  }
+
+  .campaign-reference-detail-meta {
+    justify-content: flex-start;
+  }
+
+  .campaign-reference-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .campaign-reference-preview--author p {
+    font-size: 0.94rem;
+    line-height: 1.3;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-sidebar-head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar-toggle {
+    justify-self: start;
+  }
+
+  .app-content {
+    padding: 0 10px 18px;
+  }
+
+  .content-topbar {
+    top: 10px;
+  }
+
+  .compendium-filters,
+  .auth-switch,
+  .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compendium-detail-modal,
+  .campaign-character-sheet-modal,
+  .character-directory-form-modal,
+  .character-roll-confirm-modal {
+    width: min(100%, calc(100vw - 1rem));
+    max-height: calc(100dvh - 1rem);
+  }
+
+  .compendium-detail-modal-body,
+  .campaign-character-sheet-modal-body {
+    padding-top: 6px;
+  }
+
+  .compendium-list-item,
+  .character-record-card {
+    padding-inline: 12px;
+  }
+
+  .campaign-action-header,
+  .campaign-action-button--row {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .campaign-action-button--row {
+    display: grid;
+  }
+
+  .campaign-action-slot,
+  .campaign-action-slot.is-damage,
+  .unified-sheet.is-tab-actions .unified-sheet-dynamic-column .campaign-action-slot,
+  .unified-sheet.is-tab-actions .unified-sheet-dynamic-column .campaign-action-slot.is-damage {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .campaign-action-header span:not(:first-child) {
+    display: none;
+  }
+
+  .campaign-action-source-note {
+    white-space: normal;
+  }
+
+  .character-roll-confirm-actions,
+  .character-roll-confirm-primary {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }
 .unified-sheet {
@@ -4914,14 +5139,38 @@ td {
     overflow: visible;
   }
 
+  .character-actions-page {
+    min-height: auto;
+    height: auto;
+  }
+
   .unified-sheet-stage,
   .unified-sheet-tab-content {
     overflow: visible;
   }
 
+  .unified-sheet-persistent,
+  .unified-sheet-body-grid,
+  .unified-sheet-static-column,
+  .unified-sheet-dynamic-column,
+  .unified-sheet-dynamic-column.unified-sheet-stage {
+    height: auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+
+  .unified-sheet-dynamic-column .unified-sheet-tab-content {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+
   .unified-sheet .unified-sheet-persistent-identity > .unified-sheet-stage.is-inline {
     max-height: none;
-    overflow: visible;
+    overflow-x: hidden;
+    overflow-y: visible;
   }
 
   .unified-sheet .unified-sheet-persistent-identity > .unified-sheet-stage.is-inline .unified-sheet-tab-content {
@@ -4962,6 +5211,10 @@ td {
 }
 
 @media (max-width: 900px) {
+  .character-actions-page {
+    padding-top: 12px;
+  }
+
   .unified-sheet-header-band,
   .unified-sheet-body-grid,
   .unified-sheet-vitals-bar {
@@ -5013,8 +5266,29 @@ td {
 }
 
 @media (max-width: 560px) {
+  .character-actions-page {
+    gap: 10px;
+  }
+
+  .unified-sheet-persistent,
+  .unified-sheet-static-column,
+  .unified-sheet-static-summary,
+  .unified-sheet-quick-row,
+  .unified-sheet-header-stats {
+    overflow: hidden;
+  }
+
   .unified-sheet-persistent {
     padding: 0.65rem 0.7rem 0.75rem;
+  }
+
+  .unified-sheet-header-band,
+  .unified-sheet-body-grid {
+    padding-inline: 0.2rem;
+  }
+
+  .unified-sheet-hero-main {
+    padding-inline-start: 0.1rem;
   }
 
   .unified-sheet-header-stats,

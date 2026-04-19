@@ -2019,7 +2019,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     <span className="meta-text">Resumen</span>
                     <p>{selectedReference.summary || "Sin resumen breve."}</p>
                   </article>
-                  <article className="campaign-reference-preview">
+                  <article className="campaign-reference-preview campaign-reference-preview--author">
                     <span className="meta-text">Autor</span>
                     <p>{selectedReference.authorEmail}</p>
                   </article>
