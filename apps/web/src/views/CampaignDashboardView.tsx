@@ -37,6 +37,7 @@ type CampaignHashState = {
 
 type CampaignSection = "dmNotes" | "sharedNotes" | "wiki" | "members" | "characters";
 type CampaignSharedNoteEntry = Campaign["sharedNoteEntries"][number];
+type SharedNoteSortOption = "updated_desc" | "updated_asc" | "title_asc" | "title_desc";
 
 const emptyCampaignForm: CreateCampaignInput = {
   name: "",
@@ -93,20 +94,57 @@ function buildTimestampedNoteId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function sortSharedNoteEntries(entries: CampaignSharedNoteEntry[]): CampaignSharedNoteEntry[] {
-  return [...entries].sort((left, right) => {
-    const leftDate = left.updatedAt || left.createdAt || "";
-    const rightDate = right.updatedAt || right.createdAt || "";
-    return rightDate.localeCompare(leftDate);
-  });
+function getSharedNoteSortPreferenceKey(userId: string): string {
+  return `umbra:campaign-shared-notes-sort:${userId}`;
 }
 
-function summarizeNoteContent(content: string): string {
-  const collapsed = content.replace(/\s+/g, " ").trim();
-  if (!collapsed) {
-    return "Sin contenido.";
+function readSharedNoteSortPreference(userId: string): SharedNoteSortOption {
+  if (typeof window === "undefined") {
+    return "updated_desc";
   }
-  return collapsed.length > 180 ? `${collapsed.slice(0, 177)}...` : collapsed;
+
+  const storedValue = window.localStorage.getItem(getSharedNoteSortPreferenceKey(userId));
+  if (
+    storedValue === "updated_desc" ||
+    storedValue === "updated_asc" ||
+    storedValue === "title_asc" ||
+    storedValue === "title_desc"
+  ) {
+    return storedValue;
+  }
+
+  return "updated_desc";
+}
+
+function sortSharedNoteEntries(entries: CampaignSharedNoteEntry[], sortOption: SharedNoteSortOption): CampaignSharedNoteEntry[] {
+  return [...entries].sort((left, right) => {
+    if (sortOption === "title_asc" || sortOption === "title_desc") {
+      const direction = sortOption === "title_asc" ? 1 : -1;
+      const titleOrder = left.title.localeCompare(right.title, undefined, { sensitivity: "base" });
+      if (titleOrder !== 0) {
+        return titleOrder * direction;
+      }
+    }
+
+    const leftDate = left.updatedAt || left.createdAt || "";
+    const rightDate = right.updatedAt || right.createdAt || "";
+    const dateOrder = rightDate.localeCompare(leftDate);
+    if (dateOrder !== 0) {
+      if (sortOption === "updated_asc") {
+        return -dateOrder;
+      }
+      if (sortOption === "updated_desc") {
+        return dateOrder;
+      }
+    }
+
+    const fallbackTitleOrder = left.title.localeCompare(right.title, undefined, { sensitivity: "base" });
+    if (fallbackTitleOrder !== 0) {
+      return fallbackTitleOrder;
+    }
+
+    return left.id.localeCompare(right.id);
+  });
 }
 
 function escapeRegExp(value: string): string {
@@ -462,6 +500,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [selectedSharedNoteId, setSelectedSharedNoteId] = useState<string | null>(null);
   const [sharedNoteEditor, setSharedNoteEditor] = useState<{ mode: "create" | "edit"; note: CampaignSharedNoteEntry } | null>(null);
   const [sharedNoteError, setSharedNoteError] = useState<string | null>(null);
+  const [sharedNoteSearch, setSharedNoteSearch] = useState("");
+  const [sharedNoteSort, setSharedNoteSort] = useState<SharedNoteSortOption>(() => readSharedNoteSortPreference(user.id));
   const [isReferenceDetailModalOpen, setIsReferenceDetailModalOpen] = useState(false);
   const [isReferenceEditMode, setIsReferenceEditMode] = useState(false);
   const [isCreateCampaignModalOpen, setIsCreateCampaignModalOpen] = useState(false);
@@ -481,13 +521,20 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     () => selectedCampaign?.references.find((entry) => entry.id === selectedReferenceId) ?? null,
     [selectedCampaign, selectedReferenceId]
   );
-  const sortedSharedNotes = useMemo(
-    () => sortSharedNoteEntries(selectedCampaign?.sharedNoteEntries ?? []),
-    [selectedCampaign]
+  const allSortedSharedNotes = useMemo(
+    () => sortSharedNoteEntries(selectedCampaign?.sharedNoteEntries ?? [], sharedNoteSort),
+    [selectedCampaign, sharedNoteSort]
   );
+  const filteredSharedNotes = useMemo(() => {
+    const normalizedSearch = normalizeLookupValue(sharedNoteSearch);
+    return allSortedSharedNotes.filter((entry) =>
+      !normalizedSearch || normalizeLookupValue(entry.title).includes(normalizedSearch)
+    );
+  }, [allSortedSharedNotes, sharedNoteSearch]);
+  const sortedSharedNotes = filteredSharedNotes;
   const selectedSharedNote = useMemo(
-    () => sortedSharedNotes.find((entry) => entry.id === selectedSharedNoteId) ?? null,
-    [selectedSharedNoteId, sortedSharedNotes]
+    () => allSortedSharedNotes.find((entry) => entry.id === selectedSharedNoteId) ?? null,
+    [allSortedSharedNotes, selectedSharedNoteId]
   );
   const canEditSelectedReference = isDirector || selectedReference?.authorId === user.id;
   const shareableMembers = useMemo(
@@ -576,6 +623,18 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   }, [activeSection, isDirector]);
 
   useEffect(() => {
+    setSharedNoteSort(readSharedNoteSortPreference(user.id));
+  }, [user.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(getSharedNoteSortPreferenceKey(user.id), sharedNoteSort);
+  }, [sharedNoteSort, user.id]);
+
+  useEffect(() => {
     if (!selectedCampaign) {
       setDraft(emptyCampaignForm);
       setSelectedAvailableCharacterId("");
@@ -586,6 +645,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setSelectedSharedNoteId(null);
       setSharedNoteEditor(null);
       setSharedNoteError(null);
+      setSharedNoteSearch("");
       setPendingUnlinkCharacter(null);
       setReferenceCreateError(null);
       setIsReferenceCreateModalOpen(false);
@@ -757,7 +817,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     }
     const token = await ensureAccessToken();
     const updated = await updateCampaign(selectedCampaign.id, {
-      sharedNoteEntries: sortSharedNoteEntries(nextEntries)
+      sharedNoteEntries: sortSharedNoteEntries(nextEntries, "updated_desc")
     }, token);
     upsertCampaign(updated);
     return updated;
@@ -790,8 +850,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         authorEmail: sharedNoteEditor.note.authorEmail || user.email
       };
       const nextEntries = sharedNoteEditor.mode === "create"
-        ? [normalized, ...sortedSharedNotes]
-        : sortedSharedNotes.map((entry) => entry.id === normalized.id ? normalized : entry);
+        ? [normalized, ...allSortedSharedNotes]
+        : allSortedSharedNotes.map((entry) => entry.id === normalized.id ? normalized : entry);
       await persistSharedNotes(nextEntries);
       setSelectedSharedNoteId(normalized.id);
       setSharedNoteEditor(null);
@@ -807,7 +867,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     setFormError(null);
     setIsSaving(true);
     try {
-      await persistSharedNotes(sortedSharedNotes.filter((entry) => entry.id !== noteId));
+      await persistSharedNotes(allSortedSharedNotes.filter((entry) => entry.id !== noteId));
       if (selectedSharedNoteId === noteId) {
         setSelectedSharedNoteId(null);
       }
@@ -1142,14 +1202,36 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               <div className="row-actions">
                 <div>
                   <h3>Notas compartidas</h3>
-                  <p className="section-help">Entradas ordenadas en Markdown, visibles para toda la campaña y con enlaces a la wiki detectados dentro de cada nota.</p>
+                  <p className="section-help">Entradas en Markdown visibles para toda la campaña, con busqueda por titulo y enlaces a la wiki detectados dentro de cada nota.</p>
                 </div>
-                <button type="button" disabled={isSaving} onClick={() => {
-                  setSharedNoteError(null);
-                  setSharedNoteEditor({ mode: "create", note: buildSharedNoteDraft() });
-                }}>
-                  Nueva nota
-                </button>
+                <div className="inline-row campaign-inline-form">
+                  <label className="field">
+                    <span>Buscar por titulo</span>
+                    <input
+                      value={sharedNoteSearch}
+                      onChange={(event) => setSharedNoteSearch(event.target.value)}
+                      placeholder="Nombre de la nota"
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Ordenar</span>
+                    <select
+                      value={sharedNoteSort}
+                      onChange={(event) => setSharedNoteSort(event.target.value as SharedNoteSortOption)}
+                    >
+                      <option value="updated_desc">Mas recientes</option>
+                      <option value="updated_asc">Mas antiguas</option>
+                      <option value="title_asc">Titulo A-Z</option>
+                      <option value="title_desc">Titulo Z-A</option>
+                    </select>
+                  </label>
+                  <button type="button" disabled={isSaving} onClick={() => {
+                    setSharedNoteError(null);
+                    setSharedNoteEditor({ mode: "create", note: buildSharedNoteDraft() });
+                  }}>
+                    Nueva nota
+                  </button>
+                </div>
               </div>
               <div className="campaign-reference-list">
                 {sortedSharedNotes.map((note) => (
@@ -1163,13 +1245,16 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     }}
                   >
                     <strong>{note.title}</strong>
-                    <span>{summarizeNoteContent(note.content)}</span>
                     <span>{note.authorEmail ? `Autor: ${note.authorEmail}` : "Nota compartida"}</span>
                     <span>Actualizada: {formatDate(note.updatedAt || note.createdAt)}</span>
                   </button>
                 ))}
                 {sortedSharedNotes.length === 0 ? (
-                  <p className="section-help">Aun no hay notas compartidas registradas.</p>
+                  <p className="section-help">
+                    {sharedNoteSearch.trim()
+                      ? "No hay notas compartidas que coincidan con ese titulo."
+                      : "Aun no hay notas compartidas registradas."}
+                  </p>
                 ) : null}
               </div>
             </section>
