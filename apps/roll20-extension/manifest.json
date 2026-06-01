@@ -6,10 +6,6 @@
   "permissions": ["tabs"],
   "host_permissions": [
     "https://umbra.z4rzu.com/*",
-    "http://localhost:*/*",
-    "http://127.0.0.1:*/*",
-    "https://localhost:*/*",
-    "https://127.0.0.1:*/*",
     "https://app.roll20.net/*",
     "https://roll20.net/*"
   ],
@@ -20,11 +16,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://umbra.z4rzu.com/*",
-        "http://localhost:*/*",
-        "http://127.0.0.1:*/*",
-        "https://localhost:*/*",
-        "https://127.0.0.1:*/*"
+        "https://umbra.z4rzu.com/*"
       ],
       "js": ["umbra-bridge.js"],
       "run_at": "document_idle"
