@@ -85,6 +85,17 @@ Parar:
 docker compose --env-file deploy/ubuntu/.env.server -f docker-compose.prod.yml down
 ```
 
+## Backups
+
+Los datos de usuarios viven en PostgreSQL. Consulta `docs/BACKUPS.md` para crear backups manuales, enviarlos por email y restaurarlos.
+
+Ejemplo rapido para crear un backup y enviarlo por email:
+
+```bash
+cd ~/UMBRA---Symbaroum-Companion
+bash deploy/ubuntu/backup-postgres-email.sh destino@example.com
+```
+
 ## Deploy automatico desde GitHub Actions
 
 Se ha preparado el workflow:
