@@ -45,6 +45,7 @@ export function AuthGatewayView({
   const [role, setRole] = useState<"player" | "gm">("player");
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotStatus, setForgotStatus] = useState<string | null>(null);
+  const [isForgotScreen, setIsForgotScreen] = useState(false);
   const [resetToken, setResetToken] = useState(() => parseResetTokenFromHash());
   const [resetPasswordValue, setResetPasswordValue] = useState("");
   const [resetConfirmPassword, setResetConfirmPassword] = useState("");
@@ -52,9 +53,10 @@ export function AuthGatewayView({
   const allowPublicRegistration = import.meta.env.VITE_ALLOW_PUBLIC_REGISTRATION !== "false";
   const activeScreen: AuthScreen = useMemo(() => {
     if (resetToken) return "reset";
+    if (isForgotScreen) return "forgot";
     if (mode === "register") return "register";
     return "login";
-  }, [mode, resetToken]);
+  }, [isForgotScreen, mode, resetToken]);
 
   useEffect(() => {
     function syncResetToken(): void {
@@ -99,6 +101,7 @@ export function AuthGatewayView({
     setResetPasswordValue("");
     setResetConfirmPassword("");
     setResetToken("");
+    setIsForgotScreen(false);
     clearResetHash();
     onModeChange("login");
   }
@@ -112,9 +115,9 @@ export function AuthGatewayView({
     <main className="page auth-page">
       <section className="panel auth-panel">
         <h1>UMBRA</h1>
-        <p>Companion de Symbaroum</p>
+        <p>Symbaroum Companion</p>
 
-        {allowPublicRegistration && activeScreen !== "reset" ? (
+        {allowPublicRegistration && (activeScreen === "login" || activeScreen === "register") ? (
           <div className="auth-switch">
             <button className={mode === "login" ? "active" : ""} onClick={() => onModeChange("login")}>Entrar</button>
             <button className={mode === "register" ? "active" : ""} onClick={() => onModeChange("register")}>Registro</button>
@@ -155,6 +158,43 @@ export function AuthGatewayView({
                 clearResetHash();
                 setResetToken("");
                 setResetStatus(null);
+                setIsForgotScreen(false);
+                onModeChange("login");
+              }}
+            >
+              Volver a entrar
+            </button>
+          </form>
+        ) : activeScreen === "forgot" ? (
+          <form
+            className="form-grid auth-form-grid auth-single-form"
+            onSubmit={(event) => void handleForgotSubmit(event)}
+            autoComplete="on"
+          >
+            <div className="auth-form-copy">
+              <h2>Recuperar contrasena</h2>
+              <p className="meta-text">Introduce el correo asociado a tu cuenta para recibir un enlace de recuperacion.</p>
+            </div>
+            <input
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              aria-label="Correo de recuperacion"
+              placeholder="Correo de tu cuenta"
+              value={forgotEmail}
+              onChange={(event) => setForgotEmail(event.target.value)}
+            />
+            {error ? <p className="error auth-error">{error}</p> : null}
+            {!error && forgotStatus ? <p className="meta-text">{forgotStatus}</p> : null}
+            <button type="submit" className="auth-submit" disabled={isSubmitting}>
+              {isSubmitting ? "Enviando..." : "Enviar enlace"}
+            </button>
+            <button
+              type="button"
+              className="subtle-button"
+              onClick={() => {
+                setForgotStatus(null);
+                setIsForgotScreen(false);
                 onModeChange("login");
               }}
             >
@@ -199,7 +239,6 @@ export function AuthGatewayView({
               ) : null}
 
               {error ? <p className="error auth-error">{error}</p> : null}
-              {!allowPublicRegistration ? <p className="meta-text">El acceso se gestiona solo con cuentas creadas por el administrador.</p> : null}
 
               <button className="auth-submit" type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Procesando..." : activeScreen === "login" ? "Entrar" : "Crear cuenta"}
@@ -207,29 +246,17 @@ export function AuthGatewayView({
             </form>
 
             {activeScreen === "login" ? (
-              <div className="auth-recovery-block">
-                <button type="button" className="subtle-button" onClick={() => setForgotStatus((current) => current === null ? "" : null)}>
-                  Recuperar contrasena
-                </button>
-                {forgotStatus !== null ? (
-                  <form className="form-grid auth-form-grid auth-recovery-form" onSubmit={(event) => void handleForgotSubmit(event)}>
-                    <input
-                      type="email"
-                      inputMode="email"
-                      autoComplete="email"
-                      aria-label="Correo de recuperacion"
-                      placeholder="Correo de tu cuenta"
-                      value={forgotEmail}
-                      onChange={(event) => setForgotEmail(event.target.value)}
-                    />
-                    {error ? <p className="error auth-error">{error}</p> : null}
-                    {!error && forgotStatus ? <p className="meta-text">{forgotStatus}</p> : null}
-                    <button type="submit" className="auth-submit" disabled={isSubmitting}>
-                      {isSubmitting ? "Enviando..." : "Enviar enlace"}
-                    </button>
-                  </form>
-                ) : null}
-              </div>
+              <button
+                type="button"
+                className="subtle-button"
+                onClick={() => {
+                  setForgotEmail(email);
+                  setForgotStatus(null);
+                  setIsForgotScreen(true);
+                }}
+              >
+                Recuperar contrasena
+              </button>
             ) : null}
           </>
         ) : null}

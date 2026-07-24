@@ -796,6 +796,20 @@ button.subtle-button {
   align-items: start;
 }
 
+.auth-single-form {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.auth-form-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.auth-form-copy h2,
+.auth-form-copy p {
+  margin: 0;
+}
+
 .auth-submit {
   justify-self: center;
   min-width: 160px;
