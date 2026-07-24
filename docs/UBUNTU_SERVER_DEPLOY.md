@@ -31,13 +31,39 @@ Edita `deploy/ubuntu/.env.server` y define como minimo:
 - `POSTGRES_PASSWORD`
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
-- opcionalmente `SUPERADMIN_EMAIL`
-- opcionalmente `SUPERADMIN_PASSWORD`
 
 ## Arranque
 
 ```bash
 docker compose --env-file deploy/ubuntu/.env.server -f docker-compose.prod.yml up -d --build
+```
+
+## Crear el superadmin
+
+Con los contenedores ya arrancados, ejecuta desde la raiz del repositorio:
+
+```bash
+bash deploy/ubuntu/create-superadmin.sh
+```
+
+El script solicita el correo y dos veces la contrasena temporal. La contrasena:
+
+- no se muestra mientras escribes
+- no se incluye en los argumentos del proceso
+- no se guarda en el archivo de entorno ni en texto plano
+- debe tener al menos 12 caracteres e incluir mayuscula, minuscula, numero y simbolo
+
+La cuenta queda activa y debe cambiar la contrasena temporal en su primer inicio de sesion. El script no modifica cuentas existentes ni permite convertir una cuenta de jugador o director en superadmin.
+
+En instalaciones anteriores puedes eliminar `SUPERADMIN_EMAIL` y `SUPERADMIN_PASSWORD` de `.env.server`; el Compose de produccion ya no consume esas variables.
+
+Si el repositorio, el archivo de entorno o el Compose estan en otra ubicacion:
+
+```bash
+bash deploy/ubuntu/create-superadmin.sh \
+  /ruta/al/repositorio \
+  deploy/ubuntu/.env.server \
+  docker-compose.prod.yml
 ```
 
 ## Cloudflare Tunnel

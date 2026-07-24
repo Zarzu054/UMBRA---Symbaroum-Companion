@@ -13,6 +13,35 @@ enum UserRole {
   superadmin
 }
 
+enum UserAccountStatus {
+  pending
+  active
+  deactivated
+}
+
+enum AdminDeactivationReason {
+  access_no_longer_required
+  policy_violation
+  security_concern
+  duplicate_or_error
+  other
+}
+
+enum AdminNotificationStatus {
+  not_required
+  pending
+  sent
+  failed
+}
+
+enum AdminAccountAction {
+  created
+  deactivated
+  reactivated
+  sessions_revoked
+  credentials_resent
+}
+
 enum CampaignMemberRole {
   gm
   player
@@ -46,6 +75,8 @@ model User {
   passwordHash        String             @map("password_hash")
   mustChangePassword  Boolean            @default(false) @map("must_change_password")
   role                UserRole           @default(player)
+  status              UserAccountStatus  @default(active)
+  deactivatedAt       DateTime?          @map("deactivated_at") @db.Timestamptz(6)
   createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   characters          Character[]
   monsters            Monster[]
@@ -58,8 +89,33 @@ model User {
   campaignChatMessages CampaignChatMessage[]
   authoredCampaignReferences CampaignReference[] @relation("CampaignReferenceAuthor")
   campaignReferenceShares CampaignReferenceShare[]
+  adminEventsAsActor   AdminAccountEvent[] @relation("AdminEventActor")
+  adminEventsAsTarget  AdminAccountEvent[] @relation("AdminEventTarget")
 
+  @@index([status])
   @@map("users")
+}
+
+model AdminAccountEvent {
+  id                        String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId                   String                  @map("actor_id") @db.Uuid
+  targetUserId              String                  @map("target_user_id") @db.Uuid
+  targetEmail               String                  @map("target_email")
+  action                    AdminAccountAction
+  reason                    AdminDeactivationReason?
+  explanation               String                  @default("")
+  notificationStatus        AdminNotificationStatus @default(not_required) @map("notification_status")
+  notificationAttempts      Int                     @default(0) @map("notification_attempts")
+  notificationLastAttemptAt DateTime?               @map("notification_last_attempt_at") @db.Timestamptz(6)
+  notificationError         String                  @default("") @map("notification_error")
+  createdAt                 DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  actor                     User                    @relation("AdminEventActor", fields: [actorId], references: [id], onDelete: Restrict)
+  target                    User                    @relation("AdminEventTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+
+  @@index([targetUserId, createdAt])
+  @@index([actorId])
+  @@index([notificationStatus])
+  @@map("admin_account_events")
 }
 
 model Character {

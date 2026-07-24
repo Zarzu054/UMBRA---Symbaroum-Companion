@@ -10,6 +10,22 @@ export * from "./weaponCatalog.js";
 
 export const userRoleSchema = z.enum(["player", "gm", "superadmin"]);
 export const registerRoleSchema = z.enum(["player", "gm"]);
+export const accountStatusSchema = z.enum(["pending", "active", "deactivated"]);
+export const adminDeactivationReasonSchema = z.enum([
+  "access_no_longer_required",
+  "policy_violation",
+  "security_concern",
+  "duplicate_or_error",
+  "other"
+]);
+export const adminNotificationStatusSchema = z.enum(["not_required", "pending", "sent", "failed"]);
+export const adminAccountActionSchema = z.enum([
+  "created",
+  "deactivated",
+  "reactivated",
+  "sessions_revoked",
+  "credentials_resent"
+]);
 export const skillLevelSchema = z.enum(["novato", "adepto", "maestro"]);
 export const actionCostSchema = z.enum(["free", "movement", "combat", "reaction"]);
 export const campaignChatVisibilitySchema = z.enum(["all", "gm_only"]);
@@ -17,6 +33,10 @@ export const campaignChatMessageTypeSchema = z.enum(["text", "action"]);
 
 export type UserRole = z.infer<typeof userRoleSchema>;
 export type RegisterRole = z.infer<typeof registerRoleSchema>;
+export type AccountStatus = z.infer<typeof accountStatusSchema>;
+export type AdminDeactivationReason = z.infer<typeof adminDeactivationReasonSchema>;
+export type AdminNotificationStatus = z.infer<typeof adminNotificationStatusSchema>;
+export type AdminAccountAction = z.infer<typeof adminAccountActionSchema>;
 export type SkillLevel = z.infer<typeof skillLevelSchema>;
 export type ActionCost = z.infer<typeof actionCostSchema>;
 export type CampaignChatVisibility = z.infer<typeof campaignChatVisibilitySchema>;
@@ -1718,12 +1738,6 @@ export type Character = {
   updatedAt: string;
 };
 
-export const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8).max(128),
-  role: registerRoleSchema.default("player")
-});
-
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(128)
@@ -1755,6 +1769,24 @@ export const requestPasswordResetSchema = z.object({
 export const resetPasswordSchema = z.object({
   token: z.string().min(20).max(400),
   newPassword: z.string().min(8).max(128)
+});
+
+export const createManagedUserSchema = z.object({
+  email: z.string().trim().email(),
+  role: registerRoleSchema
+});
+
+export const deactivateManagedUserSchema = z.object({
+  reason: adminDeactivationReasonSchema,
+  explanation: z.string().trim().min(10).max(500)
+});
+
+export const adminUserListQuerySchema = z.object({
+  query: z.string().trim().max(160).default(""),
+  role: z.union([registerRoleSchema, z.literal("all")]).default("all"),
+  status: z.union([accountStatusSchema, z.literal("all")]).default("all"),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25)
 });
 
 export const campaignMemberRoleSchema = z.enum(["gm", "player"]);
@@ -1867,12 +1899,14 @@ export const createCampaignReferenceSchema = z.object({
 
 export const updateCampaignReferenceSchema = createCampaignReferenceSchema.partial();
 
-export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type CreateManagedUserInput = z.infer<typeof createManagedUserSchema>;
+export type DeactivateManagedUserInput = z.infer<typeof deactivateManagedUserSchema>;
+export type AdminUserListQuery = z.infer<typeof adminUserListQuerySchema>;
 export type CampaignMemberRole = z.infer<typeof campaignMemberRoleSchema>;
 export type CampaignSessionStatus = z.infer<typeof campaignSessionStatusSchema>;
 export type CampaignReferenceVisibility = z.infer<typeof campaignReferenceVisibilitySchema>;
@@ -1897,6 +1931,7 @@ export type AuthUser = {
   id: string;
   email: string;
   role: UserRole;
+  status: AccountStatus;
   mustChangePassword: boolean;
 };
 
@@ -1910,13 +1945,52 @@ export type AuthSession = {
   tokens: AuthTokens;
 };
 
-export type SupportUser = {
+export type AdminUserSummary = {
   id: string;
   email: string;
-  role: UserRole;
+  role: RegisterRole;
+  status: AccountStatus;
+  mustChangePassword: boolean;
   createdAt: string;
+  deactivatedAt: string | null;
   activeRefreshTokens: number;
+  notificationAttention: boolean;
 };
+
+export type AdminUserCounts = {
+  active: number;
+  pending: number;
+  deactivated: number;
+  notificationAttention: number;
+};
+
+export type AdminUserList = {
+  items: AdminUserSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+  counts: AdminUserCounts;
+};
+
+export type AdminAccountEvent = {
+  id: string;
+  action: AdminAccountAction;
+  actorEmail: string;
+  targetEmail: string;
+  reason: AdminDeactivationReason | null;
+  explanation: string;
+  notificationStatus: AdminNotificationStatus;
+  notificationAttempts: number;
+  notificationLastAttemptAt: string | null;
+  createdAt: string;
+};
+
+export type AdminAccountMutationResult = {
+  user: AdminUserSummary;
+  event: AdminAccountEvent;
+};
+
+export type SupportUser = AdminUserSummary;
 
 export type CampaignMember = {
   id: string;

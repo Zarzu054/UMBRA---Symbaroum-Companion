@@ -290,19 +290,19 @@ function buildCapabilities(character: Character): CapabilityItem[] {
   const fromHabilidades = character.sheet.habilidades.map((item) => ({
     nombre: item.nombre,
     tipo: item.tipo || "Habilidad",
-    efecto: item.efecto || item.notas || "",
+    efecto: selectCapabilityLevelEffect(item.efecto || item.notas || "", item.nivel),
     nivel: item.nivel
   }));
   const fromPowers = character.sheet.poderesMisticos.map((item) => ({
     nombre: item.nombre,
     tipo: item.tipo || "Poder místico",
-    efecto: item.efecto || item.notas || "",
+    efecto: selectCapabilityLevelEffect(item.efecto || item.notas || "", item.nivel),
     nivel: item.nivel
   }));
   const fromRituals = character.sheet.rituales.map((item) => ({
     nombre: item.nombre,
     tipo: item.tipo || "Ritual",
-    efecto: item.efecto || item.notas || "",
+    efecto: selectCapabilityLevelEffect(item.efecto || item.notas || "", item.nivel),
     nivel: item.nivel
   }));
   const fromBlessings = (character.sheet.bendiciones ?? []).map((item) => ({
@@ -324,6 +324,27 @@ function buildCapabilities(character: Character): CapabilityItem[] {
     nivel: "novato" as const
   }));
   return [...fromHabilidades, ...fromPowers, ...fromRituals, ...fromBlessings, ...fromBurdens, ...fromTraits];
+}
+
+function selectCapabilityLevelEffect(effect: string, level: SkillLevel): string {
+  const text = String(effect ?? "").trim();
+  if (!text) return "";
+
+  const levelHeading = /\b(Novato|Adepto|Maestro)\s*:/giu;
+  const matches = [...text.matchAll(levelHeading)];
+  if (matches.length === 0) {
+    return text;
+  }
+
+  const targetLevel = level.toLocaleLowerCase("es");
+  const targetIndex = matches.findIndex((match) => match[1]?.toLocaleLowerCase("es") === targetLevel);
+  if (targetIndex < 0) {
+    return text;
+  }
+
+  const start = matches[targetIndex].index ?? 0;
+  const end = matches[targetIndex + 1]?.index ?? text.length;
+  return text.slice(start, end).trim();
 }
 
 function buildContactCards(character: Character): ContactCard[] {

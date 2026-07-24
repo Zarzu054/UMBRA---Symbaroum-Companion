@@ -1,12 +1,16 @@
 import type {
+  AdminAccountEvent,
+  AdminAccountMutationResult,
+  AdminUserList,
+  AdminUserListQuery,
   AuthSession,
   ChangePasswordInput,
+  CreateManagedUserInput,
+  DeactivateManagedUserInput,
   LoginInput,
   RefreshInput,
-  RegisterInput,
   RequestPasswordResetInput,
-  ResetPasswordInput,
-  SupportUser
+  ResetPasswordInput
 } from "@umbra/shared";
 import { fromSession, type AuthState } from "../models/authModel";
 import { readFriendlyApiError } from "./apiError";
@@ -35,11 +39,6 @@ async function postJson<TBody, TData>(url: string, body: TBody, token?: string):
 
   const payload = (await response.json()) as ApiResponse<TData>;
   return payload.data;
-}
-
-export async function registerUser(input: RegisterInput): Promise<AuthState> {
-  const session = await postJson<RegisterInput, AuthSession>("/auth/register", input);
-  return fromSession(session);
 }
 
 export async function loginUser(input: LoginInput): Promise<AuthState> {
@@ -82,8 +81,18 @@ export async function getCurrentUser(accessToken: string) {
   return payload.data;
 }
 
-export async function fetchSupportUsers(accessToken: string): Promise<SupportUser[]> {
-  const response = await fetch("/admin/users", {
+export async function fetchAdminUsers(
+  accessToken: string,
+  query: AdminUserListQuery
+): Promise<AdminUserList> {
+  const params = new URLSearchParams({
+    query: query.query,
+    role: query.role,
+    status: query.status,
+    page: String(query.page),
+    pageSize: String(query.pageSize)
+  });
+  const response = await fetch(`/admin/users?${params.toString()}`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
 
@@ -91,10 +100,73 @@ export async function fetchSupportUsers(accessToken: string): Promise<SupportUse
     throw new Error(await readFriendlyApiError(response));
   }
 
-  const payload = (await response.json()) as ApiResponse<SupportUser[]>;
+  const payload = (await response.json()) as ApiResponse<AdminUserList>;
   return payload.data;
 }
 
-export async function revokeUserSessions(accessToken: string, userId: string): Promise<void> {
-  await postJson<object, void>(`/admin/users/${userId}/revoke-sessions`, {}, accessToken);
+export async function createAdminUser(
+  accessToken: string,
+  input: CreateManagedUserInput
+): Promise<AdminAccountMutationResult> {
+  return postJson<CreateManagedUserInput, AdminAccountMutationResult>("/admin/users", input, accessToken);
+}
+
+export async function deactivateAdminUser(
+  accessToken: string,
+  userId: string,
+  input: DeactivateManagedUserInput
+): Promise<AdminAccountMutationResult> {
+  return postJson<DeactivateManagedUserInput, AdminAccountMutationResult>(
+    `/admin/users/${userId}/deactivate`,
+    input,
+    accessToken
+  );
+}
+
+export async function reactivateAdminUser(
+  accessToken: string,
+  userId: string
+): Promise<AdminAccountMutationResult> {
+  return postJson<object, AdminAccountMutationResult>(
+    `/admin/users/${userId}/reactivate`,
+    {},
+    accessToken
+  );
+}
+
+export async function revokeUserSessions(
+  accessToken: string,
+  userId: string
+): Promise<AdminAccountMutationResult> {
+  return postJson<object, AdminAccountMutationResult>(
+    `/admin/users/${userId}/revoke-sessions`,
+    {},
+    accessToken
+  );
+}
+
+export async function fetchAdminUserEvents(
+  accessToken: string,
+  userId: string
+): Promise<AdminAccountEvent[]> {
+  const response = await fetch(`/admin/users/${userId}/events`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!response.ok) {
+    throw new Error(await readFriendlyApiError(response));
+  }
+  const payload = (await response.json()) as ApiResponse<AdminAccountEvent[]>;
+  return payload.data;
+}
+
+export async function retryAdminEventEmail(
+  accessToken: string,
+  userId: string,
+  eventId: string
+): Promise<AdminAccountMutationResult> {
+  return postJson<object, AdminAccountMutationResult>(
+    `/admin/users/${userId}/events/${eventId}/retry-email`,
+    {},
+    accessToken
+  );
 }

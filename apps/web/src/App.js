@@ -9,10 +9,10 @@ export function App() {
         return (_jsx("main", { className: "page", children: _jsx("section", { className: "panel", children: _jsx("p", { children: "Cargando sesi\u00F3n..." }) }) }));
     }
     if (!auth.auth) {
-        return (_jsx(AuthGatewayView, { mode: auth.authMode, isSubmitting: auth.isSubmitting, error: auth.error, onModeChange: auth.setAuthMode, onLogin: auth.login, onRegister: auth.register, onRequestPasswordReset: auth.sendPasswordReset, onResetPassword: auth.confirmPasswordReset }));
+        return (_jsx(AuthGatewayView, { isSubmitting: auth.isSubmitting, error: auth.error, onLogin: auth.login, onRequestPasswordReset: auth.sendPasswordReset, onResetPassword: auth.confirmPasswordReset }));
     }
     if (auth.auth.user.mustChangePassword) {
-        return (_jsx(ForcedPasswordChangeView, { email: auth.auth.user.email, isSubmitting: auth.isSubmitting, error: auth.error, onSubmit: (input) => auth.rotatePassword(input.currentPassword, input.newPassword) }));
+        return (_jsx(ForcedPasswordChangeView, { email: auth.auth.user.email, isSubmitting: auth.isSubmitting, error: auth.error, onSubmit: (input) => auth.rotatePassword(input.currentPassword, input.newPassword), onLogout: auth.logout }));
     }
     if (auth.auth.user.role === "superadmin") {
         return (_jsx(SuperAdminDashboardView, { user: auth.auth.user, ensureAccessToken: auth.ensureAccessToken, onLogout: auth.logout }));
