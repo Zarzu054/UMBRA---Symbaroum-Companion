@@ -1,4 +1,4 @@
-import type { UserRole } from "@umbra/shared";
+import type { AccountStatus, UserRole } from "@umbra/shared";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -6,6 +6,7 @@ declare module "fastify" {
       id: string;
       email: string;
       role: UserRole;
+      status: AccountStatus;
       mustChangePassword?: boolean;
     };
   }

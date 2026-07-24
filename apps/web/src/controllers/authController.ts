@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { LoginInput, RegisterInput } from "@umbra/shared";
+import type { LoginInput } from "@umbra/shared";
 import type { AuthState } from "../models/authModel";
 import { clearAuthState, loadAuthState, saveAuthState } from "../services/authStorage";
 import {
@@ -8,16 +8,12 @@ import {
   loginUser,
   logoutUser,
   refreshSession,
-  registerUser,
   requestPasswordReset,
   resetPassword
 } from "../services/authService";
 
-type AuthMode = "login" | "register";
-
 export function useAuthController() {
   const [auth, setAuth] = useState<AuthState | null>(null);
-  const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,19 +48,6 @@ export function useAuthController() {
       }
     } finally {
       setIsBootstrapping(false);
-    }
-  }
-
-  async function register(input: RegisterInput): Promise<void> {
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      const session = await registerUser(input);
-      setAndPersist(session);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Registro fallido");
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
@@ -146,18 +129,14 @@ export function useAuthController() {
     }
 
     setAndPersist(null);
-    setAuthMode("login");
   }
 
   return useMemo(
     () => ({
       auth,
-      authMode,
       isBootstrapping,
       isSubmitting,
       error,
-      setAuthMode,
-      register,
       login,
       rotatePassword,
       sendPasswordReset,
@@ -165,7 +144,7 @@ export function useAuthController() {
       logout,
       ensureAccessToken
     }),
-    [auth, authMode, isBootstrapping, isSubmitting, error]
+    [auth, isBootstrapping, isSubmitting, error]
   );
 }
 

@@ -7,7 +7,6 @@ import {
   type AuthUser,
   loginSchema,
   refreshSchema,
-  registerSchema,
   requestPasswordResetSchema,
   resetPasswordSchema
 } from "@umbra/shared";
@@ -34,37 +33,6 @@ type RefreshTokenPayload = {
 export class AuthService {
   constructor(private readonly mailService = new MailService()) {}
 
-  async register(input: unknown): Promise<AuthSession> {
-    if (!env.ALLOW_PUBLIC_REGISTRATION) {
-      throw new AppError("REGISTRATION_DISABLED", "El registro publico esta deshabilitado", 403);
-    }
-
-    const payload = registerSchema.parse(input);
-    const email = payload.email.toLowerCase();
-
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      throw new AppError("EMAIL_TAKEN", "El correo ya esta registrado", 409);
-    }
-
-    const passwordHash = await argon2.hash(payload.password);
-
-    const user = await prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        role: payload.role
-      }
-    });
-
-    return this.issueSession({
-      id: user.id,
-      email: user.email,
-      role: toAppRole(user.role),
-      mustChangePassword: user.mustChangePassword
-    });
-  }
-
   async login(input: unknown): Promise<AuthSession> {
     const payload = loginSchema.parse(input);
     const email = payload.email.toLowerCase();
@@ -78,11 +46,18 @@ export class AuthService {
     if (!validPassword) {
       throw new AppError("INVALID_CREDENTIALS", "Credenciales invalidas", 401);
     }
+    if (user.status === "pending") {
+      throw new AppError("ACCOUNT_PENDING", "La cuenta esta pendiente de activacion", 403);
+    }
+    if (user.status === "deactivated") {
+      throw new AppError("ACCOUNT_DEACTIVATED", "La cuenta esta desactivada", 403);
+    }
 
     return this.issueSession({
       id: user.id,
       email: user.email,
       role: toAppRole(user.role),
+      status: user.status,
       mustChangePassword: user.mustChangePassword
     });
   }
@@ -97,7 +72,13 @@ export class AuthService {
       include: { user: true }
     });
 
-    if (!stored || stored.userId !== decoded.sub || stored.revokedAt || stored.expiresAt < new Date()) {
+    if (
+      !stored ||
+      stored.userId !== decoded.sub ||
+      stored.revokedAt ||
+      stored.expiresAt < new Date() ||
+      stored.user.status !== "active"
+    ) {
       throw new AppError("INVALID_REFRESH_TOKEN", "Token de refresco invalido", 401);
     }
 
@@ -115,6 +96,7 @@ export class AuthService {
       id: stored.user.id,
       email: stored.user.email,
       role: toAppRole(stored.user.role),
+      status: stored.user.status,
       mustChangePassword: stored.user.mustChangePassword
     });
   }
@@ -139,13 +121,16 @@ export class AuthService {
   async getUserById(userId: string): Promise<AuthUser> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, role: true, mustChangePassword: true }
+      select: { id: true, email: true, role: true, status: true, mustChangePassword: true }
     });
 
     if (!user) {
       throw new AppError("USER_NOT_FOUND", "Usuario no encontrado", 404);
     }
 
+    if (user.status !== "active") {
+      throw new AppError("ACCOUNT_INACTIVE", "La cuenta no esta activa", 401);
+    }
     return { ...user, role: toAppRole(user.role) };
   }
 
@@ -158,6 +143,9 @@ export class AuthService {
 
     if (!user) {
       throw new AppError("USER_NOT_FOUND", "Usuario no encontrado", 404);
+    }
+    if (user.status !== "active") {
+      throw new AppError("ACCOUNT_INACTIVE", "La cuenta no esta activa", 401);
     }
 
     const validPassword = await argon2.verify(user.passwordHash, payload.currentPassword);
@@ -190,6 +178,7 @@ export class AuthService {
       id: user.id,
       email: user.email,
       role: toAppRole(user.role),
+      status: user.status,
       mustChangePassword: false
     });
   }
@@ -200,10 +189,10 @@ export class AuthService {
 
     const user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true }
+      select: { id: true, email: true, status: true }
     });
 
-    if (!user) {
+    if (!user || user.status !== "active") {
       return;
     }
 
@@ -254,6 +243,9 @@ export class AuthService {
 
     if (!stored) {
       throw new AppError("INVALID_RESET_TOKEN", "El enlace de recuperacion no es valido o ya ha expirado", 400);
+    }
+    if (stored.user.status !== "active") {
+      throw new AppError("ACCOUNT_INACTIVE", "La cuenta no esta activa", 403);
     }
 
     const passwordHash = await argon2.hash(payload.newPassword);

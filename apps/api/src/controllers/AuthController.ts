@@ -4,11 +4,6 @@ import { AuthService } from "../services/AuthService.js";
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  async register(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const session = await this.authService.register(request.body);
-    reply.code(201).send({ data: session });
-  }
-
   async login(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const session = await this.authService.login(request.body);
     reply.send({ data: session });

@@ -19,12 +19,9 @@ export function App() {
   if (!auth.auth) {
     return (
       <AuthGatewayView
-        mode={auth.authMode}
         isSubmitting={auth.isSubmitting}
         error={auth.error}
-        onModeChange={auth.setAuthMode}
         onLogin={auth.login}
-        onRegister={auth.register}
         onRequestPasswordReset={auth.sendPasswordReset}
         onResetPassword={auth.confirmPasswordReset}
       />
@@ -38,6 +35,7 @@ export function App() {
         isSubmitting={auth.isSubmitting}
         error={auth.error}
         onSubmit={(input) => auth.rotatePassword(input.currentPassword, input.newPassword)}
+        onLogout={auth.logout}
       />
     );
   }

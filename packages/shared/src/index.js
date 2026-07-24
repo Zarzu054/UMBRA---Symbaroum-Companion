@@ -9,6 +9,22 @@ export * from "./monsterTraitRules.js";
 export * from "./weaponCatalog.js";
 export const userRoleSchema = z.enum(["player", "gm", "superadmin"]);
 export const registerRoleSchema = z.enum(["player", "gm"]);
+export const accountStatusSchema = z.enum(["pending", "active", "deactivated"]);
+export const adminDeactivationReasonSchema = z.enum([
+    "access_no_longer_required",
+    "policy_violation",
+    "security_concern",
+    "duplicate_or_error",
+    "other"
+]);
+export const adminNotificationStatusSchema = z.enum(["not_required", "pending", "sent", "failed"]);
+export const adminAccountActionSchema = z.enum([
+    "created",
+    "deactivated",
+    "reactivated",
+    "sessions_revoked",
+    "credentials_resent"
+]);
 export const skillLevelSchema = z.enum(["novato", "adepto", "maestro"]);
 export const actionCostSchema = z.enum(["free", "movement", "combat", "reaction"]);
 export const campaignChatVisibilitySchema = z.enum(["all", "gm_only"]);
@@ -1494,11 +1510,6 @@ export const importCharacterSchema = z.object({
 export const updateCharacterSchema = createCharacterSchema.partial().extend({
     sheet: importedCharacterSheetSchema
 });
-export const registerSchema = z.object({
-    email: z.string().email(),
-    password: z.string().min(8).max(128),
-    role: registerRoleSchema.default("player")
-});
 export const loginSchema = z.object({
     email: z.string().email(),
     password: z.string().min(8).max(128)
@@ -1526,6 +1537,21 @@ export const requestPasswordResetSchema = z.object({
 export const resetPasswordSchema = z.object({
     token: z.string().min(20).max(400),
     newPassword: z.string().min(8).max(128)
+});
+export const createManagedUserSchema = z.object({
+    email: z.string().trim().email(),
+    role: registerRoleSchema
+});
+export const deactivateManagedUserSchema = z.object({
+    reason: adminDeactivationReasonSchema,
+    explanation: z.string().trim().min(10).max(500)
+});
+export const adminUserListQuerySchema = z.object({
+    query: z.string().trim().max(160).default(""),
+    role: z.union([registerRoleSchema, z.literal("all")]).default("all"),
+    status: z.union([accountStatusSchema, z.literal("all")]).default("all"),
+    page: z.coerce.number().int().positive().default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(25)
 });
 export const campaignMemberRoleSchema = z.enum(["gm", "player"]);
 export const campaignSessionStatusSchema = z.enum(["planned", "completed", "cancelled"]);

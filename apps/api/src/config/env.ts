@@ -21,7 +21,6 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(16).default("change-this-refresh-secret"),
   ACCESS_TOKEN_TTL: z.string().default("15m"),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
-  ALLOW_PUBLIC_REGISTRATION: booleanEnv.default(true),
   APP_BASE_URL: z.string().url().default("http://localhost:5173"),
   SMTP_HOST: z.string().default(""),
   SMTP_PORT: z.coerce.number().int().positive().default(587),

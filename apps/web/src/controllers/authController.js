@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { clearAuthState, loadAuthState, saveAuthState } from "../services/authStorage";
-import { changePassword, getCurrentUser, loginUser, logoutUser, refreshSession, registerUser, requestPasswordReset, resetPassword } from "../services/authService";
+import { changePassword, getCurrentUser, loginUser, logoutUser, refreshSession, requestPasswordReset, resetPassword } from "../services/authService";
 export function useAuthController() {
     const [auth, setAuth] = useState(null);
-    const [authMode, setAuthMode] = useState("login");
     const [isBootstrapping, setIsBootstrapping] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState(null);
@@ -39,20 +38,6 @@ export function useAuthController() {
         }
         finally {
             setIsBootstrapping(false);
-        }
-    }
-    async function register(input) {
-        setIsSubmitting(true);
-        setError(null);
-        try {
-            const session = await registerUser(input);
-            setAndPersist(session);
-        }
-        catch (err) {
-            setError(err instanceof Error ? err.message : "Registro fallido");
-        }
-        finally {
-            setIsSubmitting(false);
         }
     }
     async function login(input) {
@@ -135,23 +120,19 @@ export function useAuthController() {
             }
         }
         setAndPersist(null);
-        setAuthMode("login");
     }
     return useMemo(() => ({
         auth,
-        authMode,
         isBootstrapping,
         isSubmitting,
         error,
-        setAuthMode,
-        register,
         login,
         rotatePassword,
         sendPasswordReset,
         confirmPasswordReset,
         logout,
         ensureAccessToken
-    }), [auth, authMode, isBootstrapping, isSubmitting, error]);
+    }), [auth, isBootstrapping, isSubmitting, error]);
 }
 function getTokenRemainingSeconds(token) {
     try {

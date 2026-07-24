@@ -90,5 +90,5 @@ npm.cmd run build --prefix apps/web
 ## Recomendaciones operativas minimas
 
 - Abre el puerto `4000` en el firewall solo para tu red o los IPs que necesites.
-- No vuelvas a habilitar `ALLOW_PUBLIC_REGISTRATION` salvo que realmente quieras registro abierto.
+- El registro público está deshabilitado. Las cuentas de juego se crean desde el panel de superadministración.
 - Si mas adelante pones un dominio o HTTPS, coloca un reverse proxy delante de `http://localhost:4000`.

@@ -49,22 +49,26 @@ API hot-reload is handled by `nodemon` in Docker (`apps/api/nodemon.json`).
 
 ## Auth and roles
 
-- Public registration is limited to: `player`, `gm`
-- `superadmin` accounts are seeded only and not self-registrable
-- Frontend includes login/register UI and persistent sessions with token refresh
+- Public registration is disabled; player and GM accounts are managed by a superadmin
+- `superadmin` accounts are provisioned through the production Bash script or development seed configuration
+- Frontend includes login, password recovery, forced onboarding password change, and persistent sessions
 
 ## Current API endpoints
 
 - `GET /health`
-- `POST /auth/register`
 - `POST /auth/login`
 - `POST /auth/refresh`
 - `POST /auth/logout`
 - `GET /auth/me`
 - `GET /api/characters` (protected)
 - `POST /api/characters` (protected)
-- `GET /admin/users` (superadmin)
+- `GET /admin/users` (superadmin, searchable and paginated)
+- `POST /admin/users` (superadmin)
+- `POST /admin/users/:userId/deactivate` (superadmin)
+- `POST /admin/users/:userId/reactivate` (superadmin)
 - `POST /admin/users/:userId/revoke-sessions` (superadmin)
+- `GET /admin/users/:userId/events` (superadmin)
+- `POST /admin/users/:userId/events/:eventId/retry-email` (superadmin)
 
 ## Seed users
 
@@ -79,6 +83,7 @@ API hot-reload is handled by `nodemon` in Docker (`apps/api/nodemon.json`).
 
 - Superadmin dashboard is available in the frontend when logged in as a superadmin.
 - Revoke sessions action invalidates all refresh tokens for the target user.
+- En producción, crea el primer superadmin con `bash deploy/ubuntu/create-superadmin.sh`.
 
 ## Analisis de libros PDF
 
