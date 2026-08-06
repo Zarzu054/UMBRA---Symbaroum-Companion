@@ -301,8 +301,8 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
-      await createCharacter(generateRandomCharacter(), token);
-      await refresh();
+      const created = await createCharacter(generateRandomCharacter(), token);
+      upsertCharacterRecord(created);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo generar personaje aleatorio");
     } finally {

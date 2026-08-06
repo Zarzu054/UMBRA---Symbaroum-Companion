@@ -1,9 +1,11 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useMemo, useState } from "react";
 import { buildRollRequest, deriveCharacterActions, executeCharacterAction, parseCharacterSheet, synchronizeCharacterSheet } from "@umbra/shared";
+import { useLayoutEffect, useRef } from "react";
 import { CharacterCard } from "../components/CharacterCard";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { findCompendiumCapabilityEntryId, findCompendiumEntryByTypeAndName } from "../models/compendiumEntries";
 import { toCharacterCardViewModel } from "../models/characterModel";
 import { computeDerivedStats } from "../models/rulesEngine";
@@ -15,6 +17,23 @@ import { CharacterBuilderView } from "./CharacterBuilderView";
 import { CompendiumView } from "./CompendiumView";
 import { MonsterDashboardView } from "./MonsterDashboardView";
 import { NpcDashboardView } from "./NpcDashboardView";
+const MOBILE_NAVIGATION_QUERY = "(max-width: 900px)";
+function isMobileNavigationViewport() {
+    return typeof window !== "undefined" && typeof window.matchMedia === "function"
+        ? window.matchMedia(MOBILE_NAVIGATION_QUERY).matches
+        : false;
+}
+function getModuleLabel(module) {
+    switch (module) {
+        case "campaigns": return "Campañas";
+        case "monsters": return "Monstruos";
+        case "npcs": return "PNJ";
+        case "compendium": return "Compendio";
+        case "characters":
+        default:
+            return "Personajes";
+    }
+}
 function parseHash() {
     const rawHash = window.location.hash.replace(/^#/, "");
     if (rawHash.startsWith("monsters")) {
@@ -52,13 +71,17 @@ function parseHash() {
 }
 export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
     const controller = useCharacterController(ensureAccessToken);
+    const dashboardRef = useRef(null);
     const isCampaignManagedLock = false;
     const isCapabilityLocked = controller.isEditing;
     const canAccessCharacters = user.role !== "gm";
     const canAccessMonsters = user.role === "gm" || user.role === "superadmin";
     const canAccessNpcs = user.role === "gm" || user.role === "superadmin";
     const [activeModule, setActiveModule] = useState(canAccessCharacters ? "characters" : canAccessNpcs ? "npcs" : canAccessMonsters ? "monsters" : "campaigns");
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isMobileViewport, setIsMobileViewport] = useState(isMobileNavigationViewport);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(() => !isMobileNavigationViewport());
+    const mobileMenuButtonRef = useRef(null);
+    const sidebarCloseButtonRef = useRef(null);
     const [compendiumFocus, setCompendiumFocus] = useState({
         entryId: null,
         query: "",
@@ -68,6 +91,60 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
     const [selectedCharacterSheetId, setSelectedCharacterSheetId] = useState(() => parseHash().sheetId ?? null);
     const [selectedCharacterPageMode, setSelectedCharacterPageMode] = useState(() => parseHash().characterPageMode ?? "sheet");
     const selectedCharacterSheet = useMemo(() => controller.characters.find((entry) => entry.id === selectedCharacterSheetId) ?? null, [controller.characters, selectedCharacterSheetId]);
+    const mobileHeaderTitle = selectedCharacterSheet?.name ?? getModuleLabel(activeModule);
+    useBodyScrollLock(isMobileViewport && isSidebarOpen);
+    // Dashboard fields contain game data, never credentials. Excluding them
+    // prevents Bitwarden's inline menu from retaining stale DOM anchors while
+    // React refreshes the character directory or changes sheet sections.
+    useLayoutEffect(() => {
+        dashboardRef.current?.querySelectorAll("input, select, textarea").forEach((field) => {
+            if (!field.hasAttribute("data-bwignore")) {
+                field.setAttribute("data-bwignore", "true");
+            }
+        });
+    });
+    useEffect(() => {
+        if (typeof window.matchMedia !== "function") {
+            return;
+        }
+        const mediaQuery = window.matchMedia(MOBILE_NAVIGATION_QUERY);
+        const syncViewport = (matches) => {
+            setIsMobileViewport(matches);
+            setIsSidebarOpen(!matches);
+        };
+        const handleChange = (event) => syncViewport(event.matches);
+        syncViewport(mediaQuery.matches);
+        mediaQuery.addEventListener("change", handleChange);
+        return () => mediaQuery.removeEventListener("change", handleChange);
+    }, []);
+    useEffect(() => {
+        if (!isMobileViewport || !isSidebarOpen) {
+            return;
+        }
+        function handleEscape(event) {
+            if (event.key !== "Escape")
+                return;
+            setIsSidebarOpen(false);
+            window.setTimeout(() => mobileMenuButtonRef.current?.focus(), 0);
+        }
+        window.addEventListener("keydown", handleEscape);
+        return () => window.removeEventListener("keydown", handleEscape);
+    }, [isMobileViewport, isSidebarOpen]);
+    useEffect(() => {
+        if (isMobileViewport) {
+            setIsSidebarOpen(false);
+        }
+    }, [activeModule, isMobileViewport, selectedCharacterSheetId]);
+    function openMobileNavigation() {
+        setIsSidebarOpen(true);
+        window.setTimeout(() => sidebarCloseButtonRef.current?.focus(), 0);
+    }
+    function closeMobileNavigation(restoreFocus = true) {
+        setIsSidebarOpen(false);
+        if (restoreFocus) {
+            window.setTimeout(() => mobileMenuButtonRef.current?.focus(), 0);
+        }
+    }
     useEffect(() => {
         function syncWithHash() {
             const parsed = parseHash();
@@ -133,6 +210,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
         window.location.hash = `compendium?${params.toString()}`;
     }
     function openCharactersModule() {
+        if (isMobileViewport)
+            setIsSidebarOpen(false);
         setActiveModule("characters");
         window.location.hash = "characters";
         setSelectedCharacterSheetId(null);
@@ -161,30 +240,38 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
         window.location.hash = "characters";
     }
     function openCompendiumModule() {
+        if (isMobileViewport)
+            setIsSidebarOpen(false);
         setActiveModule("compendium");
         if (!window.location.hash.startsWith("#compendium")) {
             window.location.hash = "compendium";
         }
     }
     function openCampaignsModule() {
+        if (isMobileViewport)
+            setIsSidebarOpen(false);
         setActiveModule("campaigns");
         if (!window.location.hash.startsWith("#campaigns")) {
             window.location.hash = "campaigns";
         }
     }
     function openMonstersModule() {
+        if (isMobileViewport)
+            setIsSidebarOpen(false);
         setActiveModule("monsters");
         if (!window.location.hash.startsWith("#monsters")) {
             window.location.hash = "monsters";
         }
     }
     function openNpcsModule() {
+        if (isMobileViewport)
+            setIsSidebarOpen(false);
         setActiveModule("npcs");
         if (!window.location.hash.startsWith("#npcs")) {
             window.location.hash = "npcs";
         }
     }
-    return (_jsx("main", { className: "page", children: _jsxs("div", { className: `app-shell${isSidebarOpen ? "" : " is-sidebar-collapsed"}`, children: [_jsx("aside", { className: `app-sidebar${isSidebarOpen ? "" : " is-collapsed"}`, children: _jsxs("div", { className: "app-sidebar-inner", children: [_jsxs("div", { className: "app-sidebar-head", children: [_jsx("div", { children: _jsx("h1", { children: "UMBRA" }) }), _jsx("button", { className: "sidebar-toggle", "aria-label": isSidebarOpen ? "Ocultar barra lateral" : "Mostrar barra lateral", onClick: () => setIsSidebarOpen((current) => !current), children: isSidebarOpen ? "<" : ">" })] }), _jsxs("nav", { className: "sidebar-nav", children: [canAccessCharacters ? (_jsx("button", { className: activeModule === "characters" ? "active-toggle" : "", onClick: openCharactersModule, children: "Personajes" })) : null, _jsx("button", { className: activeModule === "campaigns" ? "active-toggle" : "", onClick: openCampaignsModule, children: "Campa\u00F1as" }), canAccessNpcs ? (_jsx("button", { className: activeModule === "npcs" ? "active-toggle" : "", onClick: openNpcsModule, children: "PNJ" })) : null, canAccessMonsters ? (_jsx("button", { className: activeModule === "monsters" ? "active-toggle" : "", onClick: openMonstersModule, children: "Monstruos" })) : null, _jsx("button", { className: activeModule === "compendium" ? "active-toggle" : "", onClick: openCompendiumModule, children: "Compendio" })] }), _jsxs("div", { className: "sidebar-session", children: [_jsxs("div", { className: "sidebar-session-meta", children: [_jsx("p", { children: user.email }), _jsx("p", { children: getRoleLabel(user.role) })] }), _jsx("button", { onClick: () => void onLogout(), children: "Salir" })] })] }) }), _jsxs("section", { className: `app-content module-theme module-theme--${activeModule}`, children: [!isSidebarOpen ? (_jsx("div", { className: "content-topbar", children: _jsx("button", { className: "sidebar-toggle", "aria-label": "Mostrar barra lateral", onClick: () => setIsSidebarOpen(true), children: ">" }) })) : null, activeModule === "compendium" ? (_jsx(CompendiumView, { onBackToCharacters: openCharactersModule, initialEntryId: compendiumFocus.entryId, initialQuery: compendiumFocus.query, initialSourceFilter: compendiumFocus.source, focusToken: compendiumFocus.token })) : activeModule === "monsters" ? (_jsx(MonsterDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : activeModule === "npcs" ? (_jsx(NpcDashboardView, { ensureAccessToken: ensureAccessToken })) : activeModule === "campaigns" ? (_jsx(CampaignDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : selectedCharacterSheet ? (_jsx("section", { className: "character-actions-page", children: selectedCharacterPageMode === "builder" ? (_jsx(CharacterBuilderView, { character: selectedCharacterSheet, onBackToCharacters: closeCharacterSheet, onOpenSheet: () => openCharacterSheet(selectedCharacterSheet.id), onSave: async (nextSheet) => {
+    return (_jsx("main", { ref: dashboardRef, className: "page", children: _jsxs("div", { className: `app-shell${isSidebarOpen ? "" : " is-sidebar-collapsed"}`, children: [_jsx("aside", { id: "app-navigation", className: `app-sidebar${isSidebarOpen ? " is-mobile-open" : " is-collapsed"}`, "aria-label": "Navegaci\u00F3n principal", children: _jsxs("div", { className: "app-sidebar-inner", children: [_jsxs("div", { className: "app-sidebar-head", children: [_jsx("div", { children: _jsx("h1", { children: "UMBRA" }) }), _jsx("button", { ref: sidebarCloseButtonRef, className: "sidebar-toggle", "aria-label": isSidebarOpen ? "Ocultar barra lateral" : "Mostrar barra lateral", onClick: () => isMobileViewport ? closeMobileNavigation() : setIsSidebarOpen((current) => !current), children: isSidebarOpen ? "<" : ">" })] }), _jsxs("nav", { className: "sidebar-nav", children: [canAccessCharacters ? (_jsx("button", { className: activeModule === "characters" ? "active-toggle" : "", onClick: openCharactersModule, children: "Personajes" })) : null, _jsx("button", { className: activeModule === "campaigns" ? "active-toggle" : "", onClick: openCampaignsModule, children: "Campa\u00F1as" }), canAccessNpcs ? (_jsx("button", { className: activeModule === "npcs" ? "active-toggle" : "", onClick: openNpcsModule, children: "PNJ" })) : null, canAccessMonsters ? (_jsx("button", { className: activeModule === "monsters" ? "active-toggle" : "", onClick: openMonstersModule, children: "Monstruos" })) : null, _jsx("button", { className: activeModule === "compendium" ? "active-toggle" : "", onClick: openCompendiumModule, children: "Compendio" })] }), _jsxs("div", { className: "sidebar-session", children: [_jsxs("div", { className: "sidebar-session-meta", children: [_jsx("p", { children: user.email }), _jsx("p", { children: getRoleLabel(user.role) })] }), _jsx("button", { onClick: () => void onLogout(), children: "Salir" })] })] }) }), isMobileViewport && isSidebarOpen ? (_jsx("button", { type: "button", className: "app-drawer-backdrop", "aria-label": "Cerrar navegaci\u00F3n", onClick: () => closeMobileNavigation() })) : null, _jsxs("section", { className: `app-content module-theme module-theme--${activeModule}`, children: [_jsxs("header", { className: "mobile-app-bar", children: [_jsx("button", { ref: mobileMenuButtonRef, type: "button", className: "mobile-app-bar-menu", "aria-label": "Abrir navegaci\u00F3n", "aria-controls": "app-navigation", "aria-expanded": isSidebarOpen, onClick: openMobileNavigation, children: "\u2630" }), _jsx("strong", { children: mobileHeaderTitle }), selectedCharacterSheet && activeModule === "characters" ? (_jsx("button", { type: "button", className: "mobile-app-bar-back", onClick: closeCharacterSheet, children: "Volver" })) : _jsx("span", { "aria-hidden": "true" })] }), !isSidebarOpen ? (_jsx("div", { className: "content-topbar", children: _jsx("button", { className: "sidebar-toggle", "aria-label": "Mostrar barra lateral", onClick: () => setIsSidebarOpen(true), children: ">" }) })) : null, activeModule === "compendium" ? (_jsx(CompendiumView, { onBackToCharacters: openCharactersModule, initialEntryId: compendiumFocus.entryId, initialQuery: compendiumFocus.query, initialSourceFilter: compendiumFocus.source, focusToken: compendiumFocus.token })) : activeModule === "monsters" ? (_jsx(MonsterDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : activeModule === "npcs" ? (_jsx(NpcDashboardView, { ensureAccessToken: ensureAccessToken })) : activeModule === "campaigns" ? (_jsx(CampaignDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : selectedCharacterSheet ? (_jsx("section", { className: "character-actions-page", children: selectedCharacterPageMode === "builder" ? (_jsx(CharacterBuilderView, { character: selectedCharacterSheet, onBackToCharacters: closeCharacterSheet, onOpenSheet: () => openCharacterSheet(selectedCharacterSheet.id), onSave: async (nextSheet) => {
                                     const token = await ensureAccessToken();
                                     const updated = await updateCharacter(selectedCharacterSheet.id, {
                                         name: nextSheet.identidad.nombrePersonaje.trim() || selectedCharacterSheet.name,
@@ -208,7 +295,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
                                         sheet: synchronizeCharacterSheet(nextSheet)
                                     }, token);
                                     controller.upsertCharacterRecord(updated);
-                                } })) })) : (_jsx("section", { className: "character-directory-page unified-sheet", children: _jsxs("section", { className: "character-directory-shell campaign-sheet-card", children: [_jsxs("section", { className: "character-directory-header-band", children: [_jsx("div", { className: "unified-sheet-portrait", "aria-hidden": "true", children: _jsx("div", { className: "unified-sheet-portrait-ring", children: _jsx("div", { className: "unified-sheet-portrait-content", children: "PJ" }) }) }), _jsxs("div", { className: "character-directory-identity", children: [_jsx("h2", { children: "Archivo de personajes" }), _jsx("p", { className: "unified-sheet-inline-subtitle", children: "Gestiona hojas, constructor y progreso de PX con la misma presentacion que la ficha." })] })] }), _jsxs("section", { className: "character-directory-stage", children: [_jsxs("section", { className: "character-directory-panel campaign-sheet-card", children: [_jsxs("div", { className: "row-actions character-directory-toolbar-row", children: [_jsxs("div", { children: [_jsx("h3", { children: "Acciones del archivo" }), _jsx("p", { className: "section-help", children: "Crea, importa o genera personajes sin salir del modulo." })] }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { onClick: controller.openCreateModal, children: "Nuevo personaje" }), _jsxs("label", { className: `file-trigger${controller.isSaving ? " is-disabled" : ""}`, children: ["Importar PDF", _jsx("input", { type: "file", accept: "application/pdf,.pdf", disabled: controller.isSaving, onChange: (event) => {
+                                } }, selectedCharacterSheet.id)) })) : (_jsx("section", { className: "character-directory-page unified-sheet", children: _jsxs("section", { className: "character-directory-shell campaign-sheet-card", children: [_jsxs("section", { className: "character-directory-header-band", children: [_jsx("div", { className: "unified-sheet-portrait", "aria-hidden": "true", children: _jsx("div", { className: "unified-sheet-portrait-ring", children: _jsx("div", { className: "unified-sheet-portrait-content", children: "PJ" }) }) }), _jsxs("div", { className: "character-directory-identity", children: [_jsx("h2", { children: "Archivo de personajes" }), _jsx("p", { className: "unified-sheet-inline-subtitle", children: "Gestiona hojas, constructor y progreso de PX con la misma presentacion que la ficha." })] })] }), _jsxs("section", { className: "character-directory-stage", children: [_jsxs("section", { className: "character-directory-panel campaign-sheet-card", children: [_jsxs("div", { className: "row-actions character-directory-toolbar-row", children: [_jsxs("div", { children: [_jsx("h3", { children: "Acciones del archivo" }), _jsx("p", { className: "section-help", children: "Crea, importa o genera personajes sin salir del modulo." })] }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { onClick: controller.openCreateModal, children: "Nuevo personaje" }), _jsxs("label", { className: `file-trigger${controller.isSaving ? " is-disabled" : ""}`, children: ["Importar PDF", _jsx("input", { type: "file", accept: "application/pdf,.pdf", disabled: controller.isSaving, onChange: (event) => {
                                                                                     const file = event.target.files?.[0];
                                                                                     if (file) {
                                                                                         void controller.importFromPdf(file);

@@ -14,9 +14,11 @@ import {
   type RollDestination,
   type RollRequest
 } from "@umbra/shared";
+import { useLayoutEffect, useRef } from "react";
 import { CharacterCard } from "../components/CharacterCard";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { findCompendiumCapabilityEntryId, findCompendiumEntryByTypeAndName } from "../models/compendiumEntries";
 import { toCharacterCardViewModel } from "../models/characterModel";
 import { computeDerivedStats } from "../models/rulesEngine";
@@ -58,6 +60,26 @@ type PendingCharacterRollConfirmation = {
   visibility: Roll20Visibility;
   title: string;
 };
+
+const MOBILE_NAVIGATION_QUERY = "(max-width: 900px)";
+
+function isMobileNavigationViewport(): boolean {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function"
+    ? window.matchMedia(MOBILE_NAVIGATION_QUERY).matches
+    : false;
+}
+
+function getModuleLabel(module: AppModule): string {
+  switch (module) {
+    case "campaigns": return "Campañas";
+    case "monsters": return "Monstruos";
+    case "npcs": return "PNJ";
+    case "compendium": return "Compendio";
+    case "characters":
+    default:
+      return "Personajes";
+  }
+}
 
 function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token">; sheetId?: string | null; characterPageMode?: CharacterPageMode } {
   const rawHash = window.location.hash.replace(/^#/, "");
@@ -102,6 +124,7 @@ function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"
 
 export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Props) {
   const controller = useCharacterController(ensureAccessToken);
+  const dashboardRef = useRef<HTMLElement | null>(null);
   const isCampaignManagedLock = false;
   const isCapabilityLocked = controller.isEditing;
   const canAccessCharacters = user.role !== "gm";
@@ -110,7 +133,10 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   const [activeModule, setActiveModule] = useState<AppModule>(
     canAccessCharacters ? "characters" : canAccessNpcs ? "npcs" : canAccessMonsters ? "monsters" : "campaigns"
   );
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobileViewport, setIsMobileViewport] = useState(isMobileNavigationViewport);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => !isMobileNavigationViewport());
+  const mobileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const sidebarCloseButtonRef = useRef<HTMLButtonElement | null>(null);
   const [compendiumFocus, setCompendiumFocus] = useState<CompendiumFocus>({
     entryId: null,
     query: "",
@@ -123,6 +149,70 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     () => controller.characters.find((entry) => entry.id === selectedCharacterSheetId) ?? null,
     [controller.characters, selectedCharacterSheetId]
   );
+  const mobileHeaderTitle = selectedCharacterSheet?.name ?? getModuleLabel(activeModule);
+
+  useBodyScrollLock(isMobileViewport && isSidebarOpen);
+
+  // Dashboard fields contain game data, never credentials. Excluding them
+  // prevents Bitwarden's inline menu from retaining stale DOM anchors while
+  // React refreshes the character directory or changes sheet sections.
+  useLayoutEffect(() => {
+    dashboardRef.current?.querySelectorAll("input, select, textarea").forEach((field) => {
+      if (!field.hasAttribute("data-bwignore")) {
+        field.setAttribute("data-bwignore", "true");
+      }
+    });
+  });
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia(MOBILE_NAVIGATION_QUERY);
+    const syncViewport = (matches: boolean): void => {
+      setIsMobileViewport(matches);
+      setIsSidebarOpen(!matches);
+    };
+    const handleChange = (event: MediaQueryListEvent): void => syncViewport(event.matches);
+
+    syncViewport(mediaQuery.matches);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileViewport || !isSidebarOpen) {
+      return;
+    }
+
+    function handleEscape(event: KeyboardEvent): void {
+      if (event.key !== "Escape") return;
+      setIsSidebarOpen(false);
+      window.setTimeout(() => mobileMenuButtonRef.current?.focus(), 0);
+    }
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isMobileViewport, isSidebarOpen]);
+
+  useEffect(() => {
+    if (isMobileViewport) {
+      setIsSidebarOpen(false);
+    }
+  }, [activeModule, isMobileViewport, selectedCharacterSheetId]);
+
+  function openMobileNavigation(): void {
+    setIsSidebarOpen(true);
+    window.setTimeout(() => sidebarCloseButtonRef.current?.focus(), 0);
+  }
+
+  function closeMobileNavigation(restoreFocus = true): void {
+    setIsSidebarOpen(false);
+    if (restoreFocus) {
+      window.setTimeout(() => mobileMenuButtonRef.current?.focus(), 0);
+    }
+  }
 
   useEffect(() => {
     function syncWithHash(): void {
@@ -195,6 +285,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   }
 
   function openCharactersModule(): void {
+    if (isMobileViewport) setIsSidebarOpen(false);
     setActiveModule("characters");
     window.location.hash = "characters";
     setSelectedCharacterSheetId(null);
@@ -227,6 +318,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   }
 
   function openCompendiumModule(): void {
+    if (isMobileViewport) setIsSidebarOpen(false);
     setActiveModule("compendium");
     if (!window.location.hash.startsWith("#compendium")) {
       window.location.hash = "compendium";
@@ -234,6 +326,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   }
 
   function openCampaignsModule(): void {
+    if (isMobileViewport) setIsSidebarOpen(false);
     setActiveModule("campaigns");
     if (!window.location.hash.startsWith("#campaigns")) {
       window.location.hash = "campaigns";
@@ -241,6 +334,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   }
 
   function openMonstersModule(): void {
+    if (isMobileViewport) setIsSidebarOpen(false);
     setActiveModule("monsters");
     if (!window.location.hash.startsWith("#monsters")) {
       window.location.hash = "monsters";
@@ -248,6 +342,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   }
 
   function openNpcsModule(): void {
+    if (isMobileViewport) setIsSidebarOpen(false);
     setActiveModule("npcs");
     if (!window.location.hash.startsWith("#npcs")) {
       window.location.hash = "npcs";
@@ -255,18 +350,23 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   }
 
   return (
-    <main className="page">
+    <main ref={dashboardRef} className="page">
       <div className={`app-shell${isSidebarOpen ? "" : " is-sidebar-collapsed"}`}>
-        <aside className={`app-sidebar${isSidebarOpen ? "" : " is-collapsed"}`}>
+        <aside
+          id="app-navigation"
+          className={`app-sidebar${isSidebarOpen ? " is-mobile-open" : " is-collapsed"}`}
+          aria-label="Navegación principal"
+        >
           <div className="app-sidebar-inner">
             <div className="app-sidebar-head">
               <div>
                 <h1>UMBRA</h1>
               </div>
               <button
+                ref={sidebarCloseButtonRef}
                 className="sidebar-toggle"
                 aria-label={isSidebarOpen ? "Ocultar barra lateral" : "Mostrar barra lateral"}
-                onClick={() => setIsSidebarOpen((current) => !current)}
+                onClick={() => isMobileViewport ? closeMobileNavigation() : setIsSidebarOpen((current) => !current)}
               >
                 {isSidebarOpen ? "<" : ">"}
               </button>
@@ -304,7 +404,35 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           </div>
         </aside>
 
+        {isMobileViewport && isSidebarOpen ? (
+          <button
+            type="button"
+            className="app-drawer-backdrop"
+            aria-label="Cerrar navegación"
+            onClick={() => closeMobileNavigation()}
+          />
+        ) : null}
+
         <section className={`app-content module-theme module-theme--${activeModule}`}>
+          <header className="mobile-app-bar">
+            <button
+              ref={mobileMenuButtonRef}
+              type="button"
+              className="mobile-app-bar-menu"
+              aria-label="Abrir navegación"
+              aria-controls="app-navigation"
+              aria-expanded={isSidebarOpen}
+              onClick={openMobileNavigation}
+            >
+              ☰
+            </button>
+            <strong>{mobileHeaderTitle}</strong>
+            {selectedCharacterSheet && activeModule === "characters" ? (
+              <button type="button" className="mobile-app-bar-back" onClick={closeCharacterSheet}>
+                Volver
+              </button>
+            ) : <span aria-hidden="true" />}
+          </header>
           {!isSidebarOpen ? (
             <div className="content-topbar">
               <button
@@ -358,6 +486,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                 />
               ) : (
                 <UnifiedCharacterSheet
+                  key={selectedCharacterSheet.id}
                   title={selectedCharacterSheet.name}
                   subtitle={`${selectedCharacterSheet.culture || "Sin cultura"} · ${selectedCharacterSheet.archetype || "Sin arquetipo"} · ${selectedCharacterSheet.race || "Sin raza"}`}
                   sheet={parseCharacterSheet(selectedCharacterSheet.sheet)}

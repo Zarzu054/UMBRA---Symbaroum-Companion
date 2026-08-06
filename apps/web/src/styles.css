@@ -3942,6 +3942,7 @@ td {
   }
 }
 
+
 @media (max-width: 560px) {
   .app-sidebar-head {
     grid-template-columns: minmax(0, 1fr);
@@ -5936,5 +5937,390 @@ td {
   .unified-sheet-vital-card,
   .unified-sheet-quick-card {
     padding: 0.65rem;
+  }
+}
+
+/* Mobile character flow and roll presentation */
+.mobile-app-bar,
+.app-drawer-backdrop,
+.unified-sheet-mobile-tabs {
+  display: none;
+}
+
+.character-record-secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.campaign-action-rolls {
+  flex: 0 1 19rem;
+  min-width: min(100%, 13rem);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.38rem;
+  align-items: stretch;
+}
+
+.campaign-action-roll-button,
+.campaign-action-roll-readonly {
+  min-width: 0;
+  min-height: 2.5rem;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.12rem;
+  padding: 0.3rem 0.48rem;
+  text-align: center;
+}
+
+.campaign-action-roll-button > span,
+.campaign-action-roll-readonly > span {
+  color: var(--ink-soft);
+  font-size: 0.64rem;
+  line-height: 1;
+}
+
+.campaign-action-roll-button > strong,
+.campaign-action-roll-readonly > strong,
+.unified-sheet.is-tab-actions .unified-sheet-dynamic-column .campaign-action-roll-button > strong {
+  display: block;
+  min-height: 0;
+  max-width: none;
+  color: var(--ink);
+  font-size: 0.72rem;
+  line-height: 1.1;
+  white-space: normal;
+}
+
+.campaign-action-no-roll {
+  grid-column: 1 / -1;
+  min-height: 2.5rem;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(139, 109, 77, 0.35);
+  border-radius: 10px;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+}
+
+.campaign-action-modifier-notice {
+  grid-column: 1 / -1;
+  justify-self: end;
+  color: var(--rubric-strong);
+  font-size: 0.62rem;
+  line-height: 1.1;
+}
+
+@media (max-width: 900px) {
+  html,
+  body,
+  #root,
+  .page,
+  .app-shell,
+  .app-content {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .app-sidebar,
+  .app-sidebar.is-collapsed {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    display: block;
+    width: min(86vw, 320px);
+    min-width: min(86vw, 320px);
+    height: 100dvh;
+    min-height: 100dvh;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(-104%);
+  }
+
+  .app-sidebar.is-mobile-open {
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(0);
+  }
+
+  .app-sidebar-inner {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow-y: auto;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+    border-right: 1px solid rgba(139, 109, 77, 0.28);
+    border-bottom: 0;
+    box-shadow: 16px 0 38px rgba(31, 21, 14, 0.24);
+  }
+
+  .app-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 100dvh;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: rgba(22, 17, 13, 0.48);
+    box-shadow: none;
+  }
+
+  .mobile-app-bar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 0.55rem;
+    align-items: center;
+    min-height: calc(56px + env(safe-area-inset-top));
+    margin: 0 -12px;
+    padding: max(6px, env(safe-area-inset-top)) 12px 6px;
+    border-bottom: 1px solid rgba(139, 109, 77, 0.28);
+    background: rgba(239, 230, 214, 0.97);
+    box-shadow: 0 5px 16px rgba(50, 34, 22, 0.1);
+    backdrop-filter: blur(10px);
+  }
+
+  .mobile-app-bar > strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-title);
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+  }
+
+  .mobile-app-bar button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.35rem 0.6rem;
+  }
+
+  .mobile-app-bar-menu {
+    font-size: 1.15rem;
+  }
+
+  .content-topbar {
+    display: none;
+  }
+
+  .character-actions-page {
+    gap: 0;
+    padding-top: 0;
+  }
+
+  .character-actions-page > .unified-sheet {
+    grid-template-rows: auto auto;
+    gap: 0;
+    margin-top: 0;
+  }
+
+  .character-record-card .card-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .character-record-primary-action {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .character-record-secondary-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .character-record-secondary-actions button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .unified-sheet-mobile-tabs {
+    position: sticky;
+    top: calc(56px + env(safe-area-inset-top));
+    z-index: 20;
+    display: flex;
+    gap: 0.25rem;
+    width: 100%;
+    margin: 0 0 0.45rem;
+    padding: 0.4rem 0.35rem 0.45rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom: 1px solid rgba(139, 109, 77, 0.2);
+    background: rgba(239, 230, 214, 0.97);
+    box-shadow: 0 6px 14px rgba(50, 34, 22, 0.08);
+    backdrop-filter: blur(10px);
+    overscroll-behavior-x: contain;
+    scroll-padding-inline: 0.35rem;
+    scrollbar-width: none;
+    scroll-margin-top: calc(56px + env(safe-area-inset-top));
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .unified-sheet-mobile-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .unified-sheet-mobile-tabs button {
+    flex: 0 0 auto;
+    min-width: max-content;
+    min-height: 44px;
+    padding: 0.45rem 0.85rem;
+    border-color: transparent;
+    border-radius: 999px;
+    color: var(--ink-soft);
+    background: transparent;
+    box-shadow: none;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .unified-sheet-mobile-tabs .is-active {
+    color: #f6efe2;
+    border-color: rgba(108, 130, 112, 0.48);
+    background: linear-gradient(180deg, rgba(62, 94, 79, 0.98), rgba(24, 38, 31, 0.98));
+    box-shadow: 0 3px 8px rgba(31, 45, 37, 0.2);
+  }
+
+  .unified-sheet-persistent,
+  .unified-sheet-body-grid,
+  .unified-sheet-static-column,
+  .unified-sheet-dynamic-column,
+  .unified-sheet-dynamic-column.unified-sheet-stage,
+  .unified-sheet-dynamic-column .unified-sheet-tab-content {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .unified-sheet-stage.unified-sheet-dynamic-column > .unified-sheet-tabs {
+    display: none;
+  }
+
+  .unified-sheet:not(.is-mobile-tab-attributes) .unified-sheet-header-band,
+  .unified-sheet:not(.is-mobile-tab-attributes) .unified-sheet-static-column,
+  .unified-sheet.is-mobile-tab-attributes .unified-sheet-dynamic-column {
+    display: none;
+  }
+
+  .unified-sheet.is-mobile-tab-attributes .unified-sheet-header-band,
+  .unified-sheet.is-mobile-tab-attributes .unified-sheet-static-column,
+  .unified-sheet:not(.is-mobile-tab-attributes) .unified-sheet-dynamic-column {
+    display: grid;
+  }
+
+  .unified-sheet-action-subtabs,
+  .unified-sheet.is-tab-actions .unified-sheet-dynamic-column .unified-sheet-action-subtabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    padding-bottom: 0.35rem;
+  }
+
+  .unified-sheet-action-subtabs button {
+    flex: 0 0 auto;
+    min-height: 44px;
+  }
+
+  .campaign-action-button--row,
+  .unified-sheet.is-tab-actions .unified-sheet-dynamic-column .campaign-action-button--row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: stretch;
+  }
+
+  .campaign-action-rolls {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .unified-sheet.is-tab-actions .unified-sheet-dynamic-column .campaign-action-roll-button,
+  .campaign-action-roll-button {
+    min-width: 0;
+    min-height: 44px;
+    padding: 0.4rem;
+  }
+
+  .campaign-action-roll-button > strong,
+  .unified-sheet.is-tab-actions .unified-sheet-dynamic-column .campaign-action-roll-button > strong {
+    font-size: 0.78rem;
+  }
+
+  .campaign-action-modifier-notice {
+    justify-self: start;
+  }
+
+  .auth-page {
+    min-height: 100dvh;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding-left: max(16px, env(safe-area-inset-left));
+  }
+
+  .auth-panel input,
+  .auth-panel button,
+  .auth-panel .file-trigger {
+    min-height: 44px;
+  }
+
+  .modal-panel,
+  .character-roll-confirm-modal {
+    max-width: calc(100vw - 1.5rem);
+    max-height: calc(100dvh - 1.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+@media (max-width: 560px) {
+  .mobile-app-bar {
+    margin-inline: -10px;
+    padding-inline: 10px;
+  }
+
+  .app-sidebar-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .sidebar-toggle {
+    justify-self: end;
+  }
+
+  .character-directory-toolbar-row .toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .character-directory-toolbar-row .toolbar > *,
+  .character-directory-toolbar-row .toolbar button,
+  .character-directory-toolbar-row .file-trigger {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .unified-sheet-attribute-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .unified-sheet-attribute-chip {
+    min-height: 76px;
+  }
+
+  .campaign-action-rolls {
+    grid-template-columns: 1fr;
   }
 }

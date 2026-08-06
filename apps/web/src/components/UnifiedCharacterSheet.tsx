@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ATTRIBUTE_KEYS,
   ATTRIBUTE_LABELS,
@@ -21,6 +21,7 @@ import {
   type RollRequest
 } from "@umbra/shared";
 import { computeDerivedStats } from "../models/rulesEngine";
+import { getCharacterActionRollPresentation } from "../models/actionPresentation";
 import { getCharacterExperienceSummary } from "../models/characterExperience";
 import { ARMOR_QUALITY_OPTIONS, ITEM_QUALITY_OPTIONS, createCustomInventoryItem, createInventoryItemFromTemplate, ITEM_CATALOG, type ItemTemplate } from "../models/itemCatalog";
 import { ALL_ENTRIES, findCompendiumEntryByTypeAndName, getCompendiumSourcePdfUrl, getCompendiumSummaryLink } from "../models/compendiumEntries";
@@ -32,6 +33,7 @@ import {
 } from "../services/rollTransport";
 
 type TabId = "actions" | "inventory" | "abilities" | "background" | "notes";
+type MobileSheetTabId = "attributes" | TabId;
 type ActionTabId = "all" | "favorites" | "attacks" | "powers" | "actions" | "free" | "reactions" | "other" | "special";
 type CapabilityTabId = "traits" | "blessings" | "burdens" | "abilities" | "powers" | "rituals";
 type InventoryTabId = "money" | "weapons" | "armors" | "items";
@@ -639,18 +641,6 @@ function getPendingAttackTarget(
   return request.target + selectedBonus;
 }
 
-function isIntegratedDamageBonusAction(action: CharacterActionDefinition): boolean {
-  return action.sourceType !== "weapon" && !action.rollAttribute && String(action.damageFormula ?? "").trim().startsWith("+");
-}
-
-function hasActionRoll(action: CharacterActionDefinition): boolean {
-  if (isIntegratedDamageBonusAction(action)) {
-    return false;
-  }
-
-  return Boolean(action.rollAttribute || action.damageFormula);
-}
-
 function getActionSourceLabel(action: CharacterActionDefinition): string {
   switch (action.sourceType) {
     case "weapon":
@@ -999,6 +989,8 @@ export function UnifiedCharacterSheet({
     [displayName]
   );
   const [sheetTabState, setSheetTabState] = useState<SheetTabState>(DEFAULT_SHEET_TAB_STATE);
+  const [mobileActiveTab, setMobileActiveTab] = useState<MobileSheetTabId>("attributes");
+  const mobileTabsRef = useRef<HTMLElement | null>(null);
   const [hasHydratedSheetTabs, setHasHydratedSheetTabs] = useState(false);
   const activeTab = sheetTabState.activeTab;
   const activeActionTab = sheetTabState.activeActionTab;
@@ -1008,6 +1000,22 @@ export function UnifiedCharacterSheet({
   const setActiveActionTab = (nextTab: ActionTabId) => setSheetTabState((current) => ({ ...current, activeActionTab: nextTab }));
   const setActiveCapabilityTab = (nextTab: CapabilityTabId) => setSheetTabState((current) => ({ ...current, activeCapabilityTab: nextTab }));
   const setActiveInventoryTab = (nextTab: InventoryTabId) => setSheetTabState((current) => ({ ...current, activeInventoryTab: nextTab }));
+  const setActiveMobileTab = (nextTab: MobileSheetTabId): void => {
+    setMobileActiveTab(nextTab);
+    if (nextTab !== "attributes") {
+      setActiveTab(nextTab);
+    }
+  };
+  const handleMobileTabChange = (nextTab: MobileSheetTabId, button: HTMLButtonElement): void => {
+    setActiveMobileTab(nextTab);
+    mobileTabsRef.current?.scrollIntoView?.({ block: "start" });
+
+    const tabs = mobileTabsRef.current;
+    tabs?.scrollTo?.({
+      left: Math.max(0, button.offsetLeft - (tabs.clientWidth - button.offsetWidth) / 2),
+      behavior: "smooth"
+    });
+  };
   const personalNotes = useMemo(() => sortCharacterPersonalNotes(normalizedSheet.personalNotes ?? []), [normalizedSheet.personalNotes]);
   const selectedPersonalNote = useMemo(
     () => personalNotes.find((entry) => entry.id === selectedPersonalNoteId) ?? null,
@@ -2441,6 +2449,45 @@ export function UnifiedCharacterSheet({
     updateField(path, nextValue);
   }
 
+  function renderActionRollControls(action: CharacterActionDefinition, allowRoll = true): ReactNode {
+    const presentation = getCharacterActionRollPresentation(action, normalizedSheet);
+    const hasOptionalModifiers = presentation.hasDamageModifiers
+      || getCheckRollModifiers(action, undefined, normalizedSheet).length > 0;
+
+    return (
+      <div className="campaign-action-rolls">
+        {presentation.attackFormula ? (
+          allowRoll ? (
+            <button type="button" className="campaign-action-roll-button" onClick={() => runAttackAction(action)}>
+              <span>{getActionRollLabel(action)}</span>
+              <strong>{presentation.attackFormula}</strong>
+            </button>
+          ) : (
+            <span className="campaign-action-roll-readonly">
+              <span>{getActionRollLabel(action)}</span>
+              <strong>{presentation.attackFormula}</strong>
+            </span>
+          )
+        ) : null}
+        {presentation.damageFormula ? (
+          allowRoll ? (
+            <button type="button" className="campaign-action-roll-button is-damage" onClick={() => runDamageAction(action)}>
+              <span>Daño</span>
+              <strong>{presentation.damageFormula}</strong>
+            </button>
+          ) : (
+            <span className="campaign-action-roll-readonly is-damage">
+              <span>Daño</span>
+              <strong>{presentation.damageFormula}</strong>
+            </span>
+          )
+        ) : null}
+        {!presentation.hasRoll ? <span className="campaign-action-no-roll">Sin tirada</span> : null}
+        {hasOptionalModifiers ? <span className="campaign-action-modifier-notice">Modificadores disponibles</span> : null}
+      </div>
+    );
+  }
+
   function renderTabStage(className = "unified-sheet-stage campaign-sheet-card"): ReactNode {
     return (
       <section className={className}>
@@ -2525,16 +2572,7 @@ export function UnifiedCharacterSheet({
                         </div>
                         <span className="campaign-action-source-note">{getActionSourceLabel(action)}</span>
                       </div>
-                      <div className="campaign-action-slot">
-                        {action.rollAttribute ? (
-                          <button type="button" onClick={() => runAttackAction(action)}>{getActionRollLabel(action)}</button>
-                        ) : (
-                          <span aria-hidden="true" className="campaign-action-slot-placeholder" />
-                        )}
-                      </div>
-                      <div className="campaign-action-slot is-damage">
-                        {action.damageFormula && !isIntegratedDamageBonusAction(action) ? <button type="button" onClick={() => runDamageAction(action)}>Danio</button> : <span aria-hidden="true" className="campaign-action-slot-placeholder" />}
-                      </div>
+                      {renderActionRollControls(action)}
                     </div>
                   ))}
                   {filteredActions.length === 0 ? <p className="section-help">Sin acciones registradas en esta categoria.</p> : null}
@@ -2812,7 +2850,27 @@ export function UnifiedCharacterSheet({
   }
 
   return (
-    <div className={`unified-sheet is-tab-${activeTab}`}>
+    <div className={`unified-sheet is-tab-${activeTab} is-mobile-tab-${mobileActiveTab}`}>
+      <nav ref={mobileTabsRef} className="unified-sheet-mobile-tabs" aria-label="Secciones de la ficha">
+        {([
+          ["attributes", "Atributos"],
+          ["actions", "Acciones"],
+          ["inventory", "Inventario"],
+          ["abilities", "Capacidades"],
+          ["background", "Trasfondo"],
+          ["notes", "Notas"]
+        ] as Array<[MobileSheetTabId, string]>).map(([tab, label]) => (
+          <button
+            key={tab}
+            type="button"
+            className={mobileActiveTab === tab ? "is-active" : ""}
+            aria-current={mobileActiveTab === tab ? "page" : undefined}
+            onClick={(event) => handleMobileTabChange(tab, event.currentTarget)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
       <section className="unified-sheet-persistent campaign-sheet-card">
         <div className="unified-sheet-header-band">
           <div className="unified-sheet-hero-main">
@@ -3032,16 +3090,7 @@ export function UnifiedCharacterSheet({
                     </button>
                     <strong>{formatActionDisplayLabel(action.label)}</strong>
                   </div>
-                  <div className="campaign-action-slot">
-                    {action.rollAttribute && editable ? (
-                      <button type="button" onClick={() => runAttackAction(action)}>{getActionRollLabel(action)}</button>
-                    ) : (
-                      <span aria-hidden="true" className="campaign-action-slot-placeholder" />
-                    )}
-                      </div>
-                      <div className="campaign-action-slot is-damage">
-                        {action.damageFormula && !isIntegratedDamageBonusAction(action) && editable ? <button type="button" onClick={() => runDamageAction(action)}>Danio</button> : <span aria-hidden="true" className="campaign-action-slot-placeholder" />}
-                      </div>
+                      {renderActionRollControls(action, editable)}
                       <div className="campaign-action-slot">
                         <button type="button" className="subtle-button" onClick={() => openActionDetail(action)}>Detalle</button>
                       </div>
