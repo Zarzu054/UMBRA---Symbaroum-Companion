@@ -31,13 +31,15 @@ export function CharacterCard({ item, selected, onOpenSheet, onOpenBuilder, onEx
       </div>
       <small className="character-record-card-updated">Actualizada {item.createdLabel}</small>
       <div className="card-actions">
-        <button onClick={onOpenSheet}>{selected ? "Hoja abierta" : "Abrir hoja"}</button>
-        <button onClick={onOpenBuilder}>⚒ Constructor</button>
-        <button onClick={onExportPdf}>Exportar PDF</button>
-        <button onClick={onDuplicate}>Duplicar</button>
-        <button className="danger" onClick={onDelete}>
-          Eliminar
-        </button>
+        <button className="character-record-primary-action" onClick={onOpenSheet}>{selected ? "Hoja abierta" : "Abrir hoja"}</button>
+        <div className="character-record-secondary-actions">
+          <button onClick={onOpenBuilder}>⚒ Constructor</button>
+          <button onClick={onExportPdf}>Exportar PDF</button>
+          <button onClick={onDuplicate}>Duplicar</button>
+          <button className="danger" onClick={onDelete}>
+            Eliminar
+          </button>
+        </div>
       </div>
     </article>
   );

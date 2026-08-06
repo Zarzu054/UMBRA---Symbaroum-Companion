@@ -1,8 +1,11 @@
 ﻿{
   "manifest_version": 3,
   "name": "UMBRA20",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Bridge minimal entre UMBRA y el chat de Roll20.",
+  "icons": {
+    "128": "UMBRA_Roll20_Icon_128x128.png"
+  },
   "permissions": ["tabs"],
   "host_permissions": [
     "https://umbra.z4rzu.com/*",
