@@ -1372,6 +1372,11 @@ function migrateCharacterSheetInput(input: unknown): unknown {
   const poderesMisticos = normalizeRatedEntries(candidate.poderesMisticos, "power");
   const rituales = normalizeRatedEntries(candidate.rituales, "ritual");
   const syncedRobustezMax = getEffectiveCharacterRobustezMax(candidate);
+  const previousRobustezMax = Number(candidate.combate?.robustezMax ?? syncedRobustezMax);
+  const previousRobustezActual = Number(candidate.combate?.robustezActual ?? syncedRobustezMax);
+  const syncedRobustezActual = previousRobustezActual === previousRobustezMax && previousRobustezMax < syncedRobustezMax
+    ? syncedRobustezMax
+    : Math.min(previousRobustezActual, syncedRobustezMax);
 
   return {
     ...candidate,
@@ -1387,7 +1392,7 @@ function migrateCharacterSheetInput(input: unknown): unknown {
         ?? (hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armaduraProteccion),
       armaduraCualidad: getEquippedInventoryItem(inventoryItems, equipmentSlots, "armor")?.qualities ?? candidate.combate.armaduraCualidad,
       robustezMax: syncedRobustezMax,
-      robustezActual: Math.min(candidate.combate?.robustezActual ?? syncedRobustezMax, syncedRobustezMax)
+      robustezActual: syncedRobustezActual
     },
     inventoryItems,
     equipmentSlots,

@@ -149,7 +149,7 @@ export function getCharacterMonsterTraitEffects(sheet: CharacterSheet): Characte
   const duroLevel = getMonsterTraitLevel(traits, ["duro"]);
   const robustoLevel = getMonsterTraitLevel(traits, ["robusto", "robusta"]);
   const robustezBase = Number(sheet.atributos?.fuerte ?? 0);
-  const robustezMaxima = Math.max(0, Math.floor(robustezBase * getRecioMultiplier(recioLevel)));
+  const robustezMaxima = Math.max(10, Math.floor(robustezBase * getRecioMultiplier(recioLevel)));
 
   return {
     recioLevel,
