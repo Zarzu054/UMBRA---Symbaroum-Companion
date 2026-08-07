@@ -1,9 +1,32 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>UMBRA - Symbaroum Companion</title>
+    <script>
+      (() => {
+        const palettes = ["davokar", "corruption", "ambria"];
+        const themes = ["system", "light", "dark"];
+        let palette = "ambria";
+        let preference = "system";
+        try {
+          const savedPalette = localStorage.getItem("umbra:palette");
+          const savedTheme = localStorage.getItem("umbra:theme");
+          if (palettes.includes(savedPalette)) palette = savedPalette;
+          if (themes.includes(savedTheme)) preference = savedTheme;
+        } catch {
+          // Local preferences are optional; safe defaults remain active.
+        }
+        const theme = preference === "system"
+          ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : preference;
+        document.documentElement.dataset.palette = palette;
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.dataset.themePreference = preference;
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

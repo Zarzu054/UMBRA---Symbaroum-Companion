@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ChangePasswordInput, LoginInput } from "@umbra/shared";
-import { ThemeSelector } from "../components/ThemeSelector";
+import { AppearancePopover } from "../components/AppearancePopover";
 
 type Props = {
   isSubmitting: boolean;
@@ -95,7 +95,7 @@ export function AuthGatewayView({
 
   return (
     <main className="page auth-page">
-      <div className="auth-theme-control"><ThemeSelector compact /></div>
+      <div className="auth-appearance-control"><AppearancePopover /></div>
       <section className="panel auth-panel">
         <h1>UMBRA</h1>
         <p>Symbaroum Companion</p>
@@ -254,7 +254,7 @@ export function ForcedPasswordChangeView({ email, isSubmitting, error, onSubmit,
 
   return (
     <main className="page auth-page">
-      <div className="auth-theme-control"><ThemeSelector compact /></div>
+      <div className="auth-appearance-control"><AppearancePopover /></div>
       <section className="panel auth-panel">
         <h1>UMBRA</h1>
         <p>Debes cambiar la contrasena temporal antes de continuar.</p>

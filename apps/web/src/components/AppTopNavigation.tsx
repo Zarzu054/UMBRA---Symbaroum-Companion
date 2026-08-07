@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AppIcon } from "./AppIcon";
-import { ThemeSelector } from "./ThemeSelector";
+import { AppearanceSelector } from "./AppearanceSelector";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 
 export type AppNavigationItem = {
@@ -147,7 +147,7 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
           ) : null}
           <div className="app-navigation-menu-section">
             <span className="app-navigation-menu-label">Apariencia</span>
-            <ThemeSelector />
+            <AppearanceSelector />
           </div>
           <button type="button" className="app-logout-button" onClick={() => void onLogout()}>
             Cerrar sesión

@@ -2,9 +2,14 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeSelector } from "../components/ThemeSelector";
+import { AppearanceSelector } from "../components/AppearanceSelector";
 import {
+  DEFAULT_PALETTE,
+  PALETTE_STORAGE_KEY,
   THEME_STORAGE_KEY,
+  applyPalettePreference,
   applyThemePreference,
+  readPalettePreference,
   readThemePreference,
   resolveTheme
 } from "./themePreference";
@@ -27,6 +32,7 @@ describe("theme preference", () => {
     cleanup();
     delete document.documentElement.dataset.theme;
     delete document.documentElement.dataset.themePreference;
+    delete document.documentElement.dataset.palette;
   });
 
   it("uses the system theme by default and ignores obsolete values", () => {
@@ -46,5 +52,26 @@ describe("theme preference", () => {
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
     expect(document.documentElement).toHaveAttribute("data-theme", "light");
     expect(screen.getByRole("button", { name: "Claro" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("uses Ambria when the saved atmosphere is absent or invalid", () => {
+    expect(readPalettePreference()).toBe(DEFAULT_PALETTE);
+    window.localStorage.setItem(PALETTE_STORAGE_KEY, "forest");
+    expect(readPalettePreference()).toBe("ambria");
+
+    applyPalettePreference(readPalettePreference());
+    expect(document.documentElement).toHaveAttribute("data-palette", "ambria");
+  });
+
+  it("persists atmosphere and theme independently", () => {
+    render(<AppearanceSelector />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Davokar/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Claro" }));
+
+    expect(window.localStorage.getItem(PALETTE_STORAGE_KEY)).toBe("davokar");
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
+    expect(document.documentElement).toHaveAttribute("data-palette", "davokar");
+    expect(document.documentElement).toHaveAttribute("data-theme", "light");
   });
 });

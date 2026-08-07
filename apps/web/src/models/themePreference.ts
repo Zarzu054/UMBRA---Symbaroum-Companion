@@ -1,11 +1,18 @@
 import { useEffect, useState } from "react";
 
 export type ThemePreference = "system" | "light" | "dark";
+export type PalettePreference = "davokar" | "corruption" | "ambria";
 
 export const THEME_STORAGE_KEY = "umbra:theme";
+export const PALETTE_STORAGE_KEY = "umbra:palette";
+export const DEFAULT_PALETTE: PalettePreference = "ambria";
 
 function isThemePreference(value: unknown): value is ThemePreference {
   return value === "system" || value === "light" || value === "dark";
+}
+
+function isPalettePreference(value: unknown): value is PalettePreference {
+  return value === "davokar" || value === "corruption" || value === "ambria";
 }
 
 export function readThemePreference(): ThemePreference {
@@ -15,6 +22,16 @@ export function readThemePreference(): ThemePreference {
     return isThemePreference(stored) ? stored : "system";
   } catch {
     return "system";
+  }
+}
+
+export function readPalettePreference(): PalettePreference {
+  if (typeof window === "undefined") return DEFAULT_PALETTE;
+  try {
+    const stored = window.localStorage.getItem(PALETTE_STORAGE_KEY);
+    return isPalettePreference(stored) ? stored : DEFAULT_PALETTE;
+  } catch {
+    return DEFAULT_PALETTE;
   }
 }
 
@@ -33,8 +50,18 @@ export function applyThemePreference(preference: ThemePreference): void {
   document.documentElement.style.colorScheme = resolved;
 }
 
+export function applyPalettePreference(preference: PalettePreference): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.dataset.palette = preference;
+}
+
 export function initializeThemePreference(): void {
   applyThemePreference(readThemePreference());
+}
+
+export function initializeAppearancePreferences(): void {
+  applyPalettePreference(readPalettePreference());
+  initializeThemePreference();
 }
 
 export function useThemePreference(): [ThemePreference, (next: ThemePreference) => void] {
@@ -53,6 +80,21 @@ export function useThemePreference(): [ThemePreference, (next: ThemePreference) 
     const handleChange = () => applyThemePreference("system");
     media.addEventListener?.("change", handleChange);
     return () => media.removeEventListener?.("change", handleChange);
+  }, [preference]);
+
+  return [preference, setPreferenceState];
+}
+
+export function usePalettePreference(): [PalettePreference, (next: PalettePreference) => void] {
+  const [preference, setPreferenceState] = useState<PalettePreference>(readPalettePreference);
+
+  useEffect(() => {
+    applyPalettePreference(preference);
+    try {
+      window.localStorage.setItem(PALETTE_STORAGE_KEY, preference);
+    } catch {
+      // The palette remains active for the current session when storage is unavailable.
+    }
   }, [preference]);
 
   return [preference, setPreferenceState];

@@ -7,7 +7,8 @@ export function AppIcon({ name, size = 18 }) {
         moon: _jsx("path", { d: "M20 15.4A8 8 0 0 1 8.6 4 8.2 8.2 0 1 0 20 15.4Z" }),
         monitor: _jsxs(_Fragment, { children: [_jsx("rect", { x: "3", y: "4", width: "18", height: "13", rx: "2" }), _jsx("path", { d: "M8 21h8M12 17v4" })] }),
         close: _jsx("path", { d: "m6 6 12 12M18 6 6 18" }),
-        "arrow-left": _jsx("path", { d: "m15 18-6-6 6-6M9 12h11" })
+        "arrow-left": _jsx("path", { d: "m15 18-6-6 6-6M9 12h11" }),
+        palette: _jsxs(_Fragment, { children: [_jsx("path", { d: "M12 3a9 9 0 1 0 0 18h1.2a2.1 2.1 0 0 0 1.5-3.6 1.8 1.8 0 0 1 1.2-3.1H18A3 3 0 0 0 21 11c-.5-4.5-4.2-8-9-8Z" }), _jsx("circle", { cx: "7.5", cy: "11.5", r: ".7", fill: "currentColor", stroke: "none" }), _jsx("circle", { cx: "9", cy: "7.5", r: ".7", fill: "currentColor", stroke: "none" }), _jsx("circle", { cx: "13.5", cy: "6.8", r: ".7", fill: "currentColor", stroke: "none" }), _jsx("circle", { cx: "17", cy: "9.2", r: ".7", fill: "currentColor", stroke: "none" })] })
     };
     return (_jsx("svg", { className: "app-icon", width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", focusable: "false", children: paths[name] }));
 }
