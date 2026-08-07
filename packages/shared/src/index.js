@@ -1208,6 +1208,11 @@ function migrateCharacterSheetInput(input) {
     const poderesMisticos = normalizeRatedEntries(candidate.poderesMisticos, "power");
     const rituales = normalizeRatedEntries(candidate.rituales, "ritual");
     const syncedRobustezMax = getEffectiveCharacterRobustezMax(candidate);
+    const previousRobustezMax = Number(candidate.combate?.robustezMax ?? syncedRobustezMax);
+    const previousRobustezActual = Number(candidate.combate?.robustezActual ?? syncedRobustezMax);
+    const syncedRobustezActual = previousRobustezActual === previousRobustezMax && previousRobustezMax < syncedRobustezMax
+        ? syncedRobustezMax
+        : Math.min(previousRobustezActual, syncedRobustezMax);
     return {
         ...candidate,
         rasgos: filterCharacterNonMonsterTraits(candidate.rasgos),
@@ -1222,7 +1227,7 @@ function migrateCharacterSheetInput(input) {
                 ?? (hasCharacterTraitBasedNaturalArmor(candidate) && isNaturalArmorPlaceholderName(candidate.combate?.armadura ?? "") ? "" : candidate.combate.armaduraProteccion),
             armaduraCualidad: getEquippedInventoryItem(inventoryItems, equipmentSlots, "armor")?.qualities ?? candidate.combate.armaduraCualidad,
             robustezMax: syncedRobustezMax,
-            robustezActual: Math.min(candidate.combate?.robustezActual ?? syncedRobustezMax, syncedRobustezMax)
+            robustezActual: syncedRobustezActual
         },
         inventoryItems,
         equipmentSlots,
@@ -1645,4 +1650,8 @@ export const createCampaignReferenceSchema = z.object({
     visibility: campaignReferenceVisibilitySchema.default("campaign"),
     sharedWithUserIds: z.array(z.string().uuid()).max(50).default([])
 });
+export const compendiumEntryIdSchema = z.string().trim().min(1).max(200);
+export const setCompendiumFavoriteSchema = z.object({
+    favorite: z.boolean()
+}).strict();
 export const updateCampaignReferenceSchema = createCampaignReferenceSchema.partial();

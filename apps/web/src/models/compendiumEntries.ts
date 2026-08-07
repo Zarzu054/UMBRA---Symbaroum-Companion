@@ -285,7 +285,7 @@ function buildTraditionEntries(): CompendiumEntry[] {
       nombre: name,
       resumen: `${counts.powers} poderes mÃ­sticos, ${counts.rituals} rituales.`,
       detalle: `TradiciÃ³n listada en el compendio central de UMBRA. Actualmente enlaza ${counts.powers} poderes mÃ­sticos y ${counts.rituals} rituales del catÃ¡logo cargado.`,
-      fuente: "GuÃ­a Avanzada del Jugador",
+      fuente: "Gu\u00eda Avanzada del Jugador",
       tags: ["tradicion", "magia"]
     }));
 }
@@ -2623,8 +2623,10 @@ export function findCompendiumEntryByTypeAndName(tipo: EntryType, nombre: string
 const SOURCE_CANONICAL_MAP: Record<string, string> = {
   "Libro Basico": "Libro B\u00e1sico",
   "Libro B\u00e1sico": "Libro B\u00e1sico",
+  "Libro BÃ¡sico": "Libro B\u00e1sico",
   "Guia Avanzada del Jugador": "Gu\u00eda Avanzada del Jugador",
   "Gu\u00eda Avanzada del Jugador": "Gu\u00eda Avanzada del Jugador",
+  "GuÃ­a Avanzada del Jugador": "Gu\u00eda Avanzada del Jugador",
   "Guia del Jugador": "Gu\u00eda del Jugador",
   "Gu\u00eda del Jugador": "Gu\u00eda del Jugador",
   "Guia DM": "Gu\u00eda DM",

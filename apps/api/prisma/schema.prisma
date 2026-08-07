@@ -91,9 +91,26 @@ model User {
   campaignReferenceShares CampaignReferenceShare[]
   adminEventsAsActor   AdminAccountEvent[] @relation("AdminEventActor")
   adminEventsAsTarget  AdminAccountEvent[] @relation("AdminEventTarget")
+  compendiumEntries    CompendiumUserEntry[]
 
   @@index([status])
   @@map("users")
+}
+
+model CompendiumUserEntry {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  entryId      String    @map("entry_id") @db.VarChar(200)
+  isFavorite   Boolean   @default(false) @map("is_favorite")
+  lastViewedAt DateTime? @map("last_viewed_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entryId])
+  @@index([userId, isFavorite])
+  @@index([userId, lastViewedAt])
+  @@map("compendium_user_entries")
 }
 
 model AdminAccountEvent {

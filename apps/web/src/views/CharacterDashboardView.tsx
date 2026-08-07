@@ -19,7 +19,12 @@ import { CharacterCard } from "../components/CharacterCard";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
-import { findCompendiumCapabilityEntryId, findCompendiumEntryByTypeAndName } from "../models/compendiumEntries";
+import {
+  TYPE_LABELS,
+  findCompendiumCapabilityEntryId,
+  findCompendiumEntryByTypeAndName,
+  type EntryType
+} from "../models/compendiumEntries";
 import { toCharacterCardViewModel } from "../models/characterModel";
 import { computeDerivedStats } from "../models/rulesEngine";
 import { exportCharacterSheetPdf } from "../services/characterPdfExport";
@@ -34,7 +39,7 @@ import {
 } from "../services/rollTransport";
 import { CampaignDashboardView } from "./CampaignDashboardView";
 import { CharacterBuilderView } from "./CharacterBuilderView";
-import { CompendiumView } from "./CompendiumView";
+import { CompendiumView, type CompendiumBrowseMode } from "./CompendiumView";
 import { MonsterDashboardView } from "./MonsterDashboardView";
 import { NpcDashboardView } from "./NpcDashboardView";
 
@@ -52,6 +57,8 @@ type CompendiumFocus = {
   entryId: string | null;
   query: string;
   source: string;
+  type: "all" | EntryType;
+  mode: CompendiumBrowseMode;
   token: number;
 };
 
@@ -112,12 +119,17 @@ function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"
 
   const [, search = ""] = rawHash.split("?");
   const params = new URLSearchParams(search);
+  const rawType = params.get("type");
+  const source = params.get("source") ?? "all";
+  const mode = params.get("mode");
   return {
     module: "compendium",
     focus: {
       entryId: params.get("id"),
       query: params.get("q") ?? "",
-      source: params.get("source") ?? "all"
+      source,
+      type: rawType && rawType !== "all" && rawType in TYPE_LABELS ? rawType as EntryType : "all",
+      mode: mode === "source" || (!mode && source !== "all") ? "source" : "type"
     }
   };
 }
@@ -141,6 +153,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     entryId: null,
     query: "",
     source: "all",
+    type: "all",
+    mode: "type",
     token: 0
   });
   const [selectedCharacterSheetId, setSelectedCharacterSheetId] = useState<string | null>(() => parseHash().sheetId ?? null);
@@ -245,6 +259,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             entryId: parsed.focus?.entryId ?? null,
             query: parsed.focus?.query ?? "",
             source: parsed.focus?.source ?? "all",
+            type: parsed.focus?.type ?? "all",
+            mode: parsed.focus?.mode ?? "type",
             token: prev.token + 1
           }));
           return;
@@ -448,9 +464,12 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           {activeModule === "compendium" ? (
             <CompendiumView
               onBackToCharacters={openCharactersModule}
+              ensureAccessToken={ensureAccessToken}
               initialEntryId={compendiumFocus.entryId}
               initialQuery={compendiumFocus.query}
               initialSourceFilter={compendiumFocus.source}
+              initialTypeFilter={compendiumFocus.type}
+              initialBrowseMode={compendiumFocus.mode}
               focusToken={compendiumFocus.token}
             />
           ) : activeModule === "monsters" ? (

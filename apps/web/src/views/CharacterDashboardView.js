@@ -6,7 +6,7 @@ import { CharacterCard } from "../components/CharacterCard";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
-import { findCompendiumCapabilityEntryId, findCompendiumEntryByTypeAndName } from "../models/compendiumEntries";
+import { TYPE_LABELS, findCompendiumCapabilityEntryId, findCompendiumEntryByTypeAndName } from "../models/compendiumEntries";
 import { toCharacterCardViewModel } from "../models/characterModel";
 import { computeDerivedStats } from "../models/rulesEngine";
 import { exportCharacterSheetPdf } from "../services/characterPdfExport";
@@ -60,12 +60,17 @@ function parseHash() {
     }
     const [, search = ""] = rawHash.split("?");
     const params = new URLSearchParams(search);
+    const rawType = params.get("type");
+    const source = params.get("source") ?? "all";
+    const mode = params.get("mode");
     return {
         module: "compendium",
         focus: {
             entryId: params.get("id"),
             query: params.get("q") ?? "",
-            source: params.get("source") ?? "all"
+            source,
+            type: rawType && rawType !== "all" && rawType in TYPE_LABELS ? rawType : "all",
+            mode: mode === "source" || (!mode && source !== "all") ? "source" : "type"
         }
     };
 }
@@ -86,6 +91,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
         entryId: null,
         query: "",
         source: "all",
+        type: "all",
+        mode: "type",
         token: 0
     });
     const [selectedCharacterSheetId, setSelectedCharacterSheetId] = useState(() => parseHash().sheetId ?? null);
@@ -173,6 +180,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
                         entryId: parsed.focus?.entryId ?? null,
                         query: parsed.focus?.query ?? "",
                         source: parsed.focus?.source ?? "all",
+                        type: parsed.focus?.type ?? "all",
+                        mode: parsed.focus?.mode ?? "type",
                         token: prev.token + 1
                     }));
                     return;
@@ -271,7 +280,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
             window.location.hash = "npcs";
         }
     }
-    return (_jsx("main", { ref: dashboardRef, className: "page", children: _jsxs("div", { className: `app-shell${isSidebarOpen ? "" : " is-sidebar-collapsed"}`, children: [_jsx("aside", { id: "app-navigation", className: `app-sidebar${isSidebarOpen ? " is-mobile-open" : " is-collapsed"}`, "aria-label": "Navegaci\u00F3n principal", children: _jsxs("div", { className: "app-sidebar-inner", children: [_jsxs("div", { className: "app-sidebar-head", children: [_jsx("div", { children: _jsx("h1", { children: "UMBRA" }) }), _jsx("button", { ref: sidebarCloseButtonRef, className: "sidebar-toggle", "aria-label": isSidebarOpen ? "Ocultar barra lateral" : "Mostrar barra lateral", onClick: () => isMobileViewport ? closeMobileNavigation() : setIsSidebarOpen((current) => !current), children: isSidebarOpen ? "<" : ">" })] }), _jsxs("nav", { className: "sidebar-nav", children: [canAccessCharacters ? (_jsx("button", { className: activeModule === "characters" ? "active-toggle" : "", onClick: openCharactersModule, children: "Personajes" })) : null, _jsx("button", { className: activeModule === "campaigns" ? "active-toggle" : "", onClick: openCampaignsModule, children: "Campa\u00F1as" }), canAccessNpcs ? (_jsx("button", { className: activeModule === "npcs" ? "active-toggle" : "", onClick: openNpcsModule, children: "PNJ" })) : null, canAccessMonsters ? (_jsx("button", { className: activeModule === "monsters" ? "active-toggle" : "", onClick: openMonstersModule, children: "Monstruos" })) : null, _jsx("button", { className: activeModule === "compendium" ? "active-toggle" : "", onClick: openCompendiumModule, children: "Compendio" })] }), _jsxs("div", { className: "sidebar-session", children: [_jsxs("div", { className: "sidebar-session-meta", children: [_jsx("p", { children: user.email }), _jsx("p", { children: getRoleLabel(user.role) })] }), _jsx("button", { onClick: () => void onLogout(), children: "Salir" })] })] }) }), isMobileViewport && isSidebarOpen ? (_jsx("button", { type: "button", className: "app-drawer-backdrop", "aria-label": "Cerrar navegaci\u00F3n", onClick: () => closeMobileNavigation() })) : null, _jsxs("section", { className: `app-content module-theme module-theme--${activeModule}`, children: [_jsxs("header", { className: "mobile-app-bar", children: [_jsx("button", { ref: mobileMenuButtonRef, type: "button", className: "mobile-app-bar-menu", "aria-label": "Abrir navegaci\u00F3n", "aria-controls": "app-navigation", "aria-expanded": isSidebarOpen, onClick: openMobileNavigation, children: "\u2630" }), _jsx("strong", { children: mobileHeaderTitle }), selectedCharacterSheet && activeModule === "characters" ? (_jsx("button", { type: "button", className: "mobile-app-bar-back", onClick: closeCharacterSheet, children: "Volver" })) : _jsx("span", { "aria-hidden": "true" })] }), !isSidebarOpen ? (_jsx("div", { className: "content-topbar", children: _jsx("button", { className: "sidebar-toggle", "aria-label": "Mostrar barra lateral", onClick: () => setIsSidebarOpen(true), children: ">" }) })) : null, activeModule === "compendium" ? (_jsx(CompendiumView, { onBackToCharacters: openCharactersModule, initialEntryId: compendiumFocus.entryId, initialQuery: compendiumFocus.query, initialSourceFilter: compendiumFocus.source, focusToken: compendiumFocus.token })) : activeModule === "monsters" ? (_jsx(MonsterDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : activeModule === "npcs" ? (_jsx(NpcDashboardView, { ensureAccessToken: ensureAccessToken })) : activeModule === "campaigns" ? (_jsx(CampaignDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : selectedCharacterSheet ? (_jsx("section", { className: "character-actions-page", children: selectedCharacterPageMode === "builder" ? (_jsx(CharacterBuilderView, { character: selectedCharacterSheet, onBackToCharacters: closeCharacterSheet, onOpenSheet: () => openCharacterSheet(selectedCharacterSheet.id), onSave: async (nextSheet) => {
+    return (_jsx("main", { ref: dashboardRef, className: "page", children: _jsxs("div", { className: `app-shell${isSidebarOpen ? "" : " is-sidebar-collapsed"}`, children: [_jsx("aside", { id: "app-navigation", className: `app-sidebar${isSidebarOpen ? " is-mobile-open" : " is-collapsed"}`, "aria-label": "Navegaci\u00F3n principal", children: _jsxs("div", { className: "app-sidebar-inner", children: [_jsxs("div", { className: "app-sidebar-head", children: [_jsx("div", { children: _jsx("h1", { children: "UMBRA" }) }), _jsx("button", { ref: sidebarCloseButtonRef, className: "sidebar-toggle", "aria-label": isSidebarOpen ? "Ocultar barra lateral" : "Mostrar barra lateral", onClick: () => isMobileViewport ? closeMobileNavigation() : setIsSidebarOpen((current) => !current), children: isSidebarOpen ? "<" : ">" })] }), _jsxs("nav", { className: "sidebar-nav", children: [canAccessCharacters ? (_jsx("button", { className: activeModule === "characters" ? "active-toggle" : "", onClick: openCharactersModule, children: "Personajes" })) : null, _jsx("button", { className: activeModule === "campaigns" ? "active-toggle" : "", onClick: openCampaignsModule, children: "Campa\u00F1as" }), canAccessNpcs ? (_jsx("button", { className: activeModule === "npcs" ? "active-toggle" : "", onClick: openNpcsModule, children: "PNJ" })) : null, canAccessMonsters ? (_jsx("button", { className: activeModule === "monsters" ? "active-toggle" : "", onClick: openMonstersModule, children: "Monstruos" })) : null, _jsx("button", { className: activeModule === "compendium" ? "active-toggle" : "", onClick: openCompendiumModule, children: "Compendio" })] }), _jsxs("div", { className: "sidebar-session", children: [_jsxs("div", { className: "sidebar-session-meta", children: [_jsx("p", { children: user.email }), _jsx("p", { children: getRoleLabel(user.role) })] }), _jsx("button", { onClick: () => void onLogout(), children: "Salir" })] })] }) }), isMobileViewport && isSidebarOpen ? (_jsx("button", { type: "button", className: "app-drawer-backdrop", "aria-label": "Cerrar navegaci\u00F3n", onClick: () => closeMobileNavigation() })) : null, _jsxs("section", { className: `app-content module-theme module-theme--${activeModule}`, children: [_jsxs("header", { className: "mobile-app-bar", children: [_jsx("button", { ref: mobileMenuButtonRef, type: "button", className: "mobile-app-bar-menu", "aria-label": "Abrir navegaci\u00F3n", "aria-controls": "app-navigation", "aria-expanded": isSidebarOpen, onClick: openMobileNavigation, children: "\u2630" }), _jsx("strong", { children: mobileHeaderTitle }), selectedCharacterSheet && activeModule === "characters" ? (_jsx("button", { type: "button", className: "mobile-app-bar-back", onClick: closeCharacterSheet, children: "Volver" })) : _jsx("span", { "aria-hidden": "true" })] }), !isSidebarOpen ? (_jsx("div", { className: "content-topbar", children: _jsx("button", { className: "sidebar-toggle", "aria-label": "Mostrar barra lateral", onClick: () => setIsSidebarOpen(true), children: ">" }) })) : null, activeModule === "compendium" ? (_jsx(CompendiumView, { onBackToCharacters: openCharactersModule, ensureAccessToken: ensureAccessToken, initialEntryId: compendiumFocus.entryId, initialQuery: compendiumFocus.query, initialSourceFilter: compendiumFocus.source, initialTypeFilter: compendiumFocus.type, initialBrowseMode: compendiumFocus.mode, focusToken: compendiumFocus.token })) : activeModule === "monsters" ? (_jsx(MonsterDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : activeModule === "npcs" ? (_jsx(NpcDashboardView, { ensureAccessToken: ensureAccessToken })) : activeModule === "campaigns" ? (_jsx(CampaignDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : selectedCharacterSheet ? (_jsx("section", { className: "character-actions-page", children: selectedCharacterPageMode === "builder" ? (_jsx(CharacterBuilderView, { character: selectedCharacterSheet, onBackToCharacters: closeCharacterSheet, onOpenSheet: () => openCharacterSheet(selectedCharacterSheet.id), onSave: async (nextSheet) => {
                                     const token = await ensureAccessToken();
                                     const updated = await updateCharacter(selectedCharacterSheet.id, {
                                         name: nextSheet.identidad.nombrePersonaje.trim() || selectedCharacterSheet.name,

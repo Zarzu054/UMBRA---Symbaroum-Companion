@@ -1902,6 +1902,19 @@ export const createCampaignReferenceSchema = z.object({
   sharedWithUserIds: z.array(z.string().uuid()).max(50).default([])
 });
 
+export const compendiumEntryIdSchema = z.string().trim().min(1).max(200);
+
+export const setCompendiumFavoriteSchema = z.object({
+  favorite: z.boolean()
+}).strict();
+
+export type CompendiumLibraryState = {
+  favoriteEntryIds: string[];
+  recentEntryIds: string[];
+};
+
+export type SetCompendiumFavoriteInput = z.infer<typeof setCompendiumFavoriteSchema>;
+
 export const updateCampaignReferenceSchema = createCampaignReferenceSchema.partial();
 
 export type LoginInput = z.infer<typeof loginSchema>;
