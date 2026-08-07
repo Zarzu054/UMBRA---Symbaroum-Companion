@@ -47,4 +47,41 @@ describe("AppTopNavigation", () => {
     await waitFor(() => expect(menuButton).toHaveFocus());
     expect(menuButton).toHaveAttribute("aria-expanded", "false");
   });
+
+  it("moves appearance into its own compact control on mobile", async () => {
+    vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+      matches: query === "(max-width: 900px)",
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }));
+
+    render(
+      <AppTopNavigation
+        currentTitle="Campañas"
+        userEmail="player@umbra.local"
+        roleLabel="Jugador"
+        onLogout={vi.fn().mockResolvedValue(undefined)}
+        items={[{ id: "campaigns", label: "Campañas", active: true, onSelect: vi.fn() }]}
+      />
+    );
+
+    const appearanceButton = screen.getByRole("button", { name: "Gestionar apariencia" });
+    expect(appearanceButton).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(appearanceButton);
+    expect(screen.getByRole("dialog", { name: "Apariencia" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Tema de la interfaz" })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(appearanceButton).toHaveFocus());
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir navegación" }));
+    const navigationDialog = screen.getByRole("dialog", { name: "Navegación y preferencias" });
+    expect(navigationDialog).toBeInTheDocument();
+    expect(navigationDialog.querySelector('[role="group"][aria-label="Tema de la interfaz"]')).toBeNull();
+  });
 });

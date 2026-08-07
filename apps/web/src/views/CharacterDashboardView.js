@@ -237,7 +237,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
                                     sheet: synchronizeCharacterSheet(nextSheet)
                                 }, token);
                                 controller.upsertCharacterRecord(updated);
-                            } })) : (_jsx(UnifiedCharacterSheet, { title: selectedCharacterSheet.name, subtitle: `${selectedCharacterSheet.culture || "Sin cultura"} · ${selectedCharacterSheet.archetype || "Sin arquetipo"} · ${selectedCharacterSheet.race || "Sin raza"}`, sheet: parseCharacterSheet(selectedCharacterSheet.sheet), editable: true, onBack: closeCharacterSheet, onOpenBuilder: () => openCharacterBuilder(selectedCharacterSheet.id), onOpenCompendiumCapability: openCompendiumCapability, onSave: async (nextSheet) => {
+                            } })) : (_jsx(UnifiedCharacterSheet, { title: selectedCharacterSheet.name, subtitle: `${selectedCharacterSheet.culture || "Sin cultura"} · ${selectedCharacterSheet.archetype || "Sin arquetipo"} · ${selectedCharacterSheet.race || "Sin raza"}`, sheet: parseCharacterSheet(selectedCharacterSheet.sheet), editable: true, backgroundPreferenceScope: user.id, onBack: closeCharacterSheet, onOpenBuilder: () => openCharacterBuilder(selectedCharacterSheet.id), onOpenCompendiumCapability: openCompendiumCapability, onSave: async (nextSheet) => {
                                 const token = await ensureAccessToken();
                                 const updated = await updateCharacter(selectedCharacterSheet.id, {
                                     name: nextSheet.identidad.nombrePersonaje.trim() || selectedCharacterSheet.name,

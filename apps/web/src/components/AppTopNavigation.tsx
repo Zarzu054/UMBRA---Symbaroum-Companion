@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AppIcon } from "./AppIcon";
+import { AppearancePopover } from "./AppearancePopover";
 import { AppearanceSelector } from "./AppearanceSelector";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 
@@ -105,6 +106,7 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
             ))}
           </nav>
         ) : null}
+        {isMobile ? <AppearancePopover compact /> : null}
         <button
           ref={triggerRef}
           type="button"
@@ -145,10 +147,12 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
               ))}
             </nav>
           ) : null}
-          <div className="app-navigation-menu-section">
-            <span className="app-navigation-menu-label">Apariencia</span>
-            <AppearanceSelector />
-          </div>
+          {!isMobile ? (
+            <div className="app-navigation-menu-section">
+              <span className="app-navigation-menu-label">Apariencia</span>
+              <AppearanceSelector />
+            </div>
+          ) : null}
           <button type="button" className="app-logout-button" onClick={() => void onLogout()}>
             Cerrar sesión
           </button>

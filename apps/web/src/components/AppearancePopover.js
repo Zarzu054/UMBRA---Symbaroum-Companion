@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { AppIcon } from "./AppIcon";
 import { AppearanceSelector } from "./AppearanceSelector";
 const FOCUSABLE_SELECTOR = "button:not([disabled]), [href], [tabindex]:not([tabindex='-1'])";
-export function AppearancePopover() {
+export function AppearancePopover({ compact = false }) {
     const [isOpen, setIsOpen] = useState(false);
     const triggerRef = useRef(null);
     const panelRef = useRef(null);
@@ -50,5 +50,5 @@ export function AppearancePopover() {
             window.removeEventListener("pointerdown", handlePointerDown);
         };
     }, [isOpen]);
-    return (_jsxs("div", { className: "appearance-popover", children: [_jsxs("button", { ref: triggerRef, type: "button", className: "subtle-button appearance-popover-trigger", "aria-haspopup": "dialog", "aria-expanded": isOpen, onClick: () => setIsOpen((current) => !current), children: [_jsx(AppIcon, { name: "palette" }), _jsx("span", { children: "Apariencia" })] }), isOpen ? (_jsxs("div", { ref: panelRef, className: "appearance-popover-panel", role: "dialog", "aria-label": "Apariencia", children: [_jsxs("header", { children: [_jsxs("div", { children: [_jsx("strong", { children: "Apariencia" }), _jsx("span", { children: "Atm\u00F3sfera y luminosidad" })] }), _jsx("button", { type: "button", className: "icon-button", "aria-label": "Cerrar apariencia", onClick: closeAndRestoreFocus, children: _jsx(AppIcon, { name: "close" }) })] }), _jsx(AppearanceSelector, {})] })) : null] }));
+    return (_jsxs("div", { className: "appearance-popover", children: [_jsxs("button", { ref: triggerRef, type: "button", className: `subtle-button appearance-popover-trigger${compact ? " is-compact" : ""}`, "aria-label": compact ? "Gestionar apariencia" : undefined, title: compact ? "Apariencia" : undefined, "aria-haspopup": "dialog", "aria-expanded": isOpen, onClick: () => setIsOpen((current) => !current), children: [_jsx(AppIcon, { name: "palette" }), _jsx("span", { children: "Apariencia" })] }), isOpen ? (_jsxs("div", { ref: panelRef, className: "appearance-popover-panel", role: "dialog", "aria-label": "Apariencia", children: [_jsxs("header", { children: [_jsxs("div", { children: [_jsx("strong", { children: "Apariencia" }), _jsx("span", { children: "Atm\u00F3sfera y luminosidad" })] }), _jsx("button", { type: "button", className: "icon-button", "aria-label": "Cerrar apariencia", onClick: closeAndRestoreFocus, children: _jsx(AppIcon, { name: "close" }) })] }), _jsx(AppearanceSelector, {})] })) : null] }));
 }

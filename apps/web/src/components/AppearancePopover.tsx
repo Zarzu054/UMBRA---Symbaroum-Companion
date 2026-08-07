@@ -4,7 +4,11 @@ import { AppearanceSelector } from "./AppearanceSelector";
 
 const FOCUSABLE_SELECTOR = "button:not([disabled]), [href], [tabindex]:not([tabindex='-1'])";
 
-export function AppearancePopover() {
+type Props = {
+  compact?: boolean;
+};
+
+export function AppearancePopover({ compact = false }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -57,7 +61,9 @@ export function AppearancePopover() {
       <button
         ref={triggerRef}
         type="button"
-        className="subtle-button appearance-popover-trigger"
+        className={`subtle-button appearance-popover-trigger${compact ? " is-compact" : ""}`}
+        aria-label={compact ? "Gestionar apariencia" : undefined}
+        title={compact ? "Apariencia" : undefined}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((current) => !current)}

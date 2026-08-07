@@ -26,6 +26,7 @@ import { getCharacterExperienceSummary } from "../models/characterExperience";
 import { ARMOR_QUALITY_OPTIONS, ITEM_QUALITY_OPTIONS, createCustomInventoryItem, createInventoryItemFromTemplate, ITEM_CATALOG, type ItemTemplate } from "../models/itemCatalog";
 import { ALL_ENTRIES, findCompendiumEntryByTypeAndName, getCompendiumSourcePdfUrl, getCompendiumSummaryLink } from "../models/compendiumEntries";
 import { useUnifiedCharacterSheet } from "../hooks/useUnifiedCharacterSheet";
+import { CharacterSheetBackgroundPicker } from "./CharacterSheetBackgroundPicker";
 import {
   dispatchRoll20Request,
   setRollDestination as persistRollDestination,
@@ -50,6 +51,7 @@ type Props = {
   onSave?: (sheet: CharacterSheet) => Promise<void>;
   onBack?: () => void;
   onOpenBuilder?: () => void;
+  backgroundPreferenceScope?: string;
   onOpenCompendiumCapability?: (tipo: "habilidad" | "poder_mistico" | "ritual" | "bendicion" | "carga", nombre: string) => void;
 };
 
@@ -950,6 +952,7 @@ export function UnifiedCharacterSheet({
   onSave,
   onBack,
   onOpenBuilder,
+  backgroundPreferenceScope,
   onOpenCompendiumCapability
 }: Props) {
   const { draft, editMode, isDirty, isSavingLocal, setDraft, setEditMode, updateField, save } = useUnifiedCharacterSheet({
@@ -2896,11 +2899,16 @@ export function UnifiedCharacterSheet({
               <h2 className="unified-sheet-title">{displayName}</h2>
               {subtitle ? <span className="unified-sheet-inline-subtitle">{subtitle}</span> : null}
             </div>
-            {editable && onOpenBuilder ? (
-              <button type="button" className="unified-sheet-builder-launch" onClick={onOpenBuilder}>
-                <span aria-hidden="true">⚒</span>
-                <span>Constructor</span>
-              </button>
+            {backgroundPreferenceScope || (editable && onOpenBuilder) ? (
+              <div className="unified-sheet-header-actions">
+                {backgroundPreferenceScope ? <CharacterSheetBackgroundPicker preferenceScope={backgroundPreferenceScope} /> : null}
+                {editable && onOpenBuilder ? (
+                  <button type="button" className="unified-sheet-builder-launch" onClick={onOpenBuilder}>
+                    <span aria-hidden="true">⚒</span>
+                    <span>Constructor</span>
+                  </button>
+                ) : null}
+              </div>
             ) : null}
             <div className="unified-sheet-xp-card">
               <div className="unified-sheet-xp-row">

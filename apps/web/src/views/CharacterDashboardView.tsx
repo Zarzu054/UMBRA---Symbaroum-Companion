@@ -374,6 +374,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   subtitle={`${selectedCharacterSheet.culture || "Sin cultura"} · ${selectedCharacterSheet.archetype || "Sin arquetipo"} · ${selectedCharacterSheet.race || "Sin raza"}`}
                   sheet={parseCharacterSheet(selectedCharacterSheet.sheet)}
                   editable
+                  backgroundPreferenceScope={user.id}
                   onBack={closeCharacterSheet}
                   onOpenBuilder={() => openCharacterBuilder(selectedCharacterSheet.id)}
                   onOpenCompendiumCapability={openCompendiumCapability}

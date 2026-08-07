@@ -24,6 +24,13 @@ function contrast(foreground: string, background: string): number {
   return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
 }
 
+function composite(foreground: string, background: string, opacity: number): string {
+  const front = parseHex(foreground);
+  const back = parseHex(background);
+  const mixed = front.map((channel, index) => Math.round(channel * opacity + back[index]! * (1 - opacity)));
+  return `#${mixed.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+}
+
 describe("palette contrast", () => {
   const stylesheet = readFileSync(resolve(process.cwd(), "src/styles/modern.css"), "utf8");
 
@@ -42,10 +49,16 @@ describe("palette contrast", () => {
         expect(contrast(token("--ui-text"), token("--ui-surface"))).toBeGreaterThanOrEqual(4.5);
         expect(contrast(token("--ui-text"), token("--ui-canvas"))).toBeGreaterThanOrEqual(4.5);
         expect(contrast(token("--ui-text-muted"), token("--ui-surface"))).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(token("--ui-text-muted"), token("--ui-surface-muted"))).toBeGreaterThanOrEqual(4.5);
         expect(contrast(token("--ui-on-brand"), token("--ui-brand"))).toBeGreaterThanOrEqual(4.5);
         expect(contrast(token("--ui-on-brand-strong"), token("--ui-brand-strong"))).toBeGreaterThanOrEqual(4.5);
         expect(contrast(token("--ui-brand-strong"), token("--ui-brand-soft"))).toBeGreaterThanOrEqual(4.5);
         expect(contrast(token("--ui-focus"), token("--ui-surface"))).toBeGreaterThanOrEqual(3);
+
+        const illustratedPanel = theme === "light"
+          ? composite(token("--ui-surface"), "#000000", 0.93)
+          : composite(token("--ui-surface"), "#ffffff", 0.9);
+        expect(contrast(token("--ui-text"), illustratedPanel)).toBeGreaterThanOrEqual(4.5);
       });
     }
   }
