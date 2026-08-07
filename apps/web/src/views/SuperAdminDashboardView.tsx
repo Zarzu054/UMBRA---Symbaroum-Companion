@@ -10,6 +10,7 @@ import type {
 } from "@umbra/shared";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { useSuperAdminController } from "../controllers/superadminController";
+import { AppTopNavigation } from "../components/AppTopNavigation";
 
 type Props = {
   user: AuthUser;
@@ -189,6 +190,13 @@ export function SuperAdminDashboardView({ user, ensureAccessToken, onLogout }: P
 
   return (
     <main className="page admin-page">
+      <AppTopNavigation
+        items={[]}
+        currentTitle="Administración"
+        userEmail={user.email}
+        roleLabel="Superadministrador"
+        onLogout={onLogout}
+      />
       <header className="admin-hero">
         <div>
           <span className="admin-eyebrow">UMBRA · Administración</span>

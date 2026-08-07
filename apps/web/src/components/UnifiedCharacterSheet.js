@@ -333,6 +333,14 @@ function formatActionDisplayLabel(label) {
         .replace(/\s+\((Novato|Adepto|Maestro)\)\s*$/i, "")
         .trim();
 }
+function removeRepeatedWeaponDescription(effectSummary, description) {
+    const normalizedSummary = effectSummary.trim();
+    const normalizedDescription = description.trim();
+    if (!normalizedDescription || !normalizedSummary.startsWith(normalizedDescription)) {
+        return normalizedSummary;
+    }
+    return normalizedSummary.slice(normalizedDescription.length).trim();
+}
 function getActionRollLabel(action) {
     if (action.sourceType === "weapon") {
         return "Ataque";
@@ -878,7 +886,9 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
     function openActionDetail(action) {
         if (action.sourceType === "weapon") {
             const item = normalizedSheet.inventoryItems.find((entry) => entry.name === action.sourceName || entry.id === action.id.replace(/^weapon:/, ""));
-            const detail = [item?.description, item?.qualities, item?.notes, action.effectSummary].filter(Boolean).join("\n\n").trim() || "Sin descripcion adicional.";
+            const itemDescription = item?.description ?? "";
+            const actionDetail = removeRepeatedWeaponDescription(action.effectSummary, itemDescription);
+            const detail = [itemDescription, item?.qualities, item?.notes, actionDetail].filter(Boolean).join("\n\n").trim() || "Sin descripcion adicional.";
             setActionDetailModal({
                 title: formatActionDisplayLabel(action.label),
                 sourceLabel: getActionSourceLabel(action),
