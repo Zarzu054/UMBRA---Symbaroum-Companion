@@ -2886,8 +2886,8 @@ export function UnifiedCharacterSheet({
           </button>
         ))}
       </nav>
-      <section className="unified-sheet-persistent campaign-sheet-card">
-        <div className="unified-sheet-header-band">
+      <div className="unified-sheet-top-grid">
+        <section className="unified-sheet-module unified-sheet-identity-module campaign-sheet-card" aria-label="Identidad del personaje">
           <div className="unified-sheet-hero-main">
             <div className="unified-sheet-portrait">
               <div className="unified-sheet-portrait-ring" />
@@ -2910,23 +2910,29 @@ export function UnifiedCharacterSheet({
                 ) : null}
               </div>
             ) : null}
-            <div className="unified-sheet-xp-card">
-              <div className="unified-sheet-xp-row">
-                <span>PX total</span>
-                <strong>{normalizedSheet.progreso.experienciaTotal}</strong>
-              </div>
-              <div className="unified-sheet-xp-row is-static">
-                <span>PX gastada</span>
-                <strong>{displayedSpentExperience}</strong>
-              </div>
-              <div className="unified-sheet-xp-row is-static">
-                <span>PX disponible</span>
-                <strong>{experience.effectiveAvailable}</strong>
-              </div>
-            </div>
           </div>
 
-          <section className="unified-sheet-header-stats">
+        </section>
+        <section className="unified-sheet-module unified-sheet-experience-module unified-sheet-xp-card campaign-sheet-card" aria-labelledby="unified-sheet-experience-title">
+          <h2 id="unified-sheet-experience-title" className="unified-sheet-module-title">Experiencia</h2>
+          <div className="unified-sheet-xp-row">
+            <span>PX total</span>
+            <strong>{normalizedSheet.progreso.experienciaTotal}</strong>
+          </div>
+          <div className="unified-sheet-xp-row is-static">
+            <span>PX gastada</span>
+            <strong>{displayedSpentExperience}</strong>
+          </div>
+          <div className="unified-sheet-xp-row is-static">
+            <span>PX disponible</span>
+            <strong>{experience.effectiveAvailable}</strong>
+          </div>
+        </section>
+      </div>
+
+      <section className="unified-sheet-module unified-sheet-resources-module campaign-sheet-card" aria-labelledby="unified-sheet-resources-title">
+        <h2 id="unified-sheet-resources-title" className="unified-sheet-module-title">Recursos</h2>
+        <div className="unified-sheet-header-stats">
             <div className="unified-sheet-vital-card is-health">
               <div className="unified-sheet-vital-header">
                 <span>Robustez</span>
@@ -2968,12 +2974,13 @@ export function UnifiedCharacterSheet({
                 </div>
               ) : null}
             </div>
-          </section>
         </div>
+      </section>
 
-        <div className="unified-sheet-body-grid">
-          {renderTabStage("unified-sheet-stage unified-sheet-dynamic-column campaign-sheet-card")}
-          <section className="unified-sheet-static-column">
+      <div className="unified-sheet-workspace">
+          <aside className="unified-sheet-summary-column" aria-label="Resumen del personaje">
+            <section className="unified-sheet-module unified-sheet-attributes-module campaign-sheet-card" aria-labelledby="unified-sheet-attributes-title">
+              <h2 id="unified-sheet-attributes-title" className="unified-sheet-module-title">Atributos</h2>
             <div className="unified-sheet-attribute-rail">
               {ATTRIBUTE_KEYS.map((key) => (
                 <div key={key} className="unified-sheet-attribute-chip">
@@ -2983,7 +2990,10 @@ export function UnifiedCharacterSheet({
                 </div>
               ))}
             </div>
+            </section>
             <div className="unified-sheet-static-summary">
+              <section className="unified-sheet-module unified-sheet-combat-module campaign-sheet-card" aria-labelledby="unified-sheet-combat-title">
+                <h2 id="unified-sheet-combat-title" className="unified-sheet-module-title">Combate</h2>
               <div className="unified-sheet-quick-row is-primary">
                 <article className="unified-sheet-quick-card is-defense-card">
                   <div className="row-actions">
@@ -3011,7 +3021,10 @@ export function UnifiedCharacterSheet({
                   )}
                 </article>
               </div>
+              </section>
 
+              <section className="unified-sheet-module unified-sheet-derived-module campaign-sheet-card" aria-labelledby="unified-sheet-derived-title">
+                <h2 id="unified-sheet-derived-title" className="unified-sheet-module-title">Valores derivados</h2>
               <div className="unified-sheet-quick-row is-derived">
                 <article className="unified-sheet-quick-card is-derived-card">
                   <h3>Iniciativa</h3>
@@ -3028,10 +3041,12 @@ export function UnifiedCharacterSheet({
                   <strong>{derived.umbralDolorTotal}</strong>
                 </article>
               </div>
+              </section>
 
+              <section className="unified-sheet-module unified-sheet-conditions-module campaign-sheet-card" aria-labelledby="unified-sheet-conditions-title">
+                <h2 id="unified-sheet-conditions-title" className="unified-sheet-module-title">Condiciones</h2>
               <div className="unified-sheet-quick-row is-conditions">
                 <article className="unified-sheet-quick-card is-wide">
-                  <h3>Condiciones</h3>
                   <div className="unified-sheet-quick-tags">
                     {normalizedSheet.conditions.length > 0 ? normalizedSheet.conditions.slice(0, 4).map((condition) => (
                       <span key={condition.id} className={`unified-sheet-tag is-${condition.category}`}>{condition.name || "Condicion"}</span>
@@ -3039,330 +3054,13 @@ export function UnifiedCharacterSheet({
                   </div>
                 </article>
               </div>
+              </section>
 
             </div>
-          </section>
-        </div>
-      </section>
+          </aside>
+          {renderTabStage("unified-sheet-module unified-sheet-reader unified-sheet-stage unified-sheet-dynamic-column campaign-sheet-card")}
+      </div>
 
-      {activeTab === "actions" ? (
-        <section className="unified-sheet-panel">
-          <article className="campaign-sheet-card">
-            <div className="row-actions">
-              <h3>Acciones disponibles</h3>
-            </div>
-            <nav className="unified-sheet-subtabs unified-sheet-action-subtabs" aria-label="Filtros de acciones">
-              {([
-                ["all", "Todas"],
-                ["favorites", "Favoritas"],
-                ["attacks", "Ataques"],
-                ["powers", "Poderes y rituales"],
-                ["special", "Acciones especiales"],
-                ["actions", "Acciones"],
-                ["free", "Acciones gratuitas"],
-                ["reactions", "Reacciones"],
-                ["other", "Otras"]
-              ] as Array<[ActionTabId, string]>).map(([tab, label]) => (
-                <button key={tab} type="button" className={activeActionTab === tab ? "is-active" : ""} onClick={() => setActiveActionTab(tab)}>
-                  {label}
-                </button>
-              ))}
-            </nav>
-            <div className="campaign-sheet-actions">
-              {activeActionTab === "special" ? (
-                <>
-                  {specialActionEntries.map((entry) => (
-                    <div key={entry.id} className="campaign-action-button campaign-action-button--row">
-                      <div className="campaign-action-title-row">
-                        <strong>{entry.nombre}</strong>
-                      </div>
-                      <div className="campaign-action-slot">
-                        <span className="compendium-chip">Regla</span>
-                      </div>
-                      <div className="campaign-action-slot is-damage">
-                        <span aria-hidden="true" className="campaign-action-slot-placeholder" />
-                      </div>
-                      <div className="campaign-action-slot">
-                        <button type="button" className="subtle-button" onClick={() => openRuleCompendiumDetail(entry)}>Detalle</button>
-                      </div>
-                    </div>
-                  ))}
-                  {specialActionEntries.length === 0 ? <p className="section-help">Sin acciones especiales registradas.</p> : null}
-                </>
-              ) : (
-                <>
-              {filteredActions.map((action) => (
-                <div key={action.id} className="campaign-action-button campaign-action-button--row">
-                  <div className="campaign-action-title-row">
-                    <button
-                      type="button"
-                      className={`campaign-action-favorite-toggle${favoriteActionIds.has(action.id) ? " is-active" : ""}`}
-                      disabled={!editable}
-                      onClick={() => toggleFavoriteAction(action.id)}
-                      aria-label={favoriteActionIds.has(action.id) ? "Quitar de favoritas" : "Guardar en favoritas"}
-                      title={favoriteActionIds.has(action.id) ? "Quitar de favoritas" : "Guardar en favoritas"}
-                    >
-                      ★
-                    </button>
-                    <strong>{formatActionDisplayLabel(action.label)}</strong>
-                  </div>
-                      {renderActionRollControls(action, editable)}
-                      <div className="campaign-action-slot">
-                        <button type="button" className="subtle-button" onClick={() => openActionDetail(action)}>Detalle</button>
-                      </div>
-                    </div>
-                  ))}
-              {filteredActions.length === 0 ? <p className="section-help">Sin acciones registradas en esta categoria.</p> : null}
-                </>
-              )}
-            </div>
-          </article>
-        </section>
-      ) : null}
-
-      {activeTab === "inventory" ? (
-        <section className="unified-sheet-panel">
-          <article className="campaign-sheet-card">
-            <div className="row-actions">
-              <h3>Inventario y equipo</h3>
-              {editMode ? (
-                <div className="toolbar">
-                  <button type="button" className="subtle-button" onClick={addCustomWeapon}>Arma personalizada</button>
-                  <button type="button" onClick={addInventoryItem}>Agregar objeto</button>
-                </div>
-              ) : null}
-            </div>
-            <div className="form-grid">
-              <Field label="Dinero"><input disabled={!editMode} value={normalizedSheet.recursos.dinero} onChange={(event) => updateField("recursos.dinero", event.target.value)} /></Field>
-              <Field label="Otros recursos"><input disabled={!editMode} value={normalizedSheet.recursos.otros} onChange={(event) => updateField("recursos.otros", event.target.value)} /></Field>
-            </div>
-            <div className="unified-sheet-list">
-              {normalizedSheet.inventoryItems.map((item, index) => (
-                <article key={item.id} className="campaign-structured-card">
-                  <div className="form-grid">
-                    <Field label="Nombre"><input disabled={!editMode} value={item.name} onChange={(event) => updateInventoryItem(index, "name", event.target.value)} /></Field>
-                    <Field label="Categoria">
-                      <select disabled={!editMode} value={item.category} onChange={(event) => updateInventoryItem(index, "category", event.target.value)}>
-                        <option value="weapon">Arma</option>
-                        <option value="armor">Armadura</option>
-                        <option value="gear">Equipo</option>
-                        <option value="consumable">Consumible</option>
-                        <option value="artifact">Artefacto</option>
-                        <option value="treasure">Tesoro</option>
-                        <option value="other">Otro</option>
-                      </select>
-                    </Field>
-                    <Field label="Cantidad">
-                      {isStackableInventoryItem(item) ? (
-                        <div className="unified-sheet-inline-quantity-editor">
-                          <button type="button" className="subtle-button" disabled={!editMode} onClick={() => changeInventoryQuantity(index, -1)}>-</button>
-                          <input disabled={!editMode} type="number" min={0} value={item.quantity} onChange={(event) => updateInventoryItem(index, "quantity", Number(event.target.value || 0))} />
-                          <button type="button" className="subtle-button" disabled={!editMode} onClick={() => changeInventoryQuantity(index, 1)}>+</button>
-                        </div>
-                      ) : (
-                        <input disabled={!editMode} type="number" min={0} value={item.quantity} onChange={(event) => updateInventoryItem(index, "quantity", Number(event.target.value || 0))} />
-                      )}
-                    </Field>
-                    <Field label="Equipada">
-                      <select disabled={!editMode} value={item.equipped ? "si" : "no"} onChange={(event) => updateInventoryItem(index, "equipped", event.target.value === "si")}>
-                        <option value="si">Si</option>
-                        <option value="no">No</option>
-                      </select>
-                    </Field>
-                    <Field label="Ranura">
-                      <select disabled={!editMode} value={item.slot} onChange={(event) => updateInventoryItem(index, "slot", event.target.value)}>
-                        <option value="none">Ninguna</option>
-                        <option value="mainHand">Mano principal</option>
-                        <option value="offHand">Mano secundaria</option>
-                        <option value="ranged">A distancia</option>
-                        <option value="armor">Armadura</option>
-                        <option value="artifact">Artefacto</option>
-                        <option value="worn">Vestido</option>
-                      </select>
-                    </Field>
-                    <Field label="Danio / proteccion"><input disabled={!editMode} value={item.category === "armor" ? item.protectionFormula : item.damageFormula} onChange={(event) => updateInventoryItem(index, item.category === "armor" ? "protectionFormula" : "damageFormula", event.target.value)} /></Field>
-                    {item.category === "weapon" ? (
-                      <Field label="Cualidades"><input disabled={!editMode} value={item.qualities} onChange={(event) => updateInventoryItem(index, "qualities", event.target.value)} /></Field>
-                    ) : null}
-                  </div>
-                  <textarea disabled={!editMode} rows={2} value={item.description} onChange={(event) => updateInventoryItem(index, "description", event.target.value)} />
-                  {editMode ? <button type="button" className="subtle-button" onClick={() => removeInventoryItem(index)}>Quitar</button> : null}
-                </article>
-              ))}
-            </div>
-          </article>
-
-          <article className="campaign-sheet-card">
-            <h3>Ranuras equipadas</h3>
-            <div className="form-grid">
-              {(["mainHand", "offHand", "ranged", "armor", "artifact", "worn"] as const).map((slot) => (
-                <Field key={slot} label={slotLabel(slot)}>
-                  <select disabled={!editMode} value={normalizedSheet.equipmentSlots[slot]} onChange={(event) => updateField(`equipmentSlots.${slot}`, event.target.value)}>
-                    <option value="">Sin asignar</option>
-                    {normalizedSheet.inventoryItems.map((item) => (
-                      <option key={`${slot}-${item.id}`} value={item.id}>{item.name || item.id}</option>
-                    ))}
-                  </select>
-                </Field>
-              ))}
-            </div>
-          </article>
-        </section>
-      ) : null}
-
-      {activeTab === "abilities" ? (
-        <section className="unified-sheet-panel">
-          <article className="campaign-sheet-card">
-            <nav className="unified-sheet-subtabs" aria-label="Tipos de capacidades">
-              {([
-                ["traits", "Rasgos"],
-                ["blessings", "Bendiciones"],
-                ["burdens", "Cargas"],
-                ["abilities", "Habilidades"],
-                ["powers", "Poderes"],
-                ["rituals", "Rituales"]
-              ] as Array<[CapabilityTabId, string]>).map(([tab, label]) => (
-                <button key={tab} type="button" className={activeCapabilityTab === tab ? "is-active" : ""} onClick={() => setActiveCapabilityTab(tab)}>
-                  {label}
-                </button>
-              ))}
-            </nav>
-
-            {activeCapabilityTab === "traits" ? (
-              <SimpleStringListEditor
-                title="Rasgos"
-                entries={normalizedSheet.rasgos}
-                categoryKey="rasgo"
-                editable={editMode}
-                rows={6}
-                helpText="Rasgos de personaje como Contactos se guardan aqui y se exportan/importan como tipo Rasgo."
-                onChange={(value) => updateSimpleSheetList("rasgos", value)}
-                onAdd={() => addSimpleSheetEntry("rasgos")}
-                onRemove={(index) => removeSimpleSheetEntry("rasgos", index)}
-              />
-            ) : null}
-
-            {activeCapabilityTab === "blessings" ? (
-              <SimpleStringListEditor
-                title="Bendiciones"
-                entries={normalizedSheet.bendiciones}
-                categoryKey="bendicion"
-                editable={editMode}
-                rows={6}
-                helpText="Cada bendicion cuenta como 5 PX gastados."
-                onChange={(value) => updateSimpleSheetList("bendiciones", value)}
-                onAdd={() => addSimpleSheetEntry("bendiciones")}
-                onRemove={(index) => removeSimpleSheetEntry("bendiciones", index)}
-              />
-            ) : null}
-
-            {activeCapabilityTab === "burdens" ? (
-              <SimpleStringListEditor
-                title="Cargas"
-                entries={normalizedSheet.cargas}
-                categoryKey="carga"
-                editable={editMode}
-                rows={6}
-                helpText="Cada carga aporta 5 PX extra disponibles."
-                onChange={(value) => updateSimpleSheetList("cargas", value)}
-                onAdd={() => addSimpleSheetEntry("cargas")}
-                onRemove={(index) => removeSimpleSheetEntry("cargas", index)}
-              />
-            ) : null}
-          </article>
-          {activeCapabilityTab === "abilities" ? (
-            <CapabilityEditor title="Habilidades" categoryKey="habilidad" entries={normalizedSheet.habilidades} editable={editMode} onAdd={() => addRatedEntry("habilidades")} onRemove={(index) => removeRatedEntry("habilidades", index)} onUpdate={(index, field, value) => updateRatedEntry("habilidades", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("habilidad", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("habilidad", name) : undefined} />
-          ) : null}
-          {activeCapabilityTab === "powers" ? (
-            <CapabilityEditor title="Poderes misticos" categoryKey="poder_mistico" entries={normalizedSheet.poderesMisticos} editable={editMode} onAdd={() => addRatedEntry("poderesMisticos")} onRemove={(index) => removeRatedEntry("poderesMisticos", index)} onUpdate={(index, field, value) => updateRatedEntry("poderesMisticos", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("poder_mistico", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("poder_mistico", name) : undefined} />
-          ) : null}
-          {activeCapabilityTab === "rituals" ? (
-            <CapabilityEditor title="Rituales" categoryKey="ritual" entries={normalizedSheet.rituales} editable={editMode} onAdd={() => addRatedEntry("rituales")} onRemove={(index) => removeRatedEntry("rituales", index)} onUpdate={(index, field, value) => updateRatedEntry("rituales", index, field, value)} onOpenDetail={(entry) => openCapabilityDetail("ritual", entry)} onOpenCompendium={onOpenCompendiumCapability ? (name) => onOpenCompendiumCapability("ritual", name) : undefined} />
-          ) : null}
-        </section>
-      ) : null}
-
-      {activeTab === "background" ? (
-        <section className="unified-sheet-panel">
-          <article className="campaign-sheet-card">
-            <h3>Trasfondo</h3>
-            <div className="form-grid">
-              <Field label="Sombra"><input disabled={!editMode} value={normalizedSheet.identidad.sombra} onChange={(event) => updateField("identidad.sombra", event.target.value)} /></Field>
-              <Field label="Cita"><input disabled={!editMode} value={normalizedSheet.identidad.cita} onChange={(event) => updateField("identidad.cita", event.target.value)} /></Field>
-              <Field label="Edad"><input disabled={!editMode} value={normalizedSheet.identidad.edad} onChange={(event) => updateField("identidad.edad", event.target.value)} /></Field>
-              <Field label="Altura"><input disabled={!editMode} value={normalizedSheet.identidad.altura} onChange={(event) => updateField("identidad.altura", event.target.value)} /></Field>
-              <Field label="Peso"><input disabled={!editMode} value={normalizedSheet.identidad.peso} onChange={(event) => updateField("identidad.peso", event.target.value)} /></Field>
-            </div>
-            <Field label="Apariencia"><textarea disabled={!editMode} rows={2} value={normalizedSheet.identidad.apariencia} onChange={(event) => updateField("identidad.apariencia", event.target.value)} /></Field>
-            <Field label="Objetivo personal"><textarea disabled={!editMode} rows={2} value={normalizedSheet.identidad.objetivoPersonal} onChange={(event) => updateField("identidad.objetivoPersonal", event.target.value)} /></Field>
-            <Field label="Historia"><textarea disabled={!editMode} rows={8} value={normalizedSheet.noteSections.background} onChange={(event) => updateField("noteSections.background", event.target.value)} /></Field>
-          </article>
-        </section>
-      ) : null}
-
-      {activeTab === "notes" ? (
-        <section className="unified-sheet-panel">
-          <article className="campaign-sheet-card">
-            <div className="row-actions">
-              <div>
-                <h3>Notas personales</h3>
-                <p className="section-help">Entradas ordenadas en Markdown para diario, pistas, recuerdos y apuntes de campaña del personaje.</p>
-              </div>
-              {canEditNotes ? (
-                <button type="button" onClick={() => {
-                  setPersonalNoteError(null);
-                  setPersonalNoteEditor({ mode: "create", note: buildPersonalNoteDraft() });
-                }}>
-                  Nueva nota
-                </button>
-              ) : null}
-            </div>
-            <div className="unified-sheet-list">
-              {personalNotes.map((entry) => (
-                <article key={entry.id} className="campaign-structured-card">
-                  <div className="row-actions">
-                    <div>
-                      <strong>{entry.title}</strong>
-                      <p className="section-help">{summarizeCharacterNote(entry.content)}</p>
-                    </div>
-                    <button type="button" className="subtle-button" onClick={() => {
-                      setPersonalNoteError(null);
-                      setSelectedPersonalNoteId(entry.id);
-                    }}>
-                      Ver nota
-                    </button>
-                  </div>
-                </article>
-              ))}
-              {personalNotes.length === 0 ? <p className="section-help">Sin notas personales registradas.</p> : null}
-            </div>
-          </article>
-
-          <article className="campaign-sheet-card">
-            <h3>Contexto</h3>
-            <div className="form-grid">
-              <Field label="Grupo"><input disabled={!editMode} value={normalizedSheet.grupo.nombre} onChange={(event) => updateField("grupo.nombre", event.target.value)} /></Field>
-              <Field label="Objetivo del grupo"><textarea disabled={!editMode} rows={2} value={normalizedSheet.grupo.objetivo} onChange={(event) => updateField("grupo.objetivo", event.target.value)} /></Field>
-            </div>
-          </article>
-
-          <article className="campaign-sheet-card">
-            <h3>Contactos</h3>
-            <div className="unified-sheet-list">
-              {normalizedSheet.contactosHoja.map((contacto, index) => (
-                <article key={`contacto-${index}`} className="campaign-structured-card">
-                  <div className="form-grid">
-                    <Field label="Nombre"><input disabled={!editMode} value={contacto.nombre} onChange={(event) => updateField(`contactosHoja.${index}.nombre`, event.target.value)} /></Field>
-                    <Field label="Raza"><input disabled={!editMode} value={contacto.raza} onChange={(event) => updateField(`contactosHoja.${index}.raza`, event.target.value)} /></Field>
-                    <Field label="Ocupacion"><input disabled={!editMode} value={contacto.ocupacion} onChange={(event) => updateField(`contactosHoja.${index}.ocupacion`, event.target.value)} /></Field>
-                    <Field label="Jugador"><input disabled={!editMode} value={contacto.jugador} onChange={(event) => updateField(`contactosHoja.${index}.jugador`, event.target.value)} /></Field>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </article>
-        </section>
-      ) : null}
       {selectedPersonalNote ? (
         <div className="modal-backdrop" onClick={() => setSelectedPersonalNoteId(null)}>
           <div className="panel modal-panel character-roll-confirm-modal unified-sheet-action-detail-modal" onClick={(event) => event.stopPropagation()}>

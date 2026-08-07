@@ -1,10 +1,12 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createEmptyCharacterSheet } from "@umbra/shared";
 import { UnifiedCharacterSheet } from "./UnifiedCharacterSheet";
 
 describe("UnifiedCharacterSheet mobile navigation", () => {
+  beforeEach(() => window.localStorage.clear());
+
   afterEach(cleanup);
 
   it("starts on Atributos and switches to the action list with visible roll formulas", () => {
@@ -37,6 +39,55 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(within(mobileTabs).getByRole("button", { name: "Acciones" })).toHaveAttribute("aria-current", "page");
     expect(screen.getAllByText("1d20 ≤ Diestro 13").length).toBeGreaterThan(0);
     expect(screen.getAllByText("1d8+1").length).toBeGreaterThan(0);
+  });
+
+  it("renders eight separated modules and a single canonical reader", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.identidad.nombrePersonaje = "Arold";
+
+    const { container } = render(
+      <UnifiedCharacterSheet
+        title="Arold"
+        subtitle="Guerrero"
+        sheet={sheet}
+        editable={false}
+      />
+    );
+
+    expect(container.querySelectorAll(".unified-sheet-module")).toHaveLength(8);
+    expect(container.querySelectorAll(".unified-sheet-reader")).toHaveLength(1);
+    expect(container.querySelectorAll(".unified-sheet > .unified-sheet-panel")).toHaveLength(0);
+    expect(screen.getByRole("region", { name: "Identidad del personaje" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Experiencia" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Recursos" })).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Resumen del personaje" })).toBeInTheDocument();
+  });
+
+  it("keeps every desktop section inside the canonical reader", () => {
+    const sheet = createEmptyCharacterSheet();
+    const { container } = render(
+      <UnifiedCharacterSheet
+        title="Arold"
+        subtitle="Guerrero"
+        sheet={sheet}
+        editable={false}
+      />
+    );
+
+    const reader = container.querySelector(".unified-sheet-reader") as HTMLElement;
+    const readerNavigation = reader.querySelector(".unified-sheet-tabs") as HTMLElement;
+
+    fireEvent.click(within(readerNavigation).getByRole("button", { name: "Inventario" }));
+    expect(within(reader).getByRole("heading", { name: "Inventario y equipo" })).toBeInTheDocument();
+
+    fireEvent.click(within(readerNavigation).getByRole("button", { name: "Capacidades" }));
+    expect(within(reader).getByRole("navigation", { name: "Tipos de capacidades" })).toBeInTheDocument();
+
+    fireEvent.click(within(readerNavigation).getByRole("button", { name: "Trasfondo" }));
+    expect(within(reader).getByRole("heading", { name: "Trasfondo" })).toBeInTheDocument();
+
+    fireEvent.click(within(readerNavigation).getByRole("button", { name: "Notas" }));
+    expect(within(reader).getByRole("heading", { name: "Notas personales" })).toBeInTheDocument();
   });
 
   it("muestra una sola vez la descripcion del arma en el detalle de su ataque", () => {

@@ -2712,3 +2712,270 @@ button[disabled] {
     padding: 10px 12px;
   }
 }
+
+/* Modular character sheet: separated surfaces reveal the selected atmosphere. */
+.character-actions-page,
+.character-actions-page > .unified-sheet,
+.unified-sheet {
+  min-height: 0;
+  height: auto;
+  overflow: visible;
+}
+
+.character-actions-page > .unified-sheet {
+  display: grid;
+  grid-template-rows: none;
+  gap: 14px;
+}
+
+.unified-sheet-top-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 250px);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.unified-sheet .unified-sheet-module.campaign-sheet-card {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--ui-metal) 34%, var(--ui-border));
+  border-radius: var(--ui-radius-md);
+  background: color-mix(in srgb, var(--ui-surface) 95%, transparent);
+  box-shadow: none;
+  backdrop-filter: blur(8px) saturate(0.82);
+}
+
+:root[data-theme="dark"] .unified-sheet .unified-sheet-module.campaign-sheet-card {
+  background: color-mix(in srgb, var(--ui-surface) 93%, transparent);
+}
+
+.unified-sheet .unified-sheet-module.campaign-sheet-card::before {
+  display: none;
+}
+
+.unified-sheet-module-title {
+  margin: 0 0 10px;
+  color: var(--ui-brand-strong);
+  font-family: var(--ui-font-brand);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.unified-sheet-identity-module {
+  display: grid;
+  align-content: center;
+}
+
+.unified-sheet-identity-module .unified-sheet-hero-main {
+  grid-template-columns: 68px minmax(0, 1fr) max-content;
+  gap: 12px;
+}
+
+.unified-sheet-experience-module {
+  align-content: center;
+  gap: 6px;
+}
+
+.unified-sheet-experience-module .unified-sheet-module-title {
+  margin-bottom: 4px;
+}
+
+.unified-sheet-resources-module {
+  display: grid;
+  gap: 0;
+}
+
+.unified-sheet-resources-module .unified-sheet-header-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 0;
+  border-radius: 0;
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-card {
+  padding: 4px 14px;
+  background: transparent;
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-card:first-child {
+  padding-left: 0;
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-card:last-child {
+  padding-right: 0;
+}
+
+.unified-sheet-workspace {
+  display: grid;
+  grid-template-columns: minmax(300px, 34%) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.unified-sheet-summary-column,
+.unified-sheet-static-summary {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.unified-sheet-attributes-module .unified-sheet-attribute-rail {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 0;
+  border-radius: 0;
+}
+
+.unified-sheet-attributes-module .unified-sheet-attribute-chip {
+  min-height: 78px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-sm);
+}
+
+.unified-sheet-combat-module .unified-sheet-quick-row,
+.unified-sheet-derived-module .unified-sheet-quick-row,
+.unified-sheet-conditions-module .unified-sheet-quick-row {
+  gap: 8px;
+}
+
+.unified-sheet-combat-module .unified-sheet-quick-card,
+.unified-sheet-derived-module .unified-sheet-quick-card,
+.unified-sheet-conditions-module .unified-sheet-quick-card {
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-sm);
+  background: var(--ui-surface-muted);
+}
+
+.unified-sheet-conditions-module .unified-sheet-quick-card {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.unified-sheet-reader.unified-sheet-stage {
+  width: 100%;
+  height: clamp(620px, calc(100dvh - 96px), 840px);
+  min-height: 620px;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-self: start;
+  overflow: hidden;
+}
+
+.unified-sheet-reader .unified-sheet-tabs {
+  flex: 0 0 auto;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.unified-sheet-reader .unified-sheet-tab-content {
+  min-height: 0;
+  height: 100%;
+  padding: 12px 4px 2px 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.unified-sheet-reader .unified-sheet-panel {
+  min-height: 0;
+}
+
+.unified-sheet .unified-sheet-reader .unified-sheet-panel > .campaign-sheet-card {
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--ui-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.unified-sheet .unified-sheet-reader .unified-sheet-panel > .campaign-sheet-card:first-child {
+  padding-top: 0;
+}
+
+.unified-sheet .unified-sheet-reader .unified-sheet-panel > .campaign-sheet-card:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+:root[data-character-sheet-background][data-theme="light"] .unified-sheet .unified-sheet-module.campaign-sheet-card {
+  background: color-mix(in srgb, var(--ui-surface) 92%, transparent);
+  backdrop-filter: blur(9px) saturate(0.78);
+}
+
+:root[data-character-sheet-background][data-theme="dark"] .unified-sheet .unified-sheet-module.campaign-sheet-card {
+  background: color-mix(in srgb, var(--ui-surface) 90%, transparent);
+  backdrop-filter: blur(10px) saturate(0.74);
+}
+
+@media (max-width: 900px) {
+  .character-actions-page > .unified-sheet {
+    gap: 10px;
+  }
+
+  .unified-sheet-top-grid,
+  .unified-sheet-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .unified-sheet:not(.is-mobile-tab-attributes) > :is(.unified-sheet-top-grid, .unified-sheet-resources-module),
+  .unified-sheet:not(.is-mobile-tab-attributes) .unified-sheet-summary-column,
+  .unified-sheet.is-mobile-tab-attributes .unified-sheet-reader {
+    display: none;
+  }
+
+  .unified-sheet.is-mobile-tab-attributes > :is(.unified-sheet-top-grid, .unified-sheet-resources-module),
+  .unified-sheet.is-mobile-tab-attributes .unified-sheet-summary-column,
+  .unified-sheet:not(.is-mobile-tab-attributes) .unified-sheet-reader {
+    display: grid;
+  }
+
+  .unified-sheet-reader.unified-sheet-stage {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .unified-sheet-reader .unified-sheet-tab-content {
+    height: auto;
+    padding-right: 0;
+    overflow: visible;
+    overscroll-behavior: auto;
+    scrollbar-gutter: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .unified-sheet .unified-sheet-module.campaign-sheet-card {
+    padding: 12px;
+  }
+
+  .unified-sheet-identity-module .unified-sheet-hero-main {
+    grid-template-columns: 58px minmax(0, 1fr);
+  }
+
+  .unified-sheet-identity-module .unified-sheet-portrait {
+    width: 58px;
+  }
+
+  .unified-sheet-identity-module .unified-sheet-header-actions {
+    grid-column: 1 / -1;
+  }
+
+  .unified-sheet-resources-module .unified-sheet-vital-card,
+  .unified-sheet-resources-module .unified-sheet-vital-card:first-child,
+  .unified-sheet-resources-module .unified-sheet-vital-card:last-child {
+    padding: 10px 0;
+  }
+
+  .unified-sheet-attributes-module .unified-sheet-attribute-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .unified-sheet-resources-module .unified-sheet-header-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
