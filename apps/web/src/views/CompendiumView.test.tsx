@@ -44,6 +44,45 @@ function renderCompendium(props: Partial<React.ComponentProps<typeof CompendiumV
 }
 
 describe("compendium search", () => {
+  it("does not expose Poder místico as a generic purchasable ability", () => {
+    expect(ALL_ENTRIES.some((candidate) => candidate.tipo === "habilidad" && candidate.nombre === "Poder místico")).toBe(false);
+  });
+
+  it("exposes rituals individually with their complete descriptions", () => {
+    const rituals = ALL_ENTRIES.filter((candidate) => candidate.tipo === "ritual");
+
+    expect(ALL_ENTRIES.some((candidate) => candidate.tipo === "habilidad" && candidate.nombre === "Rituales")).toBe(false);
+    expect(rituals).toHaveLength(66);
+    expect(rituals.every((ritual) => ritual.detalle.length > 100 && !ritual.detalle.startsWith("Consulta "))).toBe(true);
+    expect(rituals.find((ritual) => ritual.nombre === "Grilletes rúnicos")?.detalle).toContain("hacer una misión");
+    expect(ALL_ENTRIES.find((candidate) => candidate.nombre === "Talento místico superior")?.detalle).not.toContain("habilidad Rituales");
+    expect(ALL_ENTRIES.find((candidate) => candidate.nombre === "Compra individual de rituales")?.detalle).toContain("10 puntos de experiencia");
+  });
+
+  it("includes useful race and archetype information with corrected source pages", () => {
+    const races = ALL_ENTRIES.filter((candidate) => candidate.tipo === "raza");
+    const archetypes = ALL_ENTRIES.filter((candidate) => candidate.tipo === "arquetipo");
+
+    expect(races).toHaveLength(9);
+    expect(archetypes).toHaveLength(4);
+    expect([...races, ...archetypes].every((entry) => entry.detalle.length > 250 && !entry.detalle.includes("Consulta la sección"))).toBe(true);
+    expect(races.find((race) => race.nombre === "Troll")?.pagina).toBe(44);
+    expect(races.find((race) => race.nombre === "Muerto viviente")?.detalle).toContain("Muerto viviente (I)");
+    expect(archetypes.find((archetype) => archetype.nombre === "Místico")?.pagina).toBe(86);
+    expect(archetypes.find((archetype) => archetype.nombre === "Cazador")?.pagina).toBe(10);
+  });
+
+  it("includes useful cultural and faction backgrounds with precise references", () => {
+    const cultures = ALL_ENTRIES.filter((candidate) => candidate.tipo === "cultura");
+
+    expect(cultures).toHaveLength(6);
+    expect(cultures.every((entry) => entry.detalle.length > 400 && !entry.detalle.includes("Consulta la secci\u00f3n"))).toBe(true);
+    expect(cultures.find((culture) => culture.nombre === "Pueblo libre")?.pagina).toBe(18);
+    expect(cultures.find((culture) => culture.nombre === "Clan goblin")?.detalle).toContain("comunidad o tribu trasga");
+    expect(cultures.find((culture) => culture.nombre === "Ordo M\u00e1gica")?.pagina).toBe(27);
+    expect(cultures.find((culture) => culture.nombre === "Templo de Prios")?.detalle).toContain("Los tres brazos de la Iglesia");
+  });
+
   it("matches accents and multiple unordered tokens, then ranks names before content", () => {
     const nameMatch = entry({ id: "name", nombre: "Poder místico protector", detalle: "Defensa" });
     const contentMatch = entry({ id: "content", nombre: "Escudo", detalle: "Este poder protector es místico." });

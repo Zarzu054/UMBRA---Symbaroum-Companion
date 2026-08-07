@@ -95,7 +95,7 @@ export const ATTRIBUTE_LABELS: Record<AttributeKey, string> = {
 };
 
 const STARTING_ABILITY_PATTERNS = new Set(["5novato", "2novato_1adepto"]);
-const MYSTIC_ABILITY_NAMES = ["Poder místico", "Magia", "Teúrgia", "Brujería", "Hechicería"];
+const MYSTIC_ABILITY_NAMES = ["Magia", "Teúrgia", "Brujería", "Hechicería"];
 const SHEET_HIDDEN_ABILITY_NAMES = ["Poder mÃ­stico"];
 const NORMALIZED_MYSTIC_ABILITY_NAMES = MYSTIC_ABILITY_NAMES.map(normalizeName);
 const NORMALIZED_SHEET_HIDDEN_ABILITY_NAMES = SHEET_HIDDEN_ABILITY_NAMES.map(normalizeName);

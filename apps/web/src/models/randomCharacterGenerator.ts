@@ -31,7 +31,7 @@ const NAMES = [
 ] as const;
 
 const MYSTIC_ARCHETYPE = "Místico";
-const MYSTIC_BASE_ABILITIES = ["Poder místico", "Magia", "Teúrgia", "Brujería", "Hechicería", "Ojo místico"] as const;
+const MYSTIC_BASE_ABILITIES = ["Magia", "Teúrgia", "Brujería", "Hechicería", "Ojo místico"] as const;
 
 const PROFESSIONS_BY_ARCHETYPE: Record<(typeof SYMBAROUM_ARCHETYPES)[number], string[]> = {
   Guerrero: ["Caballero", "Capitán", "Espada de alquiler", "Duelista"],
@@ -43,7 +43,7 @@ const PROFESSIONS_BY_ARCHETYPE: Record<(typeof SYMBAROUM_ARCHETYPES)[number], st
 const ABILITY_POOL_BY_ARCHETYPE: Record<(typeof SYMBAROUM_ARCHETYPES)[number], string[]> = {
   Guerrero: ["Armas a dos manos", "Golpe de hierro", "Combate con escudo", "Combate con armadura", "Guardaespaldas", "Berserker"],
   Cazador: ["Tirador", "Sexto sentido", "Viento de acero", "Mano veloz", "Jinete", "Versado en criaturas"],
-  Místico: ["Poder místico", "Rituales", "Brujería", "Teúrgia", "Magia", "Ojo místico", "Talento místico superior"],
+  Místico: ["Brujería", "Teúrgia", "Magia", "Ojo místico", "Talento místico superior"],
   Maleante: ["Ataque traicionero", "Finta", "Estrangulador", "Acróbata", "Dominación", "Venenos"]
 };
 

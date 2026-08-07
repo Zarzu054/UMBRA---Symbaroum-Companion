@@ -721,7 +721,13 @@ export function CompendiumView({
                       ))}
                       {parsedCapabilityDetail.reference ? <p className="capability-reference">{renderHighlightedText(parsedCapabilityDetail.reference, query)}</p> : null}
                     </div>
-                  ) : <p className="compendium-reader-copy">{renderHighlightedText(selectedEntry.detalle, query)}</p>}
+                  ) : (
+                    <div className="compendium-reader-copy">
+                      {selectedEntry.detalle.split(/\n{2,}/).map((paragraph, index) => (
+                        <p key={`${selectedEntry.id}-paragraph-${index}`}>{renderHighlightedText(paragraph, query)}</p>
+                      ))}
+                    </div>
+                  )}
 
                   {selectedEntry.media?.length ? (
                     <div className="compendium-media-list">

@@ -4541,9 +4541,15 @@ td {
 }
 
 .compendium-reader-copy {
+  display: grid;
+  gap: 14px;
   color: #34281f;
   line-height: 1.62;
   white-space: pre-line;
+}
+
+.compendium-reader-copy p {
+  margin: 0;
 }
 
 .compendium-reader-footer {
