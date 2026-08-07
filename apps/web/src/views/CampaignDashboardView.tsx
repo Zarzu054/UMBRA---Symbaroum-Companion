@@ -17,6 +17,7 @@ import {
   linkCampaignCharacter,
   removeCampaignMember,
   unlinkCampaignCharacter,
+  grantCampaignExperience,
   updateCampaign,
   updateCampaignReference
 } from "../services/campaignService";
@@ -38,6 +39,12 @@ type CampaignHashState = {
 type CampaignSection = "dmNotes" | "sharedNotes" | "wiki" | "members" | "characters";
 type CampaignSharedNoteEntry = Campaign["sharedNoteEntries"][number];
 type SharedNoteSortOption = "updated_desc" | "updated_asc" | "title_asc" | "title_desc";
+type ExperienceGrantDraft = {
+  characterId: string;
+  characterName: string;
+  amount: string;
+  reason: string;
+};
 
 const emptyCampaignForm: CreateCampaignInput = {
   name: "",
@@ -508,6 +515,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [isCampaignDetailsModalOpen, setIsCampaignDetailsModalOpen] = useState(false);
   const [isBurdenSummaryModalOpen, setIsBurdenSummaryModalOpen] = useState(false);
   const [pendingUnlinkCharacter, setPendingUnlinkCharacter] = useState<Campaign["characters"][number] | null>(null);
+  const [experienceGrantDraft, setExperienceGrantDraft] = useState<ExperienceGrantDraft | null>(null);
+  const [experienceGrantError, setExperienceGrantError] = useState<string | null>(null);
 
   const selectedCampaign = useMemo(
     () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
@@ -591,6 +600,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     isReferenceDetailModalOpen ||
     isBurdenSummaryModalOpen ||
     Boolean(pendingUnlinkCharacter) ||
+    Boolean(experienceGrantDraft) ||
     isSheetModalOpen;
 
   useBodyScrollLock(isAnyModalOpen);
@@ -647,6 +657,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setSharedNoteError(null);
       setSharedNoteSearch("");
       setPendingUnlinkCharacter(null);
+      setExperienceGrantDraft(null);
+      setExperienceGrantError(null);
       setReferenceCreateError(null);
       setIsReferenceCreateModalOpen(false);
       setIsReferenceEditMode(false);
@@ -974,6 +986,39 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setIsReferenceDetailModalOpen(Boolean(createdReference));
     } catch (err) {
       setReferenceCreateError(describeReferenceValidationError(err));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleGrantExperience(): Promise<void> {
+    if (!selectedCampaign || !experienceGrantDraft) {
+      return;
+    }
+
+    const amount = Number(experienceGrantDraft.amount);
+    const reason = experienceGrantDraft.reason.trim();
+    if (!Number.isInteger(amount) || amount < 1 || amount > 1000) {
+      setExperienceGrantError("La cantidad debe ser un numero entero entre 1 y 1000 PX.");
+      return;
+    }
+    if (reason.length < 2) {
+      setExperienceGrantError("Indica el motivo de la concesion de experiencia.");
+      return;
+    }
+
+    setExperienceGrantError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      upsertCampaign(await grantCampaignExperience(selectedCampaign.id, {
+        characterId: experienceGrantDraft.characterId,
+        amount,
+        reason
+      }, token));
+      setExperienceGrantDraft(null);
+    } catch (err) {
+      setExperienceGrantError(err instanceof Error ? err.message : "No se pudo conceder la experiencia.");
     } finally {
       setIsSaving(false);
     }
@@ -1335,7 +1380,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 <div>
                   <h3>Personajes vinculados</h3>
                   <p className="section-help">
-                    El director puede revisar todas las hojas vinculadas desde aqui. Los jugadores pueden vincular sus propios personajes.
+                    El director concede la experiencia desde aqui. Los jugadores pueden invertirla desde el constructor de su personaje.
                   </p>
                 </div>
                 <div className="inline-row campaign-inline-form">
@@ -1379,7 +1424,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     <article key={entry.id} className="card">
                       <strong>{entry.name}</strong>
                       <span>{entry.ownerEmail}</span>
-                      <span>PX total: {entry.experienceTotal} | PX gastada: {entry.experienceSpent}</span>
+                      <span>PX total: {entry.experienceTotal} | Gastada: {entry.experienceSpent} | Disponible: {Math.max(0, entry.experienceTotal - entry.experienceSpent)}</span>
                       <span>Actualizado: {formatDate(entry.updatedAt)}</span>
                       <div className="card-actions">
                         {isDirector && entry.sheet ? (
@@ -1390,6 +1435,23 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                             }}
                           >
                             Abrir hoja
+                          </button>
+                        ) : null}
+                        {isDirector ? (
+                          <button
+                            type="button"
+                            disabled={isSaving}
+                            onClick={() => {
+                              setExperienceGrantError(null);
+                              setExperienceGrantDraft({
+                                characterId: entry.characterId,
+                                characterName: entry.name,
+                                amount: "",
+                                reason: "Recompensa de campaña"
+                              });
+                            }}
+                          >
+                            Conceder PX
                           </button>
                         ) : null}
                         {canManageLink ? (
@@ -1412,6 +1474,21 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   <p className="section-help">Todavia no hay personajes vinculados.</p>
                 ) : null}
               </div>
+
+              {selectedCampaign.experienceLog.length > 0 ? (
+                <section className="campaign-experience-history">
+                  <h4>Historial de experiencia</h4>
+                  <div className="cards">
+                    {selectedCampaign.experienceLog.slice(0, 8).map((entry) => (
+                      <article key={entry.id} className="card">
+                        <strong>+{entry.amount} PX · {entry.characterName}</strong>
+                        <span>{entry.reason}</span>
+                        <span>{formatDate(entry.createdAt)} · {entry.grantedByEmail}</span>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
 
             </section>
           ) : null}
@@ -1583,6 +1660,67 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 onClick={() => void handleUnlinkCharacter(pendingUnlinkCharacter.id)}
               >
                 {isSaving ? "Desvinculando..." : "Confirmar desvinculacion"}
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {isDirector && experienceGrantDraft ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setExperienceGrantDraft(null);
+              setExperienceGrantError(null);
+            }
+          }}
+        >
+          <div className="panel modal-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="row-actions">
+              <div>
+                <h3>Conceder experiencia</h3>
+                <p className="section-help">
+                  Los PX se sumaran al total actual de {experienceGrantDraft.characterName} y quedaran registrados en el historial.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => {
+                  setExperienceGrantDraft(null);
+                  setExperienceGrantError(null);
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+            {experienceGrantError ? <p className="error-text">{experienceGrantError}</p> : null}
+            <div className="form-grid">
+              <label className="field">
+                <span>Cantidad de PX</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={1000}
+                  step={1}
+                  value={experienceGrantDraft.amount}
+                  onChange={(event) => setExperienceGrantDraft((current) => current ? { ...current, amount: event.target.value } : null)}
+                  autoFocus
+                />
+              </label>
+              <label className="field field-span-2">
+                <span>Motivo</span>
+                <input
+                  maxLength={300}
+                  value={experienceGrantDraft.reason}
+                  onChange={(event) => setExperienceGrantDraft((current) => current ? { ...current, reason: event.target.value } : null)}
+                />
+              </label>
+            </div>
+            <div className="toolbar">
+              <button type="button" disabled={isSaving} onClick={() => void handleGrantExperience()}>
+                {isSaving ? "Concediendo..." : "Confirmar concesion"}
               </button>
             </div>
           </div>

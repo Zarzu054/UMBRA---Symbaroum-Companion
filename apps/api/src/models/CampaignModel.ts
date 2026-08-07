@@ -2,6 +2,7 @@
 import { createEmptyCharacterSheet, decodeCampaignSharedNotes, encodeCampaignSharedNotes, parseCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CharacterSheet, type UserRole } from "@umbra/shared";
 import { Prisma as PrismaRuntime } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
+import { getEffectiveCharacterExperienceSpent } from "../services/characterExperiencePolicy.js";
 
 const campaignInclude = {
   gm: true,
@@ -100,7 +101,7 @@ function mapAvailableCharacter(row: CharacterAvailabilityRow, linkedIds: Set<str
   try {
     const sheet = parseCharacterSheet(row.sheet);
     experienceTotal = sheet.progreso.experienciaTotal;
-    experienceSpent = sheet.progreso.experienciaGastada;
+    experienceSpent = getEffectiveCharacterExperienceSpent(sheet);
   } catch {
     experienceTotal = 0;
     experienceSpent = 0;
@@ -181,7 +182,7 @@ function mapCampaign(
       try {
         const sheet = parseCharacterSheet(entry.character.sheet);
         experienceTotal = sheet.progreso.experienciaTotal;
-        experienceSpent = sheet.progreso.experienciaGastada;
+        experienceSpent = getEffectiveCharacterExperienceSpent(sheet);
       } catch {
         experienceTotal = 0;
         experienceSpent = 0;
@@ -811,28 +812,28 @@ export class CampaignModel {
   }
 
   async grantExperience(campaignId: string, characterId: string, grantedById: string, amount: number, reason: string): Promise<void> {
-    const character = await prisma.character.findUnique({
-      where: { id: characterId },
-      select: { sheet: true }
-    });
-
-    if (!character) return;
-
-    const sheet = parseCharacterSheet(character.sheet);
-    const nextSheet = {
-      ...sheet,
-      progreso: {
-        ...sheet.progreso,
-        experienciaTotal: sheet.progreso.experienciaTotal + amount
-      }
-    };
-
-    await prisma.$transaction([
-      prisma.character.update({
+    await prisma.$transaction(async (tx) => {
+      const character = await tx.character.findUnique({
         where: { id: characterId },
-        data: { sheet: nextSheet }
-      }),
-      prisma.campaignXpLog.create({
+        select: { sheet: true }
+      });
+
+      if (!character) return;
+
+      const sheet = parseCharacterSheet(character.sheet);
+      await tx.character.update({
+        where: { id: characterId },
+        data: {
+          sheet: {
+            ...sheet,
+            progreso: {
+              ...sheet.progreso,
+              experienciaTotal: sheet.progreso.experienciaTotal + amount
+            }
+          }
+        }
+      });
+      await tx.campaignXpLog.create({
         data: {
           campaignId,
           characterId,
@@ -840,8 +841,8 @@ export class CampaignModel {
           amount,
           reason
         }
-      })
-    ]);
+      });
+    });
   }
 
   async assignSessionExperience(

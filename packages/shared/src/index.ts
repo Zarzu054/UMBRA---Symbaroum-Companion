@@ -1831,7 +1831,7 @@ export const createCampaignNpcSchema = z.object({
 
 export const updateCampaignNpcSchema = createCampaignNpcSchema.partial();
 export const updateCampaignCharacterSheetSchema = z.object({
-  sheet: characterSheetSchema
+  sheet: importedCharacterSheetSchema
 });
 export const updateCampaignNpcSheetSchema = z.object({
   sheet: characterSheetSchema.nullable()

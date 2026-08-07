@@ -1,7 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useMemo, useState } from "react";
 import { createCampaignReferenceSchema, createCampaignSchema } from "@umbra/shared";
-import { addCampaignMember, createCampaign, createCampaignReference, deleteCampaignReference, fetchCampaigns, linkCampaignCharacter, removeCampaignMember, unlinkCampaignCharacter, updateCampaign, updateCampaignReference } from "../services/campaignService";
+import { addCampaignMember, createCampaign, createCampaignReference, deleteCampaignReference, fetchCampaigns, linkCampaignCharacter, removeCampaignMember, unlinkCampaignCharacter, grantCampaignExperience, updateCampaign, updateCampaignReference } from "../services/campaignService";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { ALL_ENTRIES } from "../models/compendiumEntries";
@@ -374,6 +374,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
     const [isCampaignDetailsModalOpen, setIsCampaignDetailsModalOpen] = useState(false);
     const [isBurdenSummaryModalOpen, setIsBurdenSummaryModalOpen] = useState(false);
     const [pendingUnlinkCharacter, setPendingUnlinkCharacter] = useState(null);
+    const [experienceGrantDraft, setExperienceGrantDraft] = useState(null);
+    const [experienceGrantError, setExperienceGrantError] = useState(null);
     const selectedCampaign = useMemo(() => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null, [campaigns, selectedCampaignId]);
     const selectedSheetEntry = useMemo(() => selectedCampaign?.characters.find((entry) => entry.id === selectedSheetId) ?? null, [selectedCampaign, selectedSheetId]);
     const selectedReference = useMemo(() => selectedCampaign?.references.find((entry) => entry.id === selectedReferenceId) ?? null, [selectedCampaign, selectedReferenceId]);
@@ -419,6 +421,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         isReferenceDetailModalOpen ||
         isBurdenSummaryModalOpen ||
         Boolean(pendingUnlinkCharacter) ||
+        Boolean(experienceGrantDraft) ||
         isSheetModalOpen;
     useBodyScrollLock(isAnyModalOpen);
     useEffect(() => {
@@ -465,6 +468,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
             setSharedNoteError(null);
             setSharedNoteSearch("");
             setPendingUnlinkCharacter(null);
+            setExperienceGrantDraft(null);
+            setExperienceGrantError(null);
             setReferenceCreateError(null);
             setIsReferenceCreateModalOpen(false);
             setIsReferenceEditMode(false);
@@ -784,6 +789,38 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
             setIsSaving(false);
         }
     }
+    async function handleGrantExperience() {
+        if (!selectedCampaign || !experienceGrantDraft) {
+            return;
+        }
+        const amount = Number(experienceGrantDraft.amount);
+        const reason = experienceGrantDraft.reason.trim();
+        if (!Number.isInteger(amount) || amount < 1 || amount > 1000) {
+            setExperienceGrantError("La cantidad debe ser un numero entero entre 1 y 1000 PX.");
+            return;
+        }
+        if (reason.length < 2) {
+            setExperienceGrantError("Indica el motivo de la concesion de experiencia.");
+            return;
+        }
+        setExperienceGrantError(null);
+        setIsSaving(true);
+        try {
+            const token = await ensureAccessToken();
+            upsertCampaign(await grantCampaignExperience(selectedCampaign.id, {
+                characterId: experienceGrantDraft.characterId,
+                amount,
+                reason
+            }, token));
+            setExperienceGrantDraft(null);
+        }
+        catch (err) {
+            setExperienceGrantError(err instanceof Error ? err.message : "No se pudo conceder la experiencia.");
+        }
+        finally {
+            setIsSaving(false);
+        }
+    }
     async function handleSaveReference() {
         if (!selectedReference) {
             return;
@@ -868,15 +905,23 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                                             setSelectedSharedNoteId(note.id);
                                         }, children: [_jsx("strong", { children: note.title }), _jsx("span", { children: note.authorEmail ? `Autor: ${note.authorEmail}` : "Nota compartida" }), _jsxs("span", { children: ["Actualizada: ", formatDate(note.updatedAt || note.createdAt)] })] }, note.id))), sortedSharedNotes.length === 0 ? (_jsx("p", { className: "section-help", children: sharedNoteSearch.trim()
                                             ? "No hay notas compartidas que coincidan con ese titulo."
-                                            : "Aun no hay notas compartidas registradas." })) : null] })] })) : null, activeSection === "wiki" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Wiki de campana" }), _jsx("p", { className: "section-help", children: "Jugadores pueden aportar entradas visibles para toda la campa\u00F1a. El DJ puede mantener entradas privadas o compartirlas con jugadores concretos." })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: handlePrepareNewReference, children: "Nueva referencia" })] }), _jsxs("div", { className: "campaign-reference-list", children: [selectedCampaign.references.map((reference) => (_jsxs("button", { type: "button", className: "campaign-list-item", onClick: () => openReferenceDetail(reference.id), children: [_jsx("strong", { children: reference.name }), _jsx("span", { children: reference.label }), _jsx("span", { children: reference.summary || "Sin resumen breve" }), reference.aliases.length > 0 ? _jsxs("span", { children: ["Alias: ", reference.aliases.join(", ")] }) : null, _jsx("span", { children: describeReferenceVisibility(reference) }), _jsxs("span", { children: ["Autor: ", reference.authorEmail] })] }, reference.id))), selectedCampaign.references.length === 0 ? (_jsx("p", { className: "section-help", children: "Aun no hay referencias en esta campana." })) : null] })] })) : null, activeSection === "members" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Miembros" }), isDirector ? (_jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Email del jugador" }), _jsx("input", { value: memberEmail, onChange: (event) => setMemberEmail(event.target.value) })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleAddMember(), children: "Agregar" })] })) : null] }), _jsx("div", { className: "cards", children: selectedCampaign.members.map((member) => (_jsxs("article", { className: "card", children: [_jsx("strong", { children: member.email }), _jsx("span", { children: member.role === "gm" ? "Director" : "Jugador" }), _jsxs("span", { children: ["Alta: ", new Date(member.joinedAt).toLocaleDateString()] }), isDirector && member.role !== "gm" ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleRemoveMember(member.id), children: "Quitar" })) : null] }, member.id))) })] })) : null, activeSection === "characters" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Personajes vinculados" }), _jsx("p", { className: "section-help", children: "El director puede revisar todas las hojas vinculadas desde aqui. Los jugadores pueden vincular sus propios personajes." })] }), _jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Personaje disponible" }), _jsxs("select", { value: selectedAvailableCharacterId, onChange: (event) => setSelectedAvailableCharacterId(event.target.value), children: [linkableCharacters.length === 0 ? _jsx("option", { value: "", children: "Sin personajes disponibles" }) : null, linkableCharacters.map((entry) => (_jsxs("option", { value: entry.characterId, children: [entry.name, " - ", entry.ownerEmail] }, entry.characterId)))] })] }), _jsx("button", { type: "button", disabled: isSaving || !selectedAvailableCharacterId, onClick: () => void handleLinkCharacter(), children: "Vincular" }), isDirector ? (_jsx("button", { type: "button", className: "subtle-button", onClick: () => setIsBurdenSummaryModalOpen(true), children: "Resumen de cargas" })) : null] })] }), _jsxs("div", { className: "cards", children: [selectedCampaign.characters.map((entry) => {
+                                            : "Aun no hay notas compartidas registradas." })) : null] })] })) : null, activeSection === "wiki" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Wiki de campana" }), _jsx("p", { className: "section-help", children: "Jugadores pueden aportar entradas visibles para toda la campa\u00F1a. El DJ puede mantener entradas privadas o compartirlas con jugadores concretos." })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: handlePrepareNewReference, children: "Nueva referencia" })] }), _jsxs("div", { className: "campaign-reference-list", children: [selectedCampaign.references.map((reference) => (_jsxs("button", { type: "button", className: "campaign-list-item", onClick: () => openReferenceDetail(reference.id), children: [_jsx("strong", { children: reference.name }), _jsx("span", { children: reference.label }), _jsx("span", { children: reference.summary || "Sin resumen breve" }), reference.aliases.length > 0 ? _jsxs("span", { children: ["Alias: ", reference.aliases.join(", ")] }) : null, _jsx("span", { children: describeReferenceVisibility(reference) }), _jsxs("span", { children: ["Autor: ", reference.authorEmail] })] }, reference.id))), selectedCampaign.references.length === 0 ? (_jsx("p", { className: "section-help", children: "Aun no hay referencias en esta campana." })) : null] })] })) : null, activeSection === "members" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Miembros" }), isDirector ? (_jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Email del jugador" }), _jsx("input", { value: memberEmail, onChange: (event) => setMemberEmail(event.target.value) })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleAddMember(), children: "Agregar" })] })) : null] }), _jsx("div", { className: "cards", children: selectedCampaign.members.map((member) => (_jsxs("article", { className: "card", children: [_jsx("strong", { children: member.email }), _jsx("span", { children: member.role === "gm" ? "Director" : "Jugador" }), _jsxs("span", { children: ["Alta: ", new Date(member.joinedAt).toLocaleDateString()] }), isDirector && member.role !== "gm" ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleRemoveMember(member.id), children: "Quitar" })) : null] }, member.id))) })] })) : null, activeSection === "characters" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Personajes vinculados" }), _jsx("p", { className: "section-help", children: "El director concede la experiencia desde aqui. Los jugadores pueden invertirla desde el constructor de su personaje." })] }), _jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Personaje disponible" }), _jsxs("select", { value: selectedAvailableCharacterId, onChange: (event) => setSelectedAvailableCharacterId(event.target.value), children: [linkableCharacters.length === 0 ? _jsx("option", { value: "", children: "Sin personajes disponibles" }) : null, linkableCharacters.map((entry) => (_jsxs("option", { value: entry.characterId, children: [entry.name, " - ", entry.ownerEmail] }, entry.characterId)))] })] }), _jsx("button", { type: "button", disabled: isSaving || !selectedAvailableCharacterId, onClick: () => void handleLinkCharacter(), children: "Vincular" }), isDirector ? (_jsx("button", { type: "button", className: "subtle-button", onClick: () => setIsBurdenSummaryModalOpen(true), children: "Resumen de cargas" })) : null] })] }), _jsxs("div", { className: "cards", children: [selectedCampaign.characters.map((entry) => {
                                         const canManageLink = isDirector || entry.ownerId === user.id;
-                                        return (_jsxs("article", { className: "card", children: [_jsx("strong", { children: entry.name }), _jsx("span", { children: entry.ownerEmail }), _jsxs("span", { children: ["PX total: ", entry.experienceTotal, " | PX gastada: ", entry.experienceSpent] }), _jsxs("span", { children: ["Actualizado: ", formatDate(entry.updatedAt)] }), _jsxs("div", { className: "card-actions", children: [isDirector && entry.sheet ? (_jsx("button", { type: "button", onClick: () => {
+                                        return (_jsxs("article", { className: "card", children: [_jsx("strong", { children: entry.name }), _jsx("span", { children: entry.ownerEmail }), _jsxs("span", { children: ["PX total: ", entry.experienceTotal, " | Gastada: ", entry.experienceSpent, " | Disponible: ", Math.max(0, entry.experienceTotal - entry.experienceSpent)] }), _jsxs("span", { children: ["Actualizado: ", formatDate(entry.updatedAt)] }), _jsxs("div", { className: "card-actions", children: [isDirector && entry.sheet ? (_jsx("button", { type: "button", onClick: () => {
                                                                 setSelectedSheetId(entry.id);
-                                                            }, children: "Abrir hoja" })) : null, canManageLink ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                            }, children: "Abrir hoja" })) : null, isDirector ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                                setExperienceGrantError(null);
+                                                                setExperienceGrantDraft({
+                                                                    characterId: entry.characterId,
+                                                                    characterName: entry.name,
+                                                                    amount: "",
+                                                                    reason: "Recompensa de campaña"
+                                                                });
+                                                            }, children: "Conceder PX" })) : null, canManageLink ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => {
                                                                 setFormError(null);
                                                                 setPendingUnlinkCharacter(entry);
                                                             }, children: "Desvincular" })) : null] })] }, entry.id));
-                                    }), selectedCampaign.characters.length === 0 ? (_jsx("p", { className: "section-help", children: "Todavia no hay personajes vinculados." })) : null] })] })) : null, selectedSheetEntry && false ? (_jsx("section", { className: "campaign-sheet-shell", children: _jsx(UnifiedCharacterSheet, { title: campaignSheetModalEntry?.name ?? "", subtitle: `${selectedSheetEntry?.ownerEmail ?? ""} · Hoja vinculada a campana`, sheet: selectedSheetEntry.sheet, editable: false, busy: isSaving, onBack: () => {
+                                    }), selectedCampaign.characters.length === 0 ? (_jsx("p", { className: "section-help", children: "Todavia no hay personajes vinculados." })) : null] }), selectedCampaign.experienceLog.length > 0 ? (_jsxs("section", { className: "campaign-experience-history", children: [_jsx("h4", { children: "Historial de experiencia" }), _jsx("div", { className: "cards", children: selectedCampaign.experienceLog.slice(0, 8).map((entry) => (_jsxs("article", { className: "card", children: [_jsxs("strong", { children: ["+", entry.amount, " PX \u00B7 ", entry.characterName] }), _jsx("span", { children: entry.reason }), _jsxs("span", { children: [formatDate(entry.createdAt), " \u00B7 ", entry.grantedByEmail] })] }, entry.id))) })] })) : null] })) : null, selectedSheetEntry && false ? (_jsx("section", { className: "campaign-sheet-shell", children: _jsx(UnifiedCharacterSheet, { title: campaignSheetModalEntry?.name ?? "", subtitle: `${selectedSheetEntry?.ownerEmail ?? ""} · Hoja vinculada a campana`, sheet: selectedSheetEntry.sheet, editable: false, busy: isSaving, onBack: () => {
                                 setSelectedSheetId(null);
                                 setActiveSection("characters");
                             } }) })) : null] })) : null, selectedSharedNote && selectedCampaign ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
@@ -910,7 +955,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                     }
                 }, children: _jsxs("div", { className: "panel modal-panel", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Confirmar desvinculacion" }), _jsxs("p", { className: "section-help", children: ["Vas a desvincular a ", pendingUnlinkCharacter.name, " de esta campana. Su ficha no se borra, pero dejara de aparecer aqui."] })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
                                         setPendingUnlinkCharacter(null);
-                                    }, children: "Cerrar" })] }), formError ? _jsx("p", { className: "error-text", children: formError }) : null, _jsx("div", { className: "toolbar", children: _jsx("button", { type: "button", className: "danger-button", disabled: isSaving, onClick: () => void handleUnlinkCharacter(pendingUnlinkCharacter.id), children: isSaving ? "Desvinculando..." : "Confirmar desvinculacion" }) })] }) })) : null, campaignSheetModalEntry ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
+                                    }, children: "Cerrar" })] }), formError ? _jsx("p", { className: "error-text", children: formError }) : null, _jsx("div", { className: "toolbar", children: _jsx("button", { type: "button", className: "danger-button", disabled: isSaving, onClick: () => void handleUnlinkCharacter(pendingUnlinkCharacter.id), children: isSaving ? "Desvinculando..." : "Confirmar desvinculacion" }) })] }) })) : null, isDirector && experienceGrantDraft ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
+                    if (!isSaving) {
+                        setExperienceGrantDraft(null);
+                        setExperienceGrantError(null);
+                    }
+                }, children: _jsxs("div", { className: "panel modal-panel", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Conceder experiencia" }), _jsxs("p", { className: "section-help", children: ["Los PX se sumaran al total actual de ", experienceGrantDraft.characterName, " y quedaran registrados en el historial."] })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                        setExperienceGrantDraft(null);
+                                        setExperienceGrantError(null);
+                                    }, children: "Cerrar" })] }), experienceGrantError ? _jsx("p", { className: "error-text", children: experienceGrantError }) : null, _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Cantidad de PX" }), _jsx("input", { type: "number", min: 1, max: 1000, step: 1, value: experienceGrantDraft.amount, onChange: (event) => setExperienceGrantDraft((current) => current ? { ...current, amount: event.target.value } : null), autoFocus: true })] }), _jsxs("label", { className: "field field-span-2", children: [_jsx("span", { children: "Motivo" }), _jsx("input", { maxLength: 300, value: experienceGrantDraft.reason, onChange: (event) => setExperienceGrantDraft((current) => current ? { ...current, reason: event.target.value } : null) })] })] }), _jsx("div", { className: "toolbar", children: _jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleGrantExperience(), children: isSaving ? "Concediendo..." : "Confirmar concesion" }) })] }) })) : null, campaignSheetModalEntry ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
                     setSelectedSheetId(null);
                 }, children: _jsxs("div", { className: "panel modal-panel campaign-character-sheet-modal", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions campaign-character-sheet-modal-header", children: [_jsxs("div", { children: [_jsx("h3", { children: campaignSheetModalEntry.name }), _jsxs("p", { className: "section-help", children: [campaignSheetModalEntry.ownerEmail, " | Hoja vinculada a campana"] })] }), _jsx("button", { type: "button", onClick: () => setSelectedSheetId(null), children: "Cerrar" })] }), _jsx("div", { className: "campaign-character-sheet-modal-body", children: _jsx(UnifiedCharacterSheet, { title: campaignSheetModalEntry.name, subtitle: `${campaignSheetModalEntry.ownerEmail} | Hoja vinculada a campana`, sheet: campaignSheetModalEntry.sheet, editable: false, busy: isSaving }) })] }) })) : null, isDirector && isBurdenSummaryModalOpen ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
                     setIsBurdenSummaryModalOpen(false);

@@ -47,7 +47,7 @@ export function getCharacterExperienceSummary(sheet: CharacterSheet): CharacterE
   const spentFromBlessings = (sheet.bendiciones?.length ?? 0) * 5;
   const extraFromBurdens = (sheet.cargas?.length ?? 0) * 5;
   const computedSpent = spentFromCapabilities + spentFromRituals + spentFromBlessings;
-  const effectiveTotal = sheet.progreso.experienciaTotal + extraFromBurdens;
+  const effectiveTotal = sheet.progreso.experienciaTotal;
   const effectiveAvailable = Math.max(0, effectiveTotal - Math.max(sheet.progreso.experienciaGastada, computedSpent));
 
   return {

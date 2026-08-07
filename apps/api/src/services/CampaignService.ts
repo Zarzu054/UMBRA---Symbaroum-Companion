@@ -40,6 +40,7 @@
 import { CampaignModel } from "../models/CampaignModel.js";
 import { campaignLiveHub } from "./CampaignLiveHub.js";
 import { AppError } from "../utils/AppError.js";
+import { protectGrantedCharacterExperience } from "./characterExperiencePolicy.js";
 
 const NPC_THREATS = ["Bajo", "Medio", "Alto", "Elite"] as const;
 const NPC_OCCUPATIONS = ["Guardia", "Explorador", "Mercader", "Cultista", "Cazador", "Bruja", "Erudito", "Bandido"] as const;
@@ -363,8 +364,25 @@ export class CampaignService {
       await this.assertCampaignManagedBy(userId, userRole, link.campaignId);
     }
 
-    const payload = updateCampaignCharacterSheetSchema.parse(input);
-    await this.model.updateLinkedCharacterSheet(link.characterId, payload.sheet);
+    const character = await this.model.findCharacterById(link.characterId);
+    if (!character) {
+      throw new AppError("CHARACTER_NOT_FOUND", "Personaje no encontrado", 404);
+    }
+    const currentSheet = parseCharacterSheet(character.sheet);
+    const payload = updateCampaignCharacterSheetSchema.parse({
+      sheet: {
+        ...input.sheet,
+        progreso: {
+          ...input.sheet.progreso,
+          experienciaTotal: currentSheet.progreso.experienciaTotal
+        }
+      }
+    });
+    const protectedSheet = protectGrantedCharacterExperience(
+      currentSheet,
+      payload.sheet
+    );
+    await this.model.updateLinkedCharacterSheet(link.characterId, protectedSheet);
     return this.getCampaign(userId, userRole, link.campaignId);
   }
 

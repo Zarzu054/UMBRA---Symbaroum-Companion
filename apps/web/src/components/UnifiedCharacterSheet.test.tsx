@@ -80,4 +80,46 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(modal?.textContent?.split(description)).toHaveLength(2);
     expect(modal).toHaveTextContent("Tirada de ataque y, si procede");
   });
+
+  it("shows granted, spent and available XP without owner controls for the total", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.progreso.experienciaTotal = 12;
+    sheet.progreso.experienciaGastada = 5;
+
+    const { container } = render(
+      <UnifiedCharacterSheet
+        title="Arold"
+        subtitle="Guerrero"
+        sheet={sheet}
+        editable
+      />
+    );
+
+    const xpCard = container.querySelector(".unified-sheet-xp-card");
+    expect(xpCard).not.toBeNull();
+    expect(xpCard).toHaveTextContent("PX total12");
+    expect(xpCard).toHaveTextContent("PX gastada5");
+    expect(xpCard).toHaveTextContent("PX disponible7");
+    expect(within(xpCard as HTMLElement).queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("aplica una robustez maxima minima de 10 aunque Fuerte sea 5", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.atributos.fuerte = 5;
+    sheet.combate.robustezMax = 5;
+    sheet.combate.robustezActual = 5;
+
+    const { container } = render(
+      <UnifiedCharacterSheet
+        title="Personaje de prueba"
+        subtitle="Guerrero"
+        sheet={sheet}
+        editable={false}
+      />
+    );
+
+    const toughnessCard = container.querySelector(".unified-sheet-vital-card.is-health");
+    expect(toughnessCard).not.toBeNull();
+    expect(toughnessCard).toHaveTextContent("10 / 10");
+  });
 });

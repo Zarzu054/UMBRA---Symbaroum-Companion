@@ -771,31 +771,19 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         </div>
 
         <div className="section-title">Progreso y recursos</div>
-        <p className="section-help">Control de avance: nivel, experiencia ganada y experiencia invertida.</p>
+        <p className="section-help">El director de juego concede la experiencia. Las compras se realizan desde el constructor sin superar el total disponible.</p>
         {isCampaignManagedLock ? <p className="section-help">Estos campos de progreso y estado de aventura se gestionan desde Campañas.</p> : null}
-        <fieldset disabled={isCampaignManagedLock} className="campaign-managed-fieldset">
         <div className="form-grid">
-          <label className="field">
+          <div className="info-box">
             <span>PX total</span>
-            <input
-              type="number"
-              min={0}
-              value={controller.form.sheet.progreso.experienciaTotal}
-              onChange={(event) => controller.updateSheet("progreso.experienciaTotal", Number(event.target.value || 0))}
-            />
-          </label>
-          <label className="field">
+            <strong>{controller.form.sheet.progreso.experienciaTotal}</strong>
+          </div>
+          <div className="info-box">
             <span>PX gastada</span>
-            <input
-              type="number"
-              min={0}
-              value={controller.form.sheet.progreso.experienciaGastada}
-              onChange={(event) => controller.updateSheet("progreso.experienciaGastada", Number(event.target.value || 0))}
-            />
-          </label>
+            <strong>{controller.form.sheet.progreso.experienciaGastada}</strong>
+          </div>
           <div className="info-box">PX disponible: {controller.derived.xpDisponible}</div>
         </div>
-        </fieldset>
 
         <div className="section-title">Cálculos automáticos (MVP)</div>
         <p className="section-help">

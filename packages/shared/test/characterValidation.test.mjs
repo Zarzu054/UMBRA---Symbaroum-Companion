@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createCharacterSchema, createEmptyCharacterSheet, importCharacterSchema, parseCharacterSheet, synchronizeCharacterSheet } from "../dist/index.js";
+import { createCharacterSchema, createEmptyCharacterSheet, importCharacterSchema, parseCharacterSheet, synchronizeCharacterSheet, updateCampaignCharacterSheetSchema } from "../dist/index.js";
 
 function buildPayload() {
   const sheet = createEmptyCharacterSheet();
@@ -228,6 +228,16 @@ test("rechaza experiencia gastada superior a experiencia total", () => {
   payload.sheet.progreso.experienciaTotal = 10;
   payload.sheet.progreso.experienciaGastada = 15;
   expectIssue(payload, "experiencia gastada");
+});
+
+test("la actualizacion de campana acepta compras posteriores a la creacion", () => {
+  const sheet = buildPayload().sheet;
+  sheet.habilidades.push(...makeAbilities([["Sexta habilidad", "novato"]]));
+  sheet.progreso.experienciaTotal = 60;
+  sheet.progreso.experienciaGastada = 60;
+
+  const result = updateCampaignCharacterSheetSchema.safeParse({ sheet });
+  assert.equal(result.success, true);
 });
 
 test("rechaza robustez actual mayor que robustez maxima", () => {

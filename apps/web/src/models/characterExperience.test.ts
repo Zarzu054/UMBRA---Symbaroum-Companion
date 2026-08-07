@@ -34,4 +34,16 @@ describe("character ritual experience", () => {
     expect(experience.computedSpent).toBe(20);
     expect(experience.effectiveAvailable).toBe(20);
   });
+
+  it("does not let burdens create spendable XP outside GM grants", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.progreso.experienciaTotal = 10;
+    sheet.cargas = ["Acosado"];
+
+    const experience = getCharacterExperienceSummary(sheet);
+
+    expect(experience.extraFromBurdens).toBe(5);
+    expect(experience.effectiveTotal).toBe(10);
+    expect(experience.effectiveAvailable).toBe(10);
+  });
 });

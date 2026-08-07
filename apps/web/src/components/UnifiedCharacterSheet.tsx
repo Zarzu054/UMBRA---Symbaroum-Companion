@@ -2905,19 +2905,15 @@ export function UnifiedCharacterSheet({
             <div className="unified-sheet-xp-card">
               <div className="unified-sheet-xp-row">
                 <span>PX total</span>
-                {editable ? (
-                  <div className="unified-sheet-xp-controls">
-                    <button type="button" className="vital-action subtle" onClick={() => adjustNumber("progreso.experienciaTotal", -1)}>-</button>
-                    <strong>{normalizedSheet.progreso.experienciaTotal}</strong>
-                    <button type="button" className="vital-action gain" onClick={() => adjustNumber("progreso.experienciaTotal", 1)}>+</button>
-                  </div>
-                ) : (
-                  <strong>{normalizedSheet.progreso.experienciaTotal}</strong>
-                )}
+                <strong>{normalizedSheet.progreso.experienciaTotal}</strong>
               </div>
               <div className="unified-sheet-xp-row is-static">
                 <span>PX gastada</span>
                 <strong>{displayedSpentExperience}</strong>
+              </div>
+              <div className="unified-sheet-xp-row is-static">
+                <span>PX disponible</span>
+                <strong>{experience.effectiveAvailable}</strong>
               </div>
             </div>
           </div>

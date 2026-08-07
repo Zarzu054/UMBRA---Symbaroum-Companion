@@ -11,6 +11,7 @@ import {
 } from "@umbra/shared";
 import { AppError } from "../utils/AppError.js";
 import { CharacterModel } from "../models/CharacterModel.js";
+import { protectGrantedCharacterExperience } from "./characterExperiencePolicy.js";
 
 export class CharacterService {
   constructor(private readonly model: CharacterModel) {}
@@ -87,6 +88,11 @@ export class CharacterService {
   }
 
   async updateCharacter(ownerId: string, characterId: string, input: UpdateCharacterInput): Promise<Character> {
+    const current = await this.model.findById(ownerId, characterId);
+    if (!current) {
+      throw new AppError("CHARACTER_NOT_FOUND", "Personaje no encontrado", 404);
+    }
+    const currentSheet = parseCharacterSheet(current.sheet);
     const normalizedInput = {
       ...input,
       level: input.level === undefined ? undefined : (1 as const),
@@ -97,6 +103,7 @@ export class CharacterService {
               ...input.sheet,
               progreso: {
                 ...input.sheet.progreso,
+                experienciaTotal: currentSheet.progreso.experienciaTotal,
                 nivel: 1 as const
               },
               identidad: {
@@ -107,9 +114,10 @@ export class CharacterService {
     };
 
     const payload = updateCharacterSchema.parse(normalizedInput);
+    const requestedSheet = parseCharacterSheet(payload.sheet ?? currentSheet);
     const updated = await this.model.update(ownerId, characterId, {
       ...payload,
-      sheet: parseCharacterSheet(payload.sheet ?? createEmptyCharacterSheet())
+      sheet: protectGrantedCharacterExperience(currentSheet, requestedSheet)
     });
 
     if (!updated) {

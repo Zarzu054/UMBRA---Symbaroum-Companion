@@ -109,10 +109,6 @@ const BUILDER_TABS: Array<{ id: BuilderTabId; label: string }> = [
   { id: "rasgos", label: "Rasgos y cargas" }
 ];
 
-function getInitialCharacterXp(sheet: CharacterSheet): number {
-  return sheet.identidad.esFamiliar ? 20 : 50;
-}
-
 function normalizeName(value: string): string {
   return String(value ?? "")
     .normalize("NFD")
@@ -136,7 +132,6 @@ function getRatedEntryCost(level: SkillLevel): number {
 
 function getSimpleEntryDelta(section: SimpleSection): number {
   if (section === "bendiciones") return -5;
-  if (section === "cargas") return 5;
   return 0;
 }
 
@@ -318,11 +313,6 @@ export function CharacterBuilderView({
   }, [character]);
 
   const experience = useMemo(() => getCharacterExperienceSummary(draft), [draft]);
-  const initialCharacterXp = useMemo(() => getInitialCharacterXp(draft), [draft]);
-  const sessionExperience = useMemo(
-    () => Math.max(0, draft.progreso.experienciaTotal - initialCharacterXp - experience.extraFromBurdens),
-    [draft.progreso.experienciaTotal, experience.extraFromBurdens, initialCharacterXp]
-  );
   const manualSpentTotal = useMemo(
     () => Math.max(0, manualSpentAdjustment),
     [manualSpentAdjustment]
@@ -387,16 +377,6 @@ export function CharacterBuilderView({
       identidad: {
         ...current.identidad,
         [field]: value
-      }
-    }));
-  }
-
-  function updateProgressField(field: "experienciaTotal", value: number): void {
-    setDraft((current) => ({
-      ...current,
-      progreso: {
-        ...current.progreso,
-        [field]: Math.max(0, Math.trunc(Number.isFinite(value) ? value : 0))
       }
     }));
   }
@@ -606,6 +586,10 @@ export function CharacterBuilderView({
   function addSimpleEntry(section: SimpleSection): void {
     const value = simpleInputs[section].trim();
     if (!value) return;
+    if (section === "bendiciones" && effectiveAvailable < 5) {
+      setError(`No hay PX suficientes para obtener ${value}.`);
+      return;
+    }
     if (draft[section].some((entry) => normalizeName(entry) === normalizeName(value))) {
       setError(`${value} ya esta en ${SIMPLE_SECTION_LABELS[section].toLowerCase()}.`);
       return;
@@ -635,6 +619,10 @@ export function CharacterBuilderView({
     if (!entry) {
       return;
     }
+    if (section === "bendiciones" && effectiveAvailable < 5) {
+      setError(`No hay PX suficientes para obtener ${entry.nombre}.`);
+      return;
+    }
     if (draft[section].some((current) => normalizeName(current) === normalizeName(entry.nombre))) {
       setError(`${entry.nombre} ya esta en ${SIMPLE_SECTION_LABELS[section].toLowerCase()}.`);
       return;
@@ -650,6 +638,10 @@ export function CharacterBuilderView({
     setIsSaving(true);
     setError(null);
     try {
+      if (effectiveSpent > draft.progreso.experienciaTotal) {
+        setError(`No puedes gastar ${effectiveSpent} PX: el personaje solo tiene ${draft.progreso.experienciaTotal} PX concedidos.`);
+        return;
+      }
       const nextSheet = synchronizeCharacterSheet({
         ...draft,
         progreso: {
@@ -731,9 +723,9 @@ export function CharacterBuilderView({
                 </div>
 
                 <div className="character-builder-summary-notes">
-                  <p><strong>Origen del PX total:</strong> {initialCharacterXp} inicial + {experience.extraFromBurdens} por cargas + {sessionExperience} ganados en sesiones.</p>
+                  <p><strong>PX concedidos:</strong> el total lo gestiona el director de juego desde la campaña. El constructor solo permite invertir los puntos disponibles.</p>
                   <p><strong>Origen del PX gastado:</strong> {experience.spentFromCapabilities} en capacidades y poderes + {experience.spentFromRituals} en rituales + {experience.spentFromBlessings} en bendiciones{manualSpentTotal > 0 ? ` + ${manualSpentTotal} de ajuste manual` : ""}.</p>
-                  <p><strong>Rituales y rasgos:</strong> los rituales cuestan 10 PX cada uno; los rasgos siguen sin coste automatico.</p>
+                  <p><strong>Rituales y rasgos:</strong> los rituales cuestan 10 PX cada uno; los rasgos y las cargas no modifican automáticamente el total concedido.</p>
                 </div>
               </section>
             ) : null}
@@ -909,7 +901,7 @@ export function CharacterBuilderView({
                                 ))}
                               </select>
                             </label>
-                            <button type="button" onClick={() => addCatalogSimpleEntry(section)}>
+                            <button type="button" onClick={() => addCatalogSimpleEntry(section)} disabled={section === "bendiciones" && effectiveAvailable < 5}>
                               {section === "bendiciones" ? "Comprar del catalogo" : "Anadir del catalogo"}
                             </button>
                           </div>
@@ -918,7 +910,7 @@ export function CharacterBuilderView({
                               <span>Personalizada</span>
                               <input value={simpleInputs[section]} onChange={(event) => updateSimpleInput(section, event.target.value)} />
                             </label>
-                            <button type="button" onClick={() => addSimpleEntry(section)}>
+                            <button type="button" onClick={() => addSimpleEntry(section)} disabled={section === "bendiciones" && effectiveAvailable < 5}>
                               {section === "bendiciones" ? "Comprar personalizada" : "Anadir personalizada"}
                             </button>
                           </div>
