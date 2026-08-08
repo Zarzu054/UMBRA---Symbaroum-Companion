@@ -1821,6 +1821,26 @@ button[disabled] {
   box-shadow: inset 0 0 0 3px var(--ui-surface), inset 0 0 0 4px color-mix(in srgb, var(--ui-metal) 25%, transparent), var(--ui-shadow-overlay);
 }
 
+.campaign-artifact-add-modal {
+  width: min(720px, 100%);
+  display: grid;
+  gap: 18px;
+}
+
+.campaign-artifact-add-modal__section {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface-muted);
+}
+
+.campaign-artifact-add-modal__section h4,
+.campaign-artifact-add-modal__section p {
+  margin: 0;
+}
+
 .monster-modal-panel,
 .npc-editor-modal {
   width: min(720px, calc(100vw - 28px));
