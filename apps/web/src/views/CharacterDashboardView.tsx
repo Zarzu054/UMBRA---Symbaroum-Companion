@@ -16,14 +16,21 @@ import {
 } from "@umbra/shared";
 import { useLayoutEffect, useRef } from "react";
 import { CharacterCard } from "../components/CharacterCard";
+import { AppTopNavigation, type AppNavigationItem } from "../components/AppTopNavigation";
+import { AppIcon } from "../components/AppIcon";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
-import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
-import { findCompendiumCapabilityEntryId, findCompendiumEntryByTypeAndName } from "../models/compendiumEntries";
+import {
+  TYPE_LABELS,
+  findCompendiumCapabilityEntryId,
+  findCompendiumEntryByTypeAndName,
+  type EntryType
+} from "../models/compendiumEntries";
 import { toCharacterCardViewModel } from "../models/characterModel";
 import { computeDerivedStats } from "../models/rulesEngine";
 import { exportCharacterSheetPdf } from "../services/characterPdfExport";
 import { updateCharacter } from "../services/characterService";
+import { bindMysticArtifact, useMysticArtifactAbility } from "../services/mysticArtifactService";
 import {
   dispatchRoll20Request,
   getRollDestination,
@@ -34,7 +41,7 @@ import {
 } from "../services/rollTransport";
 import { CampaignDashboardView } from "./CampaignDashboardView";
 import { CharacterBuilderView } from "./CharacterBuilderView";
-import { CompendiumView } from "./CompendiumView";
+import { CompendiumView, type CompendiumBrowseMode } from "./CompendiumView";
 import { MonsterDashboardView } from "./MonsterDashboardView";
 import { NpcDashboardView } from "./NpcDashboardView";
 
@@ -52,6 +59,8 @@ type CompendiumFocus = {
   entryId: string | null;
   query: string;
   source: string;
+  type: "all" | EntryType;
+  mode: CompendiumBrowseMode;
   token: number;
 };
 
@@ -60,14 +69,6 @@ type PendingCharacterRollConfirmation = {
   visibility: Roll20Visibility;
   title: string;
 };
-
-const MOBILE_NAVIGATION_QUERY = "(max-width: 900px)";
-
-function isMobileNavigationViewport(): boolean {
-  return typeof window !== "undefined" && typeof window.matchMedia === "function"
-    ? window.matchMedia(MOBILE_NAVIGATION_QUERY).matches
-    : false;
-}
 
 function getModuleLabel(module: AppModule): string {
   switch (module) {
@@ -112,12 +113,17 @@ function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"
 
   const [, search = ""] = rawHash.split("?");
   const params = new URLSearchParams(search);
+  const rawType = params.get("type");
+  const source = params.get("source") ?? "all";
+  const mode = params.get("mode");
   return {
     module: "compendium",
     focus: {
       entryId: params.get("id"),
       query: params.get("q") ?? "",
-      source: params.get("source") ?? "all"
+      source,
+      type: rawType && rawType !== "all" && rawType in TYPE_LABELS ? rawType as EntryType : "all",
+      mode: mode === "source" || (!mode && source !== "all") ? "source" : "type"
     }
   };
 }
@@ -133,14 +139,12 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   const [activeModule, setActiveModule] = useState<AppModule>(
     canAccessCharacters ? "characters" : canAccessNpcs ? "npcs" : canAccessMonsters ? "monsters" : "campaigns"
   );
-  const [isMobileViewport, setIsMobileViewport] = useState(isMobileNavigationViewport);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => !isMobileNavigationViewport());
-  const mobileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
-  const sidebarCloseButtonRef = useRef<HTMLButtonElement | null>(null);
   const [compendiumFocus, setCompendiumFocus] = useState<CompendiumFocus>({
     entryId: null,
     query: "",
     source: "all",
+    type: "all",
+    mode: "type",
     token: 0
   });
   const [selectedCharacterSheetId, setSelectedCharacterSheetId] = useState<string | null>(() => parseHash().sheetId ?? null);
@@ -150,8 +154,6 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     [controller.characters, selectedCharacterSheetId]
   );
   const mobileHeaderTitle = selectedCharacterSheet?.name ?? getModuleLabel(activeModule);
-
-  useBodyScrollLock(isMobileViewport && isSidebarOpen);
 
   // Dashboard fields contain game data, never credentials. Excluding them
   // prevents Bitwarden's inline menu from retaining stale DOM anchors while
@@ -163,56 +165,6 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
       }
     });
   });
-
-  useEffect(() => {
-    if (typeof window.matchMedia !== "function") {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia(MOBILE_NAVIGATION_QUERY);
-    const syncViewport = (matches: boolean): void => {
-      setIsMobileViewport(matches);
-      setIsSidebarOpen(!matches);
-    };
-    const handleChange = (event: MediaQueryListEvent): void => syncViewport(event.matches);
-
-    syncViewport(mediaQuery.matches);
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
-
-  useEffect(() => {
-    if (!isMobileViewport || !isSidebarOpen) {
-      return;
-    }
-
-    function handleEscape(event: KeyboardEvent): void {
-      if (event.key !== "Escape") return;
-      setIsSidebarOpen(false);
-      window.setTimeout(() => mobileMenuButtonRef.current?.focus(), 0);
-    }
-
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [isMobileViewport, isSidebarOpen]);
-
-  useEffect(() => {
-    if (isMobileViewport) {
-      setIsSidebarOpen(false);
-    }
-  }, [activeModule, isMobileViewport, selectedCharacterSheetId]);
-
-  function openMobileNavigation(): void {
-    setIsSidebarOpen(true);
-    window.setTimeout(() => sidebarCloseButtonRef.current?.focus(), 0);
-  }
-
-  function closeMobileNavigation(restoreFocus = true): void {
-    setIsSidebarOpen(false);
-    if (restoreFocus) {
-      window.setTimeout(() => mobileMenuButtonRef.current?.focus(), 0);
-    }
-  }
 
   useEffect(() => {
     function syncWithHash(): void {
@@ -245,6 +197,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             entryId: parsed.focus?.entryId ?? null,
             query: parsed.focus?.query ?? "",
             source: parsed.focus?.source ?? "all",
+            type: parsed.focus?.type ?? "all",
+            mode: parsed.focus?.mode ?? "type",
             token: prev.token + 1
           }));
           return;
@@ -285,7 +239,6 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   }
 
   function openCharactersModule(): void {
-    if (isMobileViewport) setIsSidebarOpen(false);
     setActiveModule("characters");
     window.location.hash = "characters";
     setSelectedCharacterSheetId(null);
@@ -318,7 +271,6 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   }
 
   function openCompendiumModule(): void {
-    if (isMobileViewport) setIsSidebarOpen(false);
     setActiveModule("compendium");
     if (!window.location.hash.startsWith("#compendium")) {
       window.location.hash = "compendium";
@@ -326,7 +278,6 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   }
 
   function openCampaignsModule(): void {
-    if (isMobileViewport) setIsSidebarOpen(false);
     setActiveModule("campaigns");
     if (!window.location.hash.startsWith("#campaigns")) {
       window.location.hash = "campaigns";
@@ -334,7 +285,6 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   }
 
   function openMonstersModule(): void {
-    if (isMobileViewport) setIsSidebarOpen(false);
     setActiveModule("monsters");
     if (!window.location.hash.startsWith("#monsters")) {
       window.location.hash = "monsters";
@@ -342,115 +292,49 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   }
 
   function openNpcsModule(): void {
-    if (isMobileViewport) setIsSidebarOpen(false);
     setActiveModule("npcs");
     if (!window.location.hash.startsWith("#npcs")) {
       window.location.hash = "npcs";
     }
   }
 
+  const navigationItems: AppNavigationItem[] = [
+    ...(canAccessCharacters ? [{ id: "characters", label: "Personajes", active: activeModule === "characters", onSelect: openCharactersModule }] : []),
+    { id: "campaigns", label: "Campañas", active: activeModule === "campaigns", onSelect: openCampaignsModule },
+    ...(canAccessNpcs ? [{ id: "npcs", label: "PNJ", active: activeModule === "npcs", onSelect: openNpcsModule }] : []),
+    ...(canAccessMonsters ? [{ id: "monsters", label: "Monstruos", active: activeModule === "monsters", onSelect: openMonstersModule }] : []),
+    { id: "compendium", label: "Compendio", active: activeModule === "compendium", onSelect: openCompendiumModule }
+  ];
+
   return (
-    <main ref={dashboardRef} className="page">
-      <div className={`app-shell${isSidebarOpen ? "" : " is-sidebar-collapsed"}`}>
-        <aside
-          id="app-navigation"
-          className={`app-sidebar${isSidebarOpen ? " is-mobile-open" : " is-collapsed"}`}
-          aria-label="Navegación principal"
-        >
-          <div className="app-sidebar-inner">
-            <div className="app-sidebar-head">
-              <div>
-                <h1>UMBRA</h1>
-              </div>
-              <button
-                ref={sidebarCloseButtonRef}
-                className="sidebar-toggle"
-                aria-label={isSidebarOpen ? "Ocultar barra lateral" : "Mostrar barra lateral"}
-                onClick={() => isMobileViewport ? closeMobileNavigation() : setIsSidebarOpen((current) => !current)}
-              >
-                {isSidebarOpen ? "<" : ">"}
-              </button>
-            </div>
-            <nav className="sidebar-nav">
-              {canAccessCharacters ? (
-                <button className={activeModule === "characters" ? "active-toggle" : ""} onClick={openCharactersModule}>
-                  Personajes
-                </button>
-              ) : null}
-              <button className={activeModule === "campaigns" ? "active-toggle" : ""} onClick={openCampaignsModule}>
-                Campañas
-              </button>
-              {canAccessNpcs ? (
-                <button className={activeModule === "npcs" ? "active-toggle" : ""} onClick={openNpcsModule}>
-                  PNJ
-                </button>
-              ) : null}
-              {canAccessMonsters ? (
-                <button className={activeModule === "monsters" ? "active-toggle" : ""} onClick={openMonstersModule}>
-                  Monstruos
-                </button>
-              ) : null}
-              <button className={activeModule === "compendium" ? "active-toggle" : ""} onClick={openCompendiumModule}>
-                Compendio
-              </button>
-            </nav>
-            <div className="sidebar-session">
-              <div className="sidebar-session-meta">
-                <p>{user.email}</p>
-                <p>{getRoleLabel(user.role)}</p>
-              </div>
-              <button onClick={() => void onLogout()}>Salir</button>
-            </div>
-          </div>
-        </aside>
-
-        {isMobileViewport && isSidebarOpen ? (
-          <button
-            type="button"
-            className="app-drawer-backdrop"
-            aria-label="Cerrar navegación"
-            onClick={() => closeMobileNavigation()}
-          />
-        ) : null}
-
-        <section className={`app-content module-theme module-theme--${activeModule}`}>
-          <header className="mobile-app-bar">
-            <button
-              ref={mobileMenuButtonRef}
-              type="button"
-              className="mobile-app-bar-menu"
-              aria-label="Abrir navegación"
-              aria-controls="app-navigation"
-              aria-expanded={isSidebarOpen}
-              onClick={openMobileNavigation}
-            >
-              ☰
-            </button>
-            <strong>{mobileHeaderTitle}</strong>
-            {selectedCharacterSheet && activeModule === "characters" ? (
-              <button type="button" className="mobile-app-bar-back" onClick={closeCharacterSheet}>
+    <main ref={dashboardRef} className="page app-page">
+      <AppTopNavigation
+        items={navigationItems}
+        currentTitle={mobileHeaderTitle}
+        userEmail={user.email}
+        roleLabel={getRoleLabel(user.role)}
+        onLogout={onLogout}
+      />
+      <section className={`app-content module-theme module-theme--${activeModule}`}>
+          {selectedCharacterSheet && activeModule === "characters" && selectedCharacterPageMode === "sheet" ? (
+            <div className="app-context-navigation">
+              <button type="button" className="text-button" onClick={closeCharacterSheet}>
+                <AppIcon name="arrow-left" />
                 Volver
               </button>
-            ) : <span aria-hidden="true" />}
-          </header>
-          {!isSidebarOpen ? (
-            <div className="content-topbar">
-              <button
-                className="sidebar-toggle"
-                aria-label="Mostrar barra lateral"
-                onClick={() => setIsSidebarOpen(true)}
-              >
-                {">"}
-              </button>
+              <span>Personajes / {selectedCharacterSheet.name}</span>
             </div>
           ) : null}
 
           {activeModule === "compendium" ? (
             <CompendiumView
               onBackToCharacters={openCharactersModule}
+              ensureAccessToken={ensureAccessToken}
               initialEntryId={compendiumFocus.entryId}
               initialQuery={compendiumFocus.query}
               initialSourceFilter={compendiumFocus.source}
+              initialTypeFilter={compendiumFocus.type}
+              initialBrowseMode={compendiumFocus.mode}
               focusToken={compendiumFocus.token}
             />
           ) : activeModule === "monsters" ? (
@@ -466,6 +350,11 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   character={selectedCharacterSheet}
                   onBackToCharacters={closeCharacterSheet}
                   onOpenSheet={() => openCharacterSheet(selectedCharacterSheet.id)}
+                  onBindMysticArtifact={async (artifactId, paymentType) => {
+                    const token = await ensureAccessToken();
+                    await bindMysticArtifact(artifactId, { paymentType }, token);
+                    await controller.refresh();
+                  }}
                   onSave={async (nextSheet) => {
                     const token = await ensureAccessToken();
                     const updated = await updateCharacter(
@@ -491,9 +380,15 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   subtitle={`${selectedCharacterSheet.culture || "Sin cultura"} · ${selectedCharacterSheet.archetype || "Sin arquetipo"} · ${selectedCharacterSheet.race || "Sin raza"}`}
                   sheet={parseCharacterSheet(selectedCharacterSheet.sheet)}
                   editable
+                  backgroundPreferenceScope={user.id}
                   onBack={closeCharacterSheet}
                   onOpenBuilder={() => openCharacterBuilder(selectedCharacterSheet.id)}
                   onOpenCompendiumCapability={openCompendiumCapability}
+                  onUseArtifactAbility={async (artifactId, abilityId) => {
+                    const token = await ensureAccessToken();
+                    await useMysticArtifactAbility(artifactId, abilityId, token);
+                    await controller.refresh();
+                  }}
                   onSave={async (nextSheet) => {
                     const token = await ensureAccessToken();
                     const updated = await updateCharacter(
@@ -752,31 +647,19 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         </div>
 
         <div className="section-title">Progreso y recursos</div>
-        <p className="section-help">Control de avance: nivel, experiencia ganada y experiencia invertida.</p>
+        <p className="section-help">El director de juego concede la experiencia. Las compras se realizan desde el constructor sin superar el total disponible.</p>
         {isCampaignManagedLock ? <p className="section-help">Estos campos de progreso y estado de aventura se gestionan desde Campañas.</p> : null}
-        <fieldset disabled={isCampaignManagedLock} className="campaign-managed-fieldset">
         <div className="form-grid">
-          <label className="field">
+          <div className="info-box">
             <span>PX total</span>
-            <input
-              type="number"
-              min={0}
-              value={controller.form.sheet.progreso.experienciaTotal}
-              onChange={(event) => controller.updateSheet("progreso.experienciaTotal", Number(event.target.value || 0))}
-            />
-          </label>
-          <label className="field">
+            <strong>{controller.form.sheet.progreso.experienciaTotal}</strong>
+          </div>
+          <div className="info-box">
             <span>PX gastada</span>
-            <input
-              type="number"
-              min={0}
-              value={controller.form.sheet.progreso.experienciaGastada}
-              onChange={(event) => controller.updateSheet("progreso.experienciaGastada", Number(event.target.value || 0))}
-            />
-          </label>
+            <strong>{controller.form.sheet.progreso.experienciaGastada}</strong>
+          </div>
           <div className="info-box">PX disponible: {controller.derived.xpDisponible}</div>
         </div>
-        </fieldset>
 
         <div className="section-title">Cálculos automáticos (MVP)</div>
         <p className="section-help">
@@ -1576,8 +1459,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               </section>
             </section>
           )}
-        </section>
-      </div>
+      </section>
     </main>
   );
 }

@@ -7,6 +7,7 @@ import {
   synchronizeCharacterSheet,
   type Character,
   type CharacterSheet,
+  type MysticArtifactPaymentType,
   type SkillLevel,
   type SymbaroumCapability
 } from "@umbra/shared";
@@ -16,7 +17,7 @@ import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS, type CompendiumEnt
 type RatedSection = "habilidades" | "rasgosMonstruosos" | "poderesMisticos" | "rituales";
 type StoredRatedSection = "habilidades" | "poderesMisticos" | "rituales";
 type SimpleSection = "bendiciones" | "cargas" | "rasgos";
-type BuilderTabId = "resumen" | "identidad" | "compras" | "rasgos";
+type BuilderTabId = "resumen" | "identidad" | "compras" | "artefactos" | "rasgos";
 type BuilderAcquisitionModal = {
   section: RatedSection;
   query: string;
@@ -44,6 +45,7 @@ type Props = {
   backLabel?: string;
   sheetLabel?: string;
   saveLabel?: string;
+  onBindMysticArtifact?: (artifactId: string, paymentType: MysticArtifactPaymentType) => Promise<void>;
 };
 
 type CatalogSelections = {
@@ -106,12 +108,9 @@ const BUILDER_TABS: Array<{ id: BuilderTabId; label: string }> = [
   { id: "resumen", label: "Resumen" },
   { id: "identidad", label: "Identidad" },
   { id: "compras", label: "Compras PX" },
+  { id: "artefactos", label: "Artefactos" },
   { id: "rasgos", label: "Rasgos y cargas" }
 ];
-
-function getInitialCharacterXp(sheet: CharacterSheet): number {
-  return sheet.identidad.esFamiliar ? 20 : 50;
-}
 
 function normalizeName(value: string): string {
   return String(value ?? "")
@@ -136,7 +135,6 @@ function getRatedEntryCost(level: SkillLevel): number {
 
 function getSimpleEntryDelta(section: SimpleSection): number {
   if (section === "bendiciones") return -5;
-  if (section === "cargas") return 5;
   return 0;
 }
 
@@ -284,7 +282,8 @@ export function CharacterBuilderView({
   onSave,
   backLabel = "Volver a personajes",
   sheetLabel = "Abrir hoja",
-  saveLabel = "Guardar constructor"
+  saveLabel = "Guardar constructor",
+  onBindMysticArtifact
 }: Props) {
   const [draft, setDraft] = useState<CharacterSheet>(() => parseCharacterSheet(character.sheet));
   const [catalogSelections, setCatalogSelections] = useState<CatalogSelections>(INITIAL_CATALOG_SELECTIONS);
@@ -299,6 +298,8 @@ export function CharacterBuilderView({
   const [activeTab, setActiveTab] = useState<BuilderTabId>("resumen");
   const [acquisitionModal, setAcquisitionModal] = useState<BuilderAcquisitionModal | null>(null);
   const [capabilityConfirmationModal, setCapabilityConfirmationModal] = useState<BuilderCapabilityConfirmationModal | null>(null);
+  const [bindingArtifactId, setBindingArtifactId] = useState<string | null>(null);
+  const artifactBindingXpSpent = character.artifactBindingXpSpent ?? 0;
 
   useEffect(() => {
     const parsedSheet = parseCharacterSheet(character.sheet);
@@ -310,7 +311,7 @@ export function CharacterBuilderView({
       cargas: "",
       rasgos: ""
     });
-    setManualSpentAdjustment(Math.max(0, parsedSheet.progreso.experienciaGastada - experience.computedSpent));
+    setManualSpentAdjustment(Math.max(0, parsedSheet.progreso.experienciaGastada - experience.computedSpent - (character.artifactBindingXpSpent ?? 0)));
     setError(null);
     setActiveTab("resumen");
     setAcquisitionModal(null);
@@ -318,18 +319,13 @@ export function CharacterBuilderView({
   }, [character]);
 
   const experience = useMemo(() => getCharacterExperienceSummary(draft), [draft]);
-  const initialCharacterXp = useMemo(() => getInitialCharacterXp(draft), [draft]);
-  const sessionExperience = useMemo(
-    () => Math.max(0, draft.progreso.experienciaTotal - initialCharacterXp - experience.extraFromBurdens),
-    [draft.progreso.experienciaTotal, experience.extraFromBurdens, initialCharacterXp]
-  );
   const manualSpentTotal = useMemo(
     () => Math.max(0, manualSpentAdjustment),
     [manualSpentAdjustment]
   );
   const effectiveSpent = useMemo(
-    () => Math.max(0, experience.computedSpent + manualSpentTotal),
-    [experience.computedSpent, manualSpentTotal]
+    () => Math.max(0, experience.computedSpent + artifactBindingXpSpent + manualSpentTotal),
+    [artifactBindingXpSpent, experience.computedSpent, manualSpentTotal]
   );
   const effectiveAvailable = useMemo(
     () => Math.max(0, draft.progreso.experienciaTotal - effectiveSpent),
@@ -387,16 +383,6 @@ export function CharacterBuilderView({
       identidad: {
         ...current.identidad,
         [field]: value
-      }
-    }));
-  }
-
-  function updateProgressField(field: "experienciaTotal", value: number): void {
-    setDraft((current) => ({
-      ...current,
-      progreso: {
-        ...current.progreso,
-        [field]: Math.max(0, Math.trunc(Number.isFinite(value) ? value : 0))
       }
     }));
   }
@@ -606,6 +592,10 @@ export function CharacterBuilderView({
   function addSimpleEntry(section: SimpleSection): void {
     const value = simpleInputs[section].trim();
     if (!value) return;
+    if (section === "bendiciones" && effectiveAvailable < 5) {
+      setError(`No hay PX suficientes para obtener ${value}.`);
+      return;
+    }
     if (draft[section].some((entry) => normalizeName(entry) === normalizeName(value))) {
       setError(`${value} ya esta en ${SIMPLE_SECTION_LABELS[section].toLowerCase()}.`);
       return;
@@ -635,6 +625,10 @@ export function CharacterBuilderView({
     if (!entry) {
       return;
     }
+    if (section === "bendiciones" && effectiveAvailable < 5) {
+      setError(`No hay PX suficientes para obtener ${entry.nombre}.`);
+      return;
+    }
     if (draft[section].some((current) => normalizeName(current) === normalizeName(entry.nombre))) {
       setError(`${entry.nombre} ya esta en ${SIMPLE_SECTION_LABELS[section].toLowerCase()}.`);
       return;
@@ -650,6 +644,10 @@ export function CharacterBuilderView({
     setIsSaving(true);
     setError(null);
     try {
+      if (effectiveSpent > draft.progreso.experienciaTotal) {
+        setError(`No puedes gastar ${effectiveSpent} PX: el personaje solo tiene ${draft.progreso.experienciaTotal} PX concedidos.`);
+        return;
+      }
       const nextSheet = synchronizeCharacterSheet({
         ...draft,
         progreso: {
@@ -662,6 +660,25 @@ export function CharacterBuilderView({
       setError(err instanceof Error ? err.message : "No se pudo guardar el constructor.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleBindArtifact(artifactId: string, paymentType: MysticArtifactPaymentType): Promise<void> {
+    if (!onBindMysticArtifact) return;
+    const artifact = (character.mysticArtifacts ?? []).find((entry) => entry.id === artifactId);
+    const cost = artifact?.bindingCosts.find((entry) => entry.paymentType === paymentType);
+    const consequence = paymentType === "xp"
+      ? `${cost?.amount ?? 0} PX pasarán a experiencia gastada`
+      : `ganarás ${cost?.amount ?? 0} punto(s) de Corrupción permanente; esto puede superar tus umbrales, aunque la ficha no te convertirá automáticamente en PNJ`;
+    if (!window.confirm(`Vincular ${artifact?.name ?? "este artefacto"}: ${consequence}. Romper el vínculo no devuelve el pago. ¿Confirmar?`)) return;
+    setBindingArtifactId(artifactId);
+    setError(null);
+    try {
+      await onBindMysticArtifact(artifactId, paymentType);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo completar el vinculo.");
+    } finally {
+      setBindingArtifactId(null);
     }
   }
 
@@ -731,9 +748,9 @@ export function CharacterBuilderView({
                 </div>
 
                 <div className="character-builder-summary-notes">
-                  <p><strong>Origen del PX total:</strong> {initialCharacterXp} inicial + {experience.extraFromBurdens} por cargas + {sessionExperience} ganados en sesiones.</p>
-                  <p><strong>Origen del PX gastado:</strong> {experience.spentFromCapabilities} en capacidades y poderes + {experience.spentFromRituals} en rituales + {experience.spentFromBlessings} en bendiciones{manualSpentTotal > 0 ? ` + ${manualSpentTotal} de ajuste manual` : ""}.</p>
-                  <p><strong>Rituales y rasgos:</strong> los rituales cuestan 10 PX cada uno; los rasgos siguen sin coste automatico.</p>
+                  <p><strong>PX concedidos:</strong> el total lo gestiona el director de juego desde la campaña. El constructor solo permite invertir los puntos disponibles.</p>
+                  <p><strong>Origen del PX gastado:</strong> {experience.spentFromCapabilities} en capacidades y poderes + {experience.spentFromRituals} en rituales + {experience.spentFromBlessings} en bendiciones{artifactBindingXpSpent > 0 ? ` + ${artifactBindingXpSpent} en vínculos de artefactos` : ""}{manualSpentTotal > 0 ? ` + ${manualSpentTotal} de ajuste manual` : ""}.</p>
+                  <p><strong>Rituales y rasgos:</strong> los rituales cuestan 10 PX cada uno; los rasgos y las cargas no modifican automáticamente el total concedido.</p>
                 </div>
               </section>
             ) : null}
@@ -909,7 +926,7 @@ export function CharacterBuilderView({
                                 ))}
                               </select>
                             </label>
-                            <button type="button" onClick={() => addCatalogSimpleEntry(section)}>
+                            <button type="button" onClick={() => addCatalogSimpleEntry(section)} disabled={section === "bendiciones" && effectiveAvailable < 5}>
                               {section === "bendiciones" ? "Comprar del catalogo" : "Anadir del catalogo"}
                             </button>
                           </div>
@@ -918,7 +935,7 @@ export function CharacterBuilderView({
                               <span>Personalizada</span>
                               <input value={simpleInputs[section]} onChange={(event) => updateSimpleInput(section, event.target.value)} />
                             </label>
-                            <button type="button" onClick={() => addSimpleEntry(section)}>
+                            <button type="button" onClick={() => addSimpleEntry(section)} disabled={section === "bendiciones" && effectiveAvailable < 5}>
                               {section === "bendiciones" ? "Comprar personalizada" : "Anadir personalizada"}
                             </button>
                           </div>
@@ -944,6 +961,65 @@ export function CharacterBuilderView({
                       </div>
                     </article>
                   ))}
+                </div>
+              </section>
+            ) : null}
+
+            {activeTab === "artefactos" ? (
+              <section className="character-builder-panel campaign-sheet-card">
+                <div className="row-actions">
+                  <div>
+                    <h3>Artefactos misticos</h3>
+                    <p className="section-help">Solo aparecen los artefactos que el DJ ha entregado a este personaje.</p>
+                  </div>
+                  <span className="meta-text">PX disponibles: {effectiveAvailable}</span>
+                </div>
+                <div className="character-builder-purchase-stack">
+                  {(character.mysticArtifacts ?? []).map((artifact) => (
+                    <article key={artifact.id} className="character-builder-block">
+                      <div className="row-actions">
+                        <div>
+                          <h4>{artifact.name}</h4>
+                          <p className="meta-text">{artifact.campaignName} · {artifact.isBound ? "Vinculado" : "Sin vincular"}</p>
+                        </div>
+                        {!artifact.isBound ? (
+                          <div className="toolbar">
+                            {artifact.bindingCosts.map((cost) => (
+                              <button
+                                key={cost.paymentType}
+                                type="button"
+                                disabled={bindingArtifactId === artifact.id || (cost.paymentType === "xp" && cost.amount > effectiveAvailable)}
+                                onClick={() => void handleBindArtifact(artifact.id, cost.paymentType)}
+                              >
+                                {bindingArtifactId === artifact.id
+                                  ? "Vinculando..."
+                                  : cost.paymentType === "xp" ? `Vincular por ${cost.amount} PX` : `Vincular por ${cost.amount} Corrupcion permanente`}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                      {artifact.description ? <p className="section-help">{artifact.description}</p> : null}
+                      {artifact.resources.map((resource) => resource.maximum !== undefined && resource.current !== undefined ? (
+                        <div key={resource.id} className="info-box"><span>{resource.name}</span><strong>{resource.current}/{resource.maximum}</strong></div>
+                      ) : null)}
+                      {artifact.abilities.length > 0 ? (
+                        <div className="character-builder-entry-list">
+                          {artifact.abilities.map((ability) => (
+                            <article key={ability.id} className="character-builder-entry-card">
+                              <div className="character-builder-entry-head">
+                                <strong>{ability.name}</strong>
+                                <span className="meta-text">{ability.locked ? ability.lockReason : ability.activation === "active" ? "Disponible" : ability.activation}</span>
+                              </div>
+                              <p className="section-help">{ability.description}</p>
+                              <p className="meta-text">Corrupcion: {ability.corruptionFormula || "Ninguna"}{ability.perSceneLimit ? ` · ${ability.perSceneLimit} vez/veces por escena` : ""}</p>
+                            </article>
+                          ))}
+                        </div>
+                      ) : !artifact.isBound ? <p className="section-help">Sus capacidades se revelaran al completar el vinculo.</p> : null}
+                    </article>
+                  ))}
+                  {(character.mysticArtifacts ?? []).length === 0 ? <p className="section-help">Este personaje no posee artefactos de campaña.</p> : null}
                 </div>
               </section>
             ) : null}

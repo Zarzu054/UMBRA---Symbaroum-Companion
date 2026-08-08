@@ -2,9 +2,10 @@ import dotenv from "dotenv";
 import argon2 from "argon2";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { seedMysticArtifactPresets } from "./mysticArtifactPresets.js";
 
 const seedDir = dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: resolve(seedDir, "../../.env") });
+dotenv.config({ path: resolve(seedDir, "../../../.env") });
 dotenv.config();
 
 const { PrismaClient } = await import("@prisma/client");
@@ -59,6 +60,7 @@ async function upsertUser(
 }
 
 async function main(): Promise<void> {
+  await seedMysticArtifactPresets(prisma);
   await upsertUser("aliciagarciamanzano16@gmail.com", DEFAULT_MVP_PASSWORD, "player", true);
   await upsertUser("carloszarzuelar@gmail.com", DEFAULT_MVP_PASSWORD, "player", true);
   await upsertUser("pabpinbae@gmail.com", DEFAULT_MVP_PASSWORD, "player", true);

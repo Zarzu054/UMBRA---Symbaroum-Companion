@@ -11,6 +11,8 @@
   grantCampaignExperienceSchema,
   linkCampaignCharacterSchema,
   parseCharacterSheet,
+  stripManagedMysticArtifactsFromSheet,
+  preserveLegacyMysticArtifacts,
   SYMBAROUM_ARCHETYPES,
   SYMBAROUM_RACES,
   updateCampaignNpcSchema,
@@ -40,6 +42,7 @@
 import { CampaignModel } from "../models/CampaignModel.js";
 import { campaignLiveHub } from "./CampaignLiveHub.js";
 import { AppError } from "../utils/AppError.js";
+import { protectGrantedCharacterExperience } from "./characterExperiencePolicy.js";
 
 const NPC_THREATS = ["Bajo", "Medio", "Alto", "Elite"] as const;
 const NPC_OCCUPATIONS = ["Guardia", "Explorador", "Mercader", "Cultista", "Cazador", "Bruja", "Erudito", "Bandido"] as const;
@@ -299,6 +302,9 @@ export class CampaignService {
       throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes desvincular tus propios personajes", 403);
     }
 
+    if (await this.model.characterLinkOwnsMysticArtifacts(linkId)) {
+      throw new AppError("ARTIFACT_OWNER_IN_USE", "El personaje posee artefactos; el DJ debe desvincularlos y retirarlos antes", 409);
+    }
     await this.model.unlinkCharacter(linkId);
     return this.getCampaign(userId, userRole, link.campaignId);
   }
@@ -339,6 +345,9 @@ export class CampaignService {
     }
 
     await this.assertCampaignManagedBy(userId, userRole, npc.campaignId);
+    if (await this.model.npcOwnsMysticArtifacts(npcId)) {
+      throw new AppError("ARTIFACT_OWNER_IN_USE", "El PNJ posee artefactos; desvincúlalos y retíralos antes", 409);
+    }
     await this.model.deleteNpc(npcId);
     return this.getCampaign(userId, userRole, npc.campaignId);
   }
@@ -363,8 +372,26 @@ export class CampaignService {
       await this.assertCampaignManagedBy(userId, userRole, link.campaignId);
     }
 
-    const payload = updateCampaignCharacterSheetSchema.parse(input);
-    await this.model.updateLinkedCharacterSheet(link.characterId, payload.sheet);
+    const character = await this.model.findCharacterById(link.characterId);
+    if (!character) {
+      throw new AppError("CHARACTER_NOT_FOUND", "Personaje no encontrado", 404);
+    }
+    const currentSheet = parseCharacterSheet(character.sheet);
+    const payload = updateCampaignCharacterSheetSchema.parse({
+      sheet: {
+        ...stripManagedMysticArtifactsFromSheet(input.sheet),
+        progreso: {
+          ...input.sheet.progreso,
+          experienciaTotal: currentSheet.progreso.experienciaTotal
+        }
+      }
+    });
+    const playerSafeSheet = isDirector ? payload.sheet : preserveLegacyMysticArtifacts(currentSheet, payload.sheet);
+    const protectedSheet = protectGrantedCharacterExperience(
+      currentSheet,
+      playerSafeSheet
+    );
+    await this.model.updateLinkedCharacterSheet(link.characterId, protectedSheet);
     return this.getCampaign(userId, userRole, link.campaignId);
   }
 
@@ -381,7 +408,10 @@ export class CampaignService {
     }
 
     await this.assertCampaignManagedBy(userId, userRole, npc.campaignId);
-    const payload = updateCampaignNpcSheetSchema.parse(input);
+    const payload = updateCampaignNpcSheetSchema.parse({
+      ...input,
+      sheet: input.sheet ? stripManagedMysticArtifactsFromSheet(input.sheet) : null
+    });
     await this.model.updateNpcSheet(npcId, payload.sheet);
     return this.getCampaign(userId, userRole, npc.campaignId);
   }

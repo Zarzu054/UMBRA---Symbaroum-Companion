@@ -17,7 +17,7 @@ const NAMES = [
     "Kael"
 ];
 const MYSTIC_ARCHETYPE = "Místico";
-const MYSTIC_BASE_ABILITIES = ["Poder místico", "Magia", "Teúrgia", "Brujería", "Hechicería", "Ojo místico"];
+const MYSTIC_BASE_ABILITIES = ["Magia", "Teúrgia", "Brujería", "Hechicería", "Ojo místico"];
 const PROFESSIONS_BY_ARCHETYPE = {
     Guerrero: ["Caballero", "Capitán", "Espada de alquiler", "Duelista"],
     Cazador: ["Cazatesoros", "Explorador", "Arquero", "Rastreador"],
@@ -27,7 +27,7 @@ const PROFESSIONS_BY_ARCHETYPE = {
 const ABILITY_POOL_BY_ARCHETYPE = {
     Guerrero: ["Armas a dos manos", "Golpe de hierro", "Combate con escudo", "Combate con armadura", "Guardaespaldas", "Berserker"],
     Cazador: ["Tirador", "Sexto sentido", "Viento de acero", "Mano veloz", "Jinete", "Versado en criaturas"],
-    Místico: ["Poder místico", "Rituales", "Brujería", "Teúrgia", "Magia", "Ojo místico", "Talento místico superior"],
+    Místico: ["Brujería", "Teúrgia", "Magia", "Ojo místico", "Talento místico superior"],
     Maleante: ["Ataque traicionero", "Finta", "Estrangulador", "Acróbata", "Dominación", "Venenos"]
 };
 const POWER_POOL_BY_ARCHETYPE = {

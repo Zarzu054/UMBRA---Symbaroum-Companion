@@ -887,6 +887,31 @@ test("getEffectiveCharacterRobustezMax no conserva un robustezMax guardado obsol
   assert.equal(getEffectiveCharacterRobustezMax(sheet), 22);
 });
 
+test("la robustez maxima de un PJ nunca es inferior a 10", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.atributos.fuerte = 5;
+  sheet.combate.robustezMax = 5;
+  sheet.combate.robustezActual = 5;
+
+  assert.equal(getCharacterMonsterTraitEffects(sheet).robustezMaxima, 10);
+  assert.equal(getEffectiveCharacterRobustezMax(sheet), 10);
+
+  const synchronized = synchronizeCharacterSheet(sheet);
+  assert.equal(synchronized.combate.robustezMax, 10);
+  assert.equal(synchronized.combate.robustezActual, 10);
+});
+
+test("al migrar el minimo de robustez se conservan los puntos de dano existentes", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.atributos.fuerte = 5;
+  sheet.combate.robustezMax = 5;
+  sheet.combate.robustezActual = 3;
+
+  const synchronized = synchronizeCharacterSheet(sheet);
+  assert.equal(synchronized.combate.robustezMax, 10);
+  assert.equal(synchronized.combate.robustezActual, 3);
+});
+
 test("deriveCharacterActions reemplaza acciones guardadas obsoletas de Arma natural por la derivada actual", () => {
   const sheet = synchronizeCharacterSheet({
     ...createEmptyCharacterSheet(),

@@ -31,6 +31,14 @@ export function toRoll20Text(request: RollRequest, visibility: Roll20Visibility 
     lines.push(`Atributo: ${formatAttributeLabel(request.rollAttribute)} | Objetivo: <= ${request.target}`);
   }
 
+  if (request.opponentAttribute) {
+    lines.push(`Atributo enfrentado: ${formatAttributeLabel(request.opponentAttribute)}`);
+  }
+
+  if (request.corruptionFormula) {
+    lines.push(`Corrupción del uso: ${request.corruptionFormula} (no aplicada automáticamente)`);
+  }
+
   if (request.note) {
     lines.push(`Nota: ${request.note}`);
   }

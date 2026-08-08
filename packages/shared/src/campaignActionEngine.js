@@ -37,12 +37,17 @@ export function deriveCharacterActions(sheet) {
             cost: action.cost,
             requiredLevel: action.requiredLevel ?? inferActionLevel(action.id, action.label, action.sourceName),
             rollAttribute: action.rollAttribute,
+            opponentAttribute: action.opponentAttribute,
             fixedTarget: action.fixedTarget,
             damageFormula: normalizeFormula(action.damageFormula ?? ""),
             damageBreakdown: action.damageFormula
                 ? [{ label: action.sourceName, formula: normalizeFormula(action.damageFormula ?? "") }]
                 : undefined,
-            effectSummary: action.effectSummary
+            effectSummary: action.effectSummary,
+            corruptionFormula: action.corruptionFormula,
+            artifactAbilityId: action.artifactAbilityId,
+            disabledReason: action.disabledReason,
+            rolls: action.rolls
         }))
             .filter((action) => isSheetActionAvailableForCharacter(sheet, action));
         const derivedActions = deriveLegacyCharacterActions(sheet);
@@ -277,7 +282,9 @@ export function buildRollRequest(sheet, characterName, actionId, phase, destinat
             sourceType: action.sourceType,
             formula: "1d20",
             rollAttribute: action.rollAttribute,
+            opponentAttribute: action.opponentAttribute,
             target: action.fixedTarget ?? sheet.atributos[action.rollAttribute],
+            corruptionFormula: action.corruptionFormula,
             note: note.trim() || undefined
         };
     }
@@ -297,7 +304,8 @@ export function buildRollRequest(sheet, characterName, actionId, phase, destinat
         formula: damageRoll.formula,
         selectedDamageModifierIds: damageRoll.selectedModifierIds,
         formulaBreakdown: damageRoll.breakdown,
-        note: buildDamageRollNote(damageRoll, note)
+        note: buildDamageRollNote(damageRoll, note),
+        corruptionFormula: action.corruptionFormula
     };
 }
 export function executeCharacterAction(sheet, actionId, phase = "attack", selectedDamageModifierIds = []) {

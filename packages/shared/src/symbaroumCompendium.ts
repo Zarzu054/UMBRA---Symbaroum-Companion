@@ -33,6 +33,7 @@ function slugify(value: string): string {
 
 import { ABILITY_SUMMARIES } from "./abilitySummaries.generated.js";
 import { MYSTIC_POWER_SUMMARIES } from "./mysticPowerSummaries.generated.js";
+import { RITUAL_SUMMARIES } from "./ritualSummaries.generated.js";
 
 function normalizeSummaryMap(summaries: Record<string, string>): Record<string, string> {
   return Object.fromEntries(
@@ -40,8 +41,17 @@ function normalizeSummaryMap(summaries: Record<string, string>): Record<string, 
   );
 }
 
-const NORMALIZED_ABILITY_SUMMARIES = normalizeSummaryMap(ABILITY_SUMMARIES);
+const RULE_ADAPTED_ABILITY_SUMMARIES = {
+  ...ABILITY_SUMMARIES,
+  "Talento místico superior": ABILITY_SUMMARIES["Talento místico superior"].replace(
+    "la habilidad Rituales (incluyendo todos los rituales individuales)",
+    "uno de los rituales individuales que conozca"
+  )
+};
+
+const NORMALIZED_ABILITY_SUMMARIES = normalizeSummaryMap(RULE_ADAPTED_ABILITY_SUMMARIES);
 const NORMALIZED_MYSTIC_POWER_SUMMARIES = normalizeSummaryMap(MYSTIC_POWER_SUMMARIES);
+const NORMALIZED_RITUAL_SUMMARIES = normalizeSummaryMap(RITUAL_SUMMARIES);
 
 function makeCapability(
   tipo: SymbaroumCapabilityType,
@@ -58,6 +68,8 @@ function makeCapability(
       ? `${NORMALIZED_ABILITY_SUMMARIES[normalizedName]} Ref: ${libro}, p.${pagina}.`
       : tipo === "poder_mistico" && NORMALIZED_MYSTIC_POWER_SUMMARIES[normalizedName]
         ? `${NORMALIZED_MYSTIC_POWER_SUMMARIES[normalizedName]} Ref: ${libro}, p.${pagina}.`
+      : tipo === "ritual" && NORMALIZED_RITUAL_SUMMARIES[normalizedName]
+        ? `${NORMALIZED_RITUAL_SUMMARIES[normalizedName]} Ref: ${libro}, p.${pagina}.`
       : undefined;
   const resolvedSummary =
     efectoResumen ?? generatedSummary ?? `Consulta ${libro}, p.${pagina} para el efecto completo por niveles (novato/adepto/maestro).`;
@@ -1838,8 +1850,6 @@ function resolveAbilityActions(nombre: string, resumen: string): SymbaroumCapabi
     case "Magia":
     case "Magia del báculo":
     case "Místico acorazado":
-    case "Poder místico":
-    case "Rituales":
     case "Sexto sentido":
     case "Táctico":
     case "Talento místico superior":
@@ -1926,7 +1936,6 @@ export const SYMBAROUM_ABILITIES: SymbaroumCapability[] = [
   makeCapability("habilidad", "Ojo místico", LIBRO_BASICO, 116),
   makeCapability("habilidad", "Oportunista", GUIA_AVANZADA, 67),
   makeCapability("habilidad", "Pirotecnia", GUIA_AVANZADA, 67),
-  makeCapability("habilidad", "Poder místico", LIBRO_BASICO, 116),
   makeCapability("habilidad", "Puño de flecha", GUIA_AVANZADA, 67),
   makeCapability("habilidad", "Recuperación", LIBRO_BASICO, 116),
   makeCapability(
@@ -1938,7 +1947,6 @@ export const SYMBAROUM_ABILITIES: SymbaroumCapability[] = [
     "Novato: tu Robustez se calcula como Fuerte x1,5. Adepto: tu Robustez se calcula como Fuerte x2. Maestro: tu Robustez se calcula como Fuerte x3. Ref: Códice de monstruos, p.1."
   ),
   makeCapability("habilidad", "Reflejos rápidos", GUIA_AVANZADA, 67),
-  makeCapability("habilidad", "Rituales", LIBRO_BASICO, 115),
   makeCapability(
     "habilidad",
     "Robusto",

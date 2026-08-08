@@ -6,7 +6,9 @@ import {
   type Campaign,
   type CampaignReference,
   type CreateCampaignReferenceInput,
-  type CreateCampaignInput
+  type CreateCampaignInput,
+  type MysticArtifact,
+  type MysticArtifactDefinitionInput
 } from "@umbra/shared";
 import {
   addCampaignMember,
@@ -17,10 +19,25 @@ import {
   linkCampaignCharacter,
   removeCampaignMember,
   unlinkCampaignCharacter,
+  grantCampaignExperience,
   updateCampaign,
   updateCampaignReference
 } from "../services/campaignService";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
+import { MysticArtifactEditorWizard } from "../components/MysticArtifactEditorWizard";
+import { MysticArtifactDetailsModal } from "../components/MysticArtifactDetailsModal";
+import {
+  assignMysticArtifactOwner,
+  bindNpcMysticArtifact,
+  createCampaignMysticArtifact,
+  deleteCampaignMysticArtifact,
+  fetchMysticArtifactPresets,
+  fetchMysticArtifactSource,
+  unbindMysticArtifact,
+  updateCampaignMysticArtifact,
+  updateMysticArtifactResource,
+  useMysticArtifactAbility
+} from "../services/mysticArtifactService";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { ALL_ENTRIES } from "../models/compendiumEntries";
 
@@ -35,9 +52,15 @@ type CampaignHashState = {
   section: CampaignSection | null;
 };
 
-type CampaignSection = "dmNotes" | "sharedNotes" | "wiki" | "members" | "characters";
+type CampaignSection = "dmNotes" | "sharedNotes" | "wiki" | "members" | "characters" | "artifacts";
 type CampaignSharedNoteEntry = Campaign["sharedNoteEntries"][number];
 type SharedNoteSortOption = "updated_desc" | "updated_asc" | "title_asc" | "title_desc";
+type ExperienceGrantDraft = {
+  characterId: string;
+  characterName: string;
+  amount: string;
+  reason: string;
+};
 
 const emptyCampaignForm: CreateCampaignInput = {
   name: "",
@@ -57,6 +80,35 @@ const emptyReferenceForm: CreateCampaignReferenceInput = {
   visibility: "campaign",
   sharedWithUserIds: []
 };
+
+const EMPTY_ARTIFACT_DEFINITION: MysticArtifactDefinitionInput = {
+  name: "Nuevo artefacto",
+  description: "",
+  kind: "object",
+  sourceTitle: "Creación de campaña",
+  bindingCosts: [{ paymentType: "xp", amount: 1 }],
+  abilities: [],
+  resources: []
+};
+
+function editableArtifactDefinition(artifact: MysticArtifact): MysticArtifactDefinitionInput {
+  return {
+    name: artifact.name,
+    description: artifact.description,
+    kind: artifact.kind,
+    sourceTitle: artifact.sourceTitle,
+    sourcePage: artifact.sourcePage,
+    bindingCosts: artifact.bindingCosts,
+    weapon: artifact.weapon,
+    armor: artifact.armor,
+    abilities: artifact.abilities.map(({ id: _id, locked: _locked, lockReason: _lockReason, rolls, requirements, ...ability }) => ({
+      ...ability,
+      rolls: rolls.map(({ id: _rollId, ...roll }) => roll),
+      requirements: requirements.map(({ id: _requirementId, ...requirement }) => requirement)
+    })),
+    resources: artifact.resources.map(({ id: _id, ...resource }) => resource)
+  };
+}
 
 function describeReferenceValidationError(error: unknown): string {
   const issues = typeof error === "object" && error !== null && "issues" in error && Array.isArray((error as { issues?: unknown }).issues)
@@ -430,7 +482,8 @@ function parseCampaignHash(): CampaignHashState {
     rawSection === "sharedNotes" ||
     rawSection === "wiki" ||
     rawSection === "members" ||
-    rawSection === "characters"
+    rawSection === "characters" ||
+    rawSection === "artifacts"
       ? rawSection
       : null;
   return {
@@ -508,6 +561,16 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [isCampaignDetailsModalOpen, setIsCampaignDetailsModalOpen] = useState(false);
   const [isBurdenSummaryModalOpen, setIsBurdenSummaryModalOpen] = useState(false);
   const [pendingUnlinkCharacter, setPendingUnlinkCharacter] = useState<Campaign["characters"][number] | null>(null);
+  const [experienceGrantDraft, setExperienceGrantDraft] = useState<ExperienceGrantDraft | null>(null);
+  const [experienceGrantError, setExperienceGrantError] = useState<string | null>(null);
+  const [artifactPresets, setArtifactPresets] = useState<MysticArtifact[]>([]);
+  const [artifactSearch, setArtifactSearch] = useState("");
+  const [artifactSourceFilter, setArtifactSourceFilter] = useState("");
+  const [selectedPresetId, setSelectedPresetId] = useState("");
+  const [presetResourceMaximums, setPresetResourceMaximums] = useState<Record<string, number>>({});
+  const [artifactEditor, setArtifactEditor] = useState<{ id: string | null; definition: MysticArtifactDefinitionInput } | null>(null);
+  const [artifactDetails, setArtifactDetails] = useState<MysticArtifact | null>(null);
+  const [artifactError, setArtifactError] = useState<string | null>(null);
 
   const selectedCampaign = useMemo(
     () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
@@ -547,6 +610,21 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         (entry) => !entry.linked && (isDirector || entry.ownerId === user.id)
       ),
     [isDirector, selectedCampaign, user.id]
+  );
+  const artifactSources = useMemo(
+    () => Array.from(new Set(artifactPresets.map((artifact) => artifact.sourceTitle).filter(Boolean))).sort(),
+    [artifactPresets]
+  );
+  const visibleCampaignArtifacts = useMemo(() => {
+    const query = normalizeLookupValue(artifactSearch);
+    return (selectedCampaign?.mysticArtifacts ?? []).filter((artifact) =>
+      (!query || normalizeLookupValue(`${artifact.name} ${artifact.description} ${artifact.ownerName ?? ""}`).includes(query)) &&
+      (!artifactSourceFilter || artifact.sourceTitle === artifactSourceFilter)
+    );
+  }, [artifactSearch, artifactSourceFilter, selectedCampaign]);
+  const selectedPreset = useMemo(
+    () => artifactPresets.find((artifact) => artifact.id === selectedPresetId) ?? null,
+    [artifactPresets, selectedPresetId]
   );
   const selectedSharedNoteReferenceHighlights = useMemo(
     () => selectedSharedNote ? (selectedCampaign?.references ?? []).filter((reference) => referenceMatchesText(reference, selectedSharedNote.content)) : [],
@@ -591,6 +669,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     isReferenceDetailModalOpen ||
     isBurdenSummaryModalOpen ||
     Boolean(pendingUnlinkCharacter) ||
+    Boolean(experienceGrantDraft) ||
+    Boolean(artifactEditor) ||
     isSheetModalOpen;
 
   useBodyScrollLock(isAnyModalOpen);
@@ -598,6 +678,31 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   useEffect(() => {
     void refresh();
   }, []);
+
+  useEffect(() => {
+    if (!isDirector) return;
+    void (async () => {
+      try {
+        const token = await ensureAccessToken();
+        const presets = await fetchMysticArtifactPresets(token);
+        setArtifactPresets(presets);
+        setSelectedPresetId((current) => current || presets[0]?.id || "");
+      } catch (err) {
+        setArtifactError(err instanceof Error ? err.message : "No se pudo cargar el catálogo de artefactos");
+      }
+    })();
+  }, [ensureAccessToken, isDirector]);
+
+  useEffect(() => {
+    if (!selectedPreset) {
+      setPresetResourceMaximums({});
+      return;
+    }
+    setPresetResourceMaximums(Object.fromEntries(selectedPreset.resources.map((resource) => {
+      const parsed = Number.parseInt(resource.suggestedMaxFormula, 10);
+      return [resource.key, resource.maximum ?? (Number.isFinite(parsed) ? parsed : 1)];
+    })));
+  }, [selectedPreset]);
 
   useEffect(() => {
     function syncSelectionFromHash(): void {
@@ -647,6 +752,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setSharedNoteError(null);
       setSharedNoteSearch("");
       setPendingUnlinkCharacter(null);
+      setExperienceGrantDraft(null);
+      setExperienceGrantError(null);
       setReferenceCreateError(null);
       setIsReferenceCreateModalOpen(false);
       setIsReferenceEditMode(false);
@@ -979,6 +1086,39 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     }
   }
 
+  async function handleGrantExperience(): Promise<void> {
+    if (!selectedCampaign || !experienceGrantDraft) {
+      return;
+    }
+
+    const amount = Number(experienceGrantDraft.amount);
+    const reason = experienceGrantDraft.reason.trim();
+    if (!Number.isInteger(amount) || amount < 1 || amount > 1000) {
+      setExperienceGrantError("La cantidad debe ser un numero entero entre 1 y 1000 PX.");
+      return;
+    }
+    if (reason.length < 2) {
+      setExperienceGrantError("Indica el motivo de la concesion de experiencia.");
+      return;
+    }
+
+    setExperienceGrantError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      upsertCampaign(await grantCampaignExperience(selectedCampaign.id, {
+        characterId: experienceGrantDraft.characterId,
+        amount,
+        reason
+      }, token));
+      setExperienceGrantDraft(null);
+    } catch (err) {
+      setExperienceGrantError(err instanceof Error ? err.message : "No se pudo conceder la experiencia.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function handleSaveReference(): Promise<void> {
     if (!selectedReference) {
       return;
@@ -1040,6 +1180,98 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     setIsReferenceEditMode(false);
     setIsReferenceCreateModalOpen(false);
     setIsReferenceDetailModalOpen(true);
+  }
+
+  async function runArtifactMutation(operation: (token: string) => Promise<unknown>): Promise<void> {
+    setArtifactError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      await operation(token);
+      await refresh();
+    } catch (err) {
+      setArtifactError(err instanceof Error ? err.message : "No se pudo actualizar el artefacto");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleClonePreset(): Promise<void> {
+    if (!selectedCampaign || !selectedPreset) return;
+    const resources = selectedPreset.resources.map((resource) => {
+      const maximum = Math.max(0, Math.floor(presetResourceMaximums[resource.key] ?? 0));
+      return { key: resource.key, maximum, current: maximum };
+    });
+    await runArtifactMutation((token) => createCampaignMysticArtifact(selectedCampaign.id, {
+      mode: "preset",
+      presetId: selectedPreset.id,
+      resources
+    }, token));
+  }
+
+  async function handleSaveArtifactEditor(definition: MysticArtifactDefinitionInput): Promise<void> {
+    if (!selectedCampaign || !artifactEditor) return;
+    setArtifactError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      if (artifactEditor.id) {
+        await updateCampaignMysticArtifact(artifactEditor.id, definition, token);
+      } else {
+        await createCampaignMysticArtifact(selectedCampaign.id, { mode: "custom", artifact: definition }, token);
+      }
+      await refresh();
+      setArtifactEditor(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "No se pudo guardar el artefacto";
+      setArtifactError(message);
+      throw err instanceof Error ? err : new Error(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleOpenArtifactSource(artifact: MysticArtifact): Promise<void> {
+    setArtifactError(null);
+    const opened = window.open("about:blank", "_blank");
+    if (!opened) {
+      setArtifactError("El navegador ha bloqueado la pestaña de la fuente");
+      return;
+    }
+    opened.opener = null;
+    try {
+      const token = await ensureAccessToken();
+      const source = await fetchMysticArtifactSource(artifact.id, token);
+      opened.location.href = `${source.objectUrl}#page=${source.pdfPage}`;
+      window.setTimeout(() => URL.revokeObjectURL(source.objectUrl), 60_000);
+    } catch (error) {
+      opened.close();
+      setArtifactError(error instanceof Error ? error.message : "No se pudo abrir la fuente del artefacto");
+    }
+  }
+
+  async function handleArtifactOwnerChange(artifact: MysticArtifact, value: string): Promise<void> {
+    if (value === "none") {
+      await runArtifactMutation((token) => assignMysticArtifactOwner(artifact.id, { ownerType: "none" }, token));
+      return;
+    }
+    const [ownerType, ownerId] = value.split(":");
+    if ((ownerType !== "character" && ownerType !== "npc") || !ownerId) return;
+    await runArtifactMutation((token) => assignMysticArtifactOwner(artifact.id, { ownerType, ownerId }, token));
+  }
+
+  async function handleAdjustArtifactResource(artifact: MysticArtifact, resource: MysticArtifact["resources"][number]): Promise<void> {
+    const maximumText = window.prompt(`Máximo numérico de ${resource.name}`, String(resource.maximum ?? 0));
+    if (maximumText === null) return;
+    const currentText = window.prompt(`Valor actual de ${resource.name}`, String(resource.current ?? 0));
+    if (currentText === null) return;
+    const maximum = Number(maximumText);
+    const current = Number(currentText);
+    if (!Number.isInteger(maximum) || !Number.isInteger(current) || maximum < 0 || current < 0 || current > maximum) {
+      setArtifactError("El medidor necesita enteros y el valor actual no puede superar el máximo.");
+      return;
+    }
+    await runArtifactMutation((token) => updateMysticArtifactResource(artifact.id, resource.id, { maximum, current }, token));
   }
 
   return (
@@ -1174,6 +1406,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               >
                 Personajes
               </button>
+              {isDirector ? (
+                <button
+                  type="button"
+                  className={activeSection === "artifacts" ? "is-active" : ""}
+                  onClick={() => setActiveSection("artifacts")}
+                >
+                  Artefactos
+                </button>
+              ) : null}
             </div>
           </section>
 
@@ -1335,7 +1576,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 <div>
                   <h3>Personajes vinculados</h3>
                   <p className="section-help">
-                    El director puede revisar todas las hojas vinculadas desde aqui. Los jugadores pueden vincular sus propios personajes.
+                    El director concede la experiencia desde aqui. Los jugadores pueden invertirla desde el constructor de su personaje.
                   </p>
                 </div>
                 <div className="inline-row campaign-inline-form">
@@ -1379,7 +1620,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     <article key={entry.id} className="card">
                       <strong>{entry.name}</strong>
                       <span>{entry.ownerEmail}</span>
-                      <span>PX total: {entry.experienceTotal} | PX gastada: {entry.experienceSpent}</span>
+                      <span>PX total: {entry.experienceTotal} | Gastada: {entry.experienceSpent} | Disponible: {Math.max(0, entry.experienceTotal - entry.experienceSpent)}</span>
                       <span>Actualizado: {formatDate(entry.updatedAt)}</span>
                       <div className="card-actions">
                         {isDirector && entry.sheet ? (
@@ -1390,6 +1631,23 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                             }}
                           >
                             Abrir hoja
+                          </button>
+                        ) : null}
+                        {isDirector ? (
+                          <button
+                            type="button"
+                            disabled={isSaving}
+                            onClick={() => {
+                              setExperienceGrantError(null);
+                              setExperienceGrantDraft({
+                                characterId: entry.characterId,
+                                characterName: entry.name,
+                                amount: "",
+                                reason: "Recompensa de campaña"
+                              });
+                            }}
+                          >
+                            Conceder PX
                           </button>
                         ) : null}
                         {canManageLink ? (
@@ -1413,6 +1671,130 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 ) : null}
               </div>
 
+              {selectedCampaign.experienceLog.length > 0 ? (
+                <section className="campaign-experience-history">
+                  <h4>Historial de experiencia</h4>
+                  <div className="cards">
+                    {selectedCampaign.experienceLog.slice(0, 8).map((entry) => (
+                      <article key={entry.id} className="card">
+                        <strong>+{entry.amount} PX · {entry.characterName}</strong>
+                        <span>{entry.reason}</span>
+                        <span>{formatDate(entry.createdAt)} · {entry.grantedByEmail}</span>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+            </section>
+          ) : null}
+
+          {isDirector && activeSection === "artifacts" ? (
+            <section className="panel">
+              <div className="row-actions">
+                <div>
+                  <h3>Artefactos místicos</h3>
+                  <p className="section-help">Instancias propias de esta campaña. Las plantillas se clonan y nunca vuelven a modificar la instancia.</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setArtifactError(null);
+                    setArtifactEditor({ id: null, definition: structuredClone(EMPTY_ARTIFACT_DEFINITION) });
+                  }}
+                >
+                  Crear personalizado
+                </button>
+              </div>
+
+              {artifactError ? <p className="error-text">{artifactError}</p> : null}
+
+              <div className="inline-row campaign-inline-form">
+                <label className="field">
+                  <span>Plantilla predeterminada</span>
+                  <select value={selectedPresetId} onChange={(event) => setSelectedPresetId(event.target.value)}>
+                    {artifactPresets.map((preset) => (
+                      <option key={preset.id} value={preset.id}>{preset.name} · {preset.sourceTitle}{preset.sourcePage ? ` p.${preset.sourcePage}` : ""}</option>
+                    ))}
+                  </select>
+                </label>
+                <button type="button" disabled={isSaving || !selectedPreset} onClick={() => void handleClonePreset()}>
+                  Añadir a la campaña
+                </button>
+                <button type="button" disabled={!selectedPreset} onClick={() => selectedPreset && setArtifactDetails(selectedPreset)}>
+                  Ver detalles de la plantilla
+                </button>
+                {selectedPreset?.resources.map((resource) => (
+                  <label key={resource.key} className="field">
+                    <span>Máximo de {resource.name}{resource.suggestedMaxFormula ? ` (${resource.suggestedMaxFormula})` : ""}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={9999}
+                      value={presetResourceMaximums[resource.key] ?? 0}
+                      onChange={(event) => setPresetResourceMaximums((current) => ({ ...current, [resource.key]: Number(event.target.value) }))}
+                    />
+                  </label>
+                ))}
+                <label className="field">
+                  <span>Buscar</span>
+                  <input value={artifactSearch} onChange={(event) => setArtifactSearch(event.target.value)} placeholder="Nombre, texto o poseedor" />
+                </label>
+                <label className="field">
+                  <span>Libro o aventura</span>
+                  <select value={artifactSourceFilter} onChange={(event) => setArtifactSourceFilter(event.target.value)}>
+                    <option value="">Todos</option>
+                    {artifactSources.map((source) => <option key={source} value={source}>{source}</option>)}
+                  </select>
+                </label>
+              </div>
+
+              <div className="cards">
+                {visibleCampaignArtifacts.map((artifact) => {
+                  const ownerValue = artifact.ownerType && artifact.ownerId ? `${artifact.ownerType}:${artifact.ownerId}` : "none";
+                  return (
+                    <article key={artifact.id} className="card">
+                      <strong>{artifact.name}</strong>
+                      <span>{artifact.kind === "weapon" ? "Arma" : artifact.kind === "armor" ? "Armadura" : "Objeto"} · {artifact.sourceTitle || "Personalizado"}{artifact.sourcePage ? ` p.${artifact.sourcePage}` : ""}</span>
+                      <span>{artifact.isBound ? `Vinculado (${artifact.bindingPaymentType === "xp" ? `${artifact.bindingPaymentAmount} PX` : artifact.bindingPaymentType === "permanent_corruption" ? `${artifact.bindingPaymentAmount} Corrupción permanente` : "narrativo"})` : "Sin vínculo"}</span>
+                      <label className="field">
+                        <span>Poseedor</span>
+                        <select value={ownerValue} disabled={isSaving || artifact.isBound} onChange={(event) => void handleArtifactOwnerChange(artifact, event.target.value)}>
+                          <option value="none">Sin poseedor</option>
+                          {selectedCampaign.characters.map((entry) => <option key={entry.id} value={`character:${entry.id}`}>PJ · {entry.name}</option>)}
+                          {selectedCampaign.npcs.map((npc) => <option key={npc.id} value={`npc:${npc.id}`}>PNJ · {npc.name}</option>)}
+                        </select>
+                      </label>
+                      {artifact.resources.map((resource) => (
+                        <div key={resource.id} className="inline-row">
+                          <span>{resource.name}: {resource.current ?? 0}/{resource.maximum ?? 0}{resource.suggestedMaxFormula ? ` (${resource.suggestedMaxFormula})` : ""}</span>
+                          <button type="button" disabled={isSaving || (resource.current ?? 0) <= 0} onClick={() => void runArtifactMutation((token) => updateMysticArtifactResource(artifact.id, resource.id, { maximum: resource.maximum ?? 0, current: Math.max(0, (resource.current ?? 0) - 1) }, token))}>−</button>
+                          <button type="button" disabled={isSaving || (resource.current ?? 0) >= (resource.maximum ?? 0)} onClick={() => void runArtifactMutation((token) => updateMysticArtifactResource(artifact.id, resource.id, { maximum: resource.maximum ?? 0, current: Math.min(resource.maximum ?? 0, (resource.current ?? 0) + 1) }, token))}>+</button>
+                          <button type="button" disabled={isSaving} onClick={() => void handleAdjustArtifactResource(artifact, resource)}>Ajustar</button>
+                        </div>
+                      ))}
+                      <div className="card-actions">
+                        <button type="button" onClick={() => setArtifactDetails(artifact)}>Ver detalles</button>
+                        <button
+                          type="button"
+                          disabled={isSaving}
+                          onClick={() => {
+                            setArtifactError(null);
+                            setArtifactEditor({ id: artifact.id, definition: editableArtifactDefinition(artifact) });
+                          }}
+                        >
+                          Editar artefacto
+                        </button>
+                        {artifact.ownerType === "npc" && !artifact.isBound ? <button type="button" disabled={isSaving} onClick={() => void runArtifactMutation((token) => bindNpcMysticArtifact(artifact.id, token))}>Vincular PNJ</button> : null}
+                        {artifact.isBound ? <button type="button" disabled={isSaving} onClick={() => void runArtifactMutation((token) => unbindMysticArtifact(artifact.id, token))}>Romper vínculo</button> : null}
+                        {!artifact.isBound && !artifact.ownerId ? <button type="button" disabled={isSaving} onClick={() => void runArtifactMutation((token) => deleteCampaignMysticArtifact(artifact.id, token))}>Eliminar</button> : null}
+                      </div>
+                    </article>
+                  );
+                })}
+                {visibleCampaignArtifacts.length === 0 ? <p className="section-help">No hay artefactos que coincidan con los filtros.</p> : null}
+              </div>
             </section>
           ) : null}
 
@@ -1424,6 +1806,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 sheet={selectedSheetEntry!.sheet!}
                 editable={false}
                 busy={isSaving}
+                onUseArtifactAbility={async (artifactId, abilityId) => {
+                  const token = await ensureAccessToken();
+                  await useMysticArtifactAbility(artifactId, abilityId, token);
+                  await refresh();
+                }}
                 onBack={() => {
                   setSelectedSheetId(null);
                   setActiveSection("characters");
@@ -1432,6 +1819,31 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             </section>
           ) : null}
         </section>
+      ) : null}
+
+      {artifactEditor ? (
+        <section className="modal-backdrop" onClick={() => !isSaving && setArtifactEditor(null)}>
+          <MysticArtifactEditorWizard
+            title={artifactEditor.id ? "Editar artefacto" : "Crear artefacto personalizado"}
+            initialValue={artifactEditor.definition}
+            busy={isSaving}
+            externalError={artifactError}
+            onCancel={() => {
+              setArtifactError(null);
+              setArtifactEditor(null);
+            }}
+            onSave={handleSaveArtifactEditor}
+          />
+        </section>
+      ) : null}
+
+      {artifactDetails ? (
+        <MysticArtifactDetailsModal
+          artifact={artifactDetails}
+          busy={isSaving}
+          onClose={() => setArtifactDetails(null)}
+          onOpenSource={handleOpenArtifactSource}
+        />
       ) : null}
 
       {selectedSharedNote && selectedCampaign ? (
@@ -1589,6 +2001,67 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         </section>
       ) : null}
 
+      {isDirector && experienceGrantDraft ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setExperienceGrantDraft(null);
+              setExperienceGrantError(null);
+            }
+          }}
+        >
+          <div className="panel modal-panel" onClick={(event) => event.stopPropagation()}>
+            <div className="row-actions">
+              <div>
+                <h3>Conceder experiencia</h3>
+                <p className="section-help">
+                  Los PX se sumaran al total actual de {experienceGrantDraft.characterName} y quedaran registrados en el historial.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => {
+                  setExperienceGrantDraft(null);
+                  setExperienceGrantError(null);
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+            {experienceGrantError ? <p className="error-text">{experienceGrantError}</p> : null}
+            <div className="form-grid">
+              <label className="field">
+                <span>Cantidad de PX</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={1000}
+                  step={1}
+                  value={experienceGrantDraft.amount}
+                  onChange={(event) => setExperienceGrantDraft((current) => current ? { ...current, amount: event.target.value } : null)}
+                  autoFocus
+                />
+              </label>
+              <label className="field field-span-2">
+                <span>Motivo</span>
+                <input
+                  maxLength={300}
+                  value={experienceGrantDraft.reason}
+                  onChange={(event) => setExperienceGrantDraft((current) => current ? { ...current, reason: event.target.value } : null)}
+                />
+              </label>
+            </div>
+            <div className="toolbar">
+              <button type="button" disabled={isSaving} onClick={() => void handleGrantExperience()}>
+                {isSaving ? "Concediendo..." : "Confirmar concesion"}
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {campaignSheetModalEntry ? (
         <section
           className="modal-backdrop"
@@ -1616,6 +2089,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 sheet={campaignSheetModalEntry.sheet!}
                 editable={false}
                 busy={isSaving}
+                onUseArtifactAbility={async (artifactId, abilityId) => {
+                  const token = await ensureAccessToken();
+                  await useMysticArtifactAbility(artifactId, abilityId, token);
+                  await refresh();
+                }}
               />
             </div>
           </div>

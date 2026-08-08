@@ -49,60 +49,70 @@ function buildRaceEntries() {
         Humano: {
             fuente: "Libro B\u00e1sico",
             pagina: 100,
-            detalle: "Raza base del Libro B\u00e1sico. Consulta la secci\u00f3n de razas para trasfondo, rasgos y creaci\u00f3n de personaje."
+            resumen: "Ambrios y b\u00e1rbaros comparten un origen remoto, pero sus culturas ofrecen perspectivas y ventajas diferentes.",
+            detalle: "Los humanos de Ambria y Davokar descienden de un mismo pueblo, aunque ambrios y b\u00e1rbaros se han convertido en culturas muy distintas. Los ambrios llegaron desde Alberetor con su jerarqu\u00eda, ej\u00e9rcito y conocimientos; los clanes b\u00e1rbaros conservan una vida m\u00e1s libre, ligada a Davokar y guiada espiritualmente por las brujas.\n\nRasgos de origen:\n\u25c6 Un humano ambrio puede elegir Contactos o Privilegiado.\n\u25c6 Un humano b\u00e1rbaro puede elegir Contactos o Mont\u00e9s."
         },
         Trocalengo: {
             fuente: "Libro B\u00e1sico",
-            pagina: 100,
-            detalle: "Raza base del Libro B\u00e1sico. Consulta la secci\u00f3n de razas para trasfondo, rasgos y creaci\u00f3n de personaje."
+            pagina: 103,
+            resumen: "Un ni\u00f1o dejado por los elfos en lugar de un humano robado, longevo y marcado por una identidad incierta.",
+            detalle: "Los trocalengos son dejados por los elfos en cunas humanas. Sus rasgos \u00e9lficos aparecen durante la adolescencia y suelen provocar su expulsi\u00f3n, conden\u00e1ndolos a una vida solitaria entre las calles, el bosque o como ayudantes de brujas y magos.\n\nRasgos:\n\u25c6 Todos los trocalengos son Longevos.\n\u25c6 La mayor\u00eda tambi\u00e9n son Cambiaformas, adquirido como una capacidad."
         },
         Trasgo: {
             fuente: "Libro B\u00e1sico",
-            pagina: 100,
-            detalle: "Raza base del Libro B\u00e1sico. Consulta la secci\u00f3n de razas para trasfondo, rasgos y creaci\u00f3n de personaje."
+            pagina: 105,
+            resumen: "Un pueblo de vida breve, gran energ\u00eda y fuerte marginaci\u00f3n, habitual en la frontera de Davokar.",
+            detalle: "Los trasgos viven sobre todo en la frontera sur de Davokar y alrededor de Fuerte Espina. Su personalidad intensa y sus costumbres extra\u00f1as alimentan el rechazo humano, que los relega a trabajos peligrosos y desagradables. Crecen deprisa: son adultos hacia los diez a\u00f1os y pocos superan los treinta.\n\nRasgos:\n\u25c6 Todos los trasgos son Poco longevos y Parias.\n\u25c6 La mayor\u00eda tambi\u00e9n son Supervivientes, adquirido como una capacidad."
         },
         Ogro: {
             fuente: "Libro B\u00e1sico",
-            pagina: 100,
-            detalle: "Raza base del Libro B\u00e1sico. Consulta la secci\u00f3n de razas para trasfondo, rasgos y creaci\u00f3n de personaje."
+            pagina: 105,
+            resumen: "Un gigante solitario surgido de Davokar sin recuerdos, dependiente de otros para construir su identidad.",
+            detalle: "Los ogros emergen adultos de las profundidades de Davokar, sin recuerdos ni identidad. Suelen recibir nombre, educaci\u00f3n y prop\u00f3sito de las brujas, soldados, humanos o trasgos que los acogen, para bien o para explotarlos como guardianes, trabajadores o matones.\n\nRasgos:\n\u25c6 Todos los ogros son Longevos y Parias.\n\u25c6 La mayor\u00eda tambi\u00e9n son Robustos, adquirido como una capacidad."
         },
         Elfo: {
             fuente: "Gu\u00eda Avanzada del Jugador",
             pagina: 38,
-            detalle: "Raza a\u00f1adida en la Gu\u00eda Avanzada del Jugador. Consulta la secci\u00f3n de razas para trasfondo, rasgos y creaci\u00f3n de personaje."
+            resumen: "Guardi\u00e1n del Pacto de Hierro consagrado a impedir que la oscuridad enterrada bajo Davokar despierte.",
+            detalle: "Los elfos de Davokar forman una orden sagrada de guardianes conocida por los humanos como el Pacto de Hierro. Nacen y viven para contener la oscuridad del bosque, divididos entre quienes prefieren combatirla con armas y quienes buscan alianzas con otros pueblos. Su ciclo vital atraviesa largos letargos y muy pocos sobreviven hasta las fases m\u00e1s antiguas.\n\nRasgos, bendiciones y cargas:\n\u25c6 Todos los elfos son Longevos y Parias entre los humanos.\n\u25c6 La mayor\u00eda posee Memoria racial, adquirida como una capacidad.\n\u25c6 Un elfo puede hacerse pasar por trocalengo; un Estudioso adepto puede descubrirlo con una tirada de Inteligente."
         },
         Enano: {
             fuente: "Gu\u00eda Avanzada del Jugador",
-            pagina: 38,
-            detalle: "Raza a\u00f1adida en la Gu\u00eda Avanzada del Jugador. Consulta la secci\u00f3n de razas para trasfondo, rasgos y creaci\u00f3n de personaje."
+            pagina: 42,
+            resumen: "Miembro de un pueblo herm\u00e9tico unido a su familia, al mundo y a una tradici\u00f3n oral llena de secretos.",
+            detalle: "Los enanos son un pueblo reservado cuyo pasado parece remontarse a la ca\u00edda de Symbaroum. La familia est\u00e1 por encima del individuo y su lenguaje oral, lleno de c\u00f3digos y dobles sentidos, protege una historia que nunca ponen por escrito. Los enanos de Yndaros viven con la mirada puesta en el futuro y con una profunda desconfianza hacia el mundo exterior.\n\nRasgos, bendiciones y cargas:\n\u25c6 Todos tienen V\u00ednculo terrenal, Memoria absoluta y la carga Paria.\n\u25c6 La mayor\u00eda conoce Nube de venganza como una capacidad normal; para un enano no causa Corrupci\u00f3n al aprenderla ni al usarla."
         },
         Troll: {
             fuente: "Gu\u00eda Avanzada del Jugador",
-            pagina: 38,
-            detalle: "Raza a\u00f1adida en la Gu\u00eda Avanzada del Jugador. Consulta la secci\u00f3n de razas para trasfondo, rasgos y creaci\u00f3n de personaje."
+            pagina: 44,
+            resumen: "Un ser poderoso de los reinos subterr\u00e1neos cuya cultura valora la fuerza, la contribuci\u00f3n y el desaf\u00edo constante.",
+            detalle: "Los trolls proceden de sociedades subterr\u00e1neas complejas, aunque en la superficie se los considera sin\u00f3nimo de violencia y muerte. Su cultura mide a cada individuo por lo que aporta a la comunidad y entiende los desaf\u00edos f\u00edsicos o espirituales como el camino para fortalecerse. Trasgos, trolls y ogros forman parte de un mismo ciclo vital, aunque sus miembros no siempre conocen esa relaci\u00f3n.\n\nRasgos, bendiciones y cargas:\n\u25c6 Pueden adquirir Armadura, Arma natural, Regeneraci\u00f3n y Robusto como capacidades.\n\u25c6 Todos son Longevos y tienen la carga Paria.\n\u25c6 Pueden intentar hacerse pasar por ogros; un Estudioso adepto puede descubrir el disfraz con Inteligente."
         },
         "Humano tomado": {
             fuente: "Gu\u00eda Avanzada del Jugador",
-            pagina: 38,
-            detalle: "Raza a\u00f1adida en la Gu\u00eda Avanzada del Jugador. Consulta la secci\u00f3n de razas para trasfondo, rasgos y creaci\u00f3n de personaje."
+            pagina: 41,
+            resumen: "Humano secuestrado y criado por los elfos como aprendiz, mediador o combatiente del Pacto de Hierro.",
+            detalle: "Los humanos tomados fueron secuestrados durante su infancia y criados por los elfos, primero para estudiar a la humanidad y formar embajadores, y m\u00e1s tarde para reforzar las filas menguantes del Pacto de Hierro. Son aprendices leales y capaces, aunque muchos elfos contin\u00faan trat\u00e1ndolos como subordinados y no como iguales.\n\nRasgos y conocimientos:\n\u25c6 Todos tienen el rasgo Mont\u00e9s.\n\u25c6 Hablan \u00e9lfico, pero necesitan Estudioso para poder leerlo."
         },
         "Muerto viviente": {
             fuente: "Gu\u00eda Avanzada del Jugador",
-            pagina: 38,
-            detalle: "Raza a\u00f1adida en la Gu\u00eda Avanzada del Jugador. Consulta la secci\u00f3n de razas para trasfondo, rasgos y creaci\u00f3n de personaje."
+            pagina: 46,
+            resumen: "Una persona fallecida que conserva mente y voluntad, pero debe ocultar una naturaleza completamente corrupta.",
+            detalle: "Algunos muertos recientes vuelven a levantarse conservando su mente y libre albedr\u00edo. Su piel est\u00e1 fr\u00eda, no sangran, comen ni duermen, y su cuerpo se descompone lentamente. La sociedad los considera abominaciones, por lo que deben ocultarse para evitar a cazamonstruos y mantos negros.\n\nRasgos y condiciones:\n\u25c6 Comienzan completamente corruptos y con Muerto viviente (I), cuyos niveles superiores pueden comprarse como una capacidad.\n\u25c6 No comen alimentos normales ni respiran; recuperan Resistencia consumiendo carne fresca y cruda o sangre.\n\u25c6 Pueden adquirir Fr\u00edo de ultratumba y Terror\u00edfico como capacidades.\n\u25c6 Cuando interact\u00faan con seres vivos deben proteger su identidad mediante [Discreto\u2190Atento] si la situaci\u00f3n puede delatarlos."
         }
     };
     return SYMBAROUM_RACES.map((item) => {
         const source = raceSources[item] ?? {
             fuente: "Libro B\u00e1sico",
             pagina: 100,
+            resumen: "Referencia de raza disponible para creaci\u00f3n de personaje.",
             detalle: "Referencia de raza disponible para creaci\u00f3n de personaje."
         };
         return {
             id: `raza-${slugify(item)}`,
             tipo: "raza",
             nombre: item,
-            resumen: "Referencia de raza disponible para creaci\u00f3n de personaje.",
+            resumen: source.resumen ?? "Referencia de raza disponible para creaci\u00f3n de personaje.",
             detalle: source.detalle,
             fuente: source.fuente,
             pagina: source.pagina,
@@ -114,46 +124,53 @@ function buildCultureEntries() {
     const cultureSources = {
         Ambriano: {
             fuente: "Libro B\u00e1sico",
-            pagina: 16,
-            detalle: "Cultura base del Libro B\u00e1sico. Consulta la secci\u00f3n de culturas y estilos de vida para trasfondo y contexto de personaje."
+            pagina: 18,
+            resumen: "Herederos de Alberetor y s\u00fabditos de Korinthia, marcados por la guerra, la jerarqu\u00eda y la ambici\u00f3n de construir Ambria.",
+            detalle: "Los ambrianos proceden del extinto reino de Alberetor. La Gran Guerra y la emigraci\u00f3n al norte de los Titanes los convirtieron en un pueblo disciplinado, organizado y habituado a las estructuras militares, burocr\u00e1ticas y comerciales. Llevaron consigo su arquitectura, sus conocimientos, su econom\u00eda y una sociedad fuertemente jerarquizada.\n\nVisi\u00f3n del mundo:\n\u25c6 La mayor\u00eda reconoce a Prios como Dios \u00danico y Dador de Leyes.\n\u25c6 Valoran la especializaci\u00f3n, el progreso material, la riqueza y la posici\u00f3n social.\n\u25c6 Suelen considerar la naturaleza una fuente de recursos que debe ser explorada, ordenada y aprovechada, una actitud que provoca conflictos con los b\u00e1rbaros y los Pueblos Antiguos.\n\nEn juego: esta procedencia puede representar desde nobles, soldados y funcionarios hasta artesanos, refugiados o cazatesoros. No impone una profesi\u00f3n. Un humano de procedencia ambria puede elegir Contactos o Privilegiado como rasgo racial; esa regla aparece en el Libro B\u00e1sico, p.102."
         },
         "B\u00e1rbaro": {
             fuente: "Libro B\u00e1sico",
-            pagina: 16,
-            detalle: "Cultura base del Libro B\u00e1sico. Consulta la secci\u00f3n de culturas y estilos de vida para trasfondo y contexto de personaje."
+            pagina: 18,
+            resumen: "Miembro de uno de los clanes de Davokar, educado en sus costumbres, sus tab\u00faes y una relaci\u00f3n de dependencia con el bosque.",
+            detalle: "Los b\u00e1rbaros viven en clanes que, seg\u00fan la tradici\u00f3n, descienden de los habitantes de la antigua Symbaroum. Cada clan posee leyes, jerarqu\u00edas y costumbres propias, pero comparten una estrecha relaci\u00f3n con Davokar y el respeto por los tab\u00faes transmitidos por las brujas.\n\nOrganizaci\u00f3n y creencias:\n\u25c6 Los jefes gobiernan sus clanes, mientras que el Gran Jefe de Karvosti act\u00faa principalmente como \u00e1rbitro entre ellos.\n\u25c6 Las brujas aconsejan a los jefes y recuerdan que la supervivencia depende de respetar la naturaleza y no despertar los peligros del bosque.\n\u25c6 La narraci\u00f3n oral, los juegos de armas y los rituales de gratitud hacia Davokar ocupan un lugar importante en la vida comunitaria.\n\nEn juego: la procedencia no obliga a escoger un clan concreto ni una profesi\u00f3n determinada. Un humano de procedencia b\u00e1rbara puede elegir Contactos o Mont\u00e9s como rasgo racial; esa regla aparece en el Libro B\u00e1sico, p.102."
         },
         "Clan goblin": {
             fuente: "Libro B\u00e1sico",
-            pagina: 16,
-            detalle: "Cultura base del Libro B\u00e1sico. Consulta la secci\u00f3n de culturas y estilos de vida para trasfondo y contexto de personaje."
+            pagina: 105,
+            resumen: "Personaje criado en una comunidad trasga, de vida intensa, lazos cambiantes y costumbres dif\u00edciles de comprender para los humanos.",
+            detalle: "La denominaci\u00f3n \u00abClan goblin\u00bb de la ficha representa una comunidad o tribu trasga. Muchas de estas comunidades viven en la frontera sur de Davokar; la m\u00e1s conocida se asent\u00f3 junto a Fuerte Espina y mantiene una relaci\u00f3n tensa con la poblaci\u00f3n humana.\n\nVida comunitaria:\n\u25c6 Los trasgos viven deprisa debido a su corta esperanza de vida y sus nombres pueden crecer o cambiar junto con su posici\u00f3n dentro de la tribu.\n\u25c6 Sus juegos, bromas y formas de relacionarse parecen fren\u00e9ticos o incomprensibles para otros pueblos.\n\u25c6 En Fuerte Espina muchos realizan trabajos agotadores y peligrosos, aunque algunos abandonan esa vida para convertirse en sirvientes, exploradores o cazatesoros.\n\nEn juego: pertenecer a esta cultura describe la crianza y los v\u00ednculos del personaje, pero no sustituye los rasgos de su raza. Un trasgo posee Poco longevo y Paria, y normalmente adquiere Superviviente como capacidad racial."
         },
         "Pueblo libre": {
             fuente: "Libro B\u00e1sico",
-            pagina: 16,
-            detalle: "Cultura base del Libro B\u00e1sico. Consulta la secci\u00f3n de culturas y estilos de vida para trasfondo y contexto de personaje."
+            pagina: 18,
+            resumen: "Habitante de una comunidad independiente fundada por refugiados que rechazaron someterse a la corona o a la fe dominante de Ambria.",
+            detalle: "Los pueblos libres nacieron cuando grupos de refugiados de Alberetor aprovecharon la emigraci\u00f3n para emanciparse y fundar sus propios asentamientos. Una comunidad suele reunir entre diez y treinta familias unidas por una causa com\u00fan; con frecuencia, la voluntad de conservar una fe distinta al culto de Prios.\n\nIndependencia y supervivencia:\n\u25c6 Sus habitantes organizan la vida diaria sin someterse plenamente a la corona, la nobleza o la Iglesia del Sol.\n\u25c6 Muchos asentamientos se encuentran en bosques o monta\u00f1as, cerca de b\u00e1rbaros y Pueblos Antiguos.\n\u25c6 La expansi\u00f3n de Ambria ha obligado a varias comunidades a internarse cada vez m\u00e1s en Davokar, donde la libertad tiene un coste creciente.\n\nEn juego: esta cultura resulta apropiada para colonos, disidentes, creyentes proscritos y supervivientes de asentamientos aislados. No concede por s\u00ed sola un rasgo, poder o habilidad; estos dependen de la raza y del desarrollo del personaje."
         },
         "Ordo M\u00e1gica": {
             fuente: "Libro B\u00e1sico",
             pagina: 27,
-            detalle: "Cultura/facci\u00f3n de referencia del Libro B\u00e1sico. Consulta las secciones de facciones y juego de personaje para contexto dentro de Ambria y Davokar."
+            resumen: "Afiliado a la principal orden ambria de estudio m\u00edstico, dedicada a explorar, experimentar y convertir los hallazgos en conocimiento.",
+            detalle: "La Ordo M\u00e1gica es la organizaci\u00f3n m\u00e1s importante de Ambria para el estudio y la ense\u00f1anza m\u00edstica. Su sede se encuentra en Agrella y mantiene cap\u00edtulos en los principales asentamientos, adem\u00e1s de puestos fronterizos dentro de Davokar. Cada cap\u00edtulo est\u00e1 dirigido por un maestre y re\u00fane especialistas, adeptos y novicios.\n\nPrincipios y actividad:\n\u25c6 Busca el conocimiento por su propio valor y favorece la filosof\u00eda, la experiencia y las pruebas frente a la fe.\n\u25c6 Organiza expediciones para recuperar artefactos, estudiar criaturas y documentar los secretos de Davokar.\n\u25c6 Depende del permiso de la corona, la financiaci\u00f3n de la nobleza y la protecci\u00f3n de los Exploradores, por lo que combina investigaci\u00f3n con diplomacia y aprovechamiento comercial.\n\nEn juego: esta opci\u00f3n representa una afiliaci\u00f3n cultural o faccional, no una tradici\u00f3n gratuita. Ser miembro de la Ordo no concede autom\u00e1ticamente Magia, poderes ni rituales; cada capacidad se adquiere de manera independiente."
         },
         "Templo de Prios": {
             fuente: "Libro B\u00e1sico",
             pagina: 27,
-            detalle: "Cultura/facci\u00f3n de referencia del Libro B\u00e1sico. Consulta las secciones de facciones y juego de personaje para contexto dentro de Ambria y Davokar."
+            resumen: "Personaje formado en la Iglesia del Sol, bajo la doctrina de Prios y una instituci\u00f3n con autoridad religiosa, militar y pol\u00edtica.",
+            detalle: "El \u00abTemplo de Prios\u00bb representa la formaci\u00f3n o afiliaci\u00f3n a la Iglesia del Sol. La instituci\u00f3n gobierna un dominio propio alrededor de Templorrecio y est\u00e1 dirigida por el Primer Padre y la Curia. Su doctrina presenta a Prios como el Dios \u00danico, el Dador de Leyes y una divinidad moribunda que puede recuperar su fuerza si la humanidad ordena y cultiva el mundo.\n\nLos tres brazos de la Iglesia:\n\u25c6 Los Sacerdotes interpretan los mandamientos de Prios y administran templos y catedrales.\n\u25c6 Los Templarios o Caballeros del Sol Moribundo forman su brazo armado.\n\u25c6 Los Hermanos del Crep\u00fasculo, tambi\u00e9n llamados Mantos Negros, act\u00faan como orden mon\u00e1stica y servicio de inteligencia contra amenazas internas.\n\nEn juego: esta opci\u00f3n permite representar religiosos, templarios, agentes, estudiantes o servidores de la Iglesia. La afiliaci\u00f3n no concede autom\u00e1ticamente Teurgia, poderes m\u00edsticos ni rituales; deben adquirirse de forma independiente."
         }
     };
     return SYMBAROUM_CULTURES.map((item) => {
         const source = cultureSources[item] ?? {
             fuente: "Libro B\u00e1sico",
             pagina: 16,
+            resumen: "Referencia cultural disponible para la creaci\u00f3n de personaje.",
             detalle: "Referencia de cultura disponible para creaci\u00f3n de personaje."
         };
         return {
             id: `cultura-${slugify(item)}`,
             tipo: "cultura",
             nombre: item,
-            resumen: "Referencia de cultura disponible para creaci\u00f3n de personaje.",
+            resumen: source.resumen ?? "Referencia de cultura disponible para creaci\u00f3n de personaje.",
             detalle: source.detalle,
             fuente: source.fuente,
             pagina: source.pagina,
@@ -166,35 +183,40 @@ function buildArchetypeEntries() {
         Guerrero: {
             fuente: "Libro B\u00e1sico",
             pagina: 80,
-            detalle: "Arquetipo base del Libro B\u00e1sico. Consulta la secci\u00f3n de arquetipos para enfoque de juego, habilidades y estilo de personaje."
+            resumen: "Combatiente de primera l\u00ednea que domina el campo de batalla mediante fuerza, t\u00e9cnica y liderazgo.",
+            detalle: "El guerrero convierte el combate en su especialidad, ya sea como soldado profesional, noble, mercenario, campe\u00f3n religioso o superviviente. Normalmente ocupa la primera l\u00ednea y soporta la presi\u00f3n enemiga, aunque tambi\u00e9n puede resolver retos mediante su autoridad y capacidad de liderazgo.\n\nAtributos recomendados:\n\u25c6 Fuerte es su atributo principal.\n\u25c6 Diestro y \u00c1gil sostienen su precisi\u00f3n, defensa e iniciativa.\n\u25c6 Persuasivo favorece al l\u00edder; Tenaz protege frente a fuerzas m\u00edsticas y Atento mejora el control del entorno."
         },
         "M\u00edstico": {
             fuente: "Libro B\u00e1sico",
-            pagina: 80,
-            detalle: "Arquetipo base del Libro B\u00e1sico. Consulta la secci\u00f3n de arquetipos para enfoque de juego, habilidades y estilo de personaje."
+            pagina: 86,
+            resumen: "Practicante de poderes sobrenaturales ligado a una tradici\u00f3n, un pacto o su propia comprensi\u00f3n de la realidad.",
+            detalle: "El m\u00edstico obtiene poder al comprender las leyes ocultas de la naturaleza o al vincularse con la luz celestial, los esp\u00edritus del bosque o la oscuridad de la Corrupci\u00f3n. Puede formarse dentro de la Magia, Hechicer\u00eda, Te\u00fargia o Brujer\u00eda, o desarrollar sus capacidades como aut\u00e1rquico sin una tradici\u00f3n formal.\n\nAtributos y capacidades recomendados:\n\u25c6 Tenaz es esencial para controlar el poder y resistir la Corrupci\u00f3n.\n\u25c6 Inteligente favorece a los magos, Persuasivo a los te\u00fargos y Discreto a quienes deben ocultarse.\n\u25c6 Ojo m\u00edstico, Estudioso, Alquimista, Medicus y las tradiciones m\u00edsticas son elecciones habituales. Cada poder y ritual se adquiere individualmente."
         },
         Maleante: {
             fuente: "Libro B\u00e1sico",
-            pagina: 80,
-            detalle: "Arquetipo base del Libro B\u00e1sico. Consulta la secci\u00f3n de arquetipos para enfoque de juego, habilidades y estilo de personaje."
+            pagina: 92,
+            resumen: "Especialista vers\u00e1til que vence mediante reflejos, astucia, sorpresa y recursos inesperados.",
+            detalle: "El t\u00e9rmino maleante engloba a exploradores, esp\u00edas, timadores, diplom\u00e1ticos, asesinos y otros personajes que prefieren apropiarse de secretos, confianza, dinero o vidas sin combatir de frente. Suelen ser vers\u00e1tiles y optimizan sus oportunidades mediante la sorpresa, el conocimiento y una baza oculta.\n\nAtributos recomendados:\n\u25c6 \u00c1gil o Inteligente suelen ser sus herramientas principales.\n\u25c6 Atento ayuda a leer el entorno y Persuasivo proporciona una salida social.\n\u25c6 Discreto, aunque \u00fatil, depende del enfoque; Ataque traicionero, Finta, Acr\u00f3bata, Mano veloz, T\u00e1ctico o Venenos son capacidades representativas."
         },
         Cazador: {
             fuente: "Gu\u00eda Avanzada del Jugador",
-            pagina: 12,
-            detalle: "Arquetipo a\u00f1adido en la Gu\u00eda Avanzada del Jugador. Consulta la secci\u00f3n de arquetipos para enfoque de juego, habilidades y estilo de personaje."
+            pagina: 10,
+            resumen: "Rastreador y combatiente a distancia especializado en anticipar los movimientos de una presa.",
+            detalle: "El cazador es una figura esencial tanto entre los ambrios como en los clanes del bosque. Combina conocimiento del terreno, rastreo y armas a distancia para perseguir criminales, monstruos o m\u00edsticos corruptos. Su rasgo distintivo es comprender d\u00f3nde ha estado una presa, c\u00f3mo se mueve y hacia d\u00f3nde se dirige.\n\nAtributos y capacidades recomendados:\n\u25c6 Atento, Discreto y \u00c1gil representan sus sentidos, sigilo y movilidad.\n\u25c6 Diestro favorece el uso de armas; Inteligente, las trampas, venenos y conocimientos.\n\u25c6 Instinto de cazador es su capacidad arquet\u00edpica y exige otras tres capacidades de la lista del arquetipo. Cazamonstruos y Explorador cuentan como ocupaciones de cazador."
         }
     };
     return SYMBAROUM_ARCHETYPES.map((item) => {
         const source = archetypeSources[item] ?? {
             fuente: "Libro B\u00e1sico",
             pagina: 80,
+            resumen: "Referencia de arquetipo disponible para creaci\u00f3n de personaje.",
             detalle: "Referencia de arquetipo disponible para creaci\u00f3n de personaje."
         };
         return {
             id: `arquetipo-${slugify(item)}`,
             tipo: "arquetipo",
             nombre: item,
-            resumen: "Referencia de arquetipo disponible para creaci\u00f3n de personaje.",
+            resumen: source.resumen ?? "Referencia de arquetipo disponible para creaci\u00f3n de personaje.",
             detalle: source.detalle,
             fuente: source.fuente,
             pagina: source.pagina,
@@ -222,7 +244,7 @@ function buildTraditionEntries() {
         nombre: name,
         resumen: `${counts.powers} poderes mÃ­sticos, ${counts.rituals} rituales.`,
         detalle: `TradiciÃ³n listada en el compendio central de UMBRA. Actualmente enlaza ${counts.powers} poderes mÃ­sticos y ${counts.rituals} rituales del catÃ¡logo cargado.`,
-        fuente: "GuÃ­a Avanzada del Jugador",
+        fuente: "Gu\u00eda Avanzada del Jugador",
         tags: ["tradicion", "magia"]
     }));
 }
@@ -1551,9 +1573,9 @@ export const MANUAL_RULES = [
     {
         id: "regla-manual-4-requisitos-de-poderes-y-rituales",
         tipo: "regla",
-        nombre: "Requisitos de poderes y rituales",
-        resumen: "Los poderes m\u00edsticos exigen habilidad m\u00edstica base; los rituales se gestionan por separado.",
-        detalle: "Para registrar poderes m\u00edsticos debes incluir una base v\u00e1lida como Poder m\u00edstico, Magia, Te\u00fargia, Brujer\u00eda o Hechicer\u00eda. En esta mesa los rituales se compran y registran de forma individual, sin exigir la habilidad Rituales. UMBRA mantiene la validaci\u00f3n de base m\u00edstica para poderes, pero no exige Rituales.",
+        nombre: "Adquisici\u00f3n de poderes y rituales",
+        resumen: "Los poderes m\u00edsticos y los rituales se adquieren individualmente, sin habilidades gen\u00e9ricas que los agrupen.",
+        detalle: "Cada poder m\u00edstico se compra y desarrolla como una capacidad independiente. Cada ritual tambi\u00e9n se compra y registra por separado, con un coste fijo de 10 puntos de experiencia. No existen las habilidades gen\u00e9ricas Poder m\u00edstico ni Rituales.",
         fuente: "Reglas UMBRA",
         tags: ["magia", "poderes", "rituales", "requisitos"]
     },
@@ -1672,7 +1694,7 @@ export const RULE_SUMMARY_ENTRIES = [
         tipo: "regla",
         nombre: "Personajes moribundos",
         resumen: "A menos que el director de juego diga lo contrario, los monstruos y personajes no jugadores mueren en cuanto su Resistencia cae a 0.",
-        detalle: "A menos que el director de juego diga lo contrario, los monstruos y personajes no jugadores mueren en cuanto su Resistencia cae a 0. En cualquier caso, las reglas para personajes jugadores son diferentes. Un personaje jugador se derrumba cuando su Resistencia llega a 0. Se considera que est\u00e1 moribundo y que no puede hacer nada por curarse a s\u00ed mismo. En cada turno posterior, el jugador debe hacer una tirada de muerte (ver columna lateral) con 1D20, durante la iniciativa de su personaje. La tirada debe repetirse hasta que alguien estabilice al personaje mediante una curaci\u00f3n m\u00edstica, hierbas curativas o la habilidad Medicus; hasta que el jugador saque un 1 y se levante; o hasta que obtenga un 20 en el dado y muera. Si un PJ est\u00e1 envenenado mientras est\u00e1 moribundo, las tiradas de muerte cambian, cada tirada de muerte de 1-19 tiene el efecto de 11-19 y el 20 sigue igual.",
+        detalle: "A menos que el director de juego diga lo contrario, los monstruos y personajes no jugadores mueren en cuanto su Resistencia cae a 0. En cualquier caso, las reglas para personajes jugadores son diferentes. Un personaje jugador se derrumba cuando su Resistencia llega a 0. Se considera que est\u00e1 moribundo y que no puede hacer nada por curarse a s\u00ed mismo. En cada turno posterior, el jugador debe hacer una tirada de muerte con 1D20 durante la iniciativa de su personaje.\n\nResultados de la tirada de muerte:\n\u25c6 1: el personaje se levanta.\n\u25c6 2-10: el personaje sigue moribundo, pero estable.\n\u25c6 11-19: el personaje est\u00e1 un paso m\u00e1s cerca de la muerte; la tercera vez que obtiene este resultado, el personaje muere.\n\u25c6 20: el personaje no resiste m\u00e1s y muere.\n\nLa tirada debe repetirse hasta que alguien estabilice al personaje mediante una curaci\u00f3n m\u00edstica, hierbas curativas o la habilidad Medicus; hasta que el jugador saque un 1 y se levante; o hasta que obtenga un 20 en el dado y muera.\n\nSi un PJ est\u00e1 envenenado mientras est\u00e1 moribundo, las tiradas de muerte cambian: cada tirada de muerte de 1-19 tiene el efecto de 11-19 y el 20 sigue igual.",
         fuente: "Resumen de Reglas",
         tags: ["personajes-moribundos", "personajes", "moribundos"]
     },
@@ -2012,11 +2034,11 @@ export const RULE_SUMMARY_ENTRIES = [
     {
         id: "regla-resumen-51-rituales-maximos-a-nivel-maestro",
         tipo: "regla",
-        nombre: "Rituales m\u00e1ximos a nivel maestro",
-        resumen: "La habilidad Rituales tiene un l\u00edmite de seis rituales al alcanzar el nivel maestro.",
-        detalle: "La habilidad Rituales tiene un l\u00edmite de seis rituales al alcanzar el nivel maestro. Para los grupos de juego que realmente disfrutan de ellos y piensan que media docena es muy poco para un verdadero maestro en los Rituales, se recomienda la siguiente regla alternativa: Los maestros en Rituales pueden aprender rituales adicionales al coste de 10 puntos de experiencia por ritual. Solo alguien con el nivel maestro puede adquirir m\u00e1s de esta forma. Los m\u00edsticos menos competentes se ci\u00f1en a la descripci\u00f3n de su nivel de habilidad.",
-        fuente: "Resumen de Reglas",
-        tags: ["rituales-maximos-a-nivel-maestro", "rituales", "maximos", "a", "nivel"]
+        nombre: "Compra individual de rituales",
+        resumen: "Cada ritual cuesta 10 puntos de experiencia y se adquiere de forma independiente.",
+        detalle: "Los rituales no se agrupan bajo una habilidad ni tienen un l\u00edmite determinado por niveles de novato, adepto o maestro. Cada ritual conocido ocupa una entrada propia y cuesta 10 puntos de experiencia, sin importar cu\u00e1ntos rituales conozca ya el personaje.",
+        fuente: "Reglas UMBRA",
+        tags: ["rituales", "compra", "experiencia", "10-px"]
     },
     {
         id: "regla-resumen-52-persecuciones",
@@ -2443,8 +2465,10 @@ export function findCompendiumEntryByTypeAndName(tipo, nombre) {
 const SOURCE_CANONICAL_MAP = {
     "Libro Basico": "Libro B\u00e1sico",
     "Libro B\u00e1sico": "Libro B\u00e1sico",
+    "Libro BÃ¡sico": "Libro B\u00e1sico",
     "Guia Avanzada del Jugador": "Gu\u00eda Avanzada del Jugador",
     "Gu\u00eda Avanzada del Jugador": "Gu\u00eda Avanzada del Jugador",
+    "GuÃ­a Avanzada del Jugador": "Gu\u00eda Avanzada del Jugador",
     "Guia del Jugador": "Gu\u00eda del Jugador",
     "Gu\u00eda del Jugador": "Gu\u00eda del Jugador",
     "Guia DM": "Gu\u00eda DM",
