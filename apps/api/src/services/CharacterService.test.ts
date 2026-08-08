@@ -36,4 +36,25 @@ describe("CharacterService experience ownership", () => {
     expect(updated.sheet.progreso.experienciaTotal).toBe(20);
     expect(model.update.mock.calls[0][2].sheet.progreso.experienciaTotal).toBe(20);
   });
+
+  it("preserves legacy artifacts and rejects newly forged generic artifacts", async () => {
+    const current = makeCharacter();
+    const legacy = {
+      id: "legacy-artifact", name: "Reliquia heredada", category: "artifact" as const, quantity: 1,
+      stackable: false, isCustom: true, description: "", weight: "", value: "", equipped: false,
+      slot: "artifact" as const, damageFormula: "", protectionFormula: "", qualities: "", notes: "",
+      grantedActions: [], modifiers: []
+    };
+    current.sheet.inventoryItems.push(legacy);
+    const model = {
+      findById: vi.fn().mockResolvedValue(current),
+      update: vi.fn().mockImplementation(async (_ownerId, _characterId, payload) => ({ ...current, ...payload }))
+    };
+    const requested = structuredClone(current.sheet);
+    requested.inventoryItems.push({ ...legacy, id: "forged", name: "Artefacto inventado" });
+
+    await new CharacterService(model as never).updateCharacter("owner-a", current.id, { sheet: requested });
+
+    expect(model.update.mock.calls[0][2].sheet.inventoryItems.filter((item: typeof legacy) => item.category === "artifact").map((item: typeof legacy) => item.id)).toEqual(["legacy-artifact"]);
+  });
 });

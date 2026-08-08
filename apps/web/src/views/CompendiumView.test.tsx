@@ -128,6 +128,9 @@ describe("CompendiumView library", () => {
     renderCompendium();
     expect(screen.getByRole("heading", { name: "Favoritos" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Explorar el archivo" })).toBeInTheDocument();
+    const abilityCategory = screen.getByRole("button", { name: /Habilidades.*entradas/ });
+    expect(abilityCategory).toHaveClass("app-card-accent--habilidad");
+    expect(abilityCategory.querySelector(".compendium-section-card-ornament")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Por fuente" }));
     expect(screen.getByRole("heading", { name: "Libros" })).toBeInTheDocument();
@@ -142,6 +145,7 @@ describe("CompendiumView library", () => {
     fireEvent.click(screen.getByRole("button", { name: /Habilidades.*entradas/ }));
     expect(screen.getByRole("heading", { name: "Resultados" })).toBeInTheDocument();
     expect(screen.getByLabelText("Tipo")).toHaveValue("habilidad");
+    expect(document.querySelector(".compendium-result-card.app-card-accent--habilidad")).toBeInTheDocument();
     expect(document.querySelector(".compendium-result-snippet")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "← Volver al compendio" })).toBeInTheDocument();
 
@@ -170,6 +174,7 @@ describe("CompendiumView library", () => {
     });
 
     expect(await screen.findByRole("heading", { name: target.nombre })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: target.nombre })).toHaveClass(`app-card-accent--${target.tipo}`);
     await waitFor(() => expect(serviceMocks.recordCompendiumView).toHaveBeenCalledWith(target.id, "access-token"));
     expect(window.location.hash).toContain("mode=source");
     expect(window.location.hash).toContain("type=habilidad");

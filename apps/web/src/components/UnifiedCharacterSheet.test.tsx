@@ -41,7 +41,7 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(screen.getAllByText("1d8+1").length).toBeGreaterThan(0);
   });
 
-  it("renders eight separated modules and a single canonical reader", () => {
+  it("renders seven separated modules and a single canonical reader", () => {
     const sheet = createEmptyCharacterSheet();
     sheet.identidad.nombrePersonaje = "Arold";
 
@@ -54,13 +54,49 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
       />
     );
 
-    expect(container.querySelectorAll(".unified-sheet-module")).toHaveLength(8);
+    expect(container.querySelectorAll(".unified-sheet-module")).toHaveLength(7);
     expect(container.querySelectorAll(".unified-sheet-reader")).toHaveLength(1);
     expect(container.querySelectorAll(".unified-sheet > .unified-sheet-panel")).toHaveLength(0);
     expect(screen.getByRole("region", { name: "Identidad del personaje" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Experiencia" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Recursos" })).toBeInTheDocument();
-    expect(screen.getByRole("complementary", { name: "Resumen del personaje" })).toBeInTheDocument();
+    const statusGrid = container.querySelector(".unified-sheet-status-grid") as HTMLElement;
+    const combat = within(statusGrid).getByRole("region", { name: "Combate" });
+    const conditions = within(statusGrid).getByRole("region", { name: "Condiciones" });
+    expect(combat).toBeInTheDocument();
+    expect(conditions).toBeInTheDocument();
+    expect(within(combat).queryByRole("heading", { name: "Valores derivados" })).not.toBeInTheDocument();
+    const combatText = combat.textContent ?? "";
+    expect(combatText.indexOf("Iniciativa")).toBeLessThan(combatText.indexOf("Defensa"));
+    expect(combatText.indexOf("Defensa")).toBeLessThan(combatText.indexOf("Armadura"));
+    expect(combatText.indexOf("Armadura")).toBeLessThan(combatText.indexOf("Umbral de dolor"));
+    expect(combatText.indexOf("Umbral de dolor")).toBeLessThan(combatText.indexOf("Umbral de corrupcion"));
+    expect(container.querySelector(".unified-sheet-summary-column")).not.toBeInTheDocument();
+  });
+
+  it("places the background control in identity and the icon-only builder access in experience", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.identidad.nombrePersonaje = "Arold";
+
+    render(
+      <UnifiedCharacterSheet
+        title="Arold"
+        subtitle="Guerrero"
+        sheet={sheet}
+        editable
+        backgroundPreferenceScope="user-a"
+        onOpenBuilder={() => undefined}
+      />
+    );
+
+    const identity = screen.getByRole("region", { name: "Identidad del personaje" });
+    const experience = screen.getByRole("region", { name: "Experiencia" });
+    const builder = within(experience).getByRole("button", { name: "Constructor" });
+
+    expect(within(identity).getByRole("button", { name: "Fondo" })).toBeInTheDocument();
+    expect(builder).toHaveClass("unified-sheet-builder-icon");
+    expect(builder).toHaveAttribute("title", "Abrir constructor");
+    expect(screen.queryByRole("region", { name: "Controles de ficha" })).not.toBeInTheDocument();
   });
 
   it("keeps every desktop section inside the canonical reader", () => {
@@ -130,6 +166,10 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(modal).not.toBeNull();
     expect(modal?.textContent?.split(description)).toHaveLength(2);
     expect(modal).toHaveTextContent("Tirada de ataque y, si procede");
+    expect(document.body.style.overflow).toBe("hidden");
+
+    fireEvent.click(within(modal as HTMLElement).getByRole("button", { name: "Cerrar" }));
+    expect(document.body.style.overflow).toBe("");
   });
 
   it("shows granted, spent and available XP without owner controls for the total", () => {

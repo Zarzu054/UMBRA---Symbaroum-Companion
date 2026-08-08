@@ -32,7 +32,10 @@ describe("character sheet background preference", () => {
 
     expect(document.documentElement).toHaveAttribute("data-character-sheet-background", DEFAULT_CHARACTER_SHEET_BACKGROUND);
     fireEvent.click(trigger);
-    expect(screen.getByRole("dialog", { name: "Elige una ilustración" })).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Elige una ilustración" });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog.parentElement).toHaveClass("character-sheet-background-backdrop");
+    expect(dialog.parentElement?.parentElement).toBe(document.body);
     expect(screen.getAllByRole("button", { name: /p\.\d+/ })).toHaveLength(10);
 
     fireEvent.click(screen.getByRole("button", { name: /Ruinas del bosque/ }));

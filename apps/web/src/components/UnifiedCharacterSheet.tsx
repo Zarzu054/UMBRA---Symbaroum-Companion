@@ -26,6 +26,7 @@ import { getCharacterExperienceSummary } from "../models/characterExperience";
 import { ARMOR_QUALITY_OPTIONS, ITEM_QUALITY_OPTIONS, createCustomInventoryItem, createInventoryItemFromTemplate, ITEM_CATALOG, type ItemTemplate } from "../models/itemCatalog";
 import { ALL_ENTRIES, findCompendiumEntryByTypeAndName, getCompendiumSourcePdfUrl, getCompendiumSummaryLink } from "../models/compendiumEntries";
 import { useUnifiedCharacterSheet } from "../hooks/useUnifiedCharacterSheet";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { CharacterSheetBackgroundPicker } from "./CharacterSheetBackgroundPicker";
 import {
   dispatchRoll20Request,
@@ -35,9 +36,9 @@ import {
 
 type TabId = "actions" | "inventory" | "abilities" | "background" | "notes";
 type MobileSheetTabId = "attributes" | TabId;
-type ActionTabId = "all" | "favorites" | "attacks" | "powers" | "actions" | "free" | "reactions" | "other" | "special";
+type ActionTabId = "all" | "favorites" | "attacks" | "powers" | "artifacts" | "actions" | "free" | "reactions" | "other" | "special";
 type CapabilityTabId = "traits" | "blessings" | "burdens" | "abilities" | "powers" | "rituals";
-type InventoryTabId = "money" | "weapons" | "armors" | "items";
+type InventoryTabId = "money" | "weapons" | "armors" | "artifacts" | "items";
 type RatedEntry = CharacterSheet["habilidades"][number];
 type SimpleSheetListSection = "bendiciones" | "cargas" | "rasgos";
 type CharacterPersonalNoteEntry = CharacterSheet["personalNotes"][number];
@@ -53,6 +54,7 @@ type Props = {
   onOpenBuilder?: () => void;
   backgroundPreferenceScope?: string;
   onOpenCompendiumCapability?: (tipo: "habilidad" | "poder_mistico" | "ritual" | "bendicion" | "carga", nombre: string) => void;
+  onUseArtifactAbility?: (artifactId: string, abilityId: string) => Promise<void>;
 };
 
 type PendingRollConfirmation = {
@@ -160,9 +162,9 @@ type SheetTabState = {
 };
 
 const TAB_IDS: TabId[] = ["actions", "inventory", "abilities", "background", "notes"];
-const ACTION_TAB_IDS: ActionTabId[] = ["all", "favorites", "attacks", "powers", "actions", "free", "reactions", "other", "special"];
+const ACTION_TAB_IDS: ActionTabId[] = ["all", "favorites", "attacks", "powers", "artifacts", "actions", "free", "reactions", "other", "special"];
 const CAPABILITY_TAB_IDS: CapabilityTabId[] = ["traits", "blessings", "burdens", "abilities", "powers", "rituals"];
-const INVENTORY_TAB_IDS: InventoryTabId[] = ["money", "weapons", "armors", "items"];
+const INVENTORY_TAB_IDS: InventoryTabId[] = ["money", "weapons", "armors", "artifacts", "items"];
 
 const WEAPON_CATALOG_FILTER_OPTIONS: Array<{ id: WeaponCatalogFilterId; label: string }> = [
   { id: "all", label: "Todas" },
@@ -661,6 +663,8 @@ function getActionSourceLabel(action: CharacterActionDefinition): string {
       return action.sourceName || "Poder mistico";
     case "ritual":
       return action.sourceName || "Ritual";
+    case "artifact":
+      return action.sourceName || "Artefacto mistico";
     case "ability":
     default:
       return action.sourceName || (action.fixedTarget ? "Accion especial" : "Habilidad");
@@ -952,6 +956,7 @@ export function UnifiedCharacterSheet({
   onSave,
   onBack,
   onOpenBuilder,
+  onUseArtifactAbility,
   backgroundPreferenceScope,
   onOpenCompendiumCapability
 }: Props) {
@@ -976,10 +981,23 @@ export function UnifiedCharacterSheet({
   const [selectedPersonalNoteId, setSelectedPersonalNoteId] = useState<string | null>(null);
   const [personalNoteEditor, setPersonalNoteEditor] = useState<{ mode: "create" | "edit"; note: CharacterPersonalNoteEntry } | null>(null);
   const [personalNoteError, setPersonalNoteError] = useState<string | null>(null);
+  const [artifactUseError, setArtifactUseError] = useState<string | null>(null);
+  const pendingArtifactDamageRef = useRef<Set<string>>(new Set());
   const [weaponEditorModal, setWeaponEditorModal] = useState<WeaponEditorModal | null>(null);
   const [armorEditorModal, setArmorEditorModal] = useState<ArmorEditorModal | null>(null);
   const [itemEditorModal, setItemEditorModal] = useState<ItemEditorModal | null>(null);
   const [activeWeaponQualityInfoId, setActiveWeaponQualityInfoId] = useState<string>("");
+  const isSheetModalOpen = Boolean(
+    inventoryCatalogModalTab
+    || pendingRollConfirmation
+    || actionDetailModal
+    || selectedPersonalNoteId
+    || personalNoteEditor
+    || weaponEditorModal
+    || armorEditorModal
+    || itemEditorModal
+  );
+  useBodyScrollLock(isSheetModalOpen);
 
   const normalizedSheet = useMemo(() => synchronizeCharacterSheet(draft), [draft]);
   const derived = useMemo(() => computeDerivedStats(normalizedSheet), [normalizedSheet]);
@@ -1044,6 +1062,8 @@ export function UnifiedCharacterSheet({
         return visibleActions.filter((action) => action.sourceType === "weapon");
       case "powers":
         return visibleActions.filter((action) => action.sourceType === "power" || action.sourceType === "ritual");
+      case "artifacts":
+        return visibleActions.filter((action) => action.sourceType === "artifact");
       case "other":
         return visibleActions.filter((action) => isOtherAction(action));
       case "free":
@@ -1095,11 +1115,12 @@ export function UnifiedCharacterSheet({
   const moneyCounters = useMemo(() => parseMoneyCounters(normalizedSheet.recursos.dinero), [normalizedSheet.recursos.dinero]);
   const inventorySections = useMemo(
     () => ({
-      weapons: normalizedSheet.inventoryItems.map((item, index) => ({ item, index })).filter(({ item }) => item.category === "weapon"),
-      armors: normalizedSheet.inventoryItems.map((item, index) => ({ item, index })).filter(({ item }) => item.category === "armor"),
+      weapons: normalizedSheet.inventoryItems.map((item, index) => ({ item, index })).filter(({ item }) => item.category === "weapon" && !item.managedArtifactId),
+      armors: normalizedSheet.inventoryItems.map((item, index) => ({ item, index })).filter(({ item }) => item.category === "armor" && !item.managedArtifactId),
+      artifacts: normalizedSheet.inventoryItems.map((item, index) => ({ item, index })).filter(({ item }) => Boolean(item.managedArtifactId)),
       items: normalizedSheet.inventoryItems
         .map((item, index) => ({ item, index }))
-        .filter(({ item }) => item.category !== "weapon" && item.category !== "armor")
+        .filter(({ item }) => item.category !== "weapon" && item.category !== "armor" && !item.managedArtifactId)
     }),
     [normalizedSheet.inventoryItems]
   );
@@ -1185,6 +1206,15 @@ export function UnifiedCharacterSheet({
       return;
     }
 
+    if (action.sourceType === "artifact") {
+      setActionDetailModal({
+        title: formatActionDisplayLabel(action.label),
+        sourceLabel: getActionSourceLabel(action),
+        detail: [action.effectSummary, action.corruptionFormula ? `Corrupcion: ${action.corruptionFormula}` : "Corrupcion: Ninguna"].filter(Boolean).join("\n\n")
+      });
+      return;
+    }
+
     const entries = action.sourceType === "power"
       ? normalizedSheet.poderesMisticos
       : action.sourceType === "ritual"
@@ -1264,7 +1294,7 @@ export function UnifiedCharacterSheet({
       sourceLabel: item.isCustom ? "Arma personalizada" : item.category === "weapon" ? "Arma del catalogo" : item.category === "armor" ? "Armadura" : "Objeto",
       detail: item.description.trim() || "Sin descripcion adicional.",
       notes,
-      removeInventoryIndex: canEditInventory ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined
+      removeInventoryIndex: canEditInventory && !item.managedArtifactId ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined
     });
   }
 
@@ -1315,7 +1345,7 @@ export function UnifiedCharacterSheet({
       sourceLabel: item.isCustom ? "Arma personalizada" : "Arma del catalogo",
       detail: item.description.trim() || "Sin descripcion adicional.",
       notes,
-      removeInventoryIndex: canEditInventory ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+      removeInventoryIndex: canEditInventory && !item.managedArtifactId ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
       editInventoryIndex: canEditInventory && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
       inventoryMeta: {
         kind: "weapon",
@@ -1370,7 +1400,7 @@ export function UnifiedCharacterSheet({
       sourceLabel: item.isCustom ? "Armadura personalizada" : "Armadura del catalogo",
       detail: item.description.trim() || "Sin descripcion adicional.",
       notes,
-      removeInventoryIndex: canEditInventory ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+      removeInventoryIndex: canEditInventory && !item.managedArtifactId ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
       editInventoryIndex: canEditInventory && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
       inventoryMeta: {
         kind: "armor",
@@ -1424,7 +1454,7 @@ export function UnifiedCharacterSheet({
       sourceLabel: item.isCustom ? "Objeto personalizado" : "Objeto del catalogo",
       detail: item.description.trim() || "Sin descripcion adicional.",
       notes,
-      removeInventoryIndex: canEditInventory ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+      removeInventoryIndex: canEditInventory && !item.managedArtifactId ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
       editInventoryIndex: canEditInventory && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
       inventoryMeta: {
         kind: "item",
@@ -1649,21 +1679,45 @@ export function UnifiedCharacterSheet({
     pushHistory(result.action.label, result.rolls, result.action.effectSummary);
   }
 
-  function runAttackAction(action: CharacterActionDefinition): void {
+  async function activateArtifactAction(action: CharacterActionDefinition, phase?: CharacterActionPhase): Promise<boolean> {
+    if (action.sourceType !== "artifact" || !action.artifactAbilityId || !onUseArtifactAbility) return true;
+    if (phase === "damage" && pendingArtifactDamageRef.current.has(action.artifactAbilityId)) {
+      pendingArtifactDamageRef.current.delete(action.artifactAbilityId);
+      return true;
+    }
+    const item = normalizedSheet.inventoryItems.find((entry) => entry.id === action.id.split(":").slice(1, -1).join(":"))
+      ?? normalizedSheet.inventoryItems.find((entry) => entry.grantedActions.some((candidate) => candidate.artifactAbilityId === action.artifactAbilityId));
+    if (!item?.managedArtifactId) return true;
+    try {
+      setArtifactUseError(null);
+      await onUseArtifactAbility(item.managedArtifactId, action.artifactAbilityId);
+      if (phase === "attack" && action.damageFormula) {
+        pendingArtifactDamageRef.current.add(action.artifactAbilityId);
+      }
+      return true;
+    } catch (error) {
+      setArtifactUseError(error instanceof Error ? error.message : "No se pudo activar el artefacto");
+      return false;
+    }
+  }
+
+  async function runAttackAction(action: CharacterActionDefinition): Promise<void> {
     if (rollDestination !== "umbra") {
       queueRoll20Request(action, "attack", `${action.label} · Tirada`);
       return;
     }
+    if (!(await activateArtifactAction(action, "attack"))) return;
 
     const result = executeCharacterAction(normalizedSheet, action.id, "attack");
     pushHistory(result.action.label, result.rolls, result.action.effectSummary);
   }
 
-  function runDamageAction(action: CharacterActionDefinition): void {
+  async function runDamageAction(action: CharacterActionDefinition): Promise<void> {
     if (rollDestination !== "umbra") {
       queueRoll20Request(action, "damage", `${action.label} · Danio`);
       return;
     }
+    if (!(await activateArtifactAction(action, "damage"))) return;
 
     const result = executeCharacterAction(normalizedSheet, action.id, "damage");
     pushHistory(result.action.label, result.rolls, result.action.effectSummary);
@@ -1799,6 +1853,10 @@ export function UnifiedCharacterSheet({
   async function handleConfirmRoll20Send(visibility: Roll20Visibility): Promise<void> {
     if (!pendingRollConfirmation) return;
     try {
+        if (pendingRollConfirmation.action && pendingRollConfirmation.phase
+          && !(await activateArtifactAction(pendingRollConfirmation.action, pendingRollConfirmation.phase))) {
+          return;
+        }
         const request = buildPendingConfirmationRequest(pendingRollConfirmation);
         if (!request) {
           throw new Error("No se pudo preparar la tirada");
@@ -2338,6 +2396,12 @@ export function UnifiedCharacterSheet({
               <span>Modificadores: {item.modifiers.map((modifier) => modifier.label || `${modifier.modifierType} ${modifier.value}`.trim()).join(" · ")}</span>
             </div>
           ) : null}
+          {item.managedArtifactId ? (
+            <div className="info-box">
+              <span>{item.artifactBound ? "Vinculado" : `Sin vincular${item.artifactBindingCostLabel ? ` · ${item.artifactBindingCostLabel}` : ""}`}</span>
+              {(item.artifactResources ?? []).map((resource) => <span key={resource.id}>{resource.name}: {resource.current}/{resource.maximum}</span>)}
+            </div>
+          ) : null}
         </div>
         {item.description && !isInventoryCombatItem && !isManagedInventoryItem ? <p className="unified-sheet-rich-text">{item.description}</p> : null}
         {item.notes && !isInventoryCombatItem && !isManagedInventoryItem ? <p className="unified-sheet-capability-notes">{item.notes}</p> : null}
@@ -2497,7 +2561,14 @@ export function UnifiedCharacterSheet({
             </span>
           )
         ) : null}
-        {!presentation.hasRoll ? <span className="campaign-action-no-roll">Sin tirada</span> : null}
+        {!presentation.hasRoll ? (
+          allowRoll && action.sourceType === "artifact" ? (
+            <button type="button" className="campaign-action-roll-button" onClick={() => void activateArtifactAction(action)}>
+              <span>Activar</span>
+              <strong>Sin tirada</strong>
+            </button>
+          ) : <span className="campaign-action-no-roll">Sin tirada</span>
+        ) : null}
         {hasOptionalModifiers ? <span className="campaign-action-modifier-notice">Modificadores disponibles</span> : null}
       </div>
     );
@@ -2525,12 +2596,14 @@ export function UnifiedCharacterSheet({
                 <div className="row-actions">
                   <h3>Acciones disponibles</h3>
                 </div>
+                {artifactUseError ? <p className="error-text">{artifactUseError}</p> : null}
                 <nav className="unified-sheet-subtabs unified-sheet-action-subtabs" aria-label="Filtros de acciones">
                   {([
                     ["all", "Todas"],
                     ["favorites", "Favoritas"],
                     ["attacks", "Ataques"],
                     ["powers", "Poderes y rituales"],
+                    ["artifacts", "Artefactos"],
                     ["special", "Acciones especiales"],
                     ["actions", "Acciones"],
                     ["free", "Acciones gratuitas"],
@@ -2609,6 +2682,7 @@ export function UnifiedCharacterSheet({
                     ["money", "Dinero"],
                     ["weapons", "Armas"],
                     ["armors", "Armaduras"],
+                    ["artifacts", "Artefactos"],
                     ["items", "Objetos"]
                   ] as Array<[InventoryTabId, string]>).map(([tab, label]) => (
                     <button key={tab} type="button" className={activeInventoryTab === tab ? "is-active" : ""} onClick={() => setActiveInventoryTab(tab)}>
@@ -2722,6 +2796,17 @@ export function UnifiedCharacterSheet({
 
                 {activeCapabilityTab === "traits" ? (
                   <SimpleStringList title="Rasgos" entries={normalizedSheet.rasgos} emptyText="Sin rasgos registrados." categoryKey="rasgo" />
+                ) : null}
+
+                {activeInventoryTab === "artifacts" ? (
+                  <>
+                    <div className="row-actions"><h3>Artefactos misticos</h3></div>
+                    <div className="unified-sheet-list">
+                      {inventorySections.artifacts.length > 0
+                        ? inventorySections.artifacts.map(({ item, index }) => renderInventoryItemEditor(item, index))
+                        : <p className="section-help">El DJ todavia no ha entregado artefactos a este personaje.</p>}
+                    </div>
+                  </>
                 ) : null}
 
                 {activeCapabilityTab === "blessings" ? (
@@ -2899,22 +2984,28 @@ export function UnifiedCharacterSheet({
               <h2 className="unified-sheet-title">{displayName}</h2>
               {subtitle ? <span className="unified-sheet-inline-subtitle">{subtitle}</span> : null}
             </div>
-            {backgroundPreferenceScope || (editable && onOpenBuilder) ? (
-              <div className="unified-sheet-header-actions">
-                {backgroundPreferenceScope ? <CharacterSheetBackgroundPicker preferenceScope={backgroundPreferenceScope} /> : null}
-                {editable && onOpenBuilder ? (
-                  <button type="button" className="unified-sheet-builder-launch" onClick={onOpenBuilder}>
-                    <span aria-hidden="true">⚒</span>
-                    <span>Constructor</span>
-                  </button>
-                ) : null}
+            {backgroundPreferenceScope ? (
+              <div className="unified-sheet-identity-actions">
+                <CharacterSheetBackgroundPicker preferenceScope={backgroundPreferenceScope} />
               </div>
             ) : null}
           </div>
-
         </section>
         <section className="unified-sheet-module unified-sheet-experience-module unified-sheet-xp-card campaign-sheet-card" aria-labelledby="unified-sheet-experience-title">
-          <h2 id="unified-sheet-experience-title" className="unified-sheet-module-title">Experiencia</h2>
+          <div className="unified-sheet-experience-heading">
+            <h2 id="unified-sheet-experience-title" className="unified-sheet-module-title">Experiencia</h2>
+            {editable && onOpenBuilder ? (
+              <button
+                type="button"
+                className="unified-sheet-builder-launch unified-sheet-builder-icon"
+                aria-label="Constructor"
+                title="Abrir constructor"
+                onClick={onOpenBuilder}
+              >
+                <span aria-hidden="true">⚒</span>
+              </button>
+            ) : null}
+          </div>
           <div className="unified-sheet-xp-row">
             <span>PX total</span>
             <strong>{normalizedSheet.progreso.experienciaTotal}</strong>
@@ -2930,9 +3021,10 @@ export function UnifiedCharacterSheet({
         </section>
       </div>
 
-      <section className="unified-sheet-module unified-sheet-resources-module campaign-sheet-card" aria-labelledby="unified-sheet-resources-title">
-        <h2 id="unified-sheet-resources-title" className="unified-sheet-module-title">Recursos</h2>
-        <div className="unified-sheet-header-stats">
+      <div className="unified-sheet-status-grid">
+        <section className="unified-sheet-module unified-sheet-resources-module campaign-sheet-card" aria-labelledby="unified-sheet-resources-title">
+          <h2 id="unified-sheet-resources-title" className="unified-sheet-module-title">Recursos</h2>
+          <div className="unified-sheet-header-stats">
             <div className="unified-sheet-vital-card is-health">
               <div className="unified-sheet-vital-header">
                 <span>Robustez</span>
@@ -2974,91 +3066,84 @@ export function UnifiedCharacterSheet({
                 </div>
               ) : null}
             </div>
-        </div>
-      </section>
+          </div>
+        </section>
+
+        <section className="unified-sheet-module unified-sheet-attributes-module campaign-sheet-card" aria-labelledby="unified-sheet-attributes-title">
+          <h2 id="unified-sheet-attributes-title" className="unified-sheet-module-title">Atributos</h2>
+          <div className="unified-sheet-attribute-rail">
+            {ATTRIBUTE_KEYS.map((key) => (
+              <div key={key} className="unified-sheet-attribute-chip">
+                <span>{ATTRIBUTE_LABELS[key]}</span>
+                <strong>{normalizedSheet.atributos[key]}</strong>
+                {isReadOnly ? null : <button type="button" className="vital-action subtle" onClick={() => runAttributeRoll(key)}>Tirar</button>}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="unified-sheet-module unified-sheet-combat-module campaign-sheet-card" aria-labelledby="unified-sheet-combat-title">
+          <h2 id="unified-sheet-combat-title" className="unified-sheet-module-title">Combate</h2>
+          <div className="unified-sheet-quick-row is-combat-values">
+            <article className="unified-sheet-quick-card is-derived-card">
+              <h3>Iniciativa</h3>
+              <strong>{derived.iniciativaTotal}</strong>
+            </article>
+
+            <article className="unified-sheet-quick-card is-defense-card">
+              <div className="row-actions">
+                <h3>Defensa</h3>
+                <strong>{derived.defensaTotal}</strong>
+              </div>
+              {derived.defensaArmaduraDetalle ? <p className="section-help">{derived.defensaArmaduraDetalle}</p> : null}
+              {isReadOnly ? null : (
+                <div className="unified-sheet-vital-actions">
+                  <button type="button" className="vital-action subtle is-defense-roll" onClick={runDefenseRoll}>Tirar Defensa</button>
+                </div>
+              )}
+            </article>
+
+            <article className="unified-sheet-quick-card">
+              <div className="row-actions">
+                <h3>Armadura</h3>
+                <strong>{activeArmor?.protectionFormula || derived.armaduraActiva || "-"}</strong>
+              </div>
+              <strong>{activeArmor?.name || normalizedSheet.combate.armadura || (derived.armaduraNatural ? "Armadura natural" : "Sin armadura")}</strong>
+              {isReadOnly ? null : (
+                <div className="unified-sheet-vital-actions">
+                  <button type="button" className="vital-action subtle" onClick={runArmorRoll} disabled={!(activeArmor?.protectionFormula || derived.armaduraActiva)}>Tirar Armadura</button>
+                </div>
+              )}
+            </article>
+
+            <article className="unified-sheet-quick-card is-derived-card">
+              <h3>Umbral de dolor</h3>
+              <strong>{derived.umbralDolorTotal}</strong>
+            </article>
+
+            <article className="unified-sheet-quick-card is-derived-card">
+              <h3>Umbral de corrupcion</h3>
+              <strong>{derived.umbralCorrupcionTotal}</strong>
+            </article>
+          </div>
+        </section>
+
+        <section className="unified-sheet-module unified-sheet-conditions-module campaign-sheet-card" aria-labelledby="unified-sheet-conditions-title">
+          <h2 id="unified-sheet-conditions-title" className="unified-sheet-module-title">Condiciones</h2>
+          <div className="unified-sheet-quick-row is-conditions">
+            <article className="unified-sheet-quick-card is-wide">
+              <div className="unified-sheet-quick-tags">
+                {normalizedSheet.conditions.length > 0 ? normalizedSheet.conditions.slice(0, 4).map((condition) => (
+                  <span key={condition.id} className={`unified-sheet-tag is-${condition.category}`}>{condition.name || "Condicion"}</span>
+                )) : <span className="unified-sheet-tag">Sin condiciones</span>}
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
 
       <div className="unified-sheet-workspace">
-          <aside className="unified-sheet-summary-column" aria-label="Resumen del personaje">
-            <section className="unified-sheet-module unified-sheet-attributes-module campaign-sheet-card" aria-labelledby="unified-sheet-attributes-title">
-              <h2 id="unified-sheet-attributes-title" className="unified-sheet-module-title">Atributos</h2>
-            <div className="unified-sheet-attribute-rail">
-              {ATTRIBUTE_KEYS.map((key) => (
-                <div key={key} className="unified-sheet-attribute-chip">
-                  <span>{ATTRIBUTE_LABELS[key]}</span>
-                  <strong>{normalizedSheet.atributos[key]}</strong>
-                  {isReadOnly ? null : <button type="button" className="vital-action subtle" onClick={() => runAttributeRoll(key)}>Tirar</button>}
-                </div>
-              ))}
-            </div>
-            </section>
-            <div className="unified-sheet-static-summary">
-              <section className="unified-sheet-module unified-sheet-combat-module campaign-sheet-card" aria-labelledby="unified-sheet-combat-title">
-                <h2 id="unified-sheet-combat-title" className="unified-sheet-module-title">Combate</h2>
-              <div className="unified-sheet-quick-row is-primary">
-                <article className="unified-sheet-quick-card is-defense-card">
-                  <div className="row-actions">
-                    <h3>Defensa</h3>
-                    <strong>{derived.defensaTotal}</strong>
-                  </div>
-                  {derived.defensaArmaduraDetalle ? <p className="section-help">{derived.defensaArmaduraDetalle}</p> : null}
-                  {isReadOnly ? null : (
-                    <div className="unified-sheet-vital-actions">
-                      <button type="button" className="vital-action subtle is-defense-roll" onClick={runDefenseRoll}>Tirar Defensa</button>
-                    </div>
-                  )}
-                </article>
-
-                <article className="unified-sheet-quick-card">
-                  <div className="row-actions">
-                    <h3>Armadura</h3>
-                    <strong>{activeArmor?.protectionFormula || derived.armaduraActiva || "-"}</strong>
-                  </div>
-                  <strong>{activeArmor?.name || normalizedSheet.combate.armadura || (derived.armaduraNatural ? "Armadura natural" : "Sin armadura")}</strong>
-                  {isReadOnly ? null : (
-                    <div className="unified-sheet-vital-actions">
-                      <button type="button" className="vital-action subtle" onClick={runArmorRoll} disabled={!(activeArmor?.protectionFormula || derived.armaduraActiva)}>Tirar Armadura</button>
-                    </div>
-                  )}
-                </article>
-              </div>
-              </section>
-
-              <section className="unified-sheet-module unified-sheet-derived-module campaign-sheet-card" aria-labelledby="unified-sheet-derived-title">
-                <h2 id="unified-sheet-derived-title" className="unified-sheet-module-title">Valores derivados</h2>
-              <div className="unified-sheet-quick-row is-derived">
-                <article className="unified-sheet-quick-card is-derived-card">
-                  <h3>Iniciativa</h3>
-                  <strong>{derived.iniciativaTotal}</strong>
-                </article>
-
-                <article className="unified-sheet-quick-card is-derived-card">
-                  <h3>Umbral de corrupcion</h3>
-                  <strong>{derived.umbralCorrupcionTotal}</strong>
-                </article>
-
-                <article className="unified-sheet-quick-card is-derived-card">
-                  <h3>Umbral de dolor</h3>
-                  <strong>{derived.umbralDolorTotal}</strong>
-                </article>
-              </div>
-              </section>
-
-              <section className="unified-sheet-module unified-sheet-conditions-module campaign-sheet-card" aria-labelledby="unified-sheet-conditions-title">
-                <h2 id="unified-sheet-conditions-title" className="unified-sheet-module-title">Condiciones</h2>
-              <div className="unified-sheet-quick-row is-conditions">
-                <article className="unified-sheet-quick-card is-wide">
-                  <div className="unified-sheet-quick-tags">
-                    {normalizedSheet.conditions.length > 0 ? normalizedSheet.conditions.slice(0, 4).map((condition) => (
-                      <span key={condition.id} className={`unified-sheet-tag is-${condition.category}`}>{condition.name || "Condicion"}</span>
-                    )) : <span className="unified-sheet-tag">Sin condiciones</span>}
-                  </div>
-                </article>
-              </div>
-              </section>
-
-            </div>
-          </aside>
-          {renderTabStage("unified-sheet-module unified-sheet-reader unified-sheet-stage unified-sheet-dynamic-column campaign-sheet-card")}
+        {renderTabStage("unified-sheet-module unified-sheet-reader unified-sheet-stage unified-sheet-dynamic-column campaign-sheet-card")}
       </div>
 
       {selectedPersonalNote ? (

@@ -1,8 +1,9 @@
 ﻿import type { Prisma } from "@prisma/client";
-import { createEmptyCharacterSheet, decodeCampaignSharedNotes, encodeCampaignSharedNotes, parseCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CharacterSheet, type UserRole } from "@umbra/shared";
+import { createEmptyCharacterSheet, decodeCampaignSharedNotes, encodeCampaignSharedNotes, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CharacterSheet, type OwnedMysticArtifact, type UserRole } from "@umbra/shared";
 import { Prisma as PrismaRuntime } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { getEffectiveCharacterExperienceSpent } from "../services/characterExperiencePolicy.js";
+import { mapMysticArtifact, mysticArtifactInclude } from "./MysticArtifactModel.js";
 
 const campaignInclude = {
   gm: true,
@@ -69,6 +70,10 @@ const campaignInclude = {
     orderBy: {
       createdAt: "asc"
     }
+  },
+  mysticArtifacts: {
+    include: mysticArtifactInclude,
+    orderBy: { updatedAt: "desc" }
   }
 } satisfies Prisma.CampaignInclude;
 
@@ -179,15 +184,19 @@ function mapCampaign(
     characters: row.characters.map((entry) => {
       let experienceTotal = 0;
       let experienceSpent = 0;
+      const baseSheet = parseCharacterSheet(entry.character.sheet);
       try {
-        const sheet = parseCharacterSheet(entry.character.sheet);
-        experienceTotal = sheet.progreso.experienciaTotal;
-        experienceSpent = getEffectiveCharacterExperienceSpent(sheet);
+        experienceTotal = baseSheet.progreso.experienciaTotal;
+        experienceSpent = getEffectiveCharacterExperienceSpent(baseSheet);
       } catch {
         experienceTotal = 0;
         experienceSpent = 0;
       }
 
+      const ownedArtifacts = row.mysticArtifacts
+        .filter((artifact) => artifact.ownerCharacterId === entry.id)
+        .map((artifact) => mapMysticArtifact(artifact, { characterSheet: baseSheet, concealForOwner: !isDirector }) as OwnedMysticArtifact);
+      const visibleSheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(baseSheet, ownedArtifacts));
       return {
         id: entry.id,
         characterId: entry.characterId,
@@ -196,7 +205,7 @@ function mapCampaign(
         ownerEmail: entry.character.owner.email,
         experienceTotal,
         experienceSpent,
-        sheet: isDirector || entry.character.ownerId === viewerId ? parseCharacterSheet(entry.character.sheet) : null,
+        sheet: isDirector || entry.character.ownerId === viewerId ? visibleSheet : null,
         updatedAt: entry.character.updatedAt.toISOString()
       };
     }),
@@ -211,7 +220,12 @@ function mapCampaign(
       summary: npc.summary,
       notes: npc.notes,
       statBlock: npc.statBlock,
-      sheet: npc.sheet ? parseCharacterSheet(npc.sheet) : null,
+      sheet: npc.sheet ? synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(
+        parseCharacterSheet(npc.sheet),
+        row.mysticArtifacts
+          .filter((artifact) => artifact.ownerNpcId === npc.id)
+          .map((artifact) => mapMysticArtifact(artifact, { characterSheet: parseCharacterSheet(npc.sheet), concealForOwner: false }) as OwnedMysticArtifact)
+      )) : null,
       isGenerated: npc.isGenerated,
       createdAt: npc.createdAt.toISOString(),
       updatedAt: npc.updatedAt.toISOString()
@@ -254,7 +268,8 @@ function mapCampaign(
       createdAt: reference.createdAt.toISOString(),
       updatedAt: reference.updatedAt.toISOString()
     })),
-    chatMessages: visibleChatMessages.map((message) => mapChatMessage(message))
+    chatMessages: visibleChatMessages.map((message) => mapChatMessage(message)),
+    mysticArtifacts: isDirector ? row.mysticArtifacts.map((artifact) => mapMysticArtifact(artifact)) : []
   };
 }
 
@@ -387,6 +402,10 @@ export class CampaignModel {
     });
   }
 
+  async characterLinkOwnsMysticArtifacts(linkId: string): Promise<boolean> {
+    return (await prisma.mysticArtifact.count({ where: { ownerCharacterId: linkId } })) > 0;
+  }
+
   async createNpc(
     campaignId: string,
     payload: {
@@ -443,6 +462,10 @@ export class CampaignModel {
     await prisma.campaignNpc.delete({
       where: { id: npcId }
     });
+  }
+
+  async npcOwnsMysticArtifacts(npcId: string): Promise<boolean> {
+    return (await prisma.mysticArtifact.count({ where: { ownerNpcId: npcId } })) > 0;
   }
 
   async createSession(
@@ -724,28 +747,27 @@ export class CampaignModel {
     });
   }
 
-  async findCampaignCharacterForUser(campaignId: string, characterId: string): Promise<{ characterId: string; ownerId: string; sheet: Prisma.JsonValue } | null> {
+  async findCampaignCharacterForUser(campaignId: string, characterId: string): Promise<{ characterId: string; ownerId: string; sheet: CharacterSheet } | null> {
     const row = await prisma.campaignCharacter.findFirst({
       where: {
         campaignId,
         characterId
       },
-      select: {
-        characterId: true,
-        character: {
-          select: {
-            ownerId: true,
-            sheet: true
-          }
-        }
+      include: {
+        character: { select: { ownerId: true, sheet: true } },
+        ownedMysticArtifacts: { include: mysticArtifactInclude }
       }
     });
 
     if (!row) return null;
+    const baseSheet = parseCharacterSheet(row.character.sheet);
+    const artifacts = row.ownedMysticArtifacts.map((artifact) =>
+      mapMysticArtifact(artifact, { characterSheet: baseSheet, concealForOwner: false }) as OwnedMysticArtifact
+    );
     return {
       characterId: row.characterId,
       ownerId: row.character.ownerId,
-      sheet: row.character.sheet
+      sheet: synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(baseSheet, artifacts))
     };
   }
 

@@ -673,7 +673,7 @@ export function CompendiumView({
 
           <aside
             ref={readerRef}
-            className={`panel compendium-reader${selectedEntry ? " is-open" : ""}`}
+            className={`panel compendium-reader${selectedEntry ? ` is-open app-card-accent app-card-accent--${selectedEntry.tipo}` : ""}`}
             role={isMobileDetail && selectedEntry ? "dialog" : "region"}
             aria-modal={isMobileDetail && selectedEntry ? "true" : undefined}
             aria-labelledby={selectedEntry ? "compendium-reader-title" : undefined}

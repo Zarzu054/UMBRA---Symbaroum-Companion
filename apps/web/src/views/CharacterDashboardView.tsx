@@ -30,6 +30,7 @@ import { toCharacterCardViewModel } from "../models/characterModel";
 import { computeDerivedStats } from "../models/rulesEngine";
 import { exportCharacterSheetPdf } from "../services/characterPdfExport";
 import { updateCharacter } from "../services/characterService";
+import { bindMysticArtifact, useMysticArtifactAbility } from "../services/mysticArtifactService";
 import {
   dispatchRoll20Request,
   getRollDestination,
@@ -349,6 +350,11 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   character={selectedCharacterSheet}
                   onBackToCharacters={closeCharacterSheet}
                   onOpenSheet={() => openCharacterSheet(selectedCharacterSheet.id)}
+                  onBindMysticArtifact={async (artifactId, paymentType) => {
+                    const token = await ensureAccessToken();
+                    await bindMysticArtifact(artifactId, { paymentType }, token);
+                    await controller.refresh();
+                  }}
                   onSave={async (nextSheet) => {
                     const token = await ensureAccessToken();
                     const updated = await updateCharacter(
@@ -378,6 +384,11 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   onBack={closeCharacterSheet}
                   onOpenBuilder={() => openCharacterBuilder(selectedCharacterSheet.id)}
                   onOpenCompendiumCapability={openCompendiumCapability}
+                  onUseArtifactAbility={async (artifactId, abilityId) => {
+                    const token = await ensureAccessToken();
+                    await useMysticArtifactAbility(artifactId, abilityId, token);
+                    await controller.refresh();
+                  }}
                   onSave={async (nextSheet) => {
                     const token = await ensureAccessToken();
                     const updated = await updateCharacter(

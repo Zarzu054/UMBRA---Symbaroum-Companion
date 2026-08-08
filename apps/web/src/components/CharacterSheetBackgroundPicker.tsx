@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import {
   CHARACTER_SHEET_BACKGROUNDS,
@@ -89,7 +90,7 @@ export function CharacterSheetBackgroundPicker({ preferenceScope }: { preference
         <span>Fondo</span>
       </button>
 
-      {isOpen ? (
+      {isOpen ? createPortal(
         <div className="modal-backdrop character-sheet-background-backdrop" onClick={closePicker}>
           <div
             ref={dialogRef}
@@ -145,7 +146,8 @@ export function CharacterSheetBackgroundPicker({ preferenceScope }: { preference
               <button type="button" onClick={closePicker}>Aplicar y cerrar</button>
             </footer>
           </div>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </>
   );

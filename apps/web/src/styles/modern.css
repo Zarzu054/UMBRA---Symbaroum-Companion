@@ -30,9 +30,10 @@
   --ui-success-soft: #e4f1e9;
   --ui-info: #3d647d;
   --ui-info-soft: #e7f0f5;
-  --ui-radius-sm: 6px;
-  --ui-radius-md: 10px;
-  --ui-radius-lg: 14px;
+  --ui-radius-sm: 8px;
+  --ui-radius-md: 14px;
+  --ui-radius-lg: 20px;
+  --ui-z-modal: 1000;
   --ui-content-max: 1540px;
   --ui-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --ui-font-brand: "IM Fell English SC", Georgia, serif;
@@ -104,7 +105,7 @@
   --ui-on-brand-strong: #171311;
   --ui-metal: #c19a58;
   --ui-metal-soft: #3c3224;
-  --ui-corruption: #c56268;
+  --ui-corruption: #cf7478;
   --ui-overlay: rgba(5, 3, 2, 0.76);
   --ui-shadow-overlay: 0 28px 80px rgba(0, 0, 0, 0.56);
   --ui-focus: #d2ad68;
@@ -148,7 +149,7 @@
   --ui-on-brand-strong: #10140e;
   --ui-metal: #b69252;
   --ui-metal-soft: #393120;
-  --ui-corruption: #be6566;
+  --ui-corruption: #cb7475;
   --ui-overlay: rgba(3, 6, 2, 0.78);
   --ui-shadow-overlay: 0 28px 80px rgba(0, 0, 0, 0.58);
   --ui-focus: #c4a366;
@@ -192,7 +193,7 @@
   --ui-on-brand-strong: #0f1215;
   --ui-metal: #b07455;
   --ui-metal-soft: #392b26;
-  --ui-corruption: #bc687f;
+  --ui-corruption: #c9788e;
   --ui-overlay: rgba(2, 5, 7, 0.8);
   --ui-shadow-overlay: 0 28px 80px rgba(0, 0, 0, 0.6);
   --ui-focus: #c18a6d;
@@ -350,7 +351,8 @@ a {
   min-height: 44px;
   padding: 0 14px;
   border: 0;
-  border-radius: 0;
+  margin-block: 7px;
+  border-radius: var(--ui-radius-sm);
   color: var(--ui-text-muted);
   background: transparent;
   box-shadow: none;
@@ -558,7 +560,7 @@ a {
   gap: 2px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--ui-text) 18%, transparent);
-  border-radius: 5px;
+  border-radius: var(--ui-radius-sm);
   background: var(--swatch-canvas);
 }
 
@@ -1203,7 +1205,7 @@ button[disabled] {
   min-height: 42px;
   border: 0;
   border-bottom: 2px solid transparent;
-  border-radius: 0;
+  border-radius: var(--ui-radius-sm) var(--ui-radius-sm) 0 0;
   color: var(--ui-text-muted);
   background: transparent;
   box-shadow: none;
@@ -1334,7 +1336,7 @@ button[disabled] {
 
 .unified-sheet-vital-card.is-health,
 .unified-sheet-vital-card.is-corruption,
-.unified-sheet-vital-card.is-permanent {
+.unified-sheet-vital-card.is-corruption-deep {
   background: var(--ui-surface);
 }
 
@@ -1456,6 +1458,26 @@ button[disabled] {
   color: var(--ui-text);
 }
 
+.compendium-library .app-card-accent {
+  --app-card-accent-color: var(--compendium-entry-color, var(--ui-brand));
+}
+
+.compendium-library .app-card-accent--regla { --compendium-entry-color: #7655a3; }
+.compendium-library .app-card-accent--habilidad { --compendium-entry-color: #a15d30; }
+.compendium-library .app-card-accent--poder_mistico { --compendium-entry-color: #287980; }
+.compendium-library .app-card-accent--ritual { --compendium-entry-color: #64753a; }
+.compendium-library .app-card-accent--tradicion { --compendium-entry-color: #2d745e; }
+.compendium-library .app-card-accent--raza { --compendium-entry-color: #5d7b49; }
+.compendium-library .app-card-accent--cultura { --compendium-entry-color: #846735; }
+.compendium-library .app-card-accent--arquetipo { --compendium-entry-color: #854d69; }
+.compendium-library .app-card-accent--bendicion { --compendium-entry-color: #ad7e22; }
+.compendium-library .app-card-accent--carga { --compendium-entry-color: #a34935; }
+.compendium-library .app-card-accent--rasgo { --compendium-entry-color: #68657f; }
+
+:root[data-theme="dark"] .compendium-library .app-card-accent {
+  --app-card-accent-color: color-mix(in srgb, var(--compendium-entry-color, var(--ui-brand)) 68%, white);
+}
+
 .compendium-library-hero,
 .compendium-search-panel,
 .compendium-catalogue,
@@ -1516,6 +1538,32 @@ button[disabled] {
   box-shadow: none;
 }
 
+.compendium-shelf-entry.app-card-accent,
+.compendium-section-card.app-card-accent {
+  border: 1px solid color-mix(in srgb, var(--app-card-accent-color) 58%, var(--ui-border));
+  border-left: 6px solid var(--app-card-accent-color);
+  border-radius: var(--ui-radius-sm);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--app-card-accent-color) 7%, var(--ui-surface)),
+    var(--ui-surface) 72%
+  );
+}
+
+.compendium-shelf-entry.app-card-accent:hover,
+.compendium-shelf-entry.app-card-accent:focus-visible,
+.compendium-section-card.app-card-accent:hover,
+.compendium-section-card.app-card-accent:focus-visible {
+  border-color: var(--app-card-accent-color);
+  background: color-mix(in srgb, var(--app-card-accent-color) 12%, var(--ui-surface));
+}
+
+.compendium-section-card.app-card-accent .compendium-section-card-ornament {
+  border: 2px solid var(--app-card-accent-color);
+  background: color-mix(in srgb, var(--app-card-accent-color) 14%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--app-card-accent-color) 8%, transparent);
+}
+
 .compendium-shelf-entry:hover,
 .compendium-source-section-card:hover,
 .compendium-section-card:hover {
@@ -1560,6 +1608,39 @@ button[disabled] {
   color: var(--ui-text);
   background: var(--ui-surface);
   box-shadow: none;
+}
+
+.compendium-result-card.app-card-accent {
+  border: 1px solid color-mix(in srgb, var(--app-card-accent-color) 45%, var(--ui-border));
+  border-left: 6px solid var(--app-card-accent-color);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--app-card-accent-color) 10%, var(--ui-surface)),
+    var(--ui-surface) 34%
+  );
+}
+
+.compendium-result-card.app-card-accent:hover,
+.compendium-result-card.app-card-accent:focus-visible,
+.compendium-result-card.app-card-accent.is-active {
+  border-left-color: var(--app-card-accent-color);
+  background: color-mix(in srgb, var(--app-card-accent-color) 14%, var(--ui-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-card-accent-color) 34%, transparent);
+}
+
+.compendium-result-card.app-card-accent .compendium-chip {
+  border: 1px solid color-mix(in srgb, var(--app-card-accent-color) 52%, var(--ui-border));
+  background: color-mix(in srgb, var(--app-card-accent-color) 13%, var(--ui-surface-muted));
+}
+
+.compendium-reader.app-card-accent {
+  border: 1px solid var(--ui-border);
+  border-top: 4px solid var(--app-card-accent-color);
+  border-radius: var(--ui-radius-md);
+}
+
+.compendium-reader.app-card-accent .compendium-reader-header {
+  box-shadow: inset 6px 0 0 var(--app-card-accent-color);
 }
 
 .compendium-result-card:last-child {
@@ -1718,7 +1799,12 @@ button[disabled] {
 /* Dialogs and drawers */
 .modal-backdrop,
 .admin-drawer-backdrop {
-  padding: 18px;
+  z-index: var(--ui-z-modal);
+  padding-top: max(18px, env(safe-area-inset-top));
+  padding-right: max(18px, env(safe-area-inset-right));
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+  padding-left: max(18px, env(safe-area-inset-left));
+  overscroll-behavior: contain;
   background: var(--ui-overlay);
   backdrop-filter: blur(3px);
 }
@@ -1727,6 +1813,7 @@ button[disabled] {
 .admin-drawer,
 .monster-modal-panel,
 .character-directory-form-modal {
+  max-height: calc(100dvh - max(36px, calc(env(safe-area-inset-top) + env(safe-area-inset-bottom))));
   border: 1px solid var(--ui-metal);
   border-radius: var(--ui-radius-lg);
   color: var(--ui-text);
@@ -1992,6 +2079,321 @@ button[disabled] {
   .modal-backdrop,
   .admin-drawer-backdrop {
     padding: 0;
+  }
+}
+
+/* Mystic artifact creator */
+.mystic-artifact-details {
+  width: min(880px, calc(100vw - 32px));
+  max-height: calc(100dvh - 36px);
+  padding: 0;
+  overflow: auto;
+}
+
+.mystic-artifact-details__header,
+.mystic-artifact-details__footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 24px;
+}
+
+.mystic-artifact-details__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--ui-border);
+  background: color-mix(in srgb, var(--ui-surface) 96%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.mystic-artifact-details__header h3,
+.mystic-artifact-details__section h4 {
+  margin: 0;
+}
+
+.mystic-artifact-details__description,
+.mystic-artifact-details__section,
+.mystic-artifact-details__summary {
+  margin: 0;
+  padding: 20px 24px;
+}
+
+.mystic-artifact-details__description {
+  font-size: 1.02rem;
+  line-height: 1.7;
+}
+
+.mystic-artifact-details__summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mystic-artifact-details__summary > div,
+.mystic-artifact-details__footer > div {
+  display: grid;
+  gap: 4px;
+}
+
+.mystic-artifact-details__summary > div {
+  padding: 14px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface-muted);
+}
+
+.mystic-artifact-details__section {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--ui-border);
+}
+
+.mystic-artifact-details__chips,
+.mystic-artifact-details__abilities {
+  display: grid;
+  gap: 10px;
+}
+
+.mystic-artifact-details__chips {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.mystic-artifact-details__chips span,
+.mystic-artifact-details__abilities > article {
+  padding: 14px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface-muted);
+}
+
+.mystic-artifact-details__abilities p {
+  line-height: 1.55;
+}
+
+.mystic-artifact-details__abilities dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 10px 0;
+}
+
+.mystic-artifact-details__abilities dl div {
+  display: flex;
+  gap: 6px;
+}
+
+.mystic-artifact-details__abilities dt {
+  font-weight: 700;
+}
+
+.mystic-artifact-details__abilities dd {
+  margin: 0;
+}
+
+.mystic-artifact-details__footer {
+  align-items: center;
+  border-top: 1px solid var(--ui-metal);
+  background: var(--ui-accent-soft);
+}
+
+.mystic-artifact-wizard {
+  display: flex;
+  flex-direction: column;
+  width: min(1120px, 100%);
+  max-height: calc(100dvh - 40px);
+  overflow: hidden;
+  gap: 16px;
+}
+
+.mystic-artifact-wizard__header,
+.mystic-artifact-wizard__intro,
+.mystic-artifact-wizard__footer {
+  flex: 0 0 auto;
+}
+
+.mystic-artifact-wizard__header h3,
+.mystic-artifact-wizard__intro h4,
+.mystic-artifact-wizard h5,
+.mystic-artifact-wizard h6 {
+  margin-top: 0;
+}
+
+.mystic-artifact-wizard__steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mystic-artifact-wizard__steps button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-color: color-mix(in srgb, var(--rubric) 38%, transparent);
+  background: color-mix(in srgb, var(--paper-deep) 58%, transparent);
+  color: var(--ink-soft);
+}
+
+.mystic-artifact-wizard__steps button span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+
+.mystic-artifact-wizard__steps button.is-active {
+  border-color: var(--rubric);
+  background: color-mix(in srgb, var(--rubric) 14%, var(--paper));
+  color: var(--rubric-strong);
+}
+
+.mystic-artifact-wizard__steps button.is-complete span {
+  background: var(--rubric);
+  color: var(--paper);
+}
+
+.mystic-artifact-wizard__body {
+  min-height: 260px;
+  padding-right: 5px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mystic-artifact-wizard__section,
+.mystic-artifact-wizard__stack {
+  display: grid;
+  gap: 16px;
+}
+
+.mystic-artifact-wizard__subsection,
+.mystic-artifact-wizard__item,
+.mystic-artifact-wizard__nested {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--paper-edge) 80%, transparent);
+  border-radius: var(--ui-radius-md);
+  background: color-mix(in srgb, var(--paper-deep) 36%, transparent);
+}
+
+.mystic-artifact-wizard__item.is-ability {
+  border-left: 4px solid var(--rubric);
+}
+
+.mystic-artifact-wizard__nested {
+  padding: 12px;
+  background: color-mix(in srgb, var(--paper) 72%, transparent);
+}
+
+.mystic-artifact-wizard__nested-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed color-mix(in srgb, var(--ink-soft) 35%, transparent);
+  border-radius: var(--ui-radius-sm);
+}
+
+.mystic-artifact-wizard__toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+}
+
+.mystic-artifact-wizard__toggle-row .field.compact {
+  width: min(150px, 40%);
+}
+
+.mystic-artifact-wizard__checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
+
+.mystic-artifact-wizard__checks > span {
+  flex-basis: 100%;
+  color: var(--rubric-strong);
+  font-size: 0.88rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mystic-artifact-wizard__footer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--paper-edge) 80%, transparent);
+}
+
+.mystic-artifact-wizard__footer .meta-text {
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .mystic-artifact-details__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .mystic-artifact-details__header,
+  .mystic-artifact-details__footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .modal-backdrop:has(.mystic-artifact-wizard) {
+    padding: 0;
+  }
+
+  .mystic-artifact-wizard.modal-panel {
+    width: 100%;
+    max-width: none;
+    max-height: 100dvh;
+    min-height: 100dvh;
+    border-radius: 0;
+  }
+
+  .mystic-artifact-wizard__steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mystic-artifact-wizard__steps button {
+    justify-content: flex-start;
+    font-size: 0.82rem;
+  }
+
+  .mystic-artifact-wizard__toggle-row {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .mystic-artifact-wizard__toggle-row .field.compact {
+    width: 100%;
+  }
+
+  .mystic-artifact-wizard__footer {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mystic-artifact-wizard__footer .meta-text {
+    display: none;
+  }
+
+  .mystic-artifact-wizard__footer button:last-child {
+    justify-self: stretch;
   }
 }
 
@@ -2525,7 +2927,7 @@ button[disabled] {
 }
 
 .character-sheet-background-backdrop {
-  z-index: 260;
+  z-index: var(--ui-z-modal);
 }
 
 .character-sheet-background-dialog {
@@ -2604,7 +3006,7 @@ button[disabled] {
   width: 100%;
   height: 128px;
   display: block;
-  border-radius: 4px;
+  border-radius: var(--ui-radius-sm);
   object-fit: cover;
   object-position: center 40%;
   background: var(--ui-surface-muted);
@@ -2725,23 +3127,28 @@ button[disabled] {
 .character-actions-page > .unified-sheet {
   display: grid;
   grid-template-rows: none;
-  gap: 14px;
+  gap: 20px;
 }
 
 .unified-sheet-top-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(210px, 250px);
-  gap: 14px;
+  grid-template-columns: minmax(260px, 320px) minmax(200px, 230px);
+  gap: 20px;
   align-items: stretch;
+  justify-content: space-between;
 }
 
 .unified-sheet .unified-sheet-module.campaign-sheet-card {
+  position: relative;
+  isolation: isolate;
   min-width: 0;
-  padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, var(--ui-metal) 34%, var(--ui-border));
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--ui-metal) 56%, var(--ui-border));
   border-radius: var(--ui-radius-md);
   background: color-mix(in srgb, var(--ui-surface) 95%, transparent);
-  box-shadow: none;
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--ui-surface) 72%, transparent),
+    0 5px 16px color-mix(in srgb, var(--ui-text) 11%, transparent);
   backdrop-filter: blur(8px) saturate(0.82);
 }
 
@@ -2749,12 +3156,38 @@ button[disabled] {
   background: color-mix(in srgb, var(--ui-surface) 93%, transparent);
 }
 
+.unified-sheet .unified-sheet-module.campaign-sheet-card::before,
+.unified-sheet .unified-sheet-module.campaign-sheet-card::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
 .unified-sheet .unified-sheet-module.campaign-sheet-card::before {
-  display: none;
+  top: -2px;
+  left: -2px;
+  border-top: 3px solid var(--ui-metal);
+  border-left: 3px solid var(--ui-metal);
+  border-radius: calc(var(--ui-radius-md) + 1px) 0 0;
+}
+
+.unified-sheet .unified-sheet-module.campaign-sheet-card::after {
+  right: -2px;
+  bottom: -2px;
+  border-right: 3px solid var(--ui-metal);
+  border-bottom: 3px solid var(--ui-metal);
+  border-radius: 0 0 calc(var(--ui-radius-md) + 1px);
 }
 
 .unified-sheet-module-title {
   margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   color: var(--ui-brand-strong);
   font-family: var(--ui-font-brand);
   font-size: 0.82rem;
@@ -2763,14 +3196,58 @@ button[disabled] {
   text-transform: uppercase;
 }
 
+.unified-sheet-module-title::after {
+  content: "";
+  min-width: 28px;
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, var(--ui-metal), transparent);
+  opacity: 0.72;
+}
+
 .unified-sheet-identity-module {
   display: grid;
   align-content: center;
+  padding-block: 12px;
 }
 
 .unified-sheet-identity-module .unified-sheet-hero-main {
-  grid-template-columns: 68px minmax(0, 1fr) max-content;
-  gap: 12px;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.unified-sheet-identity-module .unified-sheet-portrait {
+  width: 54px;
+  max-width: 54px;
+}
+
+.unified-sheet-identity-module .unified-sheet-portrait-content {
+  font-size: 1.35rem;
+}
+
+.unified-sheet-identity-module .unified-sheet-title {
+  font-size: clamp(1.08rem, 1.35vw, 1.42rem);
+  line-height: 1.05;
+}
+
+.unified-sheet-identity-module .unified-sheet-inline-subtitle {
+  font-size: 0.7rem;
+  line-height: 1.25;
+}
+
+.unified-sheet-identity-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.unified-sheet-identity-actions .unified-sheet-background-trigger {
+  width: auto;
+  min-width: 0;
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 0.7rem;
 }
 
 .unified-sheet-experience-module {
@@ -2778,38 +3255,173 @@ button[disabled] {
   gap: 6px;
 }
 
-.unified-sheet-experience-module .unified-sheet-module-title {
-  margin-bottom: 4px;
+.unified-sheet-experience-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.unified-sheet-experience-heading .unified-sheet-module-title {
+  min-width: 0;
+  margin: 0;
+}
+
+.unified-sheet-experience-module .unified-sheet-builder-icon {
+  width: 46px;
+  min-width: 46px;
+  height: 46px;
+  min-height: 46px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.unified-sheet-experience-module .unified-sheet-builder-icon span:first-child {
+  font-size: 1.55rem;
+}
+
+.unified-sheet-status-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-areas:
+    "resources . attributes attributes attributes attributes attributes attributes attributes attributes"
+    "resources . combat combat combat combat combat conditions conditions conditions";
+  grid-template-columns: minmax(260px, 290px) 0 repeat(8, minmax(0, 1fr));
+  gap: 20px 10px;
+  align-items: stretch;
+}
+
+.unified-sheet .unified-sheet-status-grid > .unified-sheet-module.campaign-sheet-card {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  border: 0;
+  box-shadow: none;
+}
+
+.unified-sheet .unified-sheet-status-grid > .unified-sheet-module.campaign-sheet-card::before,
+.unified-sheet .unified-sheet-status-grid > .unified-sheet-module.campaign-sheet-card::after {
+  display: none;
 }
 
 .unified-sheet-resources-module {
-  display: grid;
-  gap: 0;
+  grid-area: resources;
+  min-width: 0;
+  align-self: stretch;
 }
 
 .unified-sheet-resources-module .unified-sheet-header-stats {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  height: 100%;
+  align-self: stretch;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 10px;
   border: 0;
   border-radius: 0;
+  overflow: visible;
 }
 
 .unified-sheet-resources-module .unified-sheet-vital-card {
-  padding: 4px 14px;
-  background: transparent;
+  min-width: 0;
+  min-height: 82px;
+  height: 100%;
+  padding: 12px 14px;
+  gap: 7px;
+  align-content: center;
+  color: var(--ui-text);
+  border: 1px solid color-mix(in srgb, var(--ui-metal) 38%, var(--ui-border-strong));
+  border-radius: var(--ui-radius-sm);
+  background: color-mix(in srgb, var(--ui-surface-muted) 82%, transparent);
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--ui-metal) 28%, transparent);
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-header span {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.065em;
+  line-height: 1.15;
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-header strong {
+  font-size: 1.02rem;
+  line-height: 1;
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-track {
+  height: 10px;
+  border: 1px solid var(--ui-border-strong);
+  background: var(--ui-surface-muted);
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-actions {
+  width: 100%;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.unified-sheet-resources-module .vital-action {
+  min-width: 74px;
+  min-height: 31px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-card.is-health .unified-sheet-vital-header :is(span, strong) {
+  color: var(--ui-success);
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-card.is-health .unified-sheet-vital-track {
+  border-color: color-mix(in srgb, var(--ui-success) 55%, var(--ui-border-strong));
+  background: color-mix(in srgb, var(--ui-success) 20%, var(--ui-surface-muted));
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-card.is-health .unified-sheet-vital-track > div {
+  background: var(--ui-success);
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-card.is-corruption .unified-sheet-vital-header :is(span, strong) {
+  color: var(--ui-corruption);
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-card.is-corruption .unified-sheet-vital-track {
+  border-color: color-mix(in srgb, var(--ui-corruption) 55%, var(--ui-border-strong));
+  background: color-mix(in srgb, var(--ui-corruption) 20%, var(--ui-surface-muted));
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-card.is-corruption .unified-sheet-vital-track > div {
+  background: var(--ui-corruption);
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-card.is-corruption-deep .unified-sheet-vital-header :is(span, strong) {
+  color: var(--ui-danger);
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-card.is-corruption-deep .unified-sheet-vital-track {
+  border-color: color-mix(in srgb, var(--ui-danger) 55%, var(--ui-border-strong));
+  background: color-mix(in srgb, var(--ui-danger) 20%, var(--ui-surface-muted));
+}
+
+.unified-sheet-resources-module .unified-sheet-vital-card.is-corruption-deep .unified-sheet-vital-track > div {
+  background: var(--ui-danger);
 }
 
 .unified-sheet-resources-module .unified-sheet-vital-card:first-child {
-  padding-left: 0;
+  padding-left: 14px;
 }
 
 .unified-sheet-resources-module .unified-sheet-vital-card:last-child {
-  padding-right: 0;
+  padding-right: 14px;
 }
 
 .unified-sheet-workspace {
   display: grid;
-  grid-template-columns: minmax(300px, 34%) minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
   align-items: start;
 }
 
@@ -2817,34 +3429,208 @@ button[disabled] {
 .unified-sheet-static-summary {
   min-width: 0;
   display: grid;
-  gap: 14px;
+  gap: 20px;
   align-content: start;
 }
 
 .unified-sheet-attributes-module .unified-sheet-attribute-rail {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: 10px;
   border: 0;
   border-radius: 0;
+  overflow: visible;
 }
 
 .unified-sheet-attributes-module .unified-sheet-attribute-chip {
-  min-height: 78px;
-  border: 1px solid var(--ui-border);
-  border-radius: var(--ui-radius-sm);
+  position: relative;
+  min-height: 0;
+  aspect-ratio: 1;
+  padding: 7px 8px 6px;
+  gap: 4px;
+  align-content: center;
+  justify-items: center;
+  border: 1px solid color-mix(in srgb, var(--ui-metal) 48%, var(--ui-border));
+  border-radius: var(--ui-radius-md);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--ui-metal-soft) 46%, transparent), transparent 42%),
+    var(--ui-surface-muted);
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--ui-surface) 70%, transparent),
+    0 3px 8px color-mix(in srgb, var(--ui-text) 9%, transparent);
+  text-align: center;
+}
+
+.unified-sheet-attributes-module .unified-sheet-attribute-chip span {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+}
+
+.unified-sheet-attributes-module .unified-sheet-attribute-chip::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--ui-metal);
+  background: var(--ui-surface);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.unified-sheet-attributes-module .unified-sheet-attribute-chip strong {
+  font-size: 1.55rem;
+  line-height: 0.95;
+}
+
+.unified-sheet-attributes-module .unified-sheet-attribute-chip button {
+  justify-self: center;
+  min-height: 27px;
+  margin-top: 3px;
+  padding: 2px 10px;
+  font-size: 0.7rem;
+}
+
+.unified-sheet-attributes-module {
+  grid-area: attributes;
+  align-self: start;
+  grid-template-rows: auto auto;
+  align-content: start;
+}
+
+.unified-sheet-status-grid .unified-sheet-combat-module {
+  grid-area: combat;
+  grid-template-rows: auto auto;
+  align-content: start;
 }
 
 .unified-sheet-combat-module .unified-sheet-quick-row,
 .unified-sheet-derived-module .unified-sheet-quick-row,
 .unified-sheet-conditions-module .unified-sheet-quick-row {
-  gap: 8px;
+  gap: 12px;
+}
+
+.unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-row.is-combat-values {
+  /* Compensa el padding del modulo para compartir exactamente los centros de la reticula de 8 atributos. */
+  width: calc(100% + 13.5px);
+  height: auto;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: 10px;
+  justify-content: start;
+  align-items: stretch;
+}
+
+.unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card {
+  min-height: 0;
+  width: calc(100% - 8px);
+  height: auto;
+  aspect-ratio: 1;
+  padding: 8px;
+  display: grid;
+  justify-self: center;
+  align-content: center;
+  justify-items: center;
+  gap: 3px;
+  border: 1px solid color-mix(in srgb, var(--ui-metal) 48%, var(--ui-border));
+  border-radius: var(--ui-radius-md);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--ui-metal-soft) 46%, transparent), transparent 42%),
+    var(--ui-surface-muted);
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--ui-surface) 70%, transparent),
+    0 3px 8px color-mix(in srgb, var(--ui-text) 9%, transparent);
+  text-align: center;
+}
+
+.unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card .row-actions {
+  width: 100%;
+  display: grid;
+  place-items: center;
+  justify-items: center;
+  gap: 1px;
+}
+
+.unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card :is(h3, p) {
+  margin: 0;
+}
+
+.unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card h3 {
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card .row-actions strong {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card > strong {
+  width: 100%;
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.66rem;
+  line-height: 1.15;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  text-align: center;
+}
+
+.unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card .section-help {
+  width: 100%;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  font-size: 0.56rem;
+  line-height: 1.15;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  text-align: center;
+}
+
+.unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-vital-actions {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.unified-sheet-status-grid .unified-sheet-combat-module .vital-action {
+  min-height: 22px;
+  padding: 1px 5px;
+  font-size: 0.58rem;
+}
+
+.unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card.is-derived-card > strong {
+  display: block;
+  overflow: visible;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.unified-sheet-status-grid .unified-sheet-conditions-module {
+  grid-area: conditions;
+  align-self: stretch;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
+}
+
+.unified-sheet-status-grid .unified-sheet-conditions-module .unified-sheet-quick-row {
+  height: 100%;
+  align-content: start;
 }
 
 .unified-sheet-combat-module .unified-sheet-quick-card,
 .unified-sheet-derived-module .unified-sheet-quick-card,
 .unified-sheet-conditions-module .unified-sheet-quick-card {
-  border: 1px solid var(--ui-border);
-  border-radius: var(--ui-radius-sm);
-  background: var(--ui-surface-muted);
+  border: 1px solid color-mix(in srgb, var(--ui-metal) 34%, var(--ui-border));
+  border-radius: var(--ui-radius-md);
+  background: color-mix(in srgb, var(--ui-surface-muted) 88%, transparent);
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--ui-metal) 24%, transparent);
 }
 
 .unified-sheet-conditions-module .unified-sheet-quick-card {
@@ -2880,54 +3666,105 @@ button[disabled] {
 
 .unified-sheet-reader .unified-sheet-panel {
   min-height: 0;
+  display: grid;
+  gap: 12px;
+  align-content: start;
 }
 
 .unified-sheet .unified-sheet-reader .unified-sheet-panel > .campaign-sheet-card {
-  padding: 12px 0;
-  border: 0;
-  border-bottom: 1px solid var(--ui-border);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--ui-metal) 30%, var(--ui-border));
+  border-radius: var(--ui-radius-md);
+  background: color-mix(in srgb, var(--ui-surface-muted) 72%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ui-metal) 18%, transparent);
 }
 
 .unified-sheet .unified-sheet-reader .unified-sheet-panel > .campaign-sheet-card:first-child {
-  padding-top: 0;
+  padding-top: 14px;
 }
 
 .unified-sheet .unified-sheet-reader .unified-sheet-panel > .campaign-sheet-card:last-child {
-  padding-bottom: 0;
-  border-bottom: 0;
+  padding-bottom: 14px;
 }
 
-:root[data-character-sheet-background][data-theme="light"] .unified-sheet .unified-sheet-module.campaign-sheet-card {
-  background: color-mix(in srgb, var(--ui-surface) 92%, transparent);
-  backdrop-filter: blur(9px) saturate(0.78);
+:root[data-character-sheet-background] .unified-sheet .unified-sheet-status-grid > .unified-sheet-module.campaign-sheet-card {
+  background: transparent;
+  backdrop-filter: none;
 }
 
-:root[data-character-sheet-background][data-theme="dark"] .unified-sheet .unified-sheet-module.campaign-sheet-card {
-  background: color-mix(in srgb, var(--ui-surface) 90%, transparent);
-  backdrop-filter: blur(10px) saturate(0.74);
+:root[data-character-sheet-background] .unified-sheet-status-grid .unified-sheet-module-title {
+  color: #f7f3e8;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.96), 0 0 10px rgba(0, 0, 0, 0.78);
+}
+
+:root[data-character-sheet-background] .unified-sheet-status-grid .unified-sheet-module-title::after {
+  background: linear-gradient(90deg, rgba(247, 243, 232, 0.82), transparent);
+}
+
+:root[data-character-sheet-background][data-theme="light"] .unified-sheet-status-grid :is(
+  .unified-sheet-vital-card,
+  .unified-sheet-attribute-chip,
+  .unified-sheet-combat-module .unified-sheet-quick-card
+) {
+  color: var(--ui-text);
+  background: color-mix(in srgb, var(--ui-surface) 96%, transparent);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(10px) saturate(0.76);
+}
+
+:root[data-character-sheet-background][data-theme="dark"] .unified-sheet-status-grid :is(
+  .unified-sheet-vital-card,
+  .unified-sheet-attribute-chip,
+  .unified-sheet-combat-module .unified-sheet-quick-card
+) {
+  color: var(--ui-text);
+  background: color-mix(in srgb, var(--ui-surface) 94%, transparent);
+  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.46);
+  backdrop-filter: blur(11px) saturate(0.72);
+}
+
+@media (max-width: 1300px) and (min-width: 901px) {
+  .unified-sheet-status-grid {
+    grid-template-areas:
+      "resources attributes"
+      "resources combat"
+      "conditions conditions";
+    grid-template-columns: minmax(240px, 270px) minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card {
+    width: 100%;
+  }
 }
 
 @media (max-width: 900px) {
   .character-actions-page > .unified-sheet {
-    gap: 10px;
+    gap: 14px;
   }
 
   .unified-sheet-top-grid,
+  .unified-sheet-status-grid,
   .unified-sheet-workspace {
     grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
+    gap: 14px;
   }
 
-  .unified-sheet:not(.is-mobile-tab-attributes) > :is(.unified-sheet-top-grid, .unified-sheet-resources-module),
+  .unified-sheet-status-grid {
+    grid-template-areas:
+      "resources"
+      "attributes"
+      "combat"
+      "conditions";
+  }
+
+  .unified-sheet:not(.is-mobile-tab-attributes) > :is(.unified-sheet-top-grid, .unified-sheet-status-grid),
   .unified-sheet:not(.is-mobile-tab-attributes) .unified-sheet-summary-column,
   .unified-sheet.is-mobile-tab-attributes .unified-sheet-reader {
     display: none;
   }
 
-  .unified-sheet.is-mobile-tab-attributes > :is(.unified-sheet-top-grid, .unified-sheet-resources-module),
+  .unified-sheet.is-mobile-tab-attributes > :is(.unified-sheet-top-grid, .unified-sheet-status-grid),
   .unified-sheet.is-mobile-tab-attributes .unified-sheet-summary-column,
   .unified-sheet:not(.is-mobile-tab-attributes) .unified-sheet-reader {
     display: grid;
@@ -2937,6 +3774,28 @@ button[disabled] {
     height: auto;
     min-height: 0;
     overflow: visible;
+  }
+
+  .unified-sheet .unified-sheet-status-grid > .unified-sheet-module.campaign-sheet-card {
+    min-height: 0;
+  }
+
+  .unified-sheet-attributes-module .unified-sheet-attribute-chip {
+    min-height: 70px;
+    aspect-ratio: auto;
+  }
+
+  .unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-row.is-combat-values {
+    width: 100%;
+    height: auto;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card {
+    min-height: 110px;
+    height: auto;
+    aspect-ratio: auto;
   }
 
   .unified-sheet-reader .unified-sheet-tab-content {
@@ -2953,25 +3812,33 @@ button[disabled] {
     padding: 12px;
   }
 
+  .unified-sheet .unified-sheet-module.campaign-sheet-card::before,
+  .unified-sheet .unified-sheet-module.campaign-sheet-card::after {
+    width: 15px;
+    height: 15px;
+  }
+
   .unified-sheet-identity-module .unified-sheet-hero-main {
-    grid-template-columns: 58px minmax(0, 1fr);
+    grid-template-columns: 50px minmax(0, 1fr) auto;
   }
 
   .unified-sheet-identity-module .unified-sheet-portrait {
-    width: 58px;
-  }
-
-  .unified-sheet-identity-module .unified-sheet-header-actions {
-    grid-column: 1 / -1;
+    width: 50px;
+    max-width: 50px;
   }
 
   .unified-sheet-resources-module .unified-sheet-vital-card,
   .unified-sheet-resources-module .unified-sheet-vital-card:first-child,
   .unified-sheet-resources-module .unified-sheet-vital-card:last-child {
-    padding: 10px 0;
+    padding: 10px;
   }
 
   .unified-sheet-attributes-module .unified-sheet-attribute-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-row.is-combat-values {
+    width: 100%;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

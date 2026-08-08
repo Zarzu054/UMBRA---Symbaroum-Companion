@@ -14,7 +14,8 @@ async function bootstrap(): Promise<void> {
 
   await app.register(cors, {
     origin: true,
-    credentials: true
+    credentials: true,
+    exposedHeaders: ["X-Umbra-Pdf-Page"]
   });
 
   app.setErrorHandler((error, _request, reply) => {

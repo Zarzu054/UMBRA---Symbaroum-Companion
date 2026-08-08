@@ -16,8 +16,16 @@ const serviceMocks = vi.hoisted(() => ({
   updateCampaign: vi.fn(),
   updateCampaignReference: vi.fn()
 }));
+const artifactServiceMocks = vi.hoisted(() => ({
+  fetchMysticArtifactPresets: vi.fn().mockResolvedValue([]),
+  fetchMysticArtifactSource: vi.fn(),
+  assignMysticArtifactOwner: vi.fn(), bindNpcMysticArtifact: vi.fn(), createCampaignMysticArtifact: vi.fn(),
+  deleteCampaignMysticArtifact: vi.fn(), unbindMysticArtifact: vi.fn(), updateCampaignMysticArtifact: vi.fn(),
+  updateMysticArtifactResource: vi.fn(), useMysticArtifactAbility: vi.fn()
+}));
 
 vi.mock("../services/campaignService", () => serviceMocks);
+vi.mock("../services/mysticArtifactService", () => artifactServiceMocks);
 
 import { CampaignDashboardView } from "./CampaignDashboardView";
 
@@ -95,5 +103,25 @@ describe("CampaignDashboardView experience grants", () => {
       "token-a"
     ));
     expect(await screen.findByText(/PX total: 15/)).toBeInTheDocument();
+  });
+
+  it("shows the GM-only artifact management section", async () => {
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+    await screen.findByText("Davokar");
+    fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
+    expect(screen.getByRole("heading", { name: "Artefactos místicos" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Crear personalizado" })).toBeInTheDocument();
+  });
+
+  it("opens a guided artifact creator instead of a raw JSON editor", async () => {
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+    await screen.findByText("Davokar");
+    fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Crear personalizado" }));
+
+    expect(screen.getByRole("heading", { name: "Crear artefacto personalizado" })).toBeInTheDocument();
+    expect(screen.getByText("Paso 1 de 4: Narrativa")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Nombre/)).toBeInTheDocument();
+    expect(screen.queryByText("Definición JSON")).not.toBeInTheDocument();
   });
 });

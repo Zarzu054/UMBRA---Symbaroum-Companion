@@ -33,6 +33,8 @@ function composite(foreground: string, background: string, opacity: number): str
 
 describe("palette contrast", () => {
   const stylesheet = readFileSync(resolve(process.cwd(), "src/styles/modern.css"), "utf8");
+  const lightSemanticTokens = stylesheet.match(/:root\s*\{([^}]+)\}/)?.[1] ?? "";
+  const darkSemanticTokens = stylesheet.match(/:root\[data-theme="dark"\]\s*\{([^}]+)\}/)?.[1] ?? "";
 
   for (const palette of ["davokar", "corruption", "ambria"] as const) {
     for (const theme of ["light", "dark"] as const) {
@@ -54,6 +56,16 @@ describe("palette contrast", () => {
         expect(contrast(token("--ui-on-brand-strong"), token("--ui-brand-strong"))).toBeGreaterThanOrEqual(4.5);
         expect(contrast(token("--ui-brand-strong"), token("--ui-brand-soft"))).toBeGreaterThanOrEqual(4.5);
         expect(contrast(token("--ui-focus"), token("--ui-surface"))).toBeGreaterThanOrEqual(3);
+
+        const semanticBlock = theme === "light" ? lightSemanticTokens : darkSemanticTokens;
+        const semanticToken = (name: string) => {
+          const value = semanticBlock.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, "i"))?.[1];
+          if (!value) throw new Error(`No se encontró ${name} para el tema ${theme}`);
+          return value;
+        };
+        expect(contrast(semanticToken("--ui-success"), token("--ui-surface"))).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(token("--ui-corruption"), token("--ui-surface"))).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(semanticToken("--ui-danger"), token("--ui-surface"))).toBeGreaterThanOrEqual(4.5);
 
         const illustratedPanel = theme === "light"
           ? composite(token("--ui-surface"), "#000000", 0.93)

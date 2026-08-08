@@ -2,11 +2,14 @@ import { z } from "zod";
 import { SYMBAROUM_ABILITIES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS } from "./symbaroumCompendium.js";
 import { getCharacterMonsterTraitEffects } from "./monsterTraitRules.js";
 import { STARTER_MONSTER_CODEX, createDefaultMonsterSheet, monsterSheetSchema, type MonsterSheet } from "./monsterCodex.js";
+import type { MysticArtifact, OwnedMysticArtifact } from "./mysticArtifacts.js";
 export * from "./symbaroumCompendium.js";
 export * from "./campaignActionEngine.js";
 export * from "./monsterCodex.js";
 export * from "./monsterTraitRules.js";
 export * from "./weaponCatalog.js";
+export * from "./mysticArtifacts.js";
+export * from "./mysticArtifactProjection.js";
 
 export const userRoleSchema = z.enum(["player", "gm", "superadmin"]);
 export const registerRoleSchema = z.enum(["player", "gm"]);
@@ -122,9 +125,22 @@ const actionMetadataSchema = z.object({
   cost: actionCostSchema.default("combat"),
   requiredLevel: skillLevelSchema.optional(),
   rollAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
+  opponentAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
   fixedTarget: z.number().int().min(1).max(20).optional(),
   damageFormula: z.preprocess((value) => value == null ? undefined : value, z.string().max(80).optional()),
-  effectSummary: nullableDefaultString(400, "")
+  effectSummary: nullableDefaultString(400, ""),
+  corruptionFormula: z.string().max(80).optional(),
+  artifactAbilityId: z.string().max(120).optional(),
+  disabledReason: z.string().max(400).optional(),
+  rolls: z.array(z.object({
+    id: z.string().min(1).max(120),
+    kind: z.enum(["check", "attack", "damage", "armor", "healing", "custom"]),
+    label: z.string().min(1).max(160),
+    formula: z.string().max(80).default(""),
+    actorAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
+    opponentAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
+    fixedTarget: z.number().int().min(1).max(99).optional()
+  })).max(12).optional()
 });
 
 const ratedEntrySchema = z.object({
@@ -170,17 +186,30 @@ const artifactCardSchema = z.object({
 const canonicalActionEntrySchema = z.object({
   id: z.string().min(1).max(120),
   label: z.string().min(1).max(120),
-  sourceType: z.enum(["weapon", "ability", "power", "ritual", "utility"]).default("ability"),
+  sourceType: z.enum(["weapon", "ability", "power", "ritual", "artifact", "utility"]).default("ability"),
   sourceName: z.string().min(1).max(160),
   cost: actionCostSchema.default("combat"),
   requiredLevel: skillLevelSchema.optional(),
   rollAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
+  opponentAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
   fixedTarget: z.number().int().min(1).max(20).optional(),
   damageFormula: z.string().max(80).optional(),
   effectSummary: z.string().max(800).default(""),
   category: z.string().max(80).default("general"),
   notes: z.string().max(800).default(""),
-  linkedItemId: z.string().max(120).default("")
+  linkedItemId: z.string().max(120).default(""),
+  corruptionFormula: z.string().max(80).optional(),
+  artifactAbilityId: z.string().max(120).optional(),
+  disabledReason: z.string().max(400).optional(),
+  rolls: z.array(z.object({
+    id: z.string().min(1).max(120),
+    kind: z.enum(["check", "attack", "damage", "armor", "healing", "custom"]),
+    label: z.string().min(1).max(160),
+    formula: z.string().max(80).default(""),
+    actorAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
+    opponentAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
+    fixedTarget: z.number().int().min(1).max(99).optional()
+  })).max(12).optional()
 });
 
 const itemModifierSchema = z.object({
@@ -208,6 +237,15 @@ const inventoryItemSchema = z.object({
   protectionFormula: z.string().max(80).default(""),
   qualities: z.string().max(240).default(""),
   notes: z.string().max(800).default(""),
+  managedArtifactId: z.string().max(120).optional(),
+  artifactBound: z.boolean().optional(),
+  artifactBindingCostLabel: z.string().max(160).optional(),
+  artifactResources: z.array(z.object({
+    id: z.string().min(1).max(120),
+    name: z.string().min(1).max(160),
+    current: z.number().int().min(0).max(9999),
+    maximum: z.number().int().min(0).max(9999)
+  })).max(20).optional(),
   grantedActions: z.array(actionMetadataSchema).max(20).default([]),
   modifiers: z.array(itemModifierSchema).max(20).default([])
 });
@@ -951,17 +989,22 @@ function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>
       actions.push({
         id: `item:${item.id}:${action.id}`,
         label: action.label,
-        sourceType: item.category === "weapon" ? "weapon" : "ability",
+        sourceType: item.managedArtifactId ? "artifact" : item.category === "weapon" ? "weapon" : "ability",
         sourceName: item.name,
         cost: action.cost,
         requiredLevel: action.requiredLevel,
         rollAttribute: action.rollAttribute,
+        opponentAttribute: action.opponentAttribute,
         fixedTarget: action.fixedTarget,
         damageFormula: action.damageFormula,
         effectSummary: action.effectSummary,
         category: item.category,
         notes: item.notes,
-        linkedItemId: item.id
+        linkedItemId: item.id,
+        corruptionFormula: action.corruptionFormula,
+        artifactAbilityId: action.artifactAbilityId,
+        disabledReason: action.disabledReason,
+        rolls: action.rolls
       });
     }
   }
@@ -1739,6 +1782,8 @@ export type Character = {
   profession: string;
   level: number;
   sheet: CharacterSheet;
+  mysticArtifacts?: OwnedMysticArtifact[];
+  artifactBindingXpSpent?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -1899,7 +1944,8 @@ export const createCampaignReferenceSchema = z.object({
   summary: z.string().max(300).default(""),
   content: z.string().max(6000).default(""),
   visibility: campaignReferenceVisibilitySchema.default("campaign"),
-  sharedWithUserIds: z.array(z.string().uuid()).max(50).default([])
+  sharedWithUserIds: z.array(z.string().uuid()).max(50).default([]),
+  isPublic: z.boolean().optional()
 });
 
 export const compendiumEntryIdSchema = z.string().trim().min(1).max(200);
@@ -2100,11 +2146,12 @@ export type CampaignReference = {
 export type CharacterActionDefinition = {
   id: string;
   label: string;
-  sourceType: "weapon" | "ability" | "power" | "ritual";
+  sourceType: "weapon" | "ability" | "power" | "ritual" | "artifact";
   sourceName: string;
   cost: ActionCost;
   requiredLevel?: SkillLevel;
   rollAttribute?: AttributeKey;
+  opponentAttribute?: AttributeKey;
   fixedTarget?: number;
   damageFormula?: string;
   damageModifiers?: Array<{
@@ -2118,6 +2165,18 @@ export type CharacterActionDefinition = {
     detail?: string;
   }>;
   effectSummary: string;
+  corruptionFormula?: string;
+  artifactAbilityId?: string;
+  disabledReason?: string;
+  rolls?: Array<{
+    id: string;
+    kind: "check" | "attack" | "damage" | "armor" | "healing" | "custom";
+    label: string;
+    formula: string;
+    actorAttribute?: AttributeKey;
+    opponentAttribute?: AttributeKey;
+    fixedTarget?: number;
+  }>;
 };
 
 export type CharacterActionPhase = "attack" | "damage";
@@ -2132,7 +2191,7 @@ export type RollRequest = {
   actionId: string;
   actionLabel: string;
   sourceName: string;
-  sourceType: "weapon" | "ability" | "power" | "ritual";
+  sourceType: "weapon" | "ability" | "power" | "ritual" | "artifact";
   formula: string;
   selectedDamageModifierIds?: string[];
   formulaBreakdown?: Array<{
@@ -2141,6 +2200,8 @@ export type RollRequest = {
     detail?: string;
   }>;
   rollAttribute?: AttributeKey;
+  opponentAttribute?: AttributeKey;
+  corruptionFormula?: string;
   target?: number;
   note?: string;
 };
@@ -2193,4 +2254,5 @@ export type Campaign = {
   sessions: CampaignSession[];
   references: CampaignReference[];
   chatMessages: CampaignChatMessage[];
+  mysticArtifacts?: MysticArtifact[];
 };

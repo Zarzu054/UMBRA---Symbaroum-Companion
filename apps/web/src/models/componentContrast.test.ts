@@ -49,4 +49,36 @@ describe("component contrast contracts", () => {
     expect(stylesheet).toMatch(/\.campaign-action-roll-button > :is\(span, strong\)[\s\S]*?color: inherit !important/);
     expect(stylesheet).toMatch(/\.vital-action\.subtle[\s\S]*?color: var\(--ui-brand-strong\)/);
   });
+
+  it("uses theme-aware, readable colors for every character resource and its track", () => {
+    expect(stylesheet).toMatch(/\.unified-sheet-resources-module \.unified-sheet-vital-card\.is-health \.unified-sheet-vital-header[\s\S]*?color: var\(--ui-success\)/);
+    expect(stylesheet).toMatch(/\.unified-sheet-resources-module \.unified-sheet-vital-card\.is-corruption \.unified-sheet-vital-header[\s\S]*?color: var\(--ui-corruption\)/);
+    expect(stylesheet).toMatch(/\.unified-sheet-resources-module \.unified-sheet-vital-card\.is-corruption-deep \.unified-sheet-vital-header[\s\S]*?color: var\(--ui-danger\)/);
+    expect(stylesheet).toMatch(/\.unified-sheet-resources-module \.unified-sheet-vital-track\s*\{[\s\S]*?border: 1px solid var\(--ui-border-strong\)/);
+    expect(stylesheet).toMatch(/\.is-corruption-deep \.unified-sheet-vital-track > div[\s\S]*?background: var\(--ui-danger\)/);
+  });
+
+  it("uses the softer corner scale throughout primary surfaces and navigation", () => {
+    expect(lightTokens).toContain("--ui-radius-sm: 8px");
+    expect(lightTokens).toContain("--ui-radius-md: 14px");
+    expect(lightTokens).toContain("--ui-radius-lg: 20px");
+    expect(stylesheet).toMatch(/\.app-primary-navigation button\s*\{[\s\S]*?border-radius: var\(--ui-radius-sm\)/);
+    expect(stylesheet).toMatch(/\.character-builder-tabs button,[\s\S]*?border-radius: var\(--ui-radius-sm\) var\(--ui-radius-sm\) 0 0/);
+  });
+
+  it("keeps compendium entry colors visible on cards, diamonds and results", () => {
+    for (const type of ["regla", "habilidad", "poder_mistico", "ritual", "tradicion", "raza", "cultura", "arquetipo", "bendicion", "carga", "rasgo"]) {
+      expect(stylesheet).toContain(`.compendium-library .app-card-accent--${type}`);
+    }
+    expect(stylesheet).toMatch(/\.compendium-section-card\.app-card-accent[\s\S]*?border-left: 6px solid var\(--app-card-accent-color\)/);
+    expect(stylesheet).toMatch(/\.compendium-section-card\.app-card-accent \.compendium-section-card-ornament[\s\S]*?border: 2px solid var\(--app-card-accent-color\)/);
+    expect(stylesheet).toMatch(/\.compendium-result-card\.app-card-accent[\s\S]*?border-left: 6px solid var\(--app-card-accent-color\)/);
+  });
+
+  it("keeps modal backdrops above navigation and inside the viewport", () => {
+    expect(lightTokens).toContain("--ui-z-modal: 1000");
+    expect(stylesheet).toMatch(/\.modal-backdrop,[\s\S]*?z-index: var\(--ui-z-modal\)/);
+    expect(stylesheet).toMatch(/\.modal-panel,[\s\S]*?max-height: calc\(100dvh - max\(36px/);
+    expect(stylesheet).toMatch(/\.character-sheet-background-backdrop\s*\{[\s\S]*?z-index: var\(--ui-z-modal\)/);
+  });
 });

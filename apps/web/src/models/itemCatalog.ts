@@ -1094,7 +1094,8 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
   }
 ];
 
-export const ITEM_CATALOG: ItemTemplate[] = [...WEAPON_ITEM_TEMPLATES, ...OTHER_ITEM_TEMPLATES];
+export const ITEM_CATALOG: ItemTemplate[] = [...WEAPON_ITEM_TEMPLATES, ...OTHER_ITEM_TEMPLATES]
+  .filter((template) => template.templateId !== "artifact-generic");
 export { WEAPON_QUALITY_OPTIONS };
 
 export function createInventoryItemFromTemplate(template: ItemTemplate): InventoryItem {

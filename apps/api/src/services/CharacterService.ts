@@ -3,6 +3,8 @@ import {
   createEmptyCharacterSheet,
   importCharacterSchema,
   parseCharacterSheet,
+  stripManagedMysticArtifactsFromSheet,
+  preserveLegacyMysticArtifacts,
   updateCharacterSchema,
   type Character,
   type CreateCharacterInput,
@@ -114,7 +116,10 @@ export class CharacterService {
     };
 
     const payload = updateCharacterSchema.parse(normalizedInput);
-    const requestedSheet = parseCharacterSheet(payload.sheet ?? currentSheet);
+    const requestedSheet = preserveLegacyMysticArtifacts(
+      currentSheet,
+      stripManagedMysticArtifactsFromSheet(parseCharacterSheet(payload.sheet ?? currentSheet))
+    );
     const updated = await this.model.update(ownerId, characterId, {
       ...payload,
       sheet: protectGrantedCharacterExperience(currentSheet, requestedSheet)
@@ -153,6 +158,9 @@ export class CharacterService {
   }
 
   async deleteCharacter(ownerId: string, characterId: string): Promise<void> {
+    if (await this.model.ownsCampaignMysticArtifacts(ownerId, characterId)) {
+      throw new AppError("ARTIFACT_OWNER_IN_USE", "El personaje posee artefactos de campaña; pide al DJ que los retire antes", 409);
+    }
     const deleted = await this.model.delete(ownerId, characterId);
     if (!deleted) {
       throw new AppError("CHARACTER_NOT_FOUND", "Personaje no encontrado", 404);

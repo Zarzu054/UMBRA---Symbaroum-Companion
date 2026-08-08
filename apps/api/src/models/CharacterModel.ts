@@ -1,19 +1,20 @@
 import type { Prisma } from "@prisma/client";
-import { createEmptyCharacterSheet, parseCharacterSheet, type Character, type CharacterSheet, type CreateCharacterInput, type UpdateCharacterInput } from "@umbra/shared";
+import { createEmptyCharacterSheet, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Character, type CharacterSheet, type CreateCharacterInput, type OwnedMysticArtifact, type UpdateCharacterInput } from "@umbra/shared";
 import { prisma } from "../config/prisma.js";
+import { mapMysticArtifact, mysticArtifactInclude } from "./MysticArtifactModel.js";
 
-function mapRow(row: {
-  id: string;
-  name: string;
-  archetype: string;
-  race: string;
-  culture: string;
-  profession: string;
-  level: number;
-  sheet: Prisma.JsonValue;
-  createdAt: Date;
-  updatedAt: Date;
-}): Character {
+const characterArtifactInclude = {
+  campaignLinks: {
+    include: {
+      ownedMysticArtifacts: { include: mysticArtifactInclude },
+      mysticArtifactBindings: { where: { paymentType: "xp" as const } }
+    }
+  }
+} satisfies Prisma.CharacterInclude;
+
+type CharacterRow = Prisma.CharacterGetPayload<{ include: typeof characterArtifactInclude }>;
+
+function mapRow(row: CharacterRow): Character {
   const safeSheet = normalizeSheet(row.sheet, {
     name: row.name,
     race: row.race,
@@ -22,6 +23,10 @@ function mapRow(row: {
     profession: row.profession,
     level: row.level
   });
+  const mysticArtifacts = row.campaignLinks.flatMap((link) =>
+    link.ownedMysticArtifacts.map((artifact) => mapMysticArtifact(artifact, { characterSheet: safeSheet, concealForOwner: true }) as OwnedMysticArtifact)
+  );
+  const projectedSheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(safeSheet, mysticArtifacts));
 
   return {
     id: row.id,
@@ -31,16 +36,25 @@ function mapRow(row: {
     culture: row.culture,
     profession: row.profession,
     level: row.level,
-    sheet: safeSheet,
+    sheet: projectedSheet,
+    mysticArtifacts,
+    artifactBindingXpSpent: row.campaignLinks.flatMap((link) => link.mysticArtifactBindings).reduce((sum, binding) => sum + binding.amount, 0),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()
   };
 }
 
 export class CharacterModel {
+  async ownsCampaignMysticArtifacts(ownerId: string, characterId: string): Promise<boolean> {
+    return (await prisma.mysticArtifact.count({
+      where: { ownerCharacter: { characterId, character: { ownerId } } }
+    })) > 0;
+  }
+
   async listByOwner(ownerId: string): Promise<Character[]> {
     const rows = await prisma.character.findMany({
       where: { ownerId },
+      include: characterArtifactInclude,
       orderBy: { updatedAt: "desc" }
     });
 
@@ -58,7 +72,8 @@ export class CharacterModel {
         profession: payload.profession,
         level: payload.level,
         sheet: payload.sheet
-      }
+      },
+      include: characterArtifactInclude
     });
 
     return mapRow(row);
@@ -66,7 +81,8 @@ export class CharacterModel {
 
   async findById(ownerId: string, characterId: string): Promise<Character | null> {
     const row = await prisma.character.findFirst({
-      where: { id: characterId, ownerId }
+      where: { id: characterId, ownerId },
+      include: characterArtifactInclude
     });
 
     return row ? mapRow(row) : null;
@@ -74,7 +90,8 @@ export class CharacterModel {
 
   async update(ownerId: string, characterId: string, payload: UpdateCharacterInput): Promise<Character | null> {
     const current = await prisma.character.findFirst({
-      where: { id: characterId, ownerId }
+      where: { id: characterId, ownerId },
+      include: characterArtifactInclude
     });
 
     if (!current) return null;
@@ -98,7 +115,8 @@ export class CharacterModel {
         profession: payload.profession ?? current.profession,
         level: payload.level ?? current.level,
         sheet: mergedSheet
-      }
+      },
+      include: characterArtifactInclude
     });
 
     return mapRow(row);
