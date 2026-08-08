@@ -52,10 +52,16 @@ describe("component contrast contracts", () => {
 
   it("uses theme-aware, readable colors for every character resource and its track", () => {
     expect(stylesheet).toMatch(/\.unified-sheet-resources-module \.unified-sheet-vital-card\.is-health \.unified-sheet-vital-header[\s\S]*?color: var\(--ui-success\)/);
-    expect(stylesheet).toMatch(/\.unified-sheet-resources-module \.unified-sheet-vital-card\.is-corruption \.unified-sheet-vital-header[\s\S]*?color: var\(--ui-corruption\)/);
-    expect(stylesheet).toMatch(/\.unified-sheet-resources-module \.unified-sheet-vital-card\.is-corruption-deep \.unified-sheet-vital-header[\s\S]*?color: var\(--ui-danger\)/);
+    expect(stylesheet).toMatch(/\.unified-sheet-resources-module\s*\{[\s\S]*?--sheet-temporary-corruption: #6d3fa3;[\s\S]*?--sheet-permanent-corruption: #171411/);
+    expect(stylesheet).toMatch(/:root\[data-theme="dark"\] \.unified-sheet-resources-module\s*\{[\s\S]*?--sheet-temporary-corruption: #d8b9ff;[\s\S]*?--sheet-permanent-corruption: #f4f1ed/);
+    expect(stylesheet).toMatch(/\.unified-sheet-resources-module \.unified-sheet-vital-card\.is-corruption \.unified-sheet-vital-header[\s\S]*?color: var\(--sheet-temporary-corruption\)/);
+    expect(stylesheet).toMatch(/\.unified-sheet-resources-module \.unified-sheet-vital-card\.is-corruption-deep \.unified-sheet-vital-header[\s\S]*?color: var\(--sheet-permanent-corruption\)/);
     expect(stylesheet).toMatch(/\.unified-sheet-resources-module \.unified-sheet-vital-track\s*\{[\s\S]*?border: 1px solid var\(--ui-border-strong\)/);
-    expect(stylesheet).toMatch(/\.is-corruption-deep \.unified-sheet-vital-track > div[\s\S]*?background: var\(--ui-danger\)/);
+    expect(stylesheet).toMatch(/\.is-corruption-deep \.unified-sheet-vital-track > div[\s\S]*?background: var\(--sheet-permanent-corruption\)/);
+    expect(contrast("#6d3fa3", "#ffffff")).toBeGreaterThanOrEqual(4.5);
+    expect(contrast("#171411", "#ffffff")).toBeGreaterThanOrEqual(4.5);
+    expect(contrast("#d8b9ff", "#181614")).toBeGreaterThanOrEqual(4.5);
+    expect(contrast("#f4f1ed", "#181614")).toBeGreaterThanOrEqual(4.5);
   });
 
   it("uses the softer corner scale throughout primary surfaces and navigation", () => {

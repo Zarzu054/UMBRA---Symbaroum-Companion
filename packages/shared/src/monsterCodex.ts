@@ -27,8 +27,8 @@ export type MonsterCategory = z.infer<typeof monsterCategorySchema>;
 export type MonsterThreat = z.infer<typeof monsterThreatSchema>;
 
 const LEGACY_MONSTER_THREAT_MAP: Record<string, MonsterThreat> = {
+  "D\u00c3\u00a9bil": "Sencillo",
   "Débil": "Sencillo",
-  "DÃ©bil": "Sencillo",
   Moderado: "Normal",
   Peligroso: "Complicado",
   "Dif?cil": "Difícil"

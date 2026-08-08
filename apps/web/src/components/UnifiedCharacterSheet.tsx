@@ -36,6 +36,8 @@ import {
 
 type TabId = "actions" | "inventory" | "abilities" | "background" | "notes";
 type MobileSheetTabId = "attributes" | TabId;
+type MechanicalTabId = Extract<TabId, "actions" | "inventory" | "abilities">;
+type NarrativeTabId = Extract<TabId, "background" | "notes">;
 type ActionTabId = "all" | "favorites" | "attacks" | "powers" | "artifacts" | "actions" | "free" | "reactions" | "other" | "special";
 type CapabilityTabId = "traits" | "blessings" | "burdens" | "abilities" | "powers" | "rituals";
 type InventoryTabId = "money" | "weapons" | "armors" | "artifacts" | "items";
@@ -105,8 +107,8 @@ type CapabilityTier = {
   content: string;
 };
 
-type WeaponCatalogFilterId = "all" | "one-handed" | "short" | "long" | "heavy" | "ranged" | "thrown";
-type ArmorCatalogFilterId = "all" | "light" | "medium" | "heavy" | "shield";
+type WeaponCatalogFilterId = "all" | "one-handed" | "short" | "long" | "heavy" | "ranged" | "thrown" | "shield";
+type ArmorCatalogFilterId = "all" | "light" | "medium" | "heavy";
 type ItemCatalogFilterId = "all" | "consumable" | "travel" | "ammunition" | "tool" | "material" | "ritual" | "valuable" | "artifact";
 
 type MoneyCounters = {
@@ -149,6 +151,8 @@ type RollModalCheckModifier = AttackRollModifier & {
 
 type PersistedSheetTabs = {
   activeTab?: TabId;
+  activeMechanicalTab?: MechanicalTabId;
+  activeNarrativeTab?: NarrativeTabId;
   activeActionTab?: ActionTabId;
   activeCapabilityTab?: CapabilityTabId;
   activeInventoryTab?: InventoryTabId;
@@ -156,12 +160,16 @@ type PersistedSheetTabs = {
 
 type SheetTabState = {
   activeTab: TabId;
+  activeMechanicalTab: MechanicalTabId;
+  activeNarrativeTab: NarrativeTabId;
   activeActionTab: ActionTabId;
   activeCapabilityTab: CapabilityTabId;
   activeInventoryTab: InventoryTabId;
 };
 
 const TAB_IDS: TabId[] = ["actions", "inventory", "abilities", "background", "notes"];
+const MECHANICAL_TAB_IDS: MechanicalTabId[] = ["actions", "inventory", "abilities"];
+const NARRATIVE_TAB_IDS: NarrativeTabId[] = ["background", "notes"];
 const ACTION_TAB_IDS: ActionTabId[] = ["all", "favorites", "attacks", "powers", "artifacts", "actions", "free", "reactions", "other", "special"];
 const CAPABILITY_TAB_IDS: CapabilityTabId[] = ["traits", "blessings", "burdens", "abilities", "powers", "rituals"];
 const INVENTORY_TAB_IDS: InventoryTabId[] = ["money", "weapons", "armors", "artifacts", "items"];
@@ -173,15 +181,15 @@ const WEAPON_CATALOG_FILTER_OPTIONS: Array<{ id: WeaponCatalogFilterId; label: s
   { id: "long", label: "Largas" },
   { id: "heavy", label: "Pesadas" },
   { id: "ranged", label: "A distancia" },
-  { id: "thrown", label: "Arrojadizas" }
+  { id: "thrown", label: "Arrojadizas" },
+  { id: "shield", label: "Escudos" }
 ];
 
 const ARMOR_CATALOG_FILTER_OPTIONS: Array<{ id: ArmorCatalogFilterId; label: string }> = [
   { id: "all", label: "Todas" },
   { id: "light", label: "Ligeras" },
   { id: "medium", label: "Medias" },
-  { id: "heavy", label: "Pesadas" },
-  { id: "shield", label: "Escudos" }
+  { id: "heavy", label: "Pesadas" }
 ];
 
 const ITEM_CATALOG_FILTER_OPTIONS: Array<{ id: ItemCatalogFilterId; label: string }> = [
@@ -199,6 +207,8 @@ const ITEM_CATALOG_FILTER_OPTIONS: Array<{ id: ItemCatalogFilterId; label: strin
 const SHEET_TAB_STORAGE_PREFIX = "umbra:character-sheet-tabs:";
 const DEFAULT_SHEET_TAB_STATE: SheetTabState = {
   activeTab: "actions",
+  activeMechanicalTab: "actions",
+  activeNarrativeTab: "background",
   activeActionTab: "all",
   activeCapabilityTab: "abilities",
   activeInventoryTab: "weapons"
@@ -377,6 +387,18 @@ function renderSimpleMarkdownBlocks(text: string): ReactNode {
       return;
     }
 
+    const blockquoteMatch = line.match(/^\s*>\s?(.*)$/);
+    if (blockquoteMatch) {
+      flushParagraph();
+      flushList();
+      blocks.push(
+        <blockquote key={`blockquote-${index}`}>
+          {renderSimpleMarkdownInline(blockquoteMatch[1], `blockquote-${index}`)}
+        </blockquote>
+      );
+      return;
+    }
+
     flushList();
     paragraphBuffer.push(line.trim());
   });
@@ -392,30 +414,93 @@ function matchesWeaponCatalogFilter(item: ItemTemplate, filterId: WeaponCatalogF
   if (item.category !== "weapon") return false;
   if (filterId === "all") return true;
   const qualities = parseWeaponQualities(item.qualities).map((entry) => entry.toLowerCase());
+  if (filterId === "shield") return qualities.includes("escudo");
   if (filterId === "ranged") return qualities.includes("a distancia") || item.slot === "ranged";
   if (filterId === "thrown") return qualities.includes("arrojadiza") || item.slot === "none";
   if (filterId === "heavy") return qualities.includes("pesada") || item.name.toLowerCase().includes("pesada");
   if (filterId === "long") return qualities.includes("larga");
-  if (filterId === "short") return qualities.includes("corta") || item.slot === "offHand";
+  if (filterId === "short") return qualities.includes("corta") || (item.slot === "offHand" && !qualities.includes("escudo"));
   if (filterId === "one-handed") {
     return item.slot === "mainHand"
       && !qualities.includes("corta")
       && !qualities.includes("larga")
       && !qualities.includes("pesada")
       && !qualities.includes("a distancia")
-      && !qualities.includes("arrojadiza");
+      && !qualities.includes("arrojadiza")
+      && !qualities.includes("escudo");
   }
   return true;
+}
+
+function WeaponCatalogTypeIcon({ type }: { type: WeaponCatalogFilterId }) {
+  const commonProps = {
+    viewBox: "0 0 24 24",
+    width: 24,
+    height: 24,
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.7,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true
+  };
+
+  if (type === "all") {
+    return <svg {...commonProps}><path d="M4 20 20 4M13 4h7v7M4 4l5 5M4 4v5h5M15 15l5 5M15 20h5v-5" /></svg>;
+  }
+  if (type === "one-handed") {
+    return <svg {...commonProps}><path d="m5 19 12-12M14 4l6 6M4 20l4-1-3-3-1 4ZM11 10l3 3" /></svg>;
+  }
+  if (type === "short") {
+    return <svg {...commonProps}><path d="m6 18 9-9M13 6l5 5M5 19l3-1-2-2-1 3ZM10 11l3 3" /></svg>;
+  }
+  if (type === "long") {
+    return <svg {...commonProps}><path d="M4 20 18 6M15 4l5 5M3 21l5-1-4-4-1 5ZM11 10l3 3" /></svg>;
+  }
+  if (type === "heavy") {
+    return <svg {...commonProps}><path d="M5 20 16 9M13 4l7 7-4 4-7-7 4-4ZM4 21l4-1-3-3-1 4" /></svg>;
+  }
+  if (type === "ranged") {
+    return <svg {...commonProps}><path d="M6 3c5 4 5 14 0 18M6 3c9 3 9 15 0 18M5 12h15M17 9l3 3-3 3" /></svg>;
+  }
+  if (type === "shield") {
+    return <svg {...commonProps}><path d="M12 3 5 6v5c0 4.4 2.4 7.7 7 10 4.6-2.3 7-5.6 7-10V6l-7-3Z" /><path d="M12 6v11M8 10h8" /></svg>;
+  }
+  return <svg {...commonProps}><path d="M4 20 17 7M14 4l6 6M3 21l5-1-4-4-1 5M11 13l-3-3M8 10l3-1-1 3" /></svg>;
+}
+
+function ArmorCatalogTypeIcon({ type }: { type: ArmorCatalogFilterId }) {
+  const commonProps = {
+    viewBox: "0 0 24 24",
+    width: 24,
+    height: 24,
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.7,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true
+  };
+
+  if (type === "all") {
+    return <svg {...commonProps}><path d="M7 3 4 6v5c0 4.6 2.8 8.2 8 10 5.2-1.8 8-5.4 8-10V6l-3-3-5 2-5-2Z" /><path d="M8 10h8M12 6v11" /></svg>;
+  }
+  if (type === "light") {
+    return <svg {...commonProps}><path d="m8 4-4 3 2 4 2-1v10h8V10l2 1 2-4-4-3-2 2h-4L8 4Z" /><path d="M9 14h6" /></svg>;
+  }
+  if (type === "medium") {
+    return <svg {...commonProps}><path d="m8 3-4 4 3 3v10h10V10l3-3-4-4-2 3h-4L8 3Z" /><path d="M7 11h10M10 6v14M14 6v14" /></svg>;
+  }
+  return <svg {...commonProps}><path d="m8 3-4 4 3 4v9h10v-9l3-4-4-4-2 3h-4L8 3Z" /><path d="M7 11h10M9 15h6M10 6v14M14 6v14" /><path d="M4 7h4M16 7h4" /></svg>;
 }
 
 function matchesArmorCatalogFilter(item: ItemTemplate, filterId: ArmorCatalogFilterId): boolean {
   if (item.category !== "armor") return false;
   if (filterId === "all") return true;
-  const qualities = parseWeaponQualities(item.qualities).map((entry) => entry.toLowerCase());
-  if (filterId === "shield") return qualities.includes("escudo") || item.name.toLowerCase().includes("escudo");
-  if (filterId === "light") return qualities.includes("ligera");
-  if (filterId === "medium") return qualities.includes("media");
-  if (filterId === "heavy") return qualities.includes("pesada");
+  const weight = normalizeInventoryItemText(item.weight);
+  if (filterId === "light") return weight === "ligera";
+  if (filterId === "medium") return weight === "media";
+  if (filterId === "heavy") return weight === "pesada";
   return true;
 }
 
@@ -816,15 +901,15 @@ function normalizeWeaponQualityKey(value: string): string {
 }
 
 function getKnownWeaponQualities(item: CharacterSheet["inventoryItems"][number]): string[] {
-  const knownIds = new Set(WEAPON_QUALITY_OPTIONS.map((entry) => entry.id));
   return parseWeaponQualities(item.qualities)
-    .filter((quality) => knownIds.has(normalizeWeaponQualityKey(quality)));
+    .map((quality) => findWeaponQualityOption(quality)?.label)
+    .filter((quality): quality is string => Boolean(quality))
+    .filter((quality, index, qualities) => qualities.indexOf(quality) === index);
 }
 
 function getCustomWeaponQualities(item: CharacterSheet["inventoryItems"][number]): string[] {
-  const knownIds = new Set(WEAPON_QUALITY_OPTIONS.map((entry) => entry.id));
   return parseWeaponQualities(item.qualities)
-    .filter((quality) => !knownIds.has(normalizeWeaponQualityKey(quality)));
+    .filter((quality) => !findWeaponQualityOption(quality));
 }
 
 function getKnownArmorQualities(item: CharacterSheet["inventoryItems"][number]): string[] {
@@ -847,13 +932,14 @@ function getArmorDefensePenaltyDetail(item: CharacterSheet["inventoryItems"][num
   const qualityIds = new Set(parseWeaponQualities(item.qualities).map((quality) => normalizeWeaponQualityKey(quality)));
   let basePenalty = 0;
   let label = "";
-  if (qualityIds.has("ligera")) {
+  const armorWeight = normalizeInventoryItemText(item.weight);
+  if (qualityIds.has("ligera") || armorWeight === "ligera") {
     basePenalty = -2;
     label = "Ligera";
-  } else if (qualityIds.has("media")) {
+  } else if (qualityIds.has("media") || armorWeight === "media") {
     basePenalty = -3;
     label = "Media";
-  } else if (qualityIds.has("pesada")) {
+  } else if (qualityIds.has("pesada") || armorWeight === "pesada") {
     basePenalty = -4;
     label = "Pesada";
   }
@@ -869,7 +955,11 @@ function getArmorDefensePenaltyDetail(item: CharacterSheet["inventoryItems"][num
       : `Defensa: ${label} ${basePenalty} por incomoda, reducida a ${reducedPenalty} por Flexible.`;
   }
 
-  return `Defensa: ${label} ${basePenalty} por incomoda.`;
+  if (qualityIds.has("aparatosa")) {
+    return `Defensa: ${label} ${basePenalty - 1} por Aparatosa.`;
+  }
+
+  return `Defensa: ${label} ${basePenalty} por Incómoda.`;
 }
 
 function getKnownItemQualities(item: CharacterSheet["inventoryItems"][number]): string[] {
@@ -960,18 +1050,20 @@ export function UnifiedCharacterSheet({
   backgroundPreferenceScope,
   onOpenCompendiumCapability
 }: Props) {
-  const { draft, editMode, isDirty, isSavingLocal, setDraft, setEditMode, updateField, save } = useUnifiedCharacterSheet({
+  const { draft, isSavingLocal, setDraft, updateField, save } = useUnifiedCharacterSheet({
     sheet,
     editable,
     onSave
   });
   const isReadOnly = !editable;
-  const canEditNotes = editMode && editable;
+  const canEditNotes = editable;
   const canEditInventory = editable;
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>(ITEM_CATALOG[0]?.templateId ?? "");
   const [inventoryCatalogModalTab, setInventoryCatalogModalTab] = useState<InventoryCatalogModalTab | null>(null);
   const [selectedWeaponCatalogFilter, setSelectedWeaponCatalogFilter] = useState<WeaponCatalogFilterId>("all");
+  const [weaponCatalogSearch, setWeaponCatalogSearch] = useState("");
   const [selectedArmorCatalogFilter, setSelectedArmorCatalogFilter] = useState<ArmorCatalogFilterId>("all");
+  const [armorCatalogSearch, setArmorCatalogSearch] = useState("");
   const [selectedItemCatalogFilter, setSelectedItemCatalogFilter] = useState<ItemCatalogFilterId>("all");
   const [history, setHistory] = useState<Array<{ title: string; detail?: string; rolls: ActionRollResult[] }>>([]);
   const rollDestination: RollDestination = "roll20";
@@ -981,6 +1073,9 @@ export function UnifiedCharacterSheet({
   const [selectedPersonalNoteId, setSelectedPersonalNoteId] = useState<string | null>(null);
   const [personalNoteEditor, setPersonalNoteEditor] = useState<{ mode: "create" | "edit"; note: CharacterPersonalNoteEntry } | null>(null);
   const [personalNoteError, setPersonalNoteError] = useState<string | null>(null);
+  const [isEditingBackground, setIsEditingBackground] = useState(false);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [isExperienceRerollConfirmationOpen, setIsExperienceRerollConfirmationOpen] = useState(false);
   const [artifactUseError, setArtifactUseError] = useState<string | null>(null);
   const pendingArtifactDamageRef = useRef<Set<string>>(new Set());
   const [weaponEditorModal, setWeaponEditorModal] = useState<WeaponEditorModal | null>(null);
@@ -993,6 +1088,7 @@ export function UnifiedCharacterSheet({
     || actionDetailModal
     || selectedPersonalNoteId
     || personalNoteEditor
+    || isExperienceRerollConfirmationOpen
     || weaponEditorModal
     || armorEditorModal
     || itemEditorModal
@@ -1024,10 +1120,14 @@ export function UnifiedCharacterSheet({
   const mobileTabsRef = useRef<HTMLElement | null>(null);
   const [hasHydratedSheetTabs, setHasHydratedSheetTabs] = useState(false);
   const activeTab = sheetTabState.activeTab;
+  const activeMechanicalTab = sheetTabState.activeMechanicalTab;
+  const activeNarrativeTab = sheetTabState.activeNarrativeTab;
   const activeActionTab = sheetTabState.activeActionTab;
   const activeCapabilityTab = sheetTabState.activeCapabilityTab;
   const activeInventoryTab = sheetTabState.activeInventoryTab;
   const setActiveTab = (nextTab: TabId) => setSheetTabState((current) => ({ ...current, activeTab: nextTab }));
+  const setActiveMechanicalTab = (nextTab: MechanicalTabId) => setSheetTabState((current) => ({ ...current, activeMechanicalTab: nextTab }));
+  const setActiveNarrativeTab = (nextTab: NarrativeTabId) => setSheetTabState((current) => ({ ...current, activeNarrativeTab: nextTab }));
   const setActiveActionTab = (nextTab: ActionTabId) => setSheetTabState((current) => ({ ...current, activeActionTab: nextTab }));
   const setActiveCapabilityTab = (nextTab: CapabilityTabId) => setSheetTabState((current) => ({ ...current, activeCapabilityTab: nextTab }));
   const setActiveInventoryTab = (nextTab: InventoryTabId) => setSheetTabState((current) => ({ ...current, activeInventoryTab: nextTab }));
@@ -1035,6 +1135,11 @@ export function UnifiedCharacterSheet({
     setMobileActiveTab(nextTab);
     if (nextTab !== "attributes") {
       setActiveTab(nextTab);
+      if (MECHANICAL_TAB_IDS.includes(nextTab as MechanicalTabId)) {
+        setActiveMechanicalTab(nextTab as MechanicalTabId);
+      } else {
+        setActiveNarrativeTab(nextTab as NarrativeTabId);
+      }
     }
   };
   const handleMobileTabChange = (nextTab: MobileSheetTabId, button: HTMLButtonElement): void => {
@@ -1138,13 +1243,21 @@ export function UnifiedCharacterSheet({
   }, [inventoryCatalogModalTab]);
   const filteredModalCatalogItems = useMemo(
     () => inventoryCatalogModalTab === "weapons"
-      ? modalCatalogItems.filter((item) => matchesWeaponCatalogFilter(item, selectedWeaponCatalogFilter))
+      ? modalCatalogItems.filter((item) => {
+          if (!matchesWeaponCatalogFilter(item, selectedWeaponCatalogFilter)) return false;
+          const search = normalizeInventoryItemText(weaponCatalogSearch);
+          return !search || normalizeInventoryItemText(`${item.name} ${item.qualities} ${item.description}`).includes(search);
+        })
       : inventoryCatalogModalTab === "armors"
-        ? modalCatalogItems.filter((item) => matchesArmorCatalogFilter(item, selectedArmorCatalogFilter))
+        ? modalCatalogItems.filter((item) => {
+            if (!matchesArmorCatalogFilter(item, selectedArmorCatalogFilter)) return false;
+            const search = normalizeInventoryItemText(armorCatalogSearch);
+            return !search || normalizeInventoryItemText(`${item.name} ${item.qualities} ${item.description}`).includes(search);
+          })
         : inventoryCatalogModalTab === "items"
           ? modalCatalogItems.filter((item) => matchesItemCatalogFilter(item, selectedItemCatalogFilter))
         : modalCatalogItems,
-    [inventoryCatalogModalTab, modalCatalogItems, selectedWeaponCatalogFilter, selectedArmorCatalogFilter, selectedItemCatalogFilter]
+    [inventoryCatalogModalTab, modalCatalogItems, selectedWeaponCatalogFilter, selectedArmorCatalogFilter, selectedItemCatalogFilter, weaponCatalogSearch, armorCatalogSearch]
   );
 
   useEffect(() => {
@@ -1160,8 +1273,21 @@ export function UnifiedCharacterSheet({
       const rawTabs = window.localStorage.getItem(sheetTabStorageKey);
       if (rawTabs) {
         const persistedTabs = JSON.parse(rawTabs) as PersistedSheetTabs;
+        const persistedActiveTab = persistedTabs.activeTab && TAB_IDS.includes(persistedTabs.activeTab)
+          ? persistedTabs.activeTab
+          : DEFAULT_SHEET_TAB_STATE.activeTab;
         nextState = {
-          activeTab: persistedTabs.activeTab && TAB_IDS.includes(persistedTabs.activeTab) ? persistedTabs.activeTab : DEFAULT_SHEET_TAB_STATE.activeTab,
+          activeTab: persistedActiveTab,
+          activeMechanicalTab: persistedTabs.activeMechanicalTab && MECHANICAL_TAB_IDS.includes(persistedTabs.activeMechanicalTab)
+            ? persistedTabs.activeMechanicalTab
+            : MECHANICAL_TAB_IDS.includes(persistedActiveTab as MechanicalTabId)
+              ? persistedActiveTab as MechanicalTabId
+              : DEFAULT_SHEET_TAB_STATE.activeMechanicalTab,
+          activeNarrativeTab: persistedTabs.activeNarrativeTab && NARRATIVE_TAB_IDS.includes(persistedTabs.activeNarrativeTab)
+            ? persistedTabs.activeNarrativeTab
+            : NARRATIVE_TAB_IDS.includes(persistedActiveTab as NarrativeTabId)
+              ? persistedActiveTab as NarrativeTabId
+              : DEFAULT_SHEET_TAB_STATE.activeNarrativeTab,
           activeActionTab: persistedTabs.activeActionTab && ACTION_TAB_IDS.includes(persistedTabs.activeActionTab) ? persistedTabs.activeActionTab : DEFAULT_SHEET_TAB_STATE.activeActionTab,
           activeCapabilityTab: persistedTabs.activeCapabilityTab && CAPABILITY_TAB_IDS.includes(persistedTabs.activeCapabilityTab) ? persistedTabs.activeCapabilityTab : DEFAULT_SHEET_TAB_STATE.activeCapabilityTab,
           activeInventoryTab: persistedTabs.activeInventoryTab && INVENTORY_TAB_IDS.includes(persistedTabs.activeInventoryTab) ? persistedTabs.activeInventoryTab : DEFAULT_SHEET_TAB_STATE.activeInventoryTab
@@ -1181,12 +1307,14 @@ export function UnifiedCharacterSheet({
     }
     const persistedTabs: PersistedSheetTabs = {
       activeTab,
+      activeMechanicalTab,
+      activeNarrativeTab,
       activeActionTab,
       activeCapabilityTab,
       activeInventoryTab
     };
     window.localStorage.setItem(sheetTabStorageKey, JSON.stringify(persistedTabs));
-  }, [activeActionTab, activeCapabilityTab, activeInventoryTab, activeTab, hasHydratedSheetTabs, sheetTabStorageKey]);
+  }, [activeActionTab, activeCapabilityTab, activeInventoryTab, activeMechanicalTab, activeNarrativeTab, activeTab, hasHydratedSheetTabs, sheetTabStorageKey]);
 
   function pushHistory(titleText: string, rolls: ActionRollResult[], detail?: string): void {
     setHistory((current) => [{ title: titleText, detail, rolls }, ...current].slice(0, 12));
@@ -1272,7 +1400,7 @@ export function UnifiedCharacterSheet({
     if (item.attackAttribute || item.damageFormula || item.protectionFormula) {
       notes.push([
         item.attackAttribute ? `Ataque: ${ATTRIBUTE_LABELS[item.attackAttribute]}` : "",
-        item.damageFormula ? `Danio: ${item.damageFormula}` : "",
+        item.damageFormula ? `Daño: ${item.damageFormula}` : "",
         item.protectionFormula ? `Proteccion: ${item.protectionFormula}` : ""
       ].filter(Boolean).join(" · "));
     }
@@ -1351,7 +1479,7 @@ export function UnifiedCharacterSheet({
         kind: "weapon",
         damage: item.damageFormula || undefined,
         protection: item.protectionFormula || undefined,
-        primaryLabel: "Danio base",
+        primaryLabel: "Daño base",
         value: item.value || undefined,
         notes,
         qualities: qualityDefinitions
@@ -1651,7 +1779,7 @@ export function UnifiedCharacterSheet({
 
   function runAction(action: CharacterActionDefinition, phase: CharacterActionPhase, damageVariantId?: string): void {
       if (rollDestination !== "umbra") {
-      queueRoll20Request(action, phase, `${action.label} - ${phase === "damage" ? "Danio" : "Tirada"}`);
+      queueRoll20Request(action, phase, `${action.label} - ${phase === "damage" ? "Daño" : "Tirada"}`);
         return;
       }
 
@@ -1714,7 +1842,7 @@ export function UnifiedCharacterSheet({
 
   async function runDamageAction(action: CharacterActionDefinition): Promise<void> {
     if (rollDestination !== "umbra") {
-      queueRoll20Request(action, "damage", `${action.label} · Danio`);
+      queueRoll20Request(action, "damage", `${action.label} · Daño`);
       return;
     }
     if (!(await activateArtifactAction(action, "damage"))) return;
@@ -2236,7 +2364,9 @@ export function UnifiedCharacterSheet({
       return item.category !== "weapon" && item.category !== "armor";
     });
     setSelectedWeaponCatalogFilter("all");
+    setWeaponCatalogSearch("");
     setSelectedArmorCatalogFilter("all");
+    setArmorCatalogSearch("");
     setSelectedItemCatalogFilter("all");
     setSelectedCatalogItemId(filteredItems[0]?.templateId ?? "");
     setInventoryCatalogModalTab(tab);
@@ -2380,7 +2510,7 @@ export function UnifiedCharacterSheet({
           {(item.attackAttribute || item.damageFormula || item.protectionFormula) && !isInventoryCombatItem && !isManagedInventoryItem ? (
             <div className="info-box">
               {item.attackAttribute ? <span>Ataque: {ATTRIBUTE_LABELS[item.attackAttribute]}</span> : null}
-              {item.damageFormula ? <span>Danio: {item.damageFormula}</span> : null}
+              {item.damageFormula ? <span>Daño: {item.damageFormula}</span> : null}
               {item.protectionFormula ? <span>Proteccion: {item.protectionFormula}</span> : null}
             </div>
           ) : null}
@@ -2528,6 +2658,15 @@ export function UnifiedCharacterSheet({
     updateField(path, nextValue);
   }
 
+  function spendExperienceForReroll(): void {
+    if (!editable || experience.effectiveAvailable < 1) {
+      setIsExperienceRerollConfirmationOpen(false);
+      return;
+    }
+    updateField("progreso.experienciaGastada", displayedSpentExperience + 1);
+    setIsExperienceRerollConfirmationOpen(false);
+  }
+
   function renderActionRollControls(action: CharacterActionDefinition, allowRoll = true): ReactNode {
     const presentation = getCharacterActionRollPresentation(action, normalizedSheet);
     const hasOptionalModifiers = presentation.hasDamageModifiers
@@ -2574,47 +2713,85 @@ export function UnifiedCharacterSheet({
     );
   }
 
-  function renderTabStage(className = "unified-sheet-stage campaign-sheet-card"): ReactNode {
+  function renderTabStage(
+    tabs: Array<[TabId, string]>,
+    stageActiveTab: TabId,
+    onTabChange: (tab: TabId) => void,
+    navigationLabel: string,
+    className = "unified-sheet-stage campaign-sheet-card"
+  ): ReactNode {
+    const hasStageSubtabs = stageActiveTab === "actions" || stageActiveTab === "inventory" || stageActiveTab === "abilities";
+
     return (
-      <section className={className}>
-        <nav className="unified-sheet-tabs">
-          {([
-            ["actions", "Acciones"],
-            ["inventory", "Inventario"],
-            ["abilities", "Capacidades"],
-            ["background", "Trasfondo"],
-            ["notes", "Notas"]
-          ] as Array<[TabId, string]>).map(([tab, label]) => (
-            <button key={tab} type="button" className={activeTab === tab ? "is-active" : ""} onClick={() => setActiveTab(tab)}>{label}</button>
+      <section className={`${className}${hasStageSubtabs ? " has-stage-subtabs" : ""}`}>
+        <nav className="unified-sheet-tabs" aria-label={navigationLabel}>
+          {tabs.map(([tab, label]) => (
+            <button key={tab} type="button" className={stageActiveTab === tab ? "is-active" : ""} onClick={() => onTabChange(tab)}>{label}</button>
           ))}
         </nav>
 
+        {stageActiveTab === "actions" ? (
+          <nav className="unified-sheet-subtabs unified-sheet-action-subtabs unified-sheet-stage-subtabs is-actions" aria-label="Filtros de acciones">
+            {([
+              ["all", "Todas"],
+              ["favorites", "Favoritas"],
+              ["attacks", "Ataques"],
+              ["powers", "Poderes y rituales"],
+              ["artifacts", "Artefactos"],
+              ["special", "Acciones especiales"],
+              ["actions", "Acciones"],
+              ["free", "Acciones gratuitas"],
+              ["reactions", "Reacciones"],
+              ["other", "Otras"]
+            ] as Array<[ActionTabId, string]>).map(([tab, label]) => (
+              <button key={tab} type="button" className={activeActionTab === tab ? "is-active" : ""} onClick={() => setActiveActionTab(tab)}>
+                {label}
+              </button>
+            ))}
+          </nav>
+        ) : null}
+
+        {stageActiveTab === "inventory" ? (
+          <nav className="unified-sheet-subtabs unified-sheet-stage-subtabs is-inventory" aria-label="Secciones del inventario">
+            {([
+              ["money", "Dinero"],
+              ["weapons", "Armas"],
+              ["armors", "Armaduras"],
+              ["artifacts", "Artefactos"],
+              ["items", "Objetos"]
+            ] as Array<[InventoryTabId, string]>).map(([tab, label]) => (
+              <button key={tab} type="button" className={activeInventoryTab === tab ? "is-active" : ""} onClick={() => setActiveInventoryTab(tab)}>
+                {label}
+              </button>
+            ))}
+          </nav>
+        ) : null}
+
+        {stageActiveTab === "abilities" ? (
+          <nav className="unified-sheet-subtabs unified-sheet-stage-subtabs is-abilities" aria-label="Tipos de capacidades">
+            {([
+              ["traits", "Rasgos"],
+              ["blessings", "Bendiciones"],
+              ["burdens", "Cargas"],
+              ["abilities", "Habilidades"],
+              ["powers", "Poderes"],
+              ["rituals", "Rituales"]
+            ] as Array<[CapabilityTabId, string]>).map(([tab, label]) => (
+              <button key={tab} type="button" className={activeCapabilityTab === tab ? "is-active" : ""} onClick={() => setActiveCapabilityTab(tab)}>
+                {label}
+              </button>
+            ))}
+          </nav>
+        ) : null}
+
         <div className="unified-sheet-tab-content">
-          {activeTab === "actions" ? (
+          {stageActiveTab === "actions" ? (
             <section className="unified-sheet-panel">
               <article className="campaign-sheet-card">
                 <div className="row-actions">
                   <h3>Acciones disponibles</h3>
                 </div>
                 {artifactUseError ? <p className="error-text">{artifactUseError}</p> : null}
-                <nav className="unified-sheet-subtabs unified-sheet-action-subtabs" aria-label="Filtros de acciones">
-                  {([
-                    ["all", "Todas"],
-                    ["favorites", "Favoritas"],
-                    ["attacks", "Ataques"],
-                    ["powers", "Poderes y rituales"],
-                    ["artifacts", "Artefactos"],
-                    ["special", "Acciones especiales"],
-                    ["actions", "Acciones"],
-                    ["free", "Acciones gratuitas"],
-                    ["reactions", "Reacciones"],
-                    ["other", "Otras"]
-                  ] as Array<[ActionTabId, string]>).map(([tab, label]) => (
-                    <button key={tab} type="button" className={activeActionTab === tab ? "is-active" : ""} onClick={() => setActiveActionTab(tab)}>
-                      {label}
-                    </button>
-                  ))}
-                </nav>
                 <div className="campaign-sheet-actions">
                   {activeActionTab === "special" ? (
                     <>
@@ -2671,26 +2848,12 @@ export function UnifiedCharacterSheet({
             </section>
           ) : null}
 
-          {activeTab === "inventory" ? (
+          {stageActiveTab === "inventory" ? (
             <section className="unified-sheet-panel">
               <article className="campaign-sheet-card">
                 <div className="row-actions">
                   <h3>Inventario y equipo</h3>
                 </div>
-                <nav className="unified-sheet-subtabs" aria-label="Secciones del inventario">
-                  {([
-                    ["money", "Dinero"],
-                    ["weapons", "Armas"],
-                    ["armors", "Armaduras"],
-                    ["artifacts", "Artefactos"],
-                    ["items", "Objetos"]
-                  ] as Array<[InventoryTabId, string]>).map(([tab, label]) => (
-                    <button key={tab} type="button" className={activeInventoryTab === tab ? "is-active" : ""} onClick={() => setActiveInventoryTab(tab)}>
-                      {label}
-                    </button>
-                  ))}
-                </nav>
-
                 {activeInventoryTab === "money" ? (
                   <div className="unified-sheet-money-grid">
                     {([
@@ -2700,16 +2863,18 @@ export function UnifiedCharacterSheet({
                     ] as Array<[keyof MoneyCounters, string]>).map(([key, label]) => (
                       <article key={key} className="campaign-structured-card unified-sheet-money-card">
                         <strong>{label}</strong>
-                        <div className={`unified-sheet-money-coin is-${key}`} aria-hidden="true">
-                          <span>{key === "taleros" ? "T" : key === "chelines" ? "C" : "O"}</span>
-                        </div>
-                        <span>x{moneyCounters[key]}</span>
-                        {canEditInventory ? (
-                          <div className="unified-sheet-stack-controls unified-sheet-money-controls">
-                            <button type="button" className="subtle-button" onClick={() => changeMoneyCounter(key, -1)}>-</button>
-                            <button type="button" className="subtle-button" onClick={() => changeMoneyCounter(key, 1)}>+</button>
+                        <div className="unified-sheet-money-control-row">
+                          {canEditInventory ? (
+                            <button type="button" className="subtle-button unified-sheet-money-button" aria-label={`Restar ${label}`} onClick={() => changeMoneyCounter(key, -1)}>−</button>
+                          ) : null}
+                          <div className={`unified-sheet-money-coin is-${key}`} aria-hidden="true">
+                            <span>{key === "taleros" ? "T" : key === "chelines" ? "C" : "O"}</span>
                           </div>
-                        ) : null}
+                          {canEditInventory ? (
+                            <button type="button" className="subtle-button unified-sheet-money-button" aria-label={`Sumar ${label}`} onClick={() => changeMoneyCounter(key, 1)}>+</button>
+                          ) : null}
+                        </div>
+                        <span className="unified-sheet-money-amount">x{moneyCounters[key]}</span>
                       </article>
                     ))}
                   </div>
@@ -2772,32 +2937,6 @@ export function UnifiedCharacterSheet({
                   </>
                 ) : null}
 
-              </article>
-            </section>
-          ) : null}
-
-          {activeTab === "abilities" ? (
-            <section className="unified-sheet-panel">
-              <article className="campaign-sheet-card">
-                <nav className="unified-sheet-subtabs" aria-label="Tipos de capacidades">
-                  {([
-                    ["traits", "Rasgos"],
-                    ["blessings", "Bendiciones"],
-                    ["burdens", "Cargas"],
-                    ["abilities", "Habilidades"],
-                    ["powers", "Poderes"],
-                    ["rituals", "Rituales"]
-                  ] as Array<[CapabilityTabId, string]>).map(([tab, label]) => (
-                    <button key={tab} type="button" className={activeCapabilityTab === tab ? "is-active" : ""} onClick={() => setActiveCapabilityTab(tab)}>
-                      {label}
-                    </button>
-                  ))}
-                </nav>
-
-                {activeCapabilityTab === "traits" ? (
-                  <SimpleStringList title="Rasgos" entries={normalizedSheet.rasgos} emptyText="Sin rasgos registrados." categoryKey="rasgo" />
-                ) : null}
-
                 {activeInventoryTab === "artifacts" ? (
                   <>
                     <div className="row-actions"><h3>Artefactos misticos</h3></div>
@@ -2807,6 +2946,17 @@ export function UnifiedCharacterSheet({
                         : <p className="section-help">El DJ todavia no ha entregado artefactos a este personaje.</p>}
                     </div>
                   </>
+                ) : null}
+
+              </article>
+            </section>
+          ) : null}
+
+          {stageActiveTab === "abilities" ? (
+            <section className="unified-sheet-panel">
+              <article className="campaign-sheet-card">
+                {activeCapabilityTab === "traits" ? (
+                  <SimpleStringList title="Rasgos" entries={normalizedSheet.rasgos} emptyText="Sin rasgos registrados." categoryKey="rasgo" />
                 ) : null}
 
                 {activeCapabilityTab === "blessings" ? (
@@ -2862,25 +3012,52 @@ export function UnifiedCharacterSheet({
             </section>
           ) : null}
 
-          {activeTab === "background" ? (
+          {stageActiveTab === "background" ? (
             <section className="unified-sheet-panel">
               <article className="campaign-sheet-card">
-                <h3>Trasfondo</h3>
-                <div className="form-grid">
-                  <Field label="Sombra"><input disabled value={normalizedSheet.identidad.sombra} onChange={(event) => updateField("identidad.sombra", event.target.value)} /></Field>
-                  <Field label="Cita"><input disabled value={normalizedSheet.identidad.cita} onChange={(event) => updateField("identidad.cita", event.target.value)} /></Field>
-                  <Field label="Edad"><input disabled value={normalizedSheet.identidad.edad} onChange={(event) => updateField("identidad.edad", event.target.value)} /></Field>
-                  <Field label="Altura"><input disabled value={normalizedSheet.identidad.altura} onChange={(event) => updateField("identidad.altura", event.target.value)} /></Field>
-                  <Field label="Peso"><input disabled value={normalizedSheet.identidad.peso} onChange={(event) => updateField("identidad.peso", event.target.value)} /></Field>
+                <div className="row-actions unified-sheet-section-heading">
+                  <h3>Trasfondo</h3>
+                  {editable ? (
+                    isEditingBackground ? (
+                      <button type="button" disabled={isSavingLocal} onClick={() => void save().finally(() => setIsEditingBackground(false))}>
+                        {isSavingLocal ? "Guardando..." : "Guardar"}
+                      </button>
+                    ) : <button type="button" aria-label="Editar trasfondo" onClick={() => setIsEditingBackground(true)}>Editar</button>
+                  ) : null}
                 </div>
-                <Field label="Apariencia"><textarea disabled rows={2} value={normalizedSheet.identidad.apariencia} onChange={(event) => updateField("identidad.apariencia", event.target.value)} /></Field>
-                <Field label="Objetivo personal"><textarea disabled rows={2} value={normalizedSheet.identidad.objetivoPersonal} onChange={(event) => updateField("identidad.objetivoPersonal", event.target.value)} /></Field>
-                <Field label="Historia"><textarea disabled rows={8} value={normalizedSheet.noteSections.background} onChange={(event) => updateField("noteSections.background", event.target.value)} /></Field>
+                {isEditingBackground ? (
+                  <div className="unified-sheet-section-editor">
+                    <div className="form-grid unified-sheet-background-meta-grid">
+                      <Field label="Sombra"><input value={normalizedSheet.identidad.sombra} onChange={(event) => updateField("identidad.sombra", event.target.value)} /></Field>
+                      <Field label="Cita"><input value={normalizedSheet.identidad.cita} onChange={(event) => updateField("identidad.cita", event.target.value)} /></Field>
+                      <Field label="Edad"><input value={normalizedSheet.identidad.edad} onChange={(event) => updateField("identidad.edad", event.target.value)} /></Field>
+                      <Field label="Altura"><input value={normalizedSheet.identidad.altura} onChange={(event) => updateField("identidad.altura", event.target.value)} /></Field>
+                      <Field label="Peso"><input value={normalizedSheet.identidad.peso} onChange={(event) => updateField("identidad.peso", event.target.value)} /></Field>
+                    </div>
+                    <Field label="Apariencia"><textarea rows={2} value={normalizedSheet.identidad.apariencia} onChange={(event) => updateField("identidad.apariencia", event.target.value)} /></Field>
+                    <Field label="Objetivo personal"><textarea rows={2} value={normalizedSheet.identidad.objetivoPersonal} onChange={(event) => updateField("identidad.objetivoPersonal", event.target.value)} /></Field>
+                    <Field label="Historia (Markdown)"><textarea rows={12} value={normalizedSheet.noteSections.background} onChange={(event) => updateField("noteSections.background", event.target.value)} /></Field>
+                  </div>
+                ) : (
+                  <div className="unified-sheet-read-view">
+                    <dl className="unified-sheet-read-meta unified-sheet-background-meta-grid">
+                      {([["Sombra", normalizedSheet.identidad.sombra], ["Cita", normalizedSheet.identidad.cita], ["Edad", normalizedSheet.identidad.edad], ["Altura", normalizedSheet.identidad.altura], ["Peso", normalizedSheet.identidad.peso]] as Array<[string, string]>).map(([label, value]) => (
+                        <div key={label}><dt>{label}</dt><dd>{value || "Sin especificar"}</dd></div>
+                      ))}
+                    </dl>
+                    <section className="unified-sheet-read-section"><h4>Apariencia</h4><p>{normalizedSheet.identidad.apariencia || "Sin apariencia registrada."}</p></section>
+                    <section className="unified-sheet-read-section"><h4>Objetivo personal</h4><p>{normalizedSheet.identidad.objetivoPersonal || "Sin objetivo personal registrado."}</p></section>
+                    <section className="unified-sheet-read-section">
+                      <h4>Historia</h4>
+                      <div className="campaign-markdown unified-sheet-history-markdown">{renderSimpleMarkdownBlocks(normalizedSheet.noteSections.background || "Sin historia registrada.")}</div>
+                    </section>
+                  </div>
+                )}
               </article>
             </section>
           ) : null}
 
-          {activeTab === "notes" ? (
+          {stageActiveTab === "notes" ? (
             <section className="unified-sheet-panel">
               <article className="campaign-sheet-card">
                 <div className="row-actions">
@@ -2888,13 +3065,20 @@ export function UnifiedCharacterSheet({
                     <h3>Notas personales</h3>
                     <p className="section-help">Entradas ordenadas en Markdown para diario, pistas, recuerdos y apuntes de campaña del personaje.</p>
                   </div>
-                  {canEditNotes ? (
-                    <button type="button" onClick={() => {
-                      setPersonalNoteError(null);
-                      setPersonalNoteEditor({ mode: "create", note: buildPersonalNoteDraft() });
-                    }}>
-                      Nueva nota
-                    </button>
+                  {editable ? (
+                    <div className="toolbar">
+                      {isEditingNotes ? (
+                        <>
+                          <button type="button" className="subtle-button" onClick={() => {
+                            setPersonalNoteError(null);
+                            setPersonalNoteEditor({ mode: "create", note: buildPersonalNoteDraft() });
+                          }}>Nueva nota</button>
+                          <button type="button" disabled={isSavingLocal} onClick={() => void save().finally(() => setIsEditingNotes(false))}>
+                            {isSavingLocal ? "Guardando..." : "Guardar"}
+                          </button>
+                        </>
+                      ) : <button type="button" aria-label="Editar notas del personaje" onClick={() => setIsEditingNotes(true)}>Editar</button>}
+                    </div>
                   ) : null}
                 </div>
                 <div className="unified-sheet-list">
@@ -2920,26 +3104,50 @@ export function UnifiedCharacterSheet({
 
               <article className="campaign-sheet-card">
                 <h3>Contexto</h3>
-                <div className="form-grid">
-                  <Field label="Grupo"><input disabled={!editMode} value={normalizedSheet.grupo.nombre} onChange={(event) => updateField("grupo.nombre", event.target.value)} /></Field>
-                  <Field label="Objetivo del grupo"><textarea disabled={!editMode} rows={2} value={normalizedSheet.grupo.objetivo} onChange={(event) => updateField("grupo.objetivo", event.target.value)} /></Field>
-                </div>
+                {isEditingNotes ? (
+                  <div className="form-grid">
+                    <Field label="Grupo"><input value={normalizedSheet.grupo.nombre} onChange={(event) => updateField("grupo.nombre", event.target.value)} /></Field>
+                    <Field label="Objetivo del grupo"><textarea rows={2} value={normalizedSheet.grupo.objetivo} onChange={(event) => updateField("grupo.objetivo", event.target.value)} /></Field>
+                  </div>
+                ) : (
+                  <dl className="unified-sheet-read-meta is-two-columns">
+                    <div><dt>Grupo</dt><dd>{normalizedSheet.grupo.nombre || "Sin grupo registrado."}</dd></div>
+                    <div><dt>Objetivo del grupo</dt><dd>{normalizedSheet.grupo.objetivo || "Sin objetivo de grupo registrado."}</dd></div>
+                  </dl>
+                )}
               </article>
 
               <article className="campaign-sheet-card">
                 <h3>Contactos</h3>
-                <div className="unified-sheet-list">
-                  {normalizedSheet.contactosHoja.map((contacto, index) => (
-                    <article key={`contacto-${index}`} className="campaign-structured-card">
-                      <div className="form-grid">
-                        <Field label="Nombre"><input disabled={!editMode} value={contacto.nombre} onChange={(event) => updateField(`contactosHoja.${index}.nombre`, event.target.value)} /></Field>
-                        <Field label="Raza"><input disabled={!editMode} value={contacto.raza} onChange={(event) => updateField(`contactosHoja.${index}.raza`, event.target.value)} /></Field>
-                        <Field label="Ocupacion"><input disabled={!editMode} value={contacto.ocupacion} onChange={(event) => updateField(`contactosHoja.${index}.ocupacion`, event.target.value)} /></Field>
-                        <Field label="Jugador"><input disabled={!editMode} value={contacto.jugador} onChange={(event) => updateField(`contactosHoja.${index}.jugador`, event.target.value)} /></Field>
-                      </div>
-                    </article>
-                  ))}
-                </div>
+                {isEditingNotes ? (
+                  <div className="unified-sheet-list">
+                    {normalizedSheet.contactosHoja.map((contacto, index) => (
+                      <article key={`contacto-${index}`} className="campaign-structured-card">
+                        <div className="form-grid">
+                          <Field label="Nombre"><input value={contacto.nombre} onChange={(event) => updateField(`contactosHoja.${index}.nombre`, event.target.value)} /></Field>
+                          <Field label="Raza"><input value={contacto.raza} onChange={(event) => updateField(`contactosHoja.${index}.raza`, event.target.value)} /></Field>
+                          <Field label="Ocupacion"><input value={contacto.ocupacion} onChange={(event) => updateField(`contactosHoja.${index}.ocupacion`, event.target.value)} /></Field>
+                          <Field label="Jugador"><input value={contacto.jugador} onChange={(event) => updateField(`contactosHoja.${index}.jugador`, event.target.value)} /></Field>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="unified-sheet-contact-list">
+                    {normalizedSheet.contactosHoja.some((contacto) => Object.values(contacto).some((value) => value.trim())) ? normalizedSheet.contactosHoja.map((contacto, index) => (
+                      Object.values(contacto).some((value) => value.trim()) ? (
+                        <article key={`contacto-${index}`} className="campaign-structured-card unified-sheet-contact-card">
+                          <strong>{contacto.nombre || "Contacto sin nombre"}</strong>
+                          <dl className="unified-sheet-read-meta is-contact">
+                            <div><dt>Raza</dt><dd>{contacto.raza || "Sin especificar"}</dd></div>
+                            <div><dt>Ocupacion</dt><dd>{contacto.ocupacion || "Sin especificar"}</dd></div>
+                            <div><dt>Jugador</dt><dd>{contacto.jugador || "Sin especificar"}</dd></div>
+                          </dl>
+                        </article>
+                      ) : null
+                    )) : <p className="section-help">Sin contactos registrados.</p>}
+                  </div>
+                )}
               </article>
             </section>
           ) : null}
@@ -2950,7 +3158,7 @@ export function UnifiedCharacterSheet({
   }
 
   return (
-    <div className={`unified-sheet is-tab-${activeTab} is-mobile-tab-${mobileActiveTab}`}>
+    <div className={`unified-sheet is-tab-${activeMechanicalTab} is-mobile-tab-${mobileActiveTab}`}>
       <nav ref={mobileTabsRef} className="unified-sheet-mobile-tabs" aria-label="Secciones de la ficha">
         {([
           ["attributes", "Atributos"],
@@ -2974,12 +3182,6 @@ export function UnifiedCharacterSheet({
       <div className="unified-sheet-top-grid">
         <section className="unified-sheet-module unified-sheet-identity-module campaign-sheet-card" aria-label="Identidad del personaje">
           <div className="unified-sheet-hero-main">
-            <div className="unified-sheet-portrait">
-              <div className="unified-sheet-portrait-ring" />
-              <div className="unified-sheet-portrait-content">
-                <span>{String(normalizedSheet.identidad.arquetipo).slice(0, 1)}</span>
-              </div>
-            </div>
             <div className="unified-sheet-identity">
               <h2 className="unified-sheet-title">{displayName}</h2>
               {subtitle ? <span className="unified-sheet-inline-subtitle">{subtitle}</span> : null}
@@ -2989,6 +3191,63 @@ export function UnifiedCharacterSheet({
                 <CharacterSheetBackgroundPicker preferenceScope={backgroundPreferenceScope} />
               </div>
             ) : null}
+          </div>
+        </section>
+        <section className="unified-sheet-module unified-sheet-resources-module campaign-sheet-card" aria-labelledby="unified-sheet-resources-title">
+          <h2 id="unified-sheet-resources-title" className="unified-sheet-module-title">Recursos</h2>
+          <div className="unified-sheet-header-stats">
+            <div className="unified-sheet-vital-card is-health">
+              <div className="unified-sheet-vital-header">
+                <span>Robustez</span>
+                <strong>{derived.robustezActualTotal} / {derived.robustezMaximaTotal}</strong>
+              </div>
+              <div className="unified-sheet-vital-track"><div style={{ width: `${Math.min(100, derived.robustezMaximaTotal > 0 ? (derived.robustezActualTotal / derived.robustezMaximaTotal) * 100 : 0)}%` }} /></div>
+              {editable ? (
+                <div className="unified-sheet-vital-actions">
+                  <button type="button" className="vital-action loss" onClick={() => adjustNumber("combate.robustezActual", -1)}>-1 Daño</button>
+                  <button type="button" className="vital-action gain" onClick={() => adjustNumber("combate.robustezActual", 1)}>+1 Vida</button>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="unified-sheet-vital-card is-corruption">
+              <div className="unified-sheet-vital-header">
+                <span>Corrupcion temporal</span>
+                <strong>{normalizedSheet.corrupcion.temporal}</strong>
+              </div>
+              <div className="unified-sheet-vital-track"><div style={{ width: `${Math.min(100, derived.umbralCorrupcionTotal > 0 ? (normalizedSheet.corrupcion.temporal / derived.umbralCorrupcionTotal) * 100 : 0)}%` }} /></div>
+              {editable ? (
+                <div className="unified-sheet-vital-actions">
+                  <button
+                    type="button"
+                    className="vital-action recovery"
+                    aria-label="Limpiar toda la Corrupcion temporal"
+                    disabled={normalizedSheet.corrupcion.temporal < 1 || busy || isSavingLocal}
+                    onClick={() => updateField("corrupcion.temporal", 0)}
+                  >Limpiar</button>
+                  <button type="button" className="vital-action corruption" onClick={() => adjustNumber("corrupcion.temporal", 1)}>+1 Temp</button>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="unified-sheet-vital-card is-corruption-deep">
+              <div className="unified-sheet-vital-header">
+                <span>Corrupcion permanente</span>
+                <strong>{normalizedSheet.corrupcion.permanente}</strong>
+              </div>
+              <div className="unified-sheet-vital-track"><div style={{ width: `${Math.min(100, derived.umbralCorrupcionTotal > 0 ? (normalizedSheet.corrupcion.permanente / derived.umbralCorrupcionTotal) * 100 : 0)}%` }} /></div>
+              {editable ? (
+                <div className="unified-sheet-vital-actions">
+                  <button type="button" className="vital-action recovery" onClick={() => adjustNumber("corrupcion.permanente", -1)}>-1 Perm</button>
+                  <button
+                    type="button"
+                    className="vital-action corruption-deep"
+                    aria-label="Sumar 1 de Corrupcion permanente"
+                    onClick={() => adjustNumber("corrupcion.permanente", 1)}
+                  >+1 Perm</button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </section>
         <section className="unified-sheet-module unified-sheet-experience-module unified-sheet-xp-card campaign-sheet-card" aria-labelledby="unified-sheet-experience-title">
@@ -3010,65 +3269,28 @@ export function UnifiedCharacterSheet({
             <span>PX total</span>
             <strong>{normalizedSheet.progreso.experienciaTotal}</strong>
           </div>
-          <div className="unified-sheet-xp-row is-static">
-            <span>PX gastada</span>
-            <strong>{displayedSpentExperience}</strong>
-          </div>
-          <div className="unified-sheet-xp-row is-static">
+          <div className="unified-sheet-xp-row is-reroll">
             <span>PX disponible</span>
-            <strong>{experience.effectiveAvailable}</strong>
+            <div className="unified-sheet-xp-controls">
+              <strong>{experience.effectiveAvailable}</strong>
+              {editable ? (
+                <button
+                  type="button"
+                  className="vital-action loss unified-sheet-reroll-action"
+                  aria-label="Gastar 1 PX para repetir un dado"
+                  title="Gasta 1 PX disponible y repite el dado manualmente"
+                  disabled={experience.effectiveAvailable < 1 || busy || isSavingLocal}
+                  onClick={() => setIsExperienceRerollConfirmationOpen(true)}
+                >
+                  <span aria-hidden="true">{"\u21bb"}</span> -1 PX
+                </button>
+              ) : null}
+            </div>
           </div>
         </section>
       </div>
 
       <div className="unified-sheet-status-grid">
-        <section className="unified-sheet-module unified-sheet-resources-module campaign-sheet-card" aria-labelledby="unified-sheet-resources-title">
-          <h2 id="unified-sheet-resources-title" className="unified-sheet-module-title">Recursos</h2>
-          <div className="unified-sheet-header-stats">
-            <div className="unified-sheet-vital-card is-health">
-              <div className="unified-sheet-vital-header">
-                <span>Robustez</span>
-                <strong>{derived.robustezActualTotal} / {derived.robustezMaximaTotal}</strong>
-              </div>
-              <div className="unified-sheet-vital-track"><div style={{ width: `${Math.min(100, derived.robustezMaximaTotal > 0 ? (derived.robustezActualTotal / derived.robustezMaximaTotal) * 100 : 0)}%` }} /></div>
-              {editable ? (
-                <div className="unified-sheet-vital-actions">
-                  <button type="button" className="vital-action loss" onClick={() => adjustNumber("combate.robustezActual", -1)}>-1 Danio</button>
-                  <button type="button" className="vital-action gain" onClick={() => adjustNumber("combate.robustezActual", 1)}>+1 Vida</button>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="unified-sheet-vital-card is-corruption">
-              <div className="unified-sheet-vital-header">
-                <span>Corrupcion temporal</span>
-                <strong>{normalizedSheet.corrupcion.temporal}</strong>
-              </div>
-              <div className="unified-sheet-vital-track"><div style={{ width: `${Math.min(100, derived.umbralCorrupcionTotal > 0 ? (normalizedSheet.corrupcion.temporal / derived.umbralCorrupcionTotal) * 100 : 0)}%` }} /></div>
-              {editable ? (
-                <div className="unified-sheet-vital-actions">
-                  <button type="button" className="vital-action recovery" onClick={() => adjustNumber("corrupcion.temporal", -1)}>-1 Temp</button>
-                  <button type="button" className="vital-action corruption" onClick={() => adjustNumber("corrupcion.temporal", 1)}>+1 Temp</button>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="unified-sheet-vital-card is-corruption-deep">
-              <div className="unified-sheet-vital-header">
-                <span>Corrupcion permanente</span>
-                <strong>{normalizedSheet.corrupcion.permanente}</strong>
-              </div>
-              <div className="unified-sheet-vital-track"><div style={{ width: `${Math.min(100, derived.umbralCorrupcionTotal > 0 ? (normalizedSheet.corrupcion.permanente / derived.umbralCorrupcionTotal) * 100 : 0)}%` }} /></div>
-              {editable ? (
-                <div className="unified-sheet-vital-actions">
-                  <button type="button" className="vital-action recovery" onClick={() => adjustNumber("corrupcion.permanente", -1)}>-1 Perm</button>
-                  <button type="button" className="vital-action corruption-deep" onClick={() => adjustNumber("corrupcion.permanente", 1)}>+1 Perm</button>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </section>
-
         <section className="unified-sheet-module unified-sheet-attributes-module campaign-sheet-card" aria-labelledby="unified-sheet-attributes-title">
           <h2 id="unified-sheet-attributes-title" className="unified-sheet-module-title">Atributos</h2>
           <div className="unified-sheet-attribute-rail">
@@ -3091,10 +3313,8 @@ export function UnifiedCharacterSheet({
             </article>
 
             <article className="unified-sheet-quick-card is-defense-card">
-              <div className="row-actions">
-                <h3>Defensa</h3>
-                <strong>{derived.defensaTotal}</strong>
-              </div>
+              <h3>Defensa</h3>
+              <strong className="unified-sheet-combat-value">{derived.defensaTotal}</strong>
               {derived.defensaArmaduraDetalle ? <p className="section-help">{derived.defensaArmaduraDetalle}</p> : null}
               {isReadOnly ? null : (
                 <div className="unified-sheet-vital-actions">
@@ -3104,10 +3324,8 @@ export function UnifiedCharacterSheet({
             </article>
 
             <article className="unified-sheet-quick-card">
-              <div className="row-actions">
-                <h3>Armadura</h3>
-                <strong>{activeArmor?.protectionFormula || derived.armaduraActiva || "-"}</strong>
-              </div>
+              <h3>Armadura</h3>
+              <strong className="unified-sheet-combat-value">{activeArmor?.protectionFormula || derived.armaduraActiva || "-"}</strong>
               <strong>{activeArmor?.name || normalizedSheet.combate.armadura || (derived.armaduraNatural ? "Armadura natural" : "Sin armadura")}</strong>
               {isReadOnly ? null : (
                 <div className="unified-sheet-vital-actions">
@@ -3143,9 +3361,41 @@ export function UnifiedCharacterSheet({
       </div>
 
       <div className="unified-sheet-workspace">
-        {renderTabStage("unified-sheet-module unified-sheet-reader unified-sheet-stage unified-sheet-dynamic-column campaign-sheet-card")}
+        {renderTabStage(
+          [["background", "Trasfondo"], ["notes", "Notas"]],
+          activeNarrativeTab,
+          (tab) => setActiveNarrativeTab(tab as NarrativeTabId),
+          "Trasfondo y notas",
+          "unified-sheet-module unified-sheet-reader unified-sheet-reader-narrative unified-sheet-stage unified-sheet-dynamic-column campaign-sheet-card"
+        )}
+        {renderTabStage(
+          [["actions", "Acciones"], ["inventory", "Inventario"], ["abilities", "Capacidades"]],
+          activeMechanicalTab,
+          (tab) => setActiveMechanicalTab(tab as MechanicalTabId),
+          "Acciones, inventario y capacidades",
+          "unified-sheet-module unified-sheet-reader unified-sheet-reader-mechanical unified-sheet-stage unified-sheet-dynamic-column campaign-sheet-card"
+        )}
       </div>
 
+      {isExperienceRerollConfirmationOpen ? (
+        <div className="modal-backdrop" onClick={() => setIsExperienceRerollConfirmationOpen(false)}>
+          <div className="panel modal-panel character-roll-confirm-modal" onClick={(event) => event.stopPropagation()}>
+            <h3>Gastar PX para repetir</h3>
+            <p className="section-help">
+              Gastaras 1 PX disponible para repetir manualmente un dado. Esta PX se añadira al gasto acumulado y no puede recuperarse.
+            </p>
+            <div className="row-actions character-roll-confirm-actions">
+              <button
+                type="button"
+                className="destructive-button"
+                disabled={experience.effectiveAvailable < 1 || busy || isSavingLocal}
+                onClick={spendExperienceForReroll}
+              >Gastar 1 PX</button>
+              <button type="button" className="subtle-button" onClick={() => setIsExperienceRerollConfirmationOpen(false)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {selectedPersonalNote ? (
         <div className="modal-backdrop" onClick={() => setSelectedPersonalNoteId(null)}>
           <div className="panel modal-panel character-roll-confirm-modal unified-sheet-action-detail-modal" onClick={(event) => event.stopPropagation()}>
@@ -3247,7 +3497,7 @@ export function UnifiedCharacterSheet({
               ) : null}
               {pendingRollConfirmation.action && pendingRollConfirmation.phase === "damage" && getActionDamageVariants(pendingRollConfirmation.action).length > 0 ? (
                 <div className="character-roll-confirm-modifiers">
-                <span>Modificadores de dano</span>
+                <span>Modificadores de daño</span>
                 {getActionDamageVariants(pendingRollConfirmation.action).map((modifier) => (
                   <label key={`${pendingRollConfirmation.action?.id}-${modifier.id}`} className="character-roll-confirm-modifier">
                     <input
@@ -3510,7 +3760,7 @@ export function UnifiedCharacterSheet({
             <div className="unified-sheet-action-detail-body">
               <div className="form-grid">
                 <Field label="Nombre"><input value={weaponEditorModal.item.name} onChange={(event) => updateWeaponEditorItem("name", event.target.value)} /></Field>
-                <Field label="Danio"><input value={weaponEditorModal.item.damageFormula} onChange={(event) => updateWeaponEditorItem("damageFormula", event.target.value)} /></Field>
+                <Field label="Daño"><input value={weaponEditorModal.item.damageFormula} onChange={(event) => updateWeaponEditorItem("damageFormula", event.target.value)} /></Field>
                 <Field label="Ranura">
                   <select value={weaponEditorModal.item.slot} onChange={(event) => updateWeaponEditorItem("slot", event.target.value)}>
                     <option value="none">Ninguna</option>
@@ -3722,23 +3972,43 @@ export function UnifiedCharacterSheet({
             <p className="section-help">Selecciona un objeto existente del catalogo para anadirlo al inventario.</p>
             <div className="unified-sheet-item-catalog-fields">
               {inventoryCatalogModalTab === "weapons" ? (
-                <label className="field">
-                  <span>Tipo</span>
-                  <select value={selectedWeaponCatalogFilter} onChange={(event) => setSelectedWeaponCatalogFilter(event.target.value as WeaponCatalogFilterId)}>
+                <fieldset className="unified-sheet-weapon-type-picker">
+                  <legend>Tipo de arma</legend>
+                  <div className="unified-sheet-weapon-type-options">
                     {WEAPON_CATALOG_FILTER_OPTIONS.map((option) => (
-                      <option key={option.id} value={option.id}>{option.label}</option>
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={selectedWeaponCatalogFilter === option.id ? "is-active" : ""}
+                        aria-pressed={selectedWeaponCatalogFilter === option.id}
+                        title={option.label}
+                        onClick={() => setSelectedWeaponCatalogFilter(option.id)}
+                      >
+                        <WeaponCatalogTypeIcon type={option.id} />
+                        <span>{option.label}</span>
+                      </button>
                     ))}
-                  </select>
-                </label>
+                  </div>
+                </fieldset>
               ) : inventoryCatalogModalTab === "armors" ? (
-                <label className="field">
-                  <span>Tipo</span>
-                  <select value={selectedArmorCatalogFilter} onChange={(event) => setSelectedArmorCatalogFilter(event.target.value as ArmorCatalogFilterId)}>
+                <fieldset className="unified-sheet-weapon-type-picker">
+                  <legend>Tipo de armadura</legend>
+                  <div className="unified-sheet-weapon-type-options unified-sheet-armor-type-options">
                     {ARMOR_CATALOG_FILTER_OPTIONS.map((option) => (
-                      <option key={option.id} value={option.id}>{option.label}</option>
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={selectedArmorCatalogFilter === option.id ? "is-active" : ""}
+                        aria-pressed={selectedArmorCatalogFilter === option.id}
+                        title={option.label}
+                        onClick={() => setSelectedArmorCatalogFilter(option.id)}
+                      >
+                        <ArmorCatalogTypeIcon type={option.id} />
+                        <span>{option.label}</span>
+                      </button>
                     ))}
-                  </select>
-                </label>
+                  </div>
+                </fieldset>
               ) : inventoryCatalogModalTab === "items" ? (
                 <label className="field">
                   <span>Tipo</span>
@@ -3749,14 +4019,80 @@ export function UnifiedCharacterSheet({
                   </select>
                 </label>
               ) : null}
-              <label className="field">
-                <span>{inventoryCatalogModalTab === "weapons" ? "Arma" : inventoryCatalogModalTab === "armors" ? "Armadura" : inventoryCatalogModalTab === "items" ? "Objeto" : "Catalogo"}</span>
-                <select value={selectedCatalogItemId} onChange={(event) => setSelectedCatalogItemId(event.target.value)}>
-                  {filteredModalCatalogItems.map((item) => (
-                    <option key={item.templateId} value={item.templateId}>{item.name}</option>
-                  ))}
-                </select>
-              </label>
+              {inventoryCatalogModalTab === "weapons" ? (
+                <div className="unified-sheet-weapon-search-selector">
+                  <label className="field">
+                    <span>Arma</span>
+                    <input
+                      type="search"
+                      role="combobox"
+                      aria-label="Buscar arma"
+                      aria-controls="weapon-catalog-results"
+                      aria-expanded={filteredModalCatalogItems.length > 0}
+                      aria-autocomplete="list"
+                      placeholder="Buscar por nombre o cualidad..."
+                      value={weaponCatalogSearch}
+                      onChange={(event) => setWeaponCatalogSearch(event.target.value)}
+                    />
+                  </label>
+                  <div id="weapon-catalog-results" className="unified-sheet-weapon-search-results" role="listbox" aria-label="Armas disponibles">
+                    {filteredModalCatalogItems.length > 0 ? filteredModalCatalogItems.map((item) => (
+                      <button
+                        key={item.templateId}
+                        type="button"
+                        role="option"
+                        aria-selected={item.templateId === selectedCatalogItemId}
+                        className={item.templateId === selectedCatalogItemId ? "is-active" : ""}
+                        onClick={() => setSelectedCatalogItemId(item.templateId)}
+                      >
+                        <span>{item.name}</span>
+                        <small>{item.damageFormula || "Especial"}</small>
+                      </button>
+                    )) : <p>No hay armas que coincidan con la busqueda.</p>}
+                  </div>
+                </div>
+              ) : inventoryCatalogModalTab === "armors" ? (
+                <div className="unified-sheet-weapon-search-selector">
+                  <label className="field">
+                    <span>Armadura</span>
+                    <input
+                      type="search"
+                      role="combobox"
+                      aria-label="Buscar armadura"
+                      aria-controls="armor-catalog-results"
+                      aria-expanded={filteredModalCatalogItems.length > 0}
+                      aria-autocomplete="list"
+                      placeholder="Buscar por nombre o cualidad..."
+                      value={armorCatalogSearch}
+                      onChange={(event) => setArmorCatalogSearch(event.target.value)}
+                    />
+                  </label>
+                  <div id="armor-catalog-results" className="unified-sheet-weapon-search-results" role="listbox" aria-label="Armaduras disponibles">
+                    {filteredModalCatalogItems.length > 0 ? filteredModalCatalogItems.map((item) => (
+                      <button
+                        key={item.templateId}
+                        type="button"
+                        role="option"
+                        aria-selected={item.templateId === selectedCatalogItemId}
+                        className={item.templateId === selectedCatalogItemId ? "is-active" : ""}
+                        onClick={() => setSelectedCatalogItemId(item.templateId)}
+                      >
+                        <span>{item.name}</span>
+                        <small>{item.protectionFormula || "Especial"}</small>
+                      </button>
+                    )) : <p>No hay armaduras que coincidan con la busqueda.</p>}
+                  </div>
+                </div>
+              ) : (
+                <label className="field">
+                  <span>{inventoryCatalogModalTab === "items" ? "Objeto" : "Catalogo"}</span>
+                  <select value={selectedCatalogItemId} onChange={(event) => setSelectedCatalogItemId(event.target.value)}>
+                    {filteredModalCatalogItems.map((item) => (
+                      <option key={item.templateId} value={item.templateId}>{item.name}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
             {filteredModalCatalogItems.length > 0 ? (
               <div className="unified-sheet-item-catalog-preview">
@@ -3774,7 +4110,7 @@ export function UnifiedCharacterSheet({
                         <section className="unified-sheet-weapon-detail-hero">
                           <div className="unified-sheet-weapon-detail-primary">
                             {selectedItem.damageFormula ? <strong>{selectedItem.damageFormula}</strong> : <strong>-</strong>}
-                            <span>Danio base</span>
+                            <span>Daño base</span>
                           </div>
                           <div className="unified-sheet-weapon-detail-stats">
                             {selectedItem.value ? (

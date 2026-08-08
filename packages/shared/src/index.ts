@@ -99,7 +99,7 @@ export const ATTRIBUTE_LABELS: Record<AttributeKey, string> = {
 
 const STARTING_ABILITY_PATTERNS = new Set(["5novato", "2novato_1adepto"]);
 const MYSTIC_ABILITY_NAMES = ["Magia", "Teúrgia", "Brujería", "Hechicería"];
-const SHEET_HIDDEN_ABILITY_NAMES = ["Poder mÃ­stico"];
+const SHEET_HIDDEN_ABILITY_NAMES = ["Poder místico"];
 const NORMALIZED_MYSTIC_ABILITY_NAMES = MYSTIC_ABILITY_NAMES.map(normalizeName);
 const NORMALIZED_SHEET_HIDDEN_ABILITY_NAMES = SHEET_HIDDEN_ABILITY_NAMES.map(normalizeName);
 const MONSTER_TRAIT_NAME_SET = buildMonsterTraitNameSet();
@@ -314,7 +314,7 @@ function buildLegacyCharacterNoteEntries(
   if (campaignContent.trim()) {
     entries.push({
       id: "legacy-note-campaign",
-      title: "Notas de campana",
+      title: "Notas de campaña",
       content: campaignContent.trim(),
       category: "campaign",
       createdAt: "",
@@ -717,6 +717,36 @@ function stripNaturalArmorPlaceholderItems(
   }
 
   return items.filter((item) => !(item.category === "armor" && isNaturalArmorPlaceholderName(item.name)));
+}
+
+function migrateShieldInventoryItems(
+  items: z.infer<typeof inventoryItemSchema>[]
+): z.infer<typeof inventoryItemSchema>[] {
+  return items.map((item) => {
+    const normalizedName = normalizeName(item.name);
+    const isShield = item.category === "armor"
+      && (normalizedName.includes("escudo") || normalizedName === "rodela" || normalizeName(item.qualities).includes("escudo"));
+    if (!isShield) return item;
+
+    const hasDefenseBonus = item.modifiers.some((modifier) => modifier.modifierType === "defense");
+    return {
+      ...item,
+      category: "weapon",
+      attackAttribute: item.attackAttribute ?? "diestro",
+      damageFormula: item.damageFormula || "1d4",
+      protectionFormula: "",
+      slot: item.slot === "armor" ? "offHand" : item.slot,
+      modifiers: hasDefenseBonus
+        ? item.modifiers
+        : [...item.modifiers, {
+            id: `${item.id}-shield-defense`,
+            label: "Bonificacion de escudo",
+            modifierType: "defense",
+            value: "+1",
+            notes: "Bonificacion base por llevar el escudo equipado."
+          }]
+    };
+  });
 }
 
 function buildLegacyInventoryItems(sheet: z.infer<typeof characterSheetObjectSchema>): z.infer<typeof inventoryItemSchema>[] {
@@ -1385,7 +1415,7 @@ function migrateCharacterSheetInput(input: unknown): unknown {
   const rawInventoryItems = Array.isArray(candidate.inventoryItems) && candidate.inventoryItems.length > 0
     ? candidate.inventoryItems
     : buildLegacyInventoryItems(candidate);
-  const inventoryItemsWithoutNaturalPlaceholder = stripNaturalArmorPlaceholderItems(rawInventoryItems, candidate);
+  const inventoryItemsWithoutNaturalPlaceholder = migrateShieldInventoryItems(stripNaturalArmorPlaceholderItems(rawInventoryItems, candidate));
   const rawEquipmentSlots = candidate.equipmentSlots
     ? {
         mainHand: candidate.equipmentSlots.mainHand ?? "",
@@ -1468,7 +1498,7 @@ function buildSynchronizedCharacterSheet(input: CharacterSheet): CharacterSheet 
   const habilidades = normalizeRatedEntries([...(input.habilidades ?? []), ...migratedMonsterTraitAbilities], "ability");
   const poderesMisticos = normalizeRatedEntries(input.poderesMisticos, "power");
   const rituales = normalizeRatedEntries(input.rituales, "ritual");
-  const inventoryItemsWithoutNaturalPlaceholder = stripNaturalArmorPlaceholderItems(input.inventoryItems, input);
+  const inventoryItemsWithoutNaturalPlaceholder = migrateShieldInventoryItems(stripNaturalArmorPlaceholderItems(input.inventoryItems, input));
   const syncedEquipment = synchronizeInventoryEquipment(inventoryItemsWithoutNaturalPlaceholder, input.equipmentSlots);
   const personalNotes = normalizeCharacterNoteEntries(input.personalNotes);
   const effectivePersonalNotes = personalNotes.length > 0 ? personalNotes : buildLegacyCharacterNoteEntries({

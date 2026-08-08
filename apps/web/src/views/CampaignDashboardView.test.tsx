@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { createEmptyCharacterSheet, type AuthUser, type Campaign } from "@umbra/shared";
+import { createEmptyCharacterSheet, type AuthUser, type Campaign, type MysticArtifact } from "@umbra/shared";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -37,7 +37,33 @@ const gm: AuthUser = {
   mustChangePassword: false
 };
 
-function buildCampaign(total = 10): Campaign {
+function buildArtifact(scope: "preset" | "campaign", name: string): MysticArtifact {
+  return {
+    id: scope === "preset" ? "10000000-0000-4000-8000-000000000001" : "20000000-0000-4000-8000-000000000001",
+    scope,
+    campaignId: scope === "campaign" ? "campaign-a" : null,
+    presetSourceId: scope === "campaign" ? "10000000-0000-4000-8000-000000000001" : null,
+    name,
+    description: `${name} description`,
+    kind: "object",
+    sourceTitle: "Core book",
+    bindingCosts: [{ paymentType: "xp", amount: 1 }],
+    abilities: [],
+    resources: [],
+    ownerType: null,
+    ownerId: null,
+    ownerName: null,
+    ownerEmail: null,
+    isBound: false,
+    boundAt: null,
+    bindingPaymentType: null,
+    bindingPaymentAmount: null,
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString()
+  };
+}
+
+function buildCampaign(total = 10, mysticArtifacts: MysticArtifact[] = []): Campaign {
   const sheet = createEmptyCharacterSheet();
   sheet.identidad.nombrePersonaje = "Alda";
   sheet.progreso.experienciaTotal = total;
@@ -70,7 +96,8 @@ function buildCampaign(total = 10): Campaign {
     experienceLog: [],
     sessions: [],
     references: [],
-    chatMessages: []
+    chatMessages: [],
+    mysticArtifacts
   };
 }
 
@@ -110,18 +137,46 @@ describe("CampaignDashboardView experience grants", () => {
     await screen.findByText("Davokar");
     fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
     expect(screen.getByRole("heading", { name: "Artefactos místicos" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Crear personalizado" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Añadir artefacto" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Seleccionar artefacto")).not.toBeInTheDocument();
   });
 
   it("opens a guided artifact creator instead of a raw JSON editor", async () => {
     render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
     await screen.findByText("Davokar");
     fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Añadir artefacto" }));
     fireEvent.click(screen.getByRole("button", { name: "Crear personalizado" }));
 
     expect(screen.getByRole("heading", { name: "Crear artefacto personalizado" })).toBeInTheDocument();
     expect(screen.getByText("Paso 1 de 4: Narrativa")).toBeInTheDocument();
     expect(screen.getByLabelText(/Nombre/)).toBeInTheDocument();
     expect(screen.queryByText("Definición JSON")).not.toBeInTheDocument();
+  });
+
+  it("keeps presets out of the campaign list until the add modal is opened", async () => {
+    const preset = buildArtifact("preset", "Catalog-only artifact");
+    const campaignArtifact = buildArtifact("campaign", "Campaign artifact");
+    artifactServiceMocks.fetchMysticArtifactPresets.mockResolvedValue([preset]);
+    serviceMocks.fetchCampaigns.mockResolvedValue([buildCampaign(10, [campaignArtifact])]);
+
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+    await screen.findByText("Davokar");
+    fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
+
+    expect(screen.getByText("Campaign artifact")).toBeInTheDocument();
+    expect(screen.queryByText(/Catalog-only artifact/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Añadir artefacto" }));
+    expect(screen.getByLabelText("Seleccionar artefacto")).toHaveValue(preset.id);
+    expect(screen.getByRole("option", { name: /Catalog-only artifact/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Añadir predefinido" }));
+    await waitFor(() => expect(artifactServiceMocks.createCampaignMysticArtifact).toHaveBeenCalledWith(
+      "campaign-a",
+      { mode: "preset", presetId: preset.id, resources: [] },
+      "token-a"
+    ));
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Añadir artefacto" })).not.toBeInTheDocument());
   });
 });

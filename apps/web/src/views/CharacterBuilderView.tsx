@@ -927,7 +927,7 @@ export function CharacterBuilderView({
                               </select>
                             </label>
                             <button type="button" onClick={() => addCatalogSimpleEntry(section)} disabled={section === "bendiciones" && effectiveAvailable < 5}>
-                              {section === "bendiciones" ? "Comprar del catalogo" : "Anadir del catalogo"}
+                              {section === "bendiciones" ? "Comprar del catalogo" : "Añadir del catalogo"}
                             </button>
                           </div>
                           <div className="character-builder-inline-form">
@@ -936,17 +936,17 @@ export function CharacterBuilderView({
                               <input value={simpleInputs[section]} onChange={(event) => updateSimpleInput(section, event.target.value)} />
                             </label>
                             <button type="button" onClick={() => addSimpleEntry(section)} disabled={section === "bendiciones" && effectiveAvailable < 5}>
-                              {section === "bendiciones" ? "Comprar personalizada" : "Anadir personalizada"}
+                              {section === "bendiciones" ? "Comprar personalizada" : "Añadir personalizada"}
                             </button>
                           </div>
                         </div>
                       ) : (
                         <div className="character-builder-inline-form">
                           <label className="field">
-                            <span>Anadir</span>
+                            <span>Añadir</span>
                             <input value={simpleInputs[section]} onChange={(event) => updateSimpleInput(section, event.target.value)} />
                           </label>
-                          <button type="button" onClick={() => addSimpleEntry(section)}>Anadir</button>
+                          <button type="button" onClick={() => addSimpleEntry(section)}>Añadir</button>
                         </div>
                       )}
                       <div className="character-builder-token-list">

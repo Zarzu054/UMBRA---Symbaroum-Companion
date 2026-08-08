@@ -21,11 +21,13 @@ export const ARMOR_QUALITY_OPTIONS: ArmorQualityOption[] = [
   { id: "ligera", label: "Ligera", summary: "Armadura de proteccion liviana y de uso cotidiano.", details: "Las armaduras ligeras priorizan movilidad y discrecion frente a la proteccion bruta." },
   { id: "media", label: "Media", summary: "Proteccion intermedia para combate sostenido.", details: "Las armaduras medias equilibran resistencia y movilidad, pero ya resultan mas aparatosas que las ligeras." },
   { id: "pesada", label: "Pesada", summary: "Armadura de guerra orientada a absorber castigo.", details: "Las armaduras pesadas ofrecen gran proteccion a cambio de incomodidad, coste y presencia evidente." },
-  { id: "incomoda", label: "Incomoda", summary: "La armadura dificulta movimientos agiles y castiga ciertas maniobras.", details: "La cualidad Incomoda representa penalizacion por volumen, rigidez o peso distribuido sobre el cuerpo." },
-  { id: "flexible", label: "Flexible", summary: "La armadura conserva movilidad y resulta menos torpe de llevar.", details: "Flexible indica materiales, cortes o ensamblajes que permiten moverse mejor que otras armaduras de proteccion similar." },
-  { id: "reforzada", label: "Reforzada", summary: "La pieza anade placas, remaches o capas extra para mejorar su aguante.", details: "Reforzada representa una version mas resistente de la armadura base, normalmente con mayor proteccion o mejor cobertura." },
+  { id: "incomoda", label: "Incómoda", summary: "Penaliza Defensa, sigilo y uso de poderes misticos segun el tipo.", details: "Impone -2 si es ligera, -3 si es media y -4 si es pesada a Defensa, sigilo y uso de poderes misticos." },
+  { id: "aparatosa", label: "Aparatosa", summary: "Penaliza un punto mas que una armadura Incomoda.", details: "Impone -3 si es ligera, -4 si es media y -5 si es pesada a Defensa, sigilo y uso de poderes misticos." },
+  { id: "flexible", label: "Flexible", summary: "Reduce en dos puntos la penalizacion del tipo de armadura.", details: "Una armadura Flexible no penaliza si es ligera, impone -1 si es media y -2 si es pesada." },
+  { id: "reforzada", label: "Reforzada", summary: "Suma +1 a las tiradas de armadura.", details: "La armadura es mas resistente que otras de su categoria y suma +1 a sus tiradas de proteccion; el catalogo ya lo incluye en la formula." },
   { id: "oculta", label: "Oculta", summary: "Puede llevarse disimulada bajo la ropa o sin llamar demasiado la atencion.", details: "La armadura se integra en ropa, costuras o capas discretas para pasar mas facilmente desapercibida." },
-  { id: "escudo", label: "Escudo", summary: "Proteccion defensiva secundaria llevada en la mano.", details: "Los escudos aportan defensa activa y suelen incluir bonificaciones o interacciones distintas a las de una armadura corporal." }
+  { id: "sagrada", label: "Sagrada", summary: "Puede obtener +1D4 de proteccion contra atacantes corruptos.", details: "Tras un ataque exitoso, la corrupcion del atacante determina si la armadura obtiene +1D4 de proteccion adicional." },
+  { id: "retributiva", label: "Retributiva", summary: "Puede salpicar con acido a quien ataque cuerpo a cuerpo.", details: "Al defender cuerpo a cuerpo, el atacante debe superar Agil o sufrir 1D4 de daño por acido durante 1D4 turnos." }
 ];
 
 export const ITEM_QUALITY_OPTIONS: ItemQualityOption[] = [
@@ -78,7 +80,9 @@ const WEAPON_ITEM_TEMPLATES: ItemTemplate[] = WEAPON_TEMPLATES.map((template) =>
   qualities: formatWeaponQualities(template.qualities),
   notes: buildWeaponCatalogNotes(template.notes ?? "", template.qualities),
   grantedActions: [],
-  modifiers: [],
+  modifiers: template.defenseBonus
+    ? [{ id: `${template.templateId}-defense`, label: "Bonificacion de escudo", modifierType: "defense", value: `+${template.defenseBonus}`, notes: "Bonificacion base por llevar el escudo equipado." }]
+    : [],
   defaultQuantity: template.defaultQuantity
 }));
 
@@ -91,13 +95,13 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     isCustom: false,
     description: "Proteccion ligera de cuero o tejidos reforzados.",
     weight: "Ligera",
-    value: "",
+    value: "2 taleros",
     slot: "armor",
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d4",
-    qualities: "Ligera",
-    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150.", ["Ligera"]),
+    qualities: "Incómoda",
+    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150.", ["Incómoda"]),
     grantedActions: [],
     modifiers: []
   },
@@ -114,14 +118,14 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d4",
-    qualities: "Ligera, Flexible",
-    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 113.", ["Ligera", "Flexible"]),
+    qualities: "Flexible",
+    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150.", ["Flexible"]),
     grantedActions: [],
     modifiers: []
   },
   {
     templateId: "armor-witch-gown",
-    name: "Toga de bruja",
+    name: "Ropajes de bruja",
     category: "armor",
     stackable: false,
     isCustom: false,
@@ -132,8 +136,8 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d4",
-    qualities: "Ligera, Flexible",
-    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 113.", ["Ligera", "Flexible"]),
+    qualities: "Flexible",
+    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150.", ["Flexible"]),
     grantedActions: [],
     modifiers: []
   },
@@ -143,21 +147,21 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     category: "armor",
     stackable: false,
     isCustom: false,
-    description: "Cuero endurecido con remaches y placas pequenas para soportar mejor los impactos.",
+    description: "Cuero endurecido con remaches y placas pequeñas para soportar mejor los impactos.",
     weight: "Ligera",
     value: "10 taleros",
     slot: "armor",
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d4+1",
-    qualities: "Ligera, Reforzada",
-    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 113.", ["Ligera", "Reforzada"]),
+    qualities: "Reforzada",
+    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 117.", ["Reforzada"]),
     grantedActions: [],
     modifiers: []
   },
   {
     templateId: "armor-skald-cuirass",
-    name: "Coselete de skald",
+    name: "Coraza de escaldo",
     category: "armor",
     stackable: false,
     isCustom: false,
@@ -168,8 +172,8 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d4+1",
-    qualities: "Ligera, Reforzada, Flexible",
-    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 113.", ["Ligera", "Reforzada", "Flexible"]),
+    qualities: "Reforzada, Flexible",
+    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 117.", ["Reforzada", "Flexible"]),
     grantedActions: [],
     modifiers: []
   },
@@ -186,8 +190,8 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d4",
-    qualities: "Ligera, Incomoda",
-    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 113.", ["Ligera", "Incomoda"]),
+    qualities: "Aparatosa",
+    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150-151.", ["Aparatosa"]),
     grantedActions: [],
     modifiers: []
   },
@@ -204,14 +208,32 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d4",
-    qualities: "Ligera, Oculta, Flexible",
-    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 113.", ["Ligera", "Oculta", "Flexible"]),
+    qualities: "Oculta, Flexible",
+    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 116-117.", ["Oculta", "Flexible"]),
+    grantedActions: [],
+    modifiers: []
+  },
+  {
+    templateId: "armor-order-cloak",
+    name: "Capa de la Ordo",
+    category: "armor",
+    stackable: false,
+    isCustom: false,
+    description: "Capa bordada con runas de proteccion que la Ordo Magica entrega a sus novicios.",
+    weight: "Ligera",
+    value: "10 taleros",
+    slot: "armor",
+    attackAttribute: undefined,
+    damageFormula: "",
+    protectionFormula: "1d4",
+    qualities: "Flexible",
+    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150.", ["Flexible"]),
     grantedActions: [],
     modifiers: []
   },
   {
     templateId: "armor-blessed-robe",
-    name: "Ropajes benditos",
+    name: "Túnica bendita",
     category: "armor",
     stackable: false,
     isCustom: false,
@@ -222,8 +244,8 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d4",
-    qualities: "Ligera, Flexible",
-    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 113.", ["Ligera", "Flexible"]),
+    qualities: "Flexible",
+    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150.", ["Flexible"]),
     grantedActions: [],
     modifiers: []
   },
@@ -235,19 +257,19 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     isCustom: false,
     description: "Proteccion media para combate sostenido.",
     weight: "Media",
-    value: "",
+    value: "5 taleros",
     slot: "armor",
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d6",
-    qualities: "Media, Incomoda",
-    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150.", ["Media", "Incomoda"]),
+    qualities: "Incómoda",
+    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150.", ["Incómoda"]),
     grantedActions: [],
     modifiers: []
   },
   {
     templateId: "armor-double-chain",
-    name: "Cota doble",
+    name: "Cota de malla de doble",
     category: "armor",
     stackable: false,
     isCustom: false,
@@ -258,8 +280,8 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d6+1",
-    qualities: "Media, Reforzada, Flexible",
-    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 113.", ["Media", "Reforzada", "Flexible"]),
+    qualities: "Reforzada, Flexible",
+    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 117.", ["Reforzada", "Flexible"]),
     grantedActions: [],
     modifiers: []
   },
@@ -276,8 +298,8 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d6",
-    qualities: "Media, Incomoda",
-    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 113.", ["Media", "Incomoda"]),
+    qualities: "Aparatosa",
+    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150-151.", ["Aparatosa"]),
     grantedActions: [],
     modifiers: []
   },
@@ -294,14 +316,14 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d6",
-    qualities: "Media, Flexible",
-    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 113.", ["Media", "Flexible"]),
+    qualities: "Flexible",
+    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150.", ["Flexible"]),
     grantedActions: [],
     modifiers: []
   },
   {
     templateId: "armor-laminated",
-    name: "Armadura laminada",
+    name: "Armadura lamelar",
     category: "armor",
     stackable: false,
     isCustom: false,
@@ -312,8 +334,8 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d6+1",
-    qualities: "Media, Reforzada",
-    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 113.", ["Media", "Reforzada"]),
+    qualities: "Reforzada",
+    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 116-118.", ["Reforzada"]),
     grantedActions: [],
     modifiers: []
   },
@@ -325,19 +347,55 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     isCustom: false,
     description: "Proteccion pesada de placas o cota reforzada.",
     weight: "Pesada",
-    value: "",
+    value: "10 taleros",
     slot: "armor",
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d8",
-    qualities: "Pesada, Incomoda",
-    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150.", ["Pesada", "Incomoda"]),
+    qualities: "Incómoda",
+    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150.", ["Incómoda"]),
+    grantedActions: [],
+    modifiers: []
+  },
+  {
+    templateId: "armor-templar-full",
+    name: "Armadura completa de templario",
+    category: "armor",
+    stackable: false,
+    isCustom: false,
+    description: "Armadura completa forjada y bendecida para el circulo interno de los Caballeros del Sol Moribundo.",
+    weight: "Pesada",
+    value: "100 taleros",
+    slot: "armor",
+    attackAttribute: undefined,
+    damageFormula: "",
+    protectionFormula: "1d8+1",
+    qualities: "Sagrada",
+    notes: buildArmorCatalogNotes("Puede obtener +1d4 de proteccion adicional contra un atacante corrupto. Ref: Guia Avanzada del Jugador p. 116 y 119.", ["Sagrada"]),
+    grantedActions: [],
+    modifiers: []
+  },
+  {
+    templateId: "armor-fury",
+    name: "Armadura de la furia",
+    category: "armor",
+    stackable: false,
+    isCustom: false,
+    description: "Cota de malla reforzada con energias vengativas de la Guardia de la Furia Dormida.",
+    weight: "Pesada",
+    value: "100 taleros",
+    slot: "armor",
+    attackAttribute: undefined,
+    damageFormula: "",
+    protectionFormula: "1d8",
+    qualities: "Retributiva",
+    notes: buildArmorCatalogNotes("Al defender cuerpo a cuerpo, el atacante debe superar Agil o sufrir 1d4 de daño por acido durante 1d4 turnos. Ref: Guia Avanzada del Jugador p. 116 y 119.", ["Retributiva"]),
     grantedActions: [],
     modifiers: []
   },
   {
     templateId: "armor-field",
-    name: "Armadura de campana",
+    name: "Armadura de placas",
     category: "armor",
     stackable: false,
     isCustom: false,
@@ -348,14 +406,14 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d8+1",
-    qualities: "Pesada, Reforzada",
-    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 113.", ["Pesada", "Reforzada"]),
+    qualities: "Reforzada",
+    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 116-118.", ["Reforzada"]),
     grantedActions: [],
     modifiers: []
   },
   {
     templateId: "armor-full-plate",
-    name: "Armadura de placas",
+    name: "Armadura completa",
     category: "armor",
     stackable: false,
     isCustom: false,
@@ -366,48 +424,28 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d8",
-    qualities: "Pesada, Flexible",
-    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 113.", ["Pesada", "Flexible"]),
+    qualities: "Flexible",
+    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150.", ["Flexible"]),
     grantedActions: [],
     modifiers: []
   },
   {
     templateId: "armor-pansar-field",
-    name: "Armadura pansar de campana",
+    name: "Armadura de placas pansar",
     category: "armor",
     stackable: false,
     isCustom: false,
-    description: "Version de elite de la armadura de campana, fabricada para tropas pesadas de alto rango.",
+    description: "Version de elite de la armadura de campaña, fabricada para tropas pesadas de alto rango.",
     weight: "Pesada",
     value: "250 taleros",
     slot: "armor",
     attackAttribute: undefined,
     damageFormula: "",
     protectionFormula: "1d8+1",
-    qualities: "Pesada, Reforzada, Flexible",
-    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 113.", ["Pesada", "Reforzada", "Flexible"]),
+    qualities: "Reforzada, Flexible",
+    notes: buildArmorCatalogNotes("Ref: Guia Avanzada del Jugador p. 116-118.", ["Reforzada", "Flexible"]),
     grantedActions: [],
     modifiers: []
-  },
-  {
-    templateId: "armor-shield",
-    name: "Escudo",
-    category: "armor",
-    stackable: false,
-    isCustom: false,
-    description: "Escudo para defensa cercana.",
-    weight: "Media",
-    value: "3 taleros",
-    slot: "offHand",
-    attackAttribute: undefined,
-    damageFormula: "",
-    protectionFormula: "",
-    qualities: "Escudo",
-    notes: buildArmorCatalogNotes("Ref: Libro Basico p. 150.", ["Escudo"]),
-    grantedActions: [],
-    modifiers: [
-      { id: "shield-defense", label: "Bonificacion de defensa", modifierType: "defense", value: "+1", notes: "Bonificacion base por llevar escudo." }
-    ]
   },
   {
     templateId: "gear-backpack",
@@ -451,7 +489,7 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     category: "gear",
     stackable: false,
     isCustom: false,
-    description: "Correa con bolsillos para organizar viales, municion o herramientas pequenas.",
+    description: "Correa con bolsillos para organizar viales, municion o herramientas pequeñas.",
     weight: "Ligera",
     value: "1 talero",
     slot: "worn",
@@ -709,7 +747,7 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     category: "consumable",
     stackable: true,
     isCustom: false,
-    description: "Pequenos proyectiles para cerbatanas y trucos de veneno.",
+    description: "Pequeños proyectiles para cerbatanas y trucos de veneno.",
     weight: "Ligera",
     value: "5 ortegs",
     slot: "none",
@@ -1042,7 +1080,7 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
     category: "treasure",
     stackable: true,
     isCustom: false,
-    description: "Piezas pequenas de valor que sirven como reserva de riqueza o botin facil de ocultar.",
+    description: "Piezas pequeñas de valor que sirven como reserva de riqueza o botin facil de ocultar.",
     weight: "Ligera",
     value: "25 taleros",
     slot: "none",
@@ -1094,8 +1132,20 @@ const OTHER_ITEM_TEMPLATES: ItemTemplate[] = [
   }
 ];
 
+const ARMOR_CATALOG_ORDER = [
+  "Armadura ligera", "Armadura oculta", "Capa de la Ordo", "Coraza de escaldo", "Cuero tachonado",
+  "Hilo de seda", "Piel de lobo", "Ropajes de bruja", "Túnica bendita", "Armadura media",
+  "Armadura de cuervo", "Armadura lamelar", "Coraza de seda lacada", "Cota de malla de doble",
+  "Armadura pesada", "Armadura completa", "Armadura completa de templario", "Armadura de la furia",
+  "Armadura de placas", "Armadura de placas pansar"
+];
+
 export const ITEM_CATALOG: ItemTemplate[] = [...WEAPON_ITEM_TEMPLATES, ...OTHER_ITEM_TEMPLATES]
-  .filter((template) => template.templateId !== "artifact-generic");
+  .filter((template) => template.templateId !== "artifact-generic")
+  .sort((left, right) => {
+    if (left.category !== "armor" || right.category !== "armor") return 0;
+    return ARMOR_CATALOG_ORDER.indexOf(left.name) - ARMOR_CATALOG_ORDER.indexOf(right.name);
+  });
 export { WEAPON_QUALITY_OPTIONS };
 
 export function createInventoryItemFromTemplate(template: ItemTemplate): InventoryItem {

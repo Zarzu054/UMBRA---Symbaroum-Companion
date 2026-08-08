@@ -1,4 +1,4 @@
-import { getCharacterMonsterTraitEffects, getEffectiveCharacterRobustezMax } from "@umbra/shared";
+import { findWeaponQualityOption, getCharacterMonsterTraitEffects, getEffectiveCharacterRobustezMax, parseWeaponQualities } from "@umbra/shared";
 import { getCharacterExperienceSummary } from "./characterExperience";
 const MODIFIER_REGEX = /\b(DEF|INI|ROBMAX|ROBACT|UMBDOLOR|UMBCORR|CORRTEMP|CORRPERM)\s*([+-]\d+)\b/gi;
 export function computeDerivedStats(sheet) {
@@ -6,6 +6,7 @@ export function computeDerivedStats(sheet) {
     const monsterTraitEffects = getCharacterMonsterTraitEffects(sheet);
     const experienceSummary = getCharacterExperienceSummary(sheet);
     const armorDefensePenalty = getArmorDefensePenalty(sheet);
+    const weaponDefenseBonus = getEquippedWeaponDefenseBonus(sheet);
     const xpDisponible = experienceSummary.effectiveAvailable;
     const corrupcionTotal = Math.max(0, sheet.corrupcion.temporal + modifiers.CORRTEMP) + Math.max(0, sheet.corrupcion.permanente + modifiers.CORRPERM);
     const robustezBase = getEffectiveCharacterRobustezMax(sheet);
@@ -15,7 +16,7 @@ export function computeDerivedStats(sheet) {
     const umbralCorrupcionTotal = Math.max(0, sheet.corrupcion.umbral + modifiers.UMBCORR);
     const iniciativaBase = resolveInitiativeAttribute(sheet);
     const defensaBase = resolveDefenseAttribute(sheet) - monsterTraitEffects.defenseModifier;
-    const defensaTotal = defensaBase + sheet.combate.defensaMod + modifiers.DEF + armorDefensePenalty.value;
+    const defensaTotal = defensaBase + sheet.combate.defensaMod + modifiers.DEF + armorDefensePenalty.value + weaponDefenseBonus.value;
     const iniciativaTotal = iniciativaBase + sheet.combate.iniciativaMod + modifiers.INI;
     const armaduraNatural = monsterTraitEffects.armorFormula;
     const armaduraActiva = sheet.combate.armaduraProteccion || armaduraNatural;
@@ -54,7 +55,7 @@ export function computeDerivedStats(sheet) {
         robustezActualTotal,
         defensaTotal,
         defensaArmaduraMod: armorDefensePenalty.value,
-        defensaArmaduraDetalle: armorDefensePenalty.detail,
+        defensaArmaduraDetalle: [armorDefensePenalty.detail, weaponDefenseBonus.detail].filter(Boolean).join(" "),
         iniciativaTotal,
         umbralDolorTotal,
         umbralCorrupcionTotal,
@@ -64,22 +65,49 @@ export function computeDerivedStats(sheet) {
         warnings
     };
 }
+function getEquippedWeaponDefenseBonus(sheet) {
+    const equippedWeaponIds = new Set([
+        sheet.equipmentSlots.mainHand,
+        sheet.equipmentSlots.offHand,
+        sheet.equipmentSlots.ranged
+    ].filter(Boolean));
+    const bonuses = sheet.inventoryItems.flatMap((item) => {
+        if (item.category !== "weapon" || item.quantity <= 0)
+            return [];
+        if (!item.equipped && !equippedWeaponIds.has(item.id))
+            return [];
+        const explicitBonus = item.modifiers
+            .filter((modifier) => modifier.modifierType === "defense")
+            .reduce((total, modifier) => total + (Number.parseInt(modifier.value, 10) || 0), 0);
+        const balancedBonus = parseWeaponQualities(item.qualities)
+            .some((quality) => findWeaponQualityOption(quality)?.id === "equilibrada") ? 1 : 0;
+        const total = explicitBonus + balancedBonus;
+        return total > 0 ? [{ label: item.name, total }] : [];
+    });
+    const value = bonuses.reduce((total, bonus) => total + bonus.total, 0);
+    return {
+        value,
+        detail: bonuses.map((bonus) => `${bonus.label}: +${bonus.total} a Defensa.`).join(" ")
+    };
+}
 function getArmorDefensePenalty(sheet) {
-    const armorName = (sheet.combate.armadura ?? "").trim();
-    const armorProtection = (sheet.combate.armaduraProteccion ?? "").trim();
+    const equippedArmor = sheet.inventoryItems.find((item) => (item.category === "armor"
+        && item.quantity > 0
+        && (item.id === sheet.equipmentSlots.armor || item.equipped)));
+    const armorName = (equippedArmor?.name ?? sheet.combate.armadura ?? "").trim();
+    const armorProtection = (equippedArmor?.protectionFormula ?? sheet.combate.armaduraProteccion ?? "").trim();
     if (!armorName && !armorProtection) {
         return { value: 0, detail: "" };
     }
-    const qualities = parseCommaList(sheet.combate.armaduraCualidad ?? "");
+    const qualities = parseCommaList(equippedArmor?.qualities ?? sheet.combate.armaduraCualidad ?? "");
     const normalizedQualities = new Set(qualities.map((entry) => normalizeCapabilityName(entry)));
-    const armorTier = resolveArmorPenaltyTier(normalizedQualities, armorName);
+    const armorTier = resolveArmorPenaltyTier(normalizedQualities, equippedArmor?.weight ?? "", armorName);
     if (!armorTier) {
         return { value: 0, detail: "" };
     }
     const basePenalty = armorTier === "ligera" ? -2 : armorTier === "media" ? -3 : -4;
-    const reducedPenalty = normalizedQualities.has("flexible")
-        ? Math.min(0, basePenalty + 2)
-        : basePenalty;
+    const cumbersomePenalty = normalizedQualities.has("aparatosa") ? basePenalty - 1 : basePenalty;
+    const reducedPenalty = normalizedQualities.has("flexible") ? Math.min(0, basePenalty + 2) : cumbersomePenalty;
     if (reducedPenalty === 0) {
         return {
             value: 0,
@@ -89,23 +117,32 @@ function getArmorDefensePenalty(sheet) {
     return {
         value: reducedPenalty,
         detail: normalizedQualities.has("flexible")
-            ? `${capitalizeArmorTier(armorTier)}${basePenalty} por incomoda, reducido a ${reducedPenalty} por Flexible.`
-            : `${capitalizeArmorTier(armorTier)}${reducedPenalty} por incomoda.`
+            ? `${capitalizeArmorTier(armorTier)} ${basePenalty} por Incómoda, reducido a ${reducedPenalty} por Flexible.`
+            : normalizedQualities.has("aparatosa")
+                ? `${capitalizeArmorTier(armorTier)} ${cumbersomePenalty} por Aparatosa.`
+                : `${capitalizeArmorTier(armorTier)} ${basePenalty} por Incómoda.`
     };
 }
-function resolveArmorPenaltyTier(normalizedQualities, armorName) {
+function resolveArmorPenaltyTier(normalizedQualities, armorWeight, armorName) {
     if (normalizedQualities.has("ligera"))
         return "ligera";
     if (normalizedQualities.has("media"))
         return "media";
     if (normalizedQualities.has("pesada"))
         return "pesada";
-    const normalizedName = normalizeCapabilityName(armorName);
-    if (normalizedName.includes("armadura ligera"))
+    const normalizedWeight = normalizeCapabilityName(armorWeight);
+    if (normalizedWeight === "ligera")
         return "ligera";
-    if (normalizedName.includes("armadura media"))
+    if (normalizedWeight === "media")
         return "media";
-    if (normalizedName.includes("armadura pesada"))
+    if (normalizedWeight === "pesada")
+        return "pesada";
+    const normalizedName = normalizeCapabilityName(armorName);
+    if (["armadura ligera", "armadura oculta", "capa de la ordo", "coraza de escaldo", "cuero tachonado", "hilo de seda", "piel de lobo", "ropajes de bruja", "tunica bendita"].some((name) => normalizedName.includes(name)))
+        return "ligera";
+    if (["armadura media", "armadura de cuervo", "armadura lamelar", "coraza de seda lacada", "cota de malla doble", "cota de malla de doble"].some((name) => normalizedName.includes(name)))
+        return "media";
+    if (["armadura pesada", "armadura completa", "armadura de la furia", "armadura de placas"].some((name) => normalizedName.includes(name)))
         return "pesada";
     return null;
 }
