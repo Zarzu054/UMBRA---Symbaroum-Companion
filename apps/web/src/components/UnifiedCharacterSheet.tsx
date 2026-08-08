@@ -377,6 +377,18 @@ function renderSimpleMarkdownBlocks(text: string): ReactNode {
       return;
     }
 
+    const blockquoteMatch = line.match(/^\s*>\s?(.*)$/);
+    if (blockquoteMatch) {
+      flushParagraph();
+      flushList();
+      blocks.push(
+        <blockquote key={`blockquote-${index}`}>
+          {renderSimpleMarkdownInline(blockquoteMatch[1], `blockquote-${index}`)}
+        </blockquote>
+      );
+      return;
+    }
+
     flushList();
     paragraphBuffer.push(line.trim());
   });
@@ -406,6 +418,40 @@ function matchesWeaponCatalogFilter(item: ItemTemplate, filterId: WeaponCatalogF
       && !qualities.includes("arrojadiza");
   }
   return true;
+}
+
+function WeaponCatalogTypeIcon({ type }: { type: WeaponCatalogFilterId }) {
+  const commonProps = {
+    viewBox: "0 0 24 24",
+    width: 24,
+    height: 24,
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.7,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true
+  };
+
+  if (type === "all") {
+    return <svg {...commonProps}><path d="M4 20 20 4M13 4h7v7M4 4l5 5M4 4v5h5M15 15l5 5M15 20h5v-5" /></svg>;
+  }
+  if (type === "one-handed") {
+    return <svg {...commonProps}><path d="m5 19 12-12M14 4l6 6M4 20l4-1-3-3-1 4ZM11 10l3 3" /></svg>;
+  }
+  if (type === "short") {
+    return <svg {...commonProps}><path d="m6 18 9-9M13 6l5 5M5 19l3-1-2-2-1 3ZM10 11l3 3" /></svg>;
+  }
+  if (type === "long") {
+    return <svg {...commonProps}><path d="M4 20 18 6M15 4l5 5M3 21l5-1-4-4-1 5ZM11 10l3 3" /></svg>;
+  }
+  if (type === "heavy") {
+    return <svg {...commonProps}><path d="M5 20 16 9M13 4l7 7-4 4-7-7 4-4ZM4 21l4-1-3-3-1 4" /></svg>;
+  }
+  if (type === "ranged") {
+    return <svg {...commonProps}><path d="M6 3c5 4 5 14 0 18M6 3c9 3 9 15 0 18M5 12h15M17 9l3 3-3 3" /></svg>;
+  }
+  return <svg {...commonProps}><path d="M4 20 17 7M14 4l6 6M3 21l5-1-4-4-1 5M11 13l-3-3M8 10l3-1-1 3" /></svg>;
 }
 
 function matchesArmorCatalogFilter(item: ItemTemplate, filterId: ArmorCatalogFilterId): boolean {
@@ -816,15 +862,15 @@ function normalizeWeaponQualityKey(value: string): string {
 }
 
 function getKnownWeaponQualities(item: CharacterSheet["inventoryItems"][number]): string[] {
-  const knownIds = new Set(WEAPON_QUALITY_OPTIONS.map((entry) => entry.id));
   return parseWeaponQualities(item.qualities)
-    .filter((quality) => knownIds.has(normalizeWeaponQualityKey(quality)));
+    .map((quality) => findWeaponQualityOption(quality)?.label)
+    .filter((quality): quality is string => Boolean(quality))
+    .filter((quality, index, qualities) => qualities.indexOf(quality) === index);
 }
 
 function getCustomWeaponQualities(item: CharacterSheet["inventoryItems"][number]): string[] {
-  const knownIds = new Set(WEAPON_QUALITY_OPTIONS.map((entry) => entry.id));
   return parseWeaponQualities(item.qualities)
-    .filter((quality) => !knownIds.has(normalizeWeaponQualityKey(quality)));
+    .filter((quality) => !findWeaponQualityOption(quality));
 }
 
 function getKnownArmorQualities(item: CharacterSheet["inventoryItems"][number]): string[] {
@@ -960,17 +1006,18 @@ export function UnifiedCharacterSheet({
   backgroundPreferenceScope,
   onOpenCompendiumCapability
 }: Props) {
-  const { draft, editMode, isDirty, isSavingLocal, setDraft, setEditMode, updateField, save } = useUnifiedCharacterSheet({
+  const { draft, isSavingLocal, setDraft, updateField, save } = useUnifiedCharacterSheet({
     sheet,
     editable,
     onSave
   });
   const isReadOnly = !editable;
-  const canEditNotes = editMode && editable;
+  const canEditNotes = editable;
   const canEditInventory = editable;
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>(ITEM_CATALOG[0]?.templateId ?? "");
   const [inventoryCatalogModalTab, setInventoryCatalogModalTab] = useState<InventoryCatalogModalTab | null>(null);
   const [selectedWeaponCatalogFilter, setSelectedWeaponCatalogFilter] = useState<WeaponCatalogFilterId>("all");
+  const [weaponCatalogSearch, setWeaponCatalogSearch] = useState("");
   const [selectedArmorCatalogFilter, setSelectedArmorCatalogFilter] = useState<ArmorCatalogFilterId>("all");
   const [selectedItemCatalogFilter, setSelectedItemCatalogFilter] = useState<ItemCatalogFilterId>("all");
   const [history, setHistory] = useState<Array<{ title: string; detail?: string; rolls: ActionRollResult[] }>>([]);
@@ -981,6 +1028,8 @@ export function UnifiedCharacterSheet({
   const [selectedPersonalNoteId, setSelectedPersonalNoteId] = useState<string | null>(null);
   const [personalNoteEditor, setPersonalNoteEditor] = useState<{ mode: "create" | "edit"; note: CharacterPersonalNoteEntry } | null>(null);
   const [personalNoteError, setPersonalNoteError] = useState<string | null>(null);
+  const [isEditingBackground, setIsEditingBackground] = useState(false);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [artifactUseError, setArtifactUseError] = useState<string | null>(null);
   const pendingArtifactDamageRef = useRef<Set<string>>(new Set());
   const [weaponEditorModal, setWeaponEditorModal] = useState<WeaponEditorModal | null>(null);
@@ -1138,13 +1187,17 @@ export function UnifiedCharacterSheet({
   }, [inventoryCatalogModalTab]);
   const filteredModalCatalogItems = useMemo(
     () => inventoryCatalogModalTab === "weapons"
-      ? modalCatalogItems.filter((item) => matchesWeaponCatalogFilter(item, selectedWeaponCatalogFilter))
+      ? modalCatalogItems.filter((item) => {
+          if (!matchesWeaponCatalogFilter(item, selectedWeaponCatalogFilter)) return false;
+          const search = normalizeInventoryItemText(weaponCatalogSearch);
+          return !search || normalizeInventoryItemText(`${item.name} ${item.qualities} ${item.description}`).includes(search);
+        })
       : inventoryCatalogModalTab === "armors"
         ? modalCatalogItems.filter((item) => matchesArmorCatalogFilter(item, selectedArmorCatalogFilter))
         : inventoryCatalogModalTab === "items"
           ? modalCatalogItems.filter((item) => matchesItemCatalogFilter(item, selectedItemCatalogFilter))
         : modalCatalogItems,
-    [inventoryCatalogModalTab, modalCatalogItems, selectedWeaponCatalogFilter, selectedArmorCatalogFilter, selectedItemCatalogFilter]
+    [inventoryCatalogModalTab, modalCatalogItems, selectedWeaponCatalogFilter, selectedArmorCatalogFilter, selectedItemCatalogFilter, weaponCatalogSearch]
   );
 
   useEffect(() => {
@@ -2236,6 +2289,7 @@ export function UnifiedCharacterSheet({
       return item.category !== "weapon" && item.category !== "armor";
     });
     setSelectedWeaponCatalogFilter("all");
+    setWeaponCatalogSearch("");
     setSelectedArmorCatalogFilter("all");
     setSelectedItemCatalogFilter("all");
     setSelectedCatalogItemId(filteredItems[0]?.templateId ?? "");
@@ -3722,14 +3776,24 @@ export function UnifiedCharacterSheet({
             <p className="section-help">Selecciona un objeto existente del catalogo para anadirlo al inventario.</p>
             <div className="unified-sheet-item-catalog-fields">
               {inventoryCatalogModalTab === "weapons" ? (
-                <label className="field">
-                  <span>Tipo</span>
-                  <select value={selectedWeaponCatalogFilter} onChange={(event) => setSelectedWeaponCatalogFilter(event.target.value as WeaponCatalogFilterId)}>
+                <fieldset className="unified-sheet-weapon-type-picker">
+                  <legend>Tipo de arma</legend>
+                  <div className="unified-sheet-weapon-type-options">
                     {WEAPON_CATALOG_FILTER_OPTIONS.map((option) => (
-                      <option key={option.id} value={option.id}>{option.label}</option>
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={selectedWeaponCatalogFilter === option.id ? "is-active" : ""}
+                        aria-pressed={selectedWeaponCatalogFilter === option.id}
+                        title={option.label}
+                        onClick={() => setSelectedWeaponCatalogFilter(option.id)}
+                      >
+                        <WeaponCatalogTypeIcon type={option.id} />
+                        <span>{option.label}</span>
+                      </button>
                     ))}
-                  </select>
-                </label>
+                  </div>
+                </fieldset>
               ) : inventoryCatalogModalTab === "armors" ? (
                 <label className="field">
                   <span>Tipo</span>
@@ -3749,14 +3813,48 @@ export function UnifiedCharacterSheet({
                   </select>
                 </label>
               ) : null}
-              <label className="field">
-                <span>{inventoryCatalogModalTab === "weapons" ? "Arma" : inventoryCatalogModalTab === "armors" ? "Armadura" : inventoryCatalogModalTab === "items" ? "Objeto" : "Catalogo"}</span>
-                <select value={selectedCatalogItemId} onChange={(event) => setSelectedCatalogItemId(event.target.value)}>
-                  {filteredModalCatalogItems.map((item) => (
-                    <option key={item.templateId} value={item.templateId}>{item.name}</option>
-                  ))}
-                </select>
-              </label>
+              {inventoryCatalogModalTab === "weapons" ? (
+                <div className="unified-sheet-weapon-search-selector">
+                  <label className="field">
+                    <span>Arma</span>
+                    <input
+                      type="search"
+                      role="combobox"
+                      aria-label="Buscar arma"
+                      aria-controls="weapon-catalog-results"
+                      aria-expanded={filteredModalCatalogItems.length > 0}
+                      aria-autocomplete="list"
+                      placeholder="Buscar por nombre o cualidad..."
+                      value={weaponCatalogSearch}
+                      onChange={(event) => setWeaponCatalogSearch(event.target.value)}
+                    />
+                  </label>
+                  <div id="weapon-catalog-results" className="unified-sheet-weapon-search-results" role="listbox" aria-label="Armas disponibles">
+                    {filteredModalCatalogItems.length > 0 ? filteredModalCatalogItems.map((item) => (
+                      <button
+                        key={item.templateId}
+                        type="button"
+                        role="option"
+                        aria-selected={item.templateId === selectedCatalogItemId}
+                        className={item.templateId === selectedCatalogItemId ? "is-active" : ""}
+                        onClick={() => setSelectedCatalogItemId(item.templateId)}
+                      >
+                        <span>{item.name}</span>
+                        <small>{item.damageFormula || "Especial"}</small>
+                      </button>
+                    )) : <p>No hay armas que coincidan con la busqueda.</p>}
+                  </div>
+                </div>
+              ) : (
+                <label className="field">
+                  <span>{inventoryCatalogModalTab === "armors" ? "Armadura" : inventoryCatalogModalTab === "items" ? "Objeto" : "Catalogo"}</span>
+                  <select value={selectedCatalogItemId} onChange={(event) => setSelectedCatalogItemId(event.target.value)}>
+                    {filteredModalCatalogItems.map((item) => (
+                      <option key={item.templateId} value={item.templateId}>{item.name}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
             {filteredModalCatalogItems.length > 0 ? (
               <div className="unified-sheet-item-catalog-preview">

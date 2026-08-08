@@ -1,4 +1,4 @@
-import { getCharacterMonsterTraitEffects, getEffectiveCharacterRobustezMax, type CharacterSheet } from "@umbra/shared";
+import { findWeaponQualityOption, getCharacterMonsterTraitEffects, getEffectiveCharacterRobustezMax, parseWeaponQualities, type CharacterSheet } from "@umbra/shared";
 import { getCharacterExperienceSummary } from "./characterExperience";
 
 type ModifierKey = "DEF" | "INI" | "ROBMAX" | "ROBACT" | "UMBDOLOR" | "UMBCORR" | "CORRTEMP" | "CORRPERM";
@@ -32,6 +32,7 @@ export function computeDerivedStats(sheet: CharacterSheet): DerivedStats {
   const monsterTraitEffects = getCharacterMonsterTraitEffects(sheet);
   const experienceSummary = getCharacterExperienceSummary(sheet);
   const armorDefensePenalty = getArmorDefensePenalty(sheet);
+  const weaponDefenseBonus = getEquippedBalancedWeaponBonus(sheet);
 
   const xpDisponible = experienceSummary.effectiveAvailable;
   const corrupcionTotal =
@@ -44,7 +45,7 @@ export function computeDerivedStats(sheet: CharacterSheet): DerivedStats {
 
   const iniciativaBase = resolveInitiativeAttribute(sheet);
   const defensaBase = resolveDefenseAttribute(sheet) - monsterTraitEffects.defenseModifier;
-  const defensaTotal = defensaBase + sheet.combate.defensaMod + modifiers.DEF + armorDefensePenalty.value;
+  const defensaTotal = defensaBase + sheet.combate.defensaMod + modifiers.DEF + armorDefensePenalty.value + weaponDefenseBonus;
   const iniciativaTotal = iniciativaBase + sheet.combate.iniciativaMod + modifiers.INI;
   const armaduraNatural = monsterTraitEffects.armorFormula;
   const armaduraActiva = sheet.combate.armaduraProteccion || armaduraNatural;
@@ -85,7 +86,7 @@ export function computeDerivedStats(sheet: CharacterSheet): DerivedStats {
     robustezActualTotal,
     defensaTotal,
     defensaArmaduraMod: armorDefensePenalty.value,
-    defensaArmaduraDetalle: armorDefensePenalty.detail,
+    defensaArmaduraDetalle: [armorDefensePenalty.detail, weaponDefenseBonus > 0 ? `Equilibrada: +${weaponDefenseBonus} a Defensa.` : ""].filter(Boolean).join(" "),
     iniciativaTotal,
     umbralDolorTotal,
     umbralCorrupcionTotal,
@@ -94,6 +95,21 @@ export function computeDerivedStats(sheet: CharacterSheet): DerivedStats {
     armaduraNaturalBreakdown,
     warnings
   };
+}
+
+function getEquippedBalancedWeaponBonus(sheet: CharacterSheet): number {
+  const equippedWeaponIds = new Set([
+    sheet.equipmentSlots.mainHand,
+    sheet.equipmentSlots.offHand,
+    sheet.equipmentSlots.ranged
+  ].filter(Boolean));
+
+  return sheet.inventoryItems.filter((item) => {
+    if (item.category !== "weapon" || item.quantity <= 0) return false;
+    if (!item.equipped && !equippedWeaponIds.has(item.id)) return false;
+    return parseWeaponQualities(item.qualities)
+      .some((quality) => findWeaponQualityOption(quality)?.id === "equilibrada");
+  }).length;
 }
 
 function getArmorDefensePenalty(sheet: CharacterSheet): { value: number; detail: string } {

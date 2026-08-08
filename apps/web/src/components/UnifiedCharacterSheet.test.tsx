@@ -214,3 +214,33 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(toughnessCard).toHaveTextContent("10 / 10");
   });
 });
+
+describe("UnifiedCharacterSheet weapon catalog", () => {
+  beforeEach(() => window.localStorage.clear());
+
+  afterEach(cleanup);
+
+  it("uses icon filters and a text-searchable weapon selector", () => {
+    const sheet = createEmptyCharacterSheet();
+    render(<UnifiedCharacterSheet title="Inventario" sheet={sheet} editable />);
+
+    const mobileTabs = screen.getByRole("navigation", { name: "Secciones de la ficha" });
+    fireEvent.click(within(mobileTabs).getByRole("button", { name: "Inventario" }));
+    fireEvent.click(screen.getByRole("button", { name: "Armas" }));
+    fireEvent.click(screen.getByRole("button", { name: "Agregar arma" }));
+
+    const modal = screen.getByRole("heading", { name: "Agregar arma" }).closest(".modal-panel") as HTMLElement;
+    const typePicker = within(modal).getByRole("group", { name: "Tipo de arma" });
+    expect(within(typePicker).getAllByRole("button")).toHaveLength(7);
+    expect(within(typePicker).getByRole("button", { name: "A distancia" })).toHaveAttribute("aria-pressed", "false");
+    expect(within(modal).queryByLabelText("Tipo")).not.toBeInTheDocument();
+
+    const search = within(modal).getByRole("combobox", { name: "Buscar arma" });
+    fireEvent.change(search, { target: { value: "ballesta de mano" } });
+    const options = within(modal).getAllByRole("option");
+    expect(options).toHaveLength(1);
+    expect(options[0]).toHaveTextContent("Ballesta de mano");
+    fireEvent.click(options[0]);
+    expect(within(modal).getAllByText("Ocultable").length).toBeGreaterThan(0);
+  });
+});

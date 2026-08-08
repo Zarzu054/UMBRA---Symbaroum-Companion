@@ -244,6 +244,38 @@ function matchesWeaponCatalogFilter(item, filterId) {
     }
     return true;
 }
+function WeaponCatalogTypeIcon({ type }) {
+    const commonProps = {
+        viewBox: "0 0 24 24",
+        width: 24,
+        height: 24,
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: 1.7,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        "aria-hidden": true
+    };
+    if (type === "all") {
+        return _jsx("svg", { ...commonProps, children: _jsx("path", { d: "M4 20 20 4M13 4h7v7M4 4l5 5M4 4v5h5M15 15l5 5M15 20h5v-5" }) });
+    }
+    if (type === "one-handed") {
+        return _jsx("svg", { ...commonProps, children: _jsx("path", { d: "m5 19 12-12M14 4l6 6M4 20l4-1-3-3-1 4ZM11 10l3 3" }) });
+    }
+    if (type === "short") {
+        return _jsx("svg", { ...commonProps, children: _jsx("path", { d: "m6 18 9-9M13 6l5 5M5 19l3-1-2-2-1 3ZM10 11l3 3" }) });
+    }
+    if (type === "long") {
+        return _jsx("svg", { ...commonProps, children: _jsx("path", { d: "M4 20 18 6M15 4l5 5M3 21l5-1-4-4-1 5ZM11 10l3 3" }) });
+    }
+    if (type === "heavy") {
+        return _jsx("svg", { ...commonProps, children: _jsx("path", { d: "M5 20 16 9M13 4l7 7-4 4-7-7 4-4ZM4 21l4-1-3-3-1 4" }) });
+    }
+    if (type === "ranged") {
+        return _jsx("svg", { ...commonProps, children: _jsx("path", { d: "M6 3c5 4 5 14 0 18M6 3c9 3 9 15 0 18M5 12h15M17 9l3 3-3 3" }) });
+    }
+    return _jsx("svg", { ...commonProps, children: _jsx("path", { d: "M4 20 17 7M14 4l6 6M3 21l5-1-4-4-1 5M11 13l-3-3M8 10l3-1-1 3" }) });
+}
 function matchesArmorCatalogFilter(item, filterId) {
     if (item.category !== "armor")
         return false;
@@ -596,14 +628,14 @@ function normalizeWeaponQualityKey(value) {
     return normalizeCapabilityText(value).replace(/[^a-z0-9]+/g, "-");
 }
 function getKnownWeaponQualities(item) {
-    const knownIds = new Set(WEAPON_QUALITY_OPTIONS.map((entry) => entry.id));
     return parseWeaponQualities(item.qualities)
-        .filter((quality) => knownIds.has(normalizeWeaponQualityKey(quality)));
+        .map((quality) => findWeaponQualityOption(quality)?.label)
+        .filter((quality) => Boolean(quality))
+        .filter((quality, index, qualities) => qualities.indexOf(quality) === index);
 }
 function getCustomWeaponQualities(item) {
-    const knownIds = new Set(WEAPON_QUALITY_OPTIONS.map((entry) => entry.id));
     return parseWeaponQualities(item.qualities)
-        .filter((quality) => !knownIds.has(normalizeWeaponQualityKey(quality)));
+        .filter((quality) => !findWeaponQualityOption(quality));
 }
 function getKnownArmorQualities(item) {
     const knownIds = new Set(ARMOR_QUALITY_OPTIONS.map((entry) => entry.id));
@@ -721,6 +753,7 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
     const [selectedCatalogItemId, setSelectedCatalogItemId] = useState(ITEM_CATALOG[0]?.templateId ?? "");
     const [inventoryCatalogModalTab, setInventoryCatalogModalTab] = useState(null);
     const [selectedWeaponCatalogFilter, setSelectedWeaponCatalogFilter] = useState("all");
+    const [weaponCatalogSearch, setWeaponCatalogSearch] = useState("");
     const [selectedArmorCatalogFilter, setSelectedArmorCatalogFilter] = useState("all");
     const [selectedItemCatalogFilter, setSelectedItemCatalogFilter] = useState("all");
     const [history, setHistory] = useState([]);
@@ -853,12 +886,17 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
         return [];
     }, [inventoryCatalogModalTab]);
     const filteredModalCatalogItems = useMemo(() => inventoryCatalogModalTab === "weapons"
-        ? modalCatalogItems.filter((item) => matchesWeaponCatalogFilter(item, selectedWeaponCatalogFilter))
+        ? modalCatalogItems.filter((item) => {
+            if (!matchesWeaponCatalogFilter(item, selectedWeaponCatalogFilter))
+                return false;
+            const search = normalizeInventoryItemText(weaponCatalogSearch);
+            return !search || normalizeInventoryItemText(`${item.name} ${item.qualities} ${item.description}`).includes(search);
+        })
         : inventoryCatalogModalTab === "armors"
             ? modalCatalogItems.filter((item) => matchesArmorCatalogFilter(item, selectedArmorCatalogFilter))
             : inventoryCatalogModalTab === "items"
                 ? modalCatalogItems.filter((item) => matchesItemCatalogFilter(item, selectedItemCatalogFilter))
-                : modalCatalogItems, [inventoryCatalogModalTab, modalCatalogItems, selectedWeaponCatalogFilter, selectedArmorCatalogFilter, selectedItemCatalogFilter]);
+                : modalCatalogItems, [inventoryCatalogModalTab, modalCatalogItems, selectedWeaponCatalogFilter, selectedArmorCatalogFilter, selectedItemCatalogFilter, weaponCatalogSearch]);
     useEffect(() => {
         persistRollDestination("roll20");
     }, []);
@@ -1836,6 +1874,7 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
             return item.category !== "weapon" && item.category !== "armor";
         });
         setSelectedWeaponCatalogFilter("all");
+        setWeaponCatalogSearch("");
         setSelectedArmorCatalogFilter("all");
         setSelectedItemCatalogFilter("all");
         setSelectedCatalogItemId(filteredItems[0]?.templateId ?? "");
@@ -2165,7 +2204,7 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
                                 ? "Agregar arma"
                                 : inventoryCatalogModalTab === "armors"
                                     ? "Agregar armadura"
-                                    : "Agregar objeto" }), _jsx("p", { className: "section-help", children: "Selecciona un objeto existente del catalogo para anadirlo al inventario." }), _jsxs("div", { className: "unified-sheet-item-catalog-fields", children: [inventoryCatalogModalTab === "weapons" ? (_jsxs("label", { className: "field", children: [_jsx("span", { children: "Tipo" }), _jsx("select", { value: selectedWeaponCatalogFilter, onChange: (event) => setSelectedWeaponCatalogFilter(event.target.value), children: WEAPON_CATALOG_FILTER_OPTIONS.map((option) => (_jsx("option", { value: option.id, children: option.label }, option.id))) })] })) : inventoryCatalogModalTab === "armors" ? (_jsxs("label", { className: "field", children: [_jsx("span", { children: "Tipo" }), _jsx("select", { value: selectedArmorCatalogFilter, onChange: (event) => setSelectedArmorCatalogFilter(event.target.value), children: ARMOR_CATALOG_FILTER_OPTIONS.map((option) => (_jsx("option", { value: option.id, children: option.label }, option.id))) })] })) : inventoryCatalogModalTab === "items" ? (_jsxs("label", { className: "field", children: [_jsx("span", { children: "Tipo" }), _jsx("select", { value: selectedItemCatalogFilter, onChange: (event) => setSelectedItemCatalogFilter(event.target.value), children: ITEM_CATALOG_FILTER_OPTIONS.map((option) => (_jsx("option", { value: option.id, children: option.label }, option.id))) })] })) : null, _jsxs("label", { className: "field", children: [_jsx("span", { children: inventoryCatalogModalTab === "weapons" ? "Arma" : inventoryCatalogModalTab === "armors" ? "Armadura" : inventoryCatalogModalTab === "items" ? "Objeto" : "Catalogo" }), _jsx("select", { value: selectedCatalogItemId, onChange: (event) => setSelectedCatalogItemId(event.target.value), children: filteredModalCatalogItems.map((item) => (_jsx("option", { value: item.templateId, children: item.name }, item.templateId))) })] })] }), filteredModalCatalogItems.length > 0 ? (_jsx("div", { className: "unified-sheet-item-catalog-preview", children: (() => {
+                                    : "Agregar objeto" }), _jsx("p", { className: "section-help", children: "Selecciona un objeto existente del catalogo para anadirlo al inventario." }), _jsxs("div", { className: "unified-sheet-item-catalog-fields", children: [inventoryCatalogModalTab === "weapons" ? (_jsxs("fieldset", { className: "unified-sheet-weapon-type-picker", children: [_jsx("legend", { children: "Tipo de arma" }), _jsx("div", { className: "unified-sheet-weapon-type-options", children: WEAPON_CATALOG_FILTER_OPTIONS.map((option) => (_jsxs("button", { type: "button", className: selectedWeaponCatalogFilter === option.id ? "is-active" : "", "aria-pressed": selectedWeaponCatalogFilter === option.id, title: option.label, onClick: () => setSelectedWeaponCatalogFilter(option.id), children: [_jsx(WeaponCatalogTypeIcon, { type: option.id }), _jsx("span", { children: option.label })] }, option.id))) })] })) : inventoryCatalogModalTab === "armors" ? (_jsxs("label", { className: "field", children: [_jsx("span", { children: "Tipo" }), _jsx("select", { value: selectedArmorCatalogFilter, onChange: (event) => setSelectedArmorCatalogFilter(event.target.value), children: ARMOR_CATALOG_FILTER_OPTIONS.map((option) => (_jsx("option", { value: option.id, children: option.label }, option.id))) })] })) : inventoryCatalogModalTab === "items" ? (_jsxs("label", { className: "field", children: [_jsx("span", { children: "Tipo" }), _jsx("select", { value: selectedItemCatalogFilter, onChange: (event) => setSelectedItemCatalogFilter(event.target.value), children: ITEM_CATALOG_FILTER_OPTIONS.map((option) => (_jsx("option", { value: option.id, children: option.label }, option.id))) })] })) : null, inventoryCatalogModalTab === "weapons" ? (_jsxs("div", { className: "unified-sheet-weapon-search-selector", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Arma" }), _jsx("input", { type: "search", role: "combobox", "aria-label": "Buscar arma", "aria-controls": "weapon-catalog-results", "aria-expanded": filteredModalCatalogItems.length > 0, "aria-autocomplete": "list", placeholder: "Buscar por nombre o cualidad...", value: weaponCatalogSearch, onChange: (event) => setWeaponCatalogSearch(event.target.value) })] }), _jsx("div", { id: "weapon-catalog-results", className: "unified-sheet-weapon-search-results", role: "listbox", "aria-label": "Armas disponibles", children: filteredModalCatalogItems.length > 0 ? filteredModalCatalogItems.map((item) => (_jsxs("button", { type: "button", role: "option", "aria-selected": item.templateId === selectedCatalogItemId, className: item.templateId === selectedCatalogItemId ? "is-active" : "", onClick: () => setSelectedCatalogItemId(item.templateId), children: [_jsx("span", { children: item.name }), _jsx("small", { children: item.damageFormula || "Especial" })] }, item.templateId))) : _jsx("p", { children: "No hay armas que coincidan con la busqueda." }) })] })) : (_jsxs("label", { className: "field", children: [_jsx("span", { children: inventoryCatalogModalTab === "armors" ? "Armadura" : inventoryCatalogModalTab === "items" ? "Objeto" : "Catalogo" }), _jsx("select", { value: selectedCatalogItemId, onChange: (event) => setSelectedCatalogItemId(event.target.value), children: filteredModalCatalogItems.map((item) => (_jsx("option", { value: item.templateId, children: item.name }, item.templateId))) })] }))] }), filteredModalCatalogItems.length > 0 ? (_jsx("div", { className: "unified-sheet-item-catalog-preview", children: (() => {
                                 const selectedItem = filteredModalCatalogItems.find((item) => item.templateId === selectedCatalogItemId) ?? filteredModalCatalogItems[0];
                                 if (!selectedItem)
                                     return null;

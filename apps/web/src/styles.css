@@ -2503,8 +2503,10 @@ td {
 
 .unified-sheet-item-catalog-modal {
   width: min(520px, 100%);
+  max-height: min(90vh, 820px);
   display: grid;
   gap: 0.95rem;
+  overflow-y: auto;
 }
 
 .unified-sheet-weapon-editor-modal {
@@ -2518,6 +2520,119 @@ td {
 .unified-sheet-item-catalog-fields {
   display: grid;
   gap: 0.8rem;
+}
+
+.unified-sheet-weapon-type-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.unified-sheet-weapon-type-picker legend {
+  margin-bottom: 0.45rem;
+  color: #5f4938;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.unified-sheet-weapon-type-options {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.unified-sheet-weapon-type-options button {
+  min-width: 0;
+  min-height: 58px;
+  padding: 0.4rem 0.25rem;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.2rem;
+  border: 1px solid rgba(125, 91, 62, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 250, 244, 0.84);
+  color: #72543d;
+}
+
+.unified-sheet-weapon-type-options button span {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.65rem;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unified-sheet-weapon-type-options button:hover,
+.unified-sheet-weapon-type-options button.is-active {
+  border-color: #8b3038;
+  background: rgba(139, 48, 56, 0.1);
+  color: #7c2931;
+}
+
+.unified-sheet-weapon-type-options button.is-active {
+  box-shadow: inset 0 0 0 1px #8b3038;
+}
+
+.unified-sheet-weapon-search-selector {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.unified-sheet-weapon-search-results {
+  max-height: 158px;
+  padding: 0.35rem;
+  display: grid;
+  gap: 0.25rem;
+  overflow-y: auto;
+  border: 1px solid rgba(125, 91, 62, 0.22);
+  border-radius: 12px;
+  background: rgba(255, 252, 248, 0.9);
+}
+
+.unified-sheet-weapon-search-results button {
+  min-height: 38px;
+  padding: 0.45rem 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #4d3b2d;
+  text-align: left;
+}
+
+.unified-sheet-weapon-search-results button:hover,
+.unified-sheet-weapon-search-results button.is-active {
+  background: rgba(139, 48, 56, 0.1);
+  color: #792a32;
+}
+
+.unified-sheet-weapon-search-results button.is-active {
+  box-shadow: inset 3px 0 0 #8b3038;
+}
+
+.unified-sheet-weapon-search-results small {
+  flex: 0 0 auto;
+  color: inherit;
+  opacity: 0.76;
+}
+
+.unified-sheet-weapon-search-results p {
+  margin: 0;
+  padding: 0.7rem;
+  color: #7a6551;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 620px) {
+  .unified-sheet-weapon-type-options {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .unified-sheet-item-catalog-preview {

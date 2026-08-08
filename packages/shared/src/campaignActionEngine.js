@@ -415,7 +415,7 @@ function normalizeFormula(value) {
 }
 function applyPassiveActionRules(sheet, actions) {
     const filteredActions = actions.filter((action) => !shouldSuppressStandaloneStyleAction(action));
-    const styleAdjustedActions = applyIntegratedCombatStyles(sheet, filteredActions);
+    const styleAdjustedActions = applyWeaponQualityBonuses(sheet, applyIntegratedCombatStyles(sheet, filteredActions));
     ensureBerserkerDefenseAction(sheet, styleAdjustedActions);
     const visibleActions = styleAdjustedActions;
     const unarmedCombatLevel = getRatedEntryLevel(sheet, "Combate sin armas");
@@ -431,6 +431,31 @@ function applyPassiveActionRules(sheet, actions) {
     }
     applyConditionalDamageVariants(sheet, visibleActions);
     return dedupeActions(visibleActions);
+}
+function applyWeaponQualityBonuses(sheet, actions) {
+    return actions.map((action) => {
+        if (action.sourceType !== "weapon" || !action.rollAttribute || action.id.endsWith(":reload")) {
+            return action;
+        }
+        const weapon = sheet.inventoryItems.find((item) => item.category === "weapon"
+            && (action.id === `weapon:${item.id}`
+                || action.id === `weapon:${item.id}:thrown`
+                || normalizeName(item.name) === normalizeName(action.sourceName)));
+        if (!weapon) {
+            return action;
+        }
+        const isPrecise = parseWeaponQualities(weapon.qualities)
+            .some((quality) => findWeaponQualityOption(quality)?.id === "precisa");
+        if (!isPrecise) {
+            return action;
+        }
+        const attackSummary = appendSummary(action.effectSummary, "Tirada de ataque y, si procede, daño del arma.");
+        return {
+            ...action,
+            fixedTarget: (action.fixedTarget ?? sheet.atributos[action.rollAttribute]) + 1,
+            effectSummary: appendSummary(attackSummary, "Precisa: +1 a la tirada de ataque (ya aplicado).")
+        };
+    });
 }
 function applyConditionalDamageVariants(sheet, actions) {
     const bonuses = collectConditionalDamageBonuses(sheet, actions);
