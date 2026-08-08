@@ -831,7 +831,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const token = await ensureAccessToken();
       setCampaigns(await fetchCampaigns(token));
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : "No se pudieron cargar las campanas");
+      setLoadError(err instanceof Error ? err.message : "No se pudieron cargar las campañas");
     } finally {
       setIsLoading(false);
     }
@@ -859,7 +859,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setIsCreateCampaignModalOpen(false);
       setActiveSection("dmNotes");
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "No se pudo crear la campana");
+      setFormError(err instanceof Error ? err.message : "No se pudo crear la campaña");
     } finally {
       setIsSaving(false);
     }
@@ -1285,7 +1285,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         <section className="panel campaign-list-panel">
           <div className="row-actions">
             <div>
-              <h1>Campanas</h1>
+              <h1>Campañas</h1>
               <p className="section-help">Notas compartidas, notas del DJ y personajes vinculados.</p>
             </div>
             <div className="toolbar">
@@ -1297,7 +1297,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     setIsCreateCampaignModalOpen(true);
                   }}
                 >
-                  Nueva campana
+                  Nueva campaña
                 </button>
               ) : null}
               <button type="button" disabled={isLoading} onClick={() => void refresh()}>
@@ -1307,7 +1307,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           </div>
 
           {loadError ? <p className="error-text">{loadError}</p> : null}
-          {isLoading ? <p>Cargando campanas...</p> : null}
+          {isLoading ? <p>Cargando campañas...</p> : null}
 
           <div className="campaign-list">
             {campaigns.map((campaign) => (
@@ -1328,7 +1328,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               </button>
             ))}
             {!isLoading && campaigns.length === 0 ? (
-              <p className="section-help">Aun no hay campanas accesibles.</p>
+              <p className="section-help">Aun no hay campañas accesibles.</p>
             ) : null}
           </div>
         </section>
@@ -1352,7 +1352,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     setActiveSection(isDirector ? "dmNotes" : "sharedNotes");
                   }}
                 >
-                  Volver a campanas
+                  Volver a campañas
                 </button>
                 {isDirector ? (
                   <button
@@ -1432,7 +1432,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 </button>
               </div>
               <label className="field">
-                <span>Apuntes privados de campana</span>
+                <span>Apuntes privados de campaña</span>
                 <textarea
                   rows={14}
                   value={draft.notes}
@@ -1510,7 +1510,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             <section className="panel">
               <div className="row-actions">
                 <div>
-                  <h3>Wiki de campana</h3>
+                  <h3>Wiki de campaña</h3>
                   <p className="section-help">Jugadores pueden aportar entradas visibles para toda la campaña. El DJ puede mantener entradas privadas o compartirlas con jugadores concretos.</p>
                 </div>
                 <button type="button" disabled={isSaving} onClick={handlePrepareNewReference}>
@@ -1535,7 +1535,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   </button>
                 ))}
                 {selectedCampaign.references.length === 0 ? (
-                  <p className="section-help">Aun no hay referencias en esta campana.</p>
+                  <p className="section-help">Aun no hay referencias en esta campaña.</p>
                 ) : null}
               </div>
             </section>
@@ -1787,7 +1787,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             <section className="campaign-sheet-shell">
               <UnifiedCharacterSheet
                 title={campaignSheetModalEntry?.name ?? ""}
-                subtitle={`${selectedSheetEntry?.ownerEmail ?? ""} · Hoja vinculada a campana`}
+                subtitle={`${selectedSheetEntry?.ownerEmail ?? ""} · Hoja vinculada a campaña`}
                 sheet={selectedSheetEntry!.sheet!}
                 editable={false}
                 busy={isSaving}
@@ -2022,7 +2022,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               <div>
                 <h3>Confirmar desvinculacion</h3>
                 <p className="section-help">
-                  Vas a desvincular a {pendingUnlinkCharacter.name} de esta campana. Su ficha no se borra, pero dejara de aparecer aqui.
+                  Vas a desvincular a {pendingUnlinkCharacter.name} de esta campaña. Su ficha no se borra, pero dejara de aparecer aqui.
                 </p>
               </div>
               <button
@@ -2125,7 +2125,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             <div className="row-actions campaign-character-sheet-modal-header">
               <div>
                 <h3>{campaignSheetModalEntry.name}</h3>
-                <p className="section-help">{campaignSheetModalEntry.ownerEmail} | Hoja vinculada a campana</p>
+                <p className="section-help">{campaignSheetModalEntry.ownerEmail} | Hoja vinculada a campaña</p>
               </div>
               <button type="button" onClick={() => setSelectedSheetId(null)}>
                 Cerrar
@@ -2134,7 +2134,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
             <div className="campaign-character-sheet-modal-body">
               <UnifiedCharacterSheet
                 title={campaignSheetModalEntry.name}
-                subtitle={`${campaignSheetModalEntry.ownerEmail} | Hoja vinculada a campana`}
+                subtitle={`${campaignSheetModalEntry.ownerEmail} | Hoja vinculada a campaña`}
                 sheet={campaignSheetModalEntry.sheet!}
                 editable={false}
                 busy={isSaving}
@@ -2210,7 +2210,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         >
           <div className="panel modal-panel" onClick={(event) => event.stopPropagation()}>
             <div className="row-actions">
-              <h3>Nueva campana</h3>
+              <h3>Nueva campaña</h3>
               <div className="toolbar">
                 <button type="button" disabled={isSaving} onClick={() => void handleCreateCampaign()}>
                   Crear
@@ -2268,7 +2268,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         >
           <div className="panel modal-panel" onClick={(event) => event.stopPropagation()}>
             <div className="row-actions">
-              <h3>Detalles de campana</h3>
+              <h3>Detalles de campaña</h3>
               <div className="toolbar">
                 <button type="button" disabled={isSaving} onClick={() => void handleSaveCampaignDetails()}>
                   Guardar

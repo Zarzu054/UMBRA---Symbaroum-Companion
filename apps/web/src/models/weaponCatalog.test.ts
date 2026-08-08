@@ -63,6 +63,25 @@ describe("weapon catalog", () => {
     expect(attack?.fixedTarget).toBe(13);
     expect(attack?.effectSummary).toContain("ya aplicado");
     expect(computeDerivedStats(sheet).defensaTotal).toBe(12);
-    expect(computeDerivedStats(sheet).defensaArmaduraDetalle).toContain("Equilibrada: +1");
+    expect(computeDerivedStats(sheet).defensaArmaduraDetalle).toContain("Daga de parada: +1");
+  });
+
+  it("lists shields as weapons and applies their defense bonus", () => {
+    const shieldTemplates = ITEM_CATALOG.filter((item) => parseWeaponQualities(item.qualities).includes("Escudo"));
+    expect(shieldTemplates.map((item) => item.name)).toEqual(["Escudo", "Escudo de acero", "Rodela"]);
+    expect(shieldTemplates.every((item) => item.category === "weapon" && item.protectionFormula === "")).toBe(true);
+
+    const sheet = createEmptyCharacterSheet();
+    sheet.atributos.agil = 10;
+    const shield = { ...createInventoryItemFromTemplate(shieldTemplates[0]), equipped: true };
+    sheet.inventoryItems = [shield];
+    sheet.equipmentSlots.offHand = shield.id;
+    expect(computeDerivedStats(sheet).defensaTotal).toBe(11);
+    expect(computeDerivedStats(sheet).defensaArmaduraDetalle).toContain("Escudo: +1");
+
+    const steelShield = { ...createInventoryItemFromTemplate(shieldTemplates[1]), equipped: true };
+    sheet.inventoryItems = [steelShield];
+    sheet.equipmentSlots.offHand = steelShield.id;
+    expect(computeDerivedStats(sheet).defensaTotal).toBe(12);
   });
 });

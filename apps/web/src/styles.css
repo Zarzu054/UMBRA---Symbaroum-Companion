@@ -2538,8 +2538,12 @@ td {
 
 .unified-sheet-weapon-type-options {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.4rem;
+}
+
+.unified-sheet-armor-type-options {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .unified-sheet-weapon-type-options button {
@@ -2879,6 +2883,130 @@ td {
 .campaign-markdown-code-block code {
   padding: 0;
   background: transparent;
+}
+
+.unified-sheet-section-heading {
+  align-items: center;
+  margin-bottom: 0.9rem;
+}
+
+.unified-sheet-section-heading h3 {
+  margin: 0;
+}
+
+.unified-sheet-section-editor,
+.unified-sheet-read-view {
+  display: grid;
+  gap: 1rem;
+}
+
+.unified-sheet-read-meta {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.form-grid.unified-sheet-background-meta-grid,
+.unified-sheet-read-meta.unified-sheet-background-meta-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.unified-sheet-background-meta-grid > :nth-child(-n + 2) {
+  grid-column: span 3;
+}
+
+.unified-sheet-background-meta-grid > :nth-child(n + 3) {
+  grid-column: span 2;
+}
+
+.unified-sheet-read-meta.is-two-columns {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
+
+.unified-sheet-read-meta.is-contact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.unified-sheet-read-meta > div {
+  min-width: 0;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(147, 113, 80, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 250, 244, 0.62);
+}
+
+.unified-sheet-read-meta dt,
+.unified-sheet-read-section h4 {
+  margin: 0 0 0.3rem;
+  color: #705742;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.unified-sheet-read-meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #3f332a;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.unified-sheet-read-section {
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(147, 113, 80, 0.16);
+}
+
+.unified-sheet-read-section > p {
+  margin: 0;
+  color: #4f4034;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.unified-sheet-history-markdown {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.unified-sheet-contact-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.unified-sheet-contact-card {
+  display: grid;
+  gap: 0.65rem;
+}
+
+@media (max-width: 760px) {
+  .unified-sheet-read-meta,
+  .unified-sheet-read-meta.is-two-columns {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .unified-sheet-read-meta.is-contact {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .unified-sheet-read-meta,
+  .unified-sheet-read-meta.is-two-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid.unified-sheet-background-meta-grid,
+  .unified-sheet-read-meta.unified-sheet-background-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .unified-sheet-background-meta-grid > :nth-child(n) {
+    grid-column: auto;
+  }
 }
 
 .campaign-header-actions {
@@ -5245,13 +5373,32 @@ td {
 
 .unified-sheet-xp-controls {
   display: inline-flex;
-  align-items: center;
-  gap: 0.38rem;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.unified-sheet-xp-controls > strong {
+  font-size: 1.08rem;
+  color: #1f1b17;
 }
 
 .unified-sheet-xp-controls .vital-action {
-  min-width: 2rem;
-  padding: 0.28rem 0.55rem;
+  min-width: 5.6rem;
+  min-height: 36px;
+  padding: 0.38rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.unified-sheet-reroll-action {
+  white-space: nowrap;
+}
+
+.unified-sheet-reroll-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .unified-sheet-identity-grid,
@@ -6396,12 +6543,6 @@ td {
   gap: 0.18rem;
 }
 
-.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-controls {
-  flex-direction: row;
-  justify-content: center;
-  width: 100%;
-}
-
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-quantity-controls.is-weapon-summary .info-chip {
   align-self: center;
   justify-self: center;
@@ -6450,6 +6591,33 @@ td {
   font-size: 0.8rem;
 }
 
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-control-row {
+  display: grid;
+  grid-template-columns: 2.65rem 2.8rem 2.65rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-button.subtle-button {
+  width: 2.65rem;
+  min-width: 2.65rem;
+  height: 2.65rem;
+  min-height: 2.65rem;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-control-row > .unified-sheet-money-coin:only-child {
+  grid-column: 2;
+}
+
 .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-coin {
   width: 2.8rem;
   height: 2.8rem;
@@ -6484,6 +6652,16 @@ td {
   font-size: 1rem;
   font-weight: 700;
   color: #243748;
+}
+
+.unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-card .unified-sheet-money-amount {
+  line-height: 1.1;
+}
+
+@media (max-width: 560px) {
+  .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-money-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .unified-sheet-vital-actions .is-defense-roll {

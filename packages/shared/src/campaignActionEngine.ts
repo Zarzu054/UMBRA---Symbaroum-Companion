@@ -799,7 +799,7 @@ function resolveDamageRoll(
   }
 
   return {
-    label: selectedModifierLabels.length > 0 ? `Danio (${selectedModifierLabels.join(", ")})` : "Danio",
+    label: selectedModifierLabels.length > 0 ? `Daño (${selectedModifierLabels.join(", ")})` : "Daño",
     formula,
     selectedModifierIds: selectedModifiers.map((modifier) => modifier.id),
     selectedModifierLabels,
@@ -1113,13 +1113,13 @@ function hasEquippedShield(sheet: CharacterSheet): boolean {
 function buildTwoHandedSummary(level: SkillLevel): string {
   if (level === "maestro") return "Armas a dos manos: el ataque ignora la armadura del objetivo y conservas el reataque del nivel adepto.";
   if (level === "adepto") return "Armas a dos manos: cuando fallas, puedes intentar un segundo ataque de regreso contra el mismo objetivo.";
-  return "Armas a dos manos: el dano del arma pesada aumenta un nivel.";
+  return "Armas a dos manos: el daño del arma pesada aumenta un nivel.";
 }
 
 function buildPolearmSummary(level: SkillLevel): string {
   if (level === "maestro") return "Armas de asta: si aciertas con el ataque gratuito, puedes mantener al enemigo a raya fuera de alcance.";
   if (level === "adepto") return "Armas de asta: obtienes un ataque gratuito cuando un enemigo entra en tu alcance cuerpo a cuerpo.";
-  return "Armas de asta: el dano del arma larga aumenta un nivel.";
+  return "Armas de asta: el daño del arma larga aumenta un nivel.";
 }
 
 function buildPreySummary(level: SkillLevel): string {
@@ -1137,12 +1137,12 @@ function buildLongWeaponSummary(level: SkillLevel): string {
 function buildShieldSummary(level: SkillLevel): string {
   if (level === "maestro") return "Combate con escudo: tras impactar, puedes seguir con un golpe de escudo de 1d8 y derribo con [Fuerte<-Fuerte].";
   if (level === "adepto") return "Combate con escudo: tras impactar, puedes seguir con un golpe de escudo de 1d4 y derribo con [Fuerte<-Fuerte].";
-  return "Combate con escudo: mientras lleves escudo mejoras la defensa y el dano de armas compatibles.";
+  return "Combate con escudo: mientras lleves escudo mejoras la defensa y el daño de armas compatibles.";
 }
 
 function buildIronFistSummary(level: SkillLevel): string {
-  if (level === "maestro") return "Golpe de hierro: tus ataques cuerpo a cuerpo usan Fuerte en vez de Diestro y el bono de dano se resuelve desde el modal de dano.";
-  if (level === "adepto") return "Golpe de hierro: tus ataques cuerpo a cuerpo usan Fuerte en vez de Diestro y pueden beneficiarse del bono de dano de la habilidad.";
+  if (level === "maestro") return "Golpe de hierro: tus ataques cuerpo a cuerpo usan Fuerte en vez de Diestro y el bono de daño se resuelve desde el modal de daño.";
+  if (level === "adepto") return "Golpe de hierro: tus ataques cuerpo a cuerpo usan Fuerte en vez de Diestro y pueden beneficiarse del bono de daño de la habilidad.";
   return "Golpe de hierro: tus ataques cuerpo a cuerpo usan Fuerte en vez de Diestro.";
 }
 
@@ -1167,7 +1167,7 @@ function buildFastBowSummary(level: SkillLevel): string {
 function buildMarksmanSummary(level: SkillLevel): string {
   if (level === "maestro") return "Tirador: el ataque a distancia puede ignorar completamente la armadura.";
   if (level === "adepto") return "Tirador: si hieres al objetivo, puedes inmovilizar su movimiento con [Diestro<-Fuerte].";
-  return "Tirador: el dano de arcos y ballestas aumenta un nivel.";
+  return "Tirador: el daño de arcos y ballestas aumenta un nivel.";
 }
 
 function buildSixthSenseSummary(level: SkillLevel): string {
@@ -1179,7 +1179,7 @@ function buildSixthSenseSummary(level: SkillLevel): string {
 function buildSteelWindSummary(level: SkillLevel): string {
   if (level === "maestro") return "Viento de acero: puedes lanzar hasta tres armas arrojadizas con una sola accion.";
   if (level === "adepto") return "Viento de acero: puedes lanzar dos armas arrojadizas con una sola accion.";
-  return "Viento de acero: el dano de las armas arrojadizas aumenta a 1d8.";
+  return "Viento de acero: el daño de las armas arrojadizas aumenta a 1d8.";
 }
 
 function isWeaponTextMatch(action: CharacterActionDefinition, pattern: RegExp): boolean {
@@ -1215,7 +1215,7 @@ function isChainWeaponAction(action: CharacterActionDefinition): boolean {
 }
 
 function isKnifeWeaponAction(action: CharacterActionDefinition): boolean {
-  return isWeaponTextMatch(action, /(cuchillo|daga|punal|punal|estilete|kris)/);
+  return isWeaponTextMatch(action, /(cuchillo|daga|punal|puñal|estilete|kris)/);
 }
 
 function isBowWeaponAction(action: CharacterActionDefinition): boolean {

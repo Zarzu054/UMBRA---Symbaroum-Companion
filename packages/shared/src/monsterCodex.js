@@ -19,8 +19,8 @@ export const monsterCategorySchema = z.enum([
 ]);
 export const monsterThreatSchema = z.enum(["Sencillo", "Normal", "Complicado", "Difícil", "Mortal", "Legendario"]);
 const LEGACY_MONSTER_THREAT_MAP = {
+    "D\u00c3\u00a9bil": "Sencillo",
     "Débil": "Sencillo",
-    "DÃ©bil": "Sencillo",
     Moderado: "Normal",
     Peligroso: "Complicado",
     "Dif?cil": "Difícil"

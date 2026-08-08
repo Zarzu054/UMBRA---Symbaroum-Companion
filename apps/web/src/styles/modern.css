@@ -2717,6 +2717,30 @@ button[disabled] {
   background: var(--ui-surface);
 }
 
+:root[data-theme][data-palette] .unified-sheet-read-meta > div {
+  color: var(--ui-text);
+  border-color: var(--ui-border);
+  background: var(--ui-surface-muted);
+}
+
+:root[data-theme][data-palette] :is(
+  .unified-sheet-read-meta dt,
+  .unified-sheet-read-section h4
+) {
+  color: var(--ui-brand-strong);
+}
+
+:root[data-theme][data-palette] :is(
+  .unified-sheet-read-meta dd,
+  .unified-sheet-read-section > p
+) {
+  color: var(--ui-text);
+}
+
+:root[data-theme][data-palette] .unified-sheet-read-section {
+  border-color: var(--ui-border);
+}
+
 :root[data-theme][data-palette] .character-builder-acquisition-result.is-active {
   color: var(--ui-info);
   border-color: var(--ui-info);
@@ -2751,7 +2775,8 @@ button[disabled] {
   .unified-sheet-weapon-detail-primary strong,
   .unified-sheet-weapon-detail-stat strong,
   .unified-sheet-weapon-quality-panel strong,
-  .unified-sheet-xp-row > strong
+  .unified-sheet-xp-row > strong,
+  .unified-sheet-xp-controls > strong
 ) {
   color: var(--ui-text);
 }
@@ -3152,10 +3177,10 @@ button[disabled] {
 
 .unified-sheet-top-grid {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) minmax(200px, 230px);
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.7fr) minmax(190px, 0.7fr);
   gap: 20px;
   align-items: stretch;
-  justify-content: space-between;
+  justify-content: stretch;
 }
 
 .unified-sheet .unified-sheet-module.campaign-sheet-card {
@@ -3227,32 +3252,27 @@ button[disabled] {
 
 .unified-sheet-identity-module {
   display: grid;
+  width: 100%;
+  min-height: 86px;
+  align-self: start;
   align-content: center;
-  padding-block: 12px;
+  padding-block: 14px;
 }
 
 .unified-sheet-identity-module .unified-sheet-hero-main {
-  grid-template-columns: 54px minmax(0, 1fr) auto;
-  gap: 10px;
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
   align-items: center;
 }
 
-.unified-sheet-identity-module .unified-sheet-portrait {
-  width: 54px;
-  max-width: 54px;
-}
-
-.unified-sheet-identity-module .unified-sheet-portrait-content {
-  font-size: 1.35rem;
-}
-
 .unified-sheet-identity-module .unified-sheet-title {
-  font-size: clamp(1.08rem, 1.35vw, 1.42rem);
+  font-size: clamp(1.2rem, 1.5vw, 1.55rem);
   line-height: 1.05;
 }
 
 .unified-sheet-identity-module .unified-sheet-inline-subtitle {
-  font-size: 0.7rem;
+  font-size: 0.74rem;
   line-height: 1.25;
 }
 
@@ -3304,9 +3324,9 @@ button[disabled] {
   min-width: 0;
   display: grid;
   grid-template-areas:
-    "resources . attributes attributes attributes attributes attributes attributes attributes attributes"
-    "resources . combat combat combat combat combat conditions conditions conditions";
-  grid-template-columns: minmax(260px, 290px) 0 repeat(8, minmax(0, 1fr));
+    "attributes attributes attributes attributes attributes attributes attributes attributes"
+    "combat combat combat combat combat conditions conditions conditions";
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 20px 10px;
   align-items: stretch;
 }
@@ -3326,9 +3346,16 @@ button[disabled] {
 }
 
 .unified-sheet-resources-module {
+  --sheet-temporary-corruption: #6d3fa3;
+  --sheet-permanent-corruption: #171411;
   grid-area: resources;
   min-width: 0;
   align-self: stretch;
+}
+
+:root[data-theme="dark"] .unified-sheet-resources-module {
+  --sheet-temporary-corruption: #d8b9ff;
+  --sheet-permanent-corruption: #f4f1ed;
 }
 
 .unified-sheet-resources-module .unified-sheet-header-stats {
@@ -3352,8 +3379,12 @@ button[disabled] {
   color: var(--ui-text);
   border: 1px solid color-mix(in srgb, var(--ui-metal) 38%, var(--ui-border-strong));
   border-radius: var(--ui-radius-sm);
-  background: color-mix(in srgb, var(--ui-surface-muted) 82%, transparent);
-  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--ui-metal) 28%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--ui-metal-soft) 46%, transparent), transparent 42%),
+    var(--ui-surface-muted);
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--ui-surface) 70%, transparent),
+    0 3px 8px color-mix(in srgb, var(--ui-text) 9%, transparent);
 }
 
 .unified-sheet-resources-module .unified-sheet-vital-header span {
@@ -3405,29 +3436,41 @@ button[disabled] {
 }
 
 .unified-sheet-resources-module .unified-sheet-vital-card.is-corruption .unified-sheet-vital-header :is(span, strong) {
-  color: var(--ui-corruption);
+  color: var(--sheet-temporary-corruption);
 }
 
 .unified-sheet-resources-module .unified-sheet-vital-card.is-corruption .unified-sheet-vital-track {
-  border-color: color-mix(in srgb, var(--ui-corruption) 55%, var(--ui-border-strong));
-  background: color-mix(in srgb, var(--ui-corruption) 20%, var(--ui-surface-muted));
+  border-color: color-mix(in srgb, var(--sheet-temporary-corruption) 55%, var(--ui-border-strong));
+  background: color-mix(in srgb, var(--sheet-temporary-corruption) 20%, var(--ui-surface-muted));
 }
 
 .unified-sheet-resources-module .unified-sheet-vital-card.is-corruption .unified-sheet-vital-track > div {
-  background: var(--ui-corruption);
+  background: var(--sheet-temporary-corruption);
 }
 
 .unified-sheet-resources-module .unified-sheet-vital-card.is-corruption-deep .unified-sheet-vital-header :is(span, strong) {
-  color: var(--ui-danger);
+  color: var(--sheet-permanent-corruption);
 }
 
 .unified-sheet-resources-module .unified-sheet-vital-card.is-corruption-deep .unified-sheet-vital-track {
-  border-color: color-mix(in srgb, var(--ui-danger) 55%, var(--ui-border-strong));
-  background: color-mix(in srgb, var(--ui-danger) 20%, var(--ui-surface-muted));
+  border-color: color-mix(in srgb, var(--sheet-permanent-corruption) 55%, var(--ui-border-strong));
+  background: color-mix(in srgb, var(--sheet-permanent-corruption) 20%, var(--ui-surface-muted));
 }
 
 .unified-sheet-resources-module .unified-sheet-vital-card.is-corruption-deep .unified-sheet-vital-track > div {
-  background: var(--ui-danger);
+  background: var(--sheet-permanent-corruption);
+}
+
+:root .unified-sheet-resources-module .vital-action.corruption {
+  color: var(--sheet-temporary-corruption);
+  border-color: var(--sheet-temporary-corruption);
+  background: color-mix(in srgb, var(--sheet-temporary-corruption) 14%, var(--ui-surface));
+}
+
+:root .unified-sheet-resources-module .vital-action.corruption-deep {
+  color: var(--sheet-permanent-corruption);
+  border-color: var(--sheet-permanent-corruption);
+  background: color-mix(in srgb, var(--sheet-permanent-corruption) 14%, var(--ui-surface));
 }
 
 .unified-sheet-resources-module .unified-sheet-vital-card:first-child {
@@ -3438,10 +3481,44 @@ button[disabled] {
   padding-right: 14px;
 }
 
+.unified-sheet-top-grid > .unified-sheet-resources-module {
+  grid-area: auto;
+  min-width: 0;
+  align-self: stretch;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+}
+
+:root .unified-sheet .unified-sheet-top-grid > .unified-sheet-resources-module.campaign-sheet-card {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+:root .unified-sheet .unified-sheet-top-grid > .unified-sheet-resources-module.campaign-sheet-card::before,
+:root .unified-sheet .unified-sheet-top-grid > .unified-sheet-resources-module.campaign-sheet-card::after {
+  display: none;
+}
+
+.unified-sheet-top-grid > .unified-sheet-resources-module .unified-sheet-header-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.unified-sheet-top-grid > .unified-sheet-resources-module .unified-sheet-vital-card,
+.unified-sheet-top-grid > .unified-sheet-resources-module .unified-sheet-vital-card:first-child,
+.unified-sheet-top-grid > .unified-sheet-resources-module .unified-sheet-vital-card:last-child {
+  min-height: 0;
+  padding: 10px;
+}
+
 .unified-sheet-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0;
+  grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.45fr);
+  gap: 20px;
   align-items: start;
 }
 
@@ -3464,11 +3541,14 @@ button[disabled] {
 
 .unified-sheet-attributes-module .unified-sheet-attribute-chip {
   position: relative;
-  min-height: 0;
-  aspect-ratio: 1;
+  min-height: 106px;
+  width: calc(100% - 12px);
+  height: 106px;
+  aspect-ratio: auto;
   padding: 7px 8px 6px;
   gap: 4px;
   align-content: center;
+  justify-self: center;
   justify-items: center;
   border: 1px solid color-mix(in srgb, var(--ui-metal) 48%, var(--ui-border));
   border-radius: var(--ui-radius-md);
@@ -3507,10 +3587,11 @@ button[disabled] {
 
 .unified-sheet-attributes-module .unified-sheet-attribute-chip button {
   justify-self: center;
-  min-height: 27px;
-  margin-top: 3px;
-  padding: 2px 10px;
-  font-size: 0.7rem;
+  min-width: 58px;
+  min-height: 32px;
+  margin-top: 2px;
+  padding: 3px 12px;
+  font-size: 0.72rem;
 }
 
 .unified-sheet-attributes-module {
@@ -3533,7 +3614,7 @@ button[disabled] {
 }
 
 .unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-row.is-combat-values {
-  /* Compensa el padding del modulo para compartir exactamente los centros de la reticula de 8 atributos. */
+  /* Compensa el padding del modulo para compartir los centros de la reticula de atributos. */
   width: calc(100% + 13.5px);
   height: auto;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -3544,10 +3625,10 @@ button[disabled] {
 }
 
 .unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card {
-  min-height: 0;
-  width: calc(100% - 8px);
-  height: auto;
-  aspect-ratio: 1;
+  min-height: 106px;
+  width: calc(100% - 12px);
+  height: 106px;
+  aspect-ratio: auto;
   padding: 8px;
   display: grid;
   justify-self: center;
@@ -3588,6 +3669,17 @@ button[disabled] {
   line-height: 1;
 }
 
+.unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card > .unified-sheet-combat-value {
+  width: auto;
+  display: block;
+  overflow: visible;
+  font-size: 1.1rem;
+  line-height: 1;
+  text-align: center;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+}
+
 .unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card > strong {
   width: 100%;
   display: -webkit-box;
@@ -3620,9 +3712,10 @@ button[disabled] {
 }
 
 .unified-sheet-status-grid .unified-sheet-combat-module .vital-action {
-  min-height: 22px;
-  padding: 1px 5px;
-  font-size: 0.58rem;
+  min-width: 70px;
+  min-height: 32px;
+  padding: 3px 8px;
+  font-size: 0.65rem;
 }
 
 .unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card.is-derived-card > strong {
@@ -3669,9 +3762,67 @@ button[disabled] {
   overflow: hidden;
 }
 
+.unified-sheet-reader.unified-sheet-stage.has-stage-subtabs {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
 .unified-sheet-reader .unified-sheet-tabs {
   flex: 0 0 auto;
+}
+
+.unified-sheet-reader-narrative .unified-sheet-tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.unified-sheet-reader-mechanical .unified-sheet-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.unified-sheet-reader.unified-sheet-stage.unified-sheet-dynamic-column > .unified-sheet-stage-subtabs {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  align-items: stretch;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  background: color-mix(in srgb, var(--ui-surface-muted) 82%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ui-surface) 72%, transparent);
+}
+
+.unified-sheet-reader.unified-sheet-stage.unified-sheet-dynamic-column > .unified-sheet-stage-subtabs:is(.is-actions, .is-inventory) {
   grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.unified-sheet-reader.unified-sheet-stage.unified-sheet-dynamic-column > .unified-sheet-stage-subtabs.is-abilities {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.unified-sheet-reader.unified-sheet-stage.unified-sheet-dynamic-column > .unified-sheet-stage-subtabs button {
+  width: 100%;
+  min-height: 36px;
+  padding: 0.28rem 0.42rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--ui-text-muted);
+  background: var(--ui-surface);
+  box-shadow: none;
+  font-size: 0.72rem;
+  line-height: 1.15;
+}
+
+.unified-sheet-reader.unified-sheet-stage.unified-sheet-dynamic-column > .unified-sheet-stage-subtabs button.is-active {
+  color: var(--ui-on-brand);
+  border-color: var(--ui-brand);
+  background: var(--ui-brand);
+  box-shadow: 0 2px 5px color-mix(in srgb, var(--ui-brand) 26%, transparent);
+}
+
+.unified-sheet-reader.unified-sheet-stage.unified-sheet-dynamic-column > .unified-sheet-stage-subtabs button:hover:not(.is-active) {
+  color: var(--ui-text);
+  border-color: var(--ui-border-strong);
+  background: var(--ui-surface-hover);
 }
 
 .unified-sheet-reader .unified-sheet-tab-content {
@@ -3721,11 +3872,21 @@ button[disabled] {
   background: linear-gradient(90deg, rgba(247, 243, 232, 0.82), transparent);
 }
 
+:root[data-character-sheet-background] .unified-sheet-resources-module .unified-sheet-module-title {
+  color: #f7f3e8;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.96), 0 0 10px rgba(0, 0, 0, 0.78);
+}
+
+:root[data-character-sheet-background] .unified-sheet-resources-module .unified-sheet-module-title::after {
+  background: linear-gradient(90deg, rgba(247, 243, 232, 0.82), transparent);
+}
+
 :root[data-character-sheet-background][data-theme="light"] .unified-sheet-status-grid :is(
   .unified-sheet-vital-card,
   .unified-sheet-attribute-chip,
   .unified-sheet-combat-module .unified-sheet-quick-card
-) {
+),
+:root[data-character-sheet-background][data-theme="light"] .unified-sheet-resources-module .unified-sheet-vital-card {
   color: var(--ui-text);
   background: color-mix(in srgb, var(--ui-surface) 96%, transparent);
   box-shadow: 0 5px 16px rgba(0, 0, 0, 0.28);
@@ -3736,7 +3897,8 @@ button[disabled] {
   .unified-sheet-vital-card,
   .unified-sheet-attribute-chip,
   .unified-sheet-combat-module .unified-sheet-quick-card
-) {
+),
+:root[data-character-sheet-background][data-theme="dark"] .unified-sheet-resources-module .unified-sheet-vital-card {
   color: var(--ui-text);
   background: color-mix(in srgb, var(--ui-surface) 94%, transparent);
   box-shadow: 0 5px 18px rgba(0, 0, 0, 0.46);
@@ -3746,15 +3908,18 @@ button[disabled] {
 @media (max-width: 1300px) and (min-width: 901px) {
   .unified-sheet-status-grid {
     grid-template-areas:
-      "resources attributes"
-      "resources combat"
-      "conditions conditions";
-    grid-template-columns: minmax(240px, 270px) minmax(0, 1fr);
+      "attributes attributes"
+      "combat conditions";
+    grid-template-columns: minmax(0, 5fr) minmax(0, 3fr);
     gap: 20px;
   }
 
   .unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-card {
-    width: 100%;
+    width: calc(100% - 12px);
+  }
+
+  .unified-sheet-status-grid .unified-sheet-combat-module .unified-sheet-quick-row.is-combat-values {
+    width: calc(100% + 22.25px);
   }
 }
 
@@ -3772,21 +3937,39 @@ button[disabled] {
 
   .unified-sheet-status-grid {
     grid-template-areas:
-      "resources"
       "attributes"
       "combat"
       "conditions";
   }
 
+  .unified-sheet-top-grid > .unified-sheet-identity-module {
+    order: 1;
+  }
+
+  .unified-sheet-top-grid > .unified-sheet-experience-module {
+    order: 2;
+  }
+
+  .unified-sheet-top-grid > .unified-sheet-resources-module {
+    order: 3;
+  }
+
+  .unified-sheet-top-grid > .unified-sheet-resources-module .unified-sheet-header-stats {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+  }
+
   .unified-sheet:not(.is-mobile-tab-attributes) > :is(.unified-sheet-top-grid, .unified-sheet-status-grid),
   .unified-sheet:not(.is-mobile-tab-attributes) .unified-sheet-summary-column,
-  .unified-sheet.is-mobile-tab-attributes .unified-sheet-reader {
+  .unified-sheet.is-mobile-tab-attributes .unified-sheet-reader,
+  .unified-sheet:not(.is-mobile-tab-attributes) .unified-sheet-reader {
     display: none;
   }
 
   .unified-sheet.is-mobile-tab-attributes > :is(.unified-sheet-top-grid, .unified-sheet-status-grid),
   .unified-sheet.is-mobile-tab-attributes .unified-sheet-summary-column,
-  .unified-sheet:not(.is-mobile-tab-attributes) .unified-sheet-reader {
+  .unified-sheet:is(.is-mobile-tab-actions, .is-mobile-tab-inventory, .is-mobile-tab-abilities) .unified-sheet-reader-mechanical,
+  .unified-sheet:is(.is-mobile-tab-background, .is-mobile-tab-notes) .unified-sheet-reader-narrative {
     display: grid;
   }
 
@@ -3796,12 +3979,28 @@ button[disabled] {
     overflow: visible;
   }
 
+  .unified-sheet-reader.unified-sheet-stage.unified-sheet-dynamic-column > .unified-sheet-stage-subtabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
+  .unified-sheet-reader.unified-sheet-stage.unified-sheet-dynamic-column > .unified-sheet-stage-subtabs button {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 44px;
+    padding-inline: 0.75rem;
+  }
+
   .unified-sheet .unified-sheet-status-grid > .unified-sheet-module.campaign-sheet-card {
     min-height: 0;
   }
 
   .unified-sheet-attributes-module .unified-sheet-attribute-chip {
     min-height: 70px;
+    height: auto;
     aspect-ratio: auto;
   }
 
@@ -3839,12 +4038,7 @@ button[disabled] {
   }
 
   .unified-sheet-identity-module .unified-sheet-hero-main {
-    grid-template-columns: 50px minmax(0, 1fr) auto;
-  }
-
-  .unified-sheet-identity-module .unified-sheet-portrait {
-    width: 50px;
-    max-width: 50px;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .unified-sheet-resources-module .unified-sheet-vital-card,

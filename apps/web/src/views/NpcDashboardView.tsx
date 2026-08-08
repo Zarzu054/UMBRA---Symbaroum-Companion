@@ -370,7 +370,7 @@ function NpcEditorModal({ controller, onClose, onSaved }: NpcEditorModalProps) {
                   <span className="compendium-chip">{DEPTH_LABELS[draft.depth]}</span>
                 </div>
                 <p className="meta-text">{draft.faction || "Sin faccion"}</p>
-                <p>{draft.summary || "Anade un resumen para definir el rol narrativo del PNJ."}</p>
+                <p>{draft.summary || "Añade un resumen para definir el rol narrativo del PNJ."}</p>
                 {NPC_NOTE_SECTIONS.map((section) => (
                   <div key={section.key}>
                     <strong>{section.label}</strong>
