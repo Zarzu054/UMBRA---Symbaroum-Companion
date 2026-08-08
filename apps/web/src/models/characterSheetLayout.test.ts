@@ -6,11 +6,11 @@ describe("modular character sheet layout", () => {
   const stylesheet = readFileSync(resolve(process.cwd(), "src/styles/modern.css"), "utf8");
   const component = readFileSync(resolve(process.cwd(), "src/components/UnifiedCharacterSheet.tsx"), "utf8");
 
-  it("keeps separated desktop modules and an internally scrolling reader", () => {
+  it("keeps separated desktop modules and an internally scrolling reader that chains at its edges", () => {
     expect(stylesheet).toMatch(/\.character-actions-page > \.unified-sheet\s*\{[\s\S]*?gap: 20px/);
     expect(stylesheet).toMatch(/\.unified-sheet-workspace\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
     expect(stylesheet).toMatch(/\.unified-sheet-reader\.unified-sheet-stage\s*\{[\s\S]*?height: clamp\(620px,[\s\S]*?overflow: hidden/);
-    expect(stylesheet).toMatch(/\.unified-sheet-reader \.unified-sheet-tab-content\s*\{[\s\S]*?overflow-y: auto/);
+    expect(stylesheet).toMatch(/\.unified-sheet-reader \.unified-sheet-tab-content\s*\{[\s\S]*?overflow-y: auto;[\s\S]*?overscroll-behavior: auto/);
   });
 
   it("keeps identity compact and distributes sheet actions between identity and experience", () => {

@@ -3680,7 +3680,7 @@ button[disabled] {
   padding: 12px 4px 2px 0;
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
   scrollbar-gutter: stable;
 }
 
