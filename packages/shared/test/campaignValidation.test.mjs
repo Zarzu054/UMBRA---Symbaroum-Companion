@@ -912,6 +912,24 @@ test("al migrar el minimo de robustez se conservan los puntos de dano existentes
   assert.equal(synchronized.combate.robustezActual, 3);
 });
 
+test("sincroniza automaticamente Corrupcion y Moribundo y los retira cuando dejan de aplicar", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.corrupcion.temporal = 2;
+  sheet.combate.robustezActual = 0;
+
+  const affected = synchronizeCharacterSheet(sheet);
+  assert.deepEqual(
+    affected.conditions.filter((condition) => condition.active).map((condition) => condition.id).sort(),
+    ["legacy-corruption", "legacy-dying"]
+  );
+
+  affected.corrupcion.temporal = 0;
+  affected.combate.robustezActual = 1;
+  const recovered = synchronizeCharacterSheet(affected);
+  assert.equal(recovered.conditions.some((condition) => condition.id === "legacy-corruption"), false);
+  assert.equal(recovered.conditions.some((condition) => condition.id === "legacy-dying"), false);
+});
+
 test("deriveCharacterActions reemplaza acciones guardadas obsoletas de Arma natural por la derivada actual", () => {
   const sheet = synchronizeCharacterSheet({
     ...createEmptyCharacterSheet(),

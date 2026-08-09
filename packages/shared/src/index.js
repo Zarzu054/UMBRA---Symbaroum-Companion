@@ -835,7 +835,7 @@ function buildLegacyConditions(sheet) {
     if (sheet.corrupcion.temporal > 0 || sheet.corrupcion.permanente > 0) {
         conditions.push({
             id: "legacy-corruption",
-            name: "Corrupcion",
+            name: "Corrupción",
             category: "corruption",
             active: true,
             severity: sheet.corrupcion.permanente > 0 ? "major" : "moderate",
@@ -846,22 +846,31 @@ function buildLegacyConditions(sheet) {
     return conditions;
 }
 function synchronizeAutomaticConditions(conditions, sheet) {
-    const manualConditions = conditions.filter((condition) => condition.id !== "legacy-corruption");
-    if (sheet.corrupcion.temporal <= 0 && sheet.corrupcion.permanente <= 0) {
-        return manualConditions;
-    }
-    return [
-        ...manualConditions,
-        {
+    const manualConditions = conditions.filter((condition) => !["legacy-corruption", "legacy-dying", "condition-dying"].includes(condition.id));
+    const automaticConditions = [];
+    if (sheet.corrupcion.temporal > 0 || sheet.corrupcion.permanente > 0) {
+        automaticConditions.push({
             id: "legacy-corruption",
-            name: "Corrupcion",
+            name: "Corrupción",
             category: "corruption",
             active: true,
             severity: sheet.corrupcion.permanente > 0 ? "major" : "moderate",
             summary: `Temporal ${sheet.corrupcion.temporal} / Permanente ${sheet.corrupcion.permanente}`,
             notes: sheet.corrupcion.notas
-        }
-    ];
+        });
+    }
+    if (sheet.combate.robustezActual <= 0) {
+        automaticConditions.push({
+            id: "legacy-dying",
+            name: "Moribundo",
+            category: "injury",
+            active: true,
+            severity: "major",
+            summary: "La Robustez ha llegado a 0.",
+            notes: ""
+        });
+    }
+    return [...manualConditions, ...automaticConditions];
 }
 function buildLegacyNotesSections(sheet) {
     return {

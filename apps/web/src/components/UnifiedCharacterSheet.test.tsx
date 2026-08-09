@@ -108,6 +108,50 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(screen.queryByRole("region", { name: "Controles de ficha" })).not.toBeInTheDocument();
   });
 
+  it("shows every manual condition in grey and toggles each one independently", () => {
+    const sheet = createEmptyCharacterSheet();
+    render(<UnifiedCharacterSheet title="Arold" subtitle="Guerrero" sheet={sheet} editable />);
+
+    const conditions = screen.getByRole("region", { name: "Condiciones" });
+    for (const name of ["Ardiendo", "Aturdido", "Cegado", "Derribado", "Envenenado", "Inmovilizado", "Paralizado", "Sangrando"]) {
+      expect(within(conditions).getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
+    }
+    expect(within(conditions).queryByText("Moribundo")).not.toBeInTheDocument();
+    expect(within(conditions).queryByText("Corrupción")).not.toBeInTheDocument();
+
+    const poisoned = within(conditions).getByRole("button", { name: "Envenenado" });
+    const stunned = within(conditions).getByRole("button", { name: "Aturdido" });
+    fireEvent.click(poisoned);
+    expect(poisoned).toHaveAttribute("aria-pressed", "true");
+    expect(poisoned).toHaveClass("is-active", "is-tone-poison");
+    expect(stunned).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(stunned);
+    expect(poisoned).toHaveAttribute("aria-pressed", "true");
+    expect(stunned).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(poisoned);
+    expect(poisoned).toHaveAttribute("aria-pressed", "false");
+    expect(stunned).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("only shows automatic conditions while they apply and never renders them as toggles", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.corrupcion.temporal = 1;
+    sheet.combate.robustezActual = 0;
+
+    render(<UnifiedCharacterSheet title="Arold" subtitle="Guerrero" sheet={sheet} editable />);
+
+    const conditions = screen.getByRole("region", { name: "Condiciones" });
+    const corruption = within(conditions).getByText("Corrupción");
+    const dying = within(conditions).getByText("Moribundo");
+
+    expect(corruption).toHaveClass("unified-sheet-condition-badge", "is-active", "is-tone-corruption");
+    expect(dying).toHaveClass("unified-sheet-condition-badge", "is-active", "is-tone-critical");
+    expect(within(conditions).queryByRole("button", { name: "Corrupción" })).not.toBeInTheDocument();
+    expect(within(conditions).queryByRole("button", { name: "Moribundo" })).not.toBeInTheDocument();
+  });
+
   it("splits narrative and mechanical desktop sections into left and right readers", () => {
     const sheet = createEmptyCharacterSheet();
     const { container } = render(

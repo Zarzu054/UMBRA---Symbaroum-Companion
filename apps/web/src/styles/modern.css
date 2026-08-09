@@ -3753,6 +3753,76 @@ button[disabled] {
   background: transparent;
 }
 
+.unified-sheet-condition-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(94px, 1fr));
+  gap: 6px;
+}
+
+:root[data-theme][data-palette] :is(.unified-sheet-condition-toggle, .unified-sheet-condition-badge) {
+  width: 100%;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid var(--ui-border-strong);
+  border-radius: 999px;
+  color: var(--ui-text-muted);
+  background: var(--ui-surface-muted);
+  box-shadow: none;
+  font-size: 0.68rem;
+  line-height: 1.1;
+  opacity: 0.72;
+}
+
+:root[data-theme][data-palette] .unified-sheet-condition-toggle[aria-disabled="true"] {
+  cursor: default;
+}
+
+:root[data-theme][data-palette] .unified-sheet-condition-toggle[aria-disabled="false"]:hover:not(.is-active) {
+  color: var(--ui-text);
+  border-color: var(--ui-brand);
+  background: var(--ui-surface-hover);
+  opacity: 1;
+}
+
+:root[data-theme][data-palette] :is(.unified-sheet-condition-toggle, .unified-sheet-condition-badge).is-active {
+  opacity: 1;
+  box-shadow: 0 2px 5px color-mix(in srgb, currentColor 18%, transparent);
+}
+
+:root[data-theme][data-palette] :is(.unified-sheet-condition-toggle, .unified-sheet-condition-badge).is-active:is(.is-tone-danger, .is-tone-critical) {
+  color: var(--ui-danger);
+  border-color: var(--ui-danger);
+  background: var(--ui-danger-soft);
+}
+
+:root[data-theme][data-palette] :is(.unified-sheet-condition-toggle, .unified-sheet-condition-badge).is-active.is-tone-warning {
+  color: var(--ui-warning);
+  border-color: var(--ui-warning);
+  background: var(--ui-warning-soft);
+}
+
+:root[data-theme][data-palette] :is(.unified-sheet-condition-toggle, .unified-sheet-condition-badge).is-active.is-tone-info {
+  color: var(--ui-info);
+  border-color: var(--ui-info);
+  background: var(--ui-info-soft);
+}
+
+:root[data-theme][data-palette] :is(.unified-sheet-condition-toggle, .unified-sheet-condition-badge).is-active.is-tone-poison {
+  color: var(--ui-success);
+  border-color: var(--ui-success);
+  background: var(--ui-success-soft);
+}
+
+:root[data-theme][data-palette] .unified-sheet-condition-badge.is-active.is-tone-corruption {
+  color: var(--ui-corruption);
+  border-color: var(--ui-corruption);
+  background: color-mix(in srgb, var(--ui-corruption) 14%, var(--ui-surface));
+}
+
 .unified-sheet-reader.unified-sheet-stage {
   width: 100%;
   height: clamp(620px, calc(100dvh - 96px), 840px);

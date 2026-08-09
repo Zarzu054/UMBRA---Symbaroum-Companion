@@ -44,6 +44,15 @@ type InventoryTabId = "money" | "weapons" | "armors" | "artifacts" | "items";
 type RatedEntry = CharacterSheet["habilidades"][number];
 type SimpleSheetListSection = "bendiciones" | "cargas" | "rasgos";
 type CharacterPersonalNoteEntry = CharacterSheet["personalNotes"][number];
+type CharacterConditionEntry = CharacterSheet["conditions"][number];
+type ConditionTone = "danger" | "warning" | "info" | "poison" | "critical" | "corruption";
+
+type CharacterConditionDefinition = {
+  id: string;
+  name: string;
+  category: CharacterConditionEntry["category"];
+  tone: ConditionTone;
+};
 
 type Props = {
   title: string;
@@ -173,6 +182,32 @@ const NARRATIVE_TAB_IDS: NarrativeTabId[] = ["background", "notes"];
 const ACTION_TAB_IDS: ActionTabId[] = ["all", "favorites", "attacks", "powers", "artifacts", "actions", "free", "reactions", "other", "special"];
 const CAPABILITY_TAB_IDS: CapabilityTabId[] = ["traits", "blessings", "burdens", "abilities", "powers", "rituals"];
 const INVENTORY_TAB_IDS: InventoryTabId[] = ["money", "weapons", "armors", "artifacts", "items"];
+
+const CHARACTER_CONDITION_DEFINITIONS: CharacterConditionDefinition[] = [
+  { id: "condition-burning", name: "Ardiendo", category: "injury", tone: "danger" },
+  { id: "condition-stunned", name: "Aturdido", category: "state", tone: "warning" },
+  { id: "condition-blinded", name: "Cegado", category: "state", tone: "warning" },
+  { id: "condition-prone", name: "Derribado", category: "state", tone: "info" },
+  { id: "condition-poisoned", name: "Envenenado", category: "injury", tone: "poison" },
+  { id: "condition-immobilized", name: "Inmovilizado", category: "state", tone: "info" },
+  { id: "condition-paralyzed", name: "Paralizado", category: "state", tone: "critical" },
+  { id: "condition-bleeding", name: "Sangrando", category: "injury", tone: "danger" }
+];
+
+function normalizeConditionName(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+}
+
+function matchesConditionDefinition(condition: CharacterConditionEntry, definition: CharacterConditionDefinition): boolean {
+  return condition.id === definition.id || normalizeConditionName(condition.name) === normalizeConditionName(definition.name);
+}
+
+function getStoredConditionTone(condition: CharacterConditionEntry): ConditionTone {
+  if (condition.category === "injury") return "danger";
+  if (condition.category === "corruption") return "critical";
+  if (condition.category === "state") return "info";
+  return "warning";
+}
 
 const WEAPON_CATALOG_FILTER_OPTIONS: Array<{ id: WeaponCatalogFilterId; label: string }> = [
   { id: "all", label: "Todas" },
@@ -1153,6 +1188,17 @@ export function UnifiedCharacterSheet({
     });
   };
   const personalNotes = useMemo(() => sortCharacterPersonalNotes(normalizedSheet.personalNotes ?? []), [normalizedSheet.personalNotes]);
+  const automaticConditions = useMemo(
+    () => normalizedSheet.conditions.filter((condition) => ["legacy-corruption", "legacy-dying"].includes(condition.id) && condition.active),
+    [normalizedSheet.conditions]
+  );
+  const additionalConditions = useMemo(
+    () => normalizedSheet.conditions.filter((condition) => (
+      !["legacy-corruption", "legacy-dying", "condition-dying"].includes(condition.id)
+      && !CHARACTER_CONDITION_DEFINITIONS.some((definition) => matchesConditionDefinition(condition, definition))
+    )),
+    [normalizedSheet.conditions]
+  );
   const selectedPersonalNote = useMemo(
     () => personalNotes.find((entry) => entry.id === selectedPersonalNoteId) ?? null,
     [personalNotes, selectedPersonalNoteId]
@@ -2627,16 +2673,49 @@ export function UnifiedCharacterSheet({
     });
   }
 
-  function updateCondition(index: number, field: keyof CharacterSheet["conditions"][number], value: string | boolean): void {
-    setDraft({ ...draft, conditions: draft.conditions.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)) });
+  function toggleDefinedCondition(definition: CharacterConditionDefinition): void {
+    if (!editable || busy || isSavingLocal) {
+      return;
+    }
+
+    const conditionIndex = draft.conditions.findIndex((condition) => matchesConditionDefinition(condition, definition));
+    if (conditionIndex >= 0) {
+      setDraft({
+        ...draft,
+        conditions: draft.conditions.map((condition, index) => (
+          index === conditionIndex ? { ...condition, active: !condition.active } : condition
+        ))
+      });
+      return;
+    }
+
+    setDraft({
+      ...draft,
+      conditions: [
+        ...draft.conditions,
+        {
+          id: definition.id,
+          name: definition.name,
+          category: definition.category,
+          active: true,
+          severity: "minor",
+          summary: "",
+          notes: ""
+        }
+      ]
+    });
   }
 
-  function addCondition(): void {
-    setDraft({ ...draft, conditions: [...draft.conditions, { id: `condition-${Date.now()}`, name: "", category: "custom", active: true, severity: "minor", summary: "", notes: "" }] });
-  }
-
-  function removeCondition(index: number): void {
-    setDraft({ ...draft, conditions: draft.conditions.filter((_, itemIndex) => itemIndex !== index) });
+  function toggleStoredCondition(conditionId: string): void {
+    if (!editable || busy || isSavingLocal) {
+      return;
+    }
+    setDraft({
+      ...draft,
+      conditions: draft.conditions.map((condition) => (
+        condition.id === conditionId ? { ...condition, active: !condition.active } : condition
+      ))
+    });
   }
 
   function adjustNumber(path: string, delta: number, min = 0): void {
@@ -3350,10 +3429,48 @@ export function UnifiedCharacterSheet({
           <h2 id="unified-sheet-conditions-title" className="unified-sheet-module-title">Condiciones</h2>
           <div className="unified-sheet-quick-row is-conditions">
             <article className="unified-sheet-quick-card is-wide">
-              <div className="unified-sheet-quick-tags">
-                {normalizedSheet.conditions.length > 0 ? normalizedSheet.conditions.slice(0, 4).map((condition) => (
-                  <span key={condition.id} className={`unified-sheet-tag is-${condition.category}`}>{condition.name || "Condicion"}</span>
-                )) : <span className="unified-sheet-tag">Sin condiciones</span>}
+              <div className="unified-sheet-condition-grid">
+                {automaticConditions.map((condition) => (
+                  <span
+                    key={condition.id}
+                    className={`unified-sheet-condition-badge is-active ${condition.id === "legacy-corruption" ? "is-tone-corruption" : "is-tone-critical"}`}
+                    title="Condición activada automáticamente"
+                  >
+                    {condition.name}
+                  </span>
+                ))}
+                {CHARACTER_CONDITION_DEFINITIONS.map((definition) => {
+                  const condition = normalizedSheet.conditions.find((entry) => matchesConditionDefinition(entry, definition));
+                  const isActive = condition?.active === true;
+                  return (
+                    <button
+                      key={definition.id}
+                      type="button"
+                      className={`unified-sheet-condition-toggle is-tone-${definition.tone}${isActive ? " is-active" : ""}`}
+                      aria-pressed={isActive}
+                      aria-disabled={!editable || busy || isSavingLocal}
+                      title={`${isActive ? "Desactivar" : "Activar"} ${definition.name}`}
+                      tabIndex={editable ? 0 : -1}
+                      onClick={() => toggleDefinedCondition(definition)}
+                    >
+                      {definition.name}
+                    </button>
+                  );
+                })}
+                {additionalConditions.map((condition) => (
+                  <button
+                    key={condition.id}
+                    type="button"
+                    className={`unified-sheet-condition-toggle is-tone-${getStoredConditionTone(condition)}${condition.active ? " is-active" : ""}`}
+                    aria-pressed={condition.active}
+                    aria-disabled={!editable || busy || isSavingLocal}
+                    title={`${condition.active ? "Desactivar" : "Activar"} ${condition.name}`}
+                    tabIndex={editable ? 0 : -1}
+                    onClick={() => toggleStoredCondition(condition.id)}
+                  >
+                    {condition.name}
+                  </button>
+                ))}
               </div>
             </article>
           </div>

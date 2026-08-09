@@ -947,7 +947,7 @@ function buildLegacyConditions(sheet: z.infer<typeof characterSheetObjectSchema>
   if (sheet.corrupcion.temporal > 0 || sheet.corrupcion.permanente > 0) {
     conditions.push({
       id: "legacy-corruption",
-      name: "Corrupcion",
+      name: "Corrupción",
       category: "corruption",
       active: true,
       severity: sheet.corrupcion.permanente > 0 ? "major" : "moderate",
@@ -960,26 +960,36 @@ function buildLegacyConditions(sheet: z.infer<typeof characterSheetObjectSchema>
 
 function synchronizeAutomaticConditions(
   conditions: z.infer<typeof conditionSchema>[],
-  sheet: Pick<z.infer<typeof characterSheetObjectSchema>, "corrupcion">
+  sheet: Pick<z.infer<typeof characterSheetObjectSchema>, "corrupcion" | "combate">
 ): z.infer<typeof conditionSchema>[] {
-  const manualConditions = conditions.filter((condition) => condition.id !== "legacy-corruption");
+  const manualConditions = conditions.filter((condition) => !["legacy-corruption", "legacy-dying", "condition-dying"].includes(condition.id));
+  const automaticConditions: z.infer<typeof conditionSchema>[] = [];
 
-  if (sheet.corrupcion.temporal <= 0 && sheet.corrupcion.permanente <= 0) {
-    return manualConditions;
-  }
-
-  return [
-    ...manualConditions,
-    {
+  if (sheet.corrupcion.temporal > 0 || sheet.corrupcion.permanente > 0) {
+    automaticConditions.push({
       id: "legacy-corruption",
-      name: "Corrupcion",
+      name: "Corrupción",
       category: "corruption",
       active: true,
       severity: sheet.corrupcion.permanente > 0 ? "major" : "moderate",
       summary: `Temporal ${sheet.corrupcion.temporal} / Permanente ${sheet.corrupcion.permanente}`,
       notes: sheet.corrupcion.notas
-    }
-  ];
+    });
+  }
+
+  if (sheet.combate.robustezActual <= 0) {
+    automaticConditions.push({
+      id: "legacy-dying",
+      name: "Moribundo",
+      category: "injury",
+      active: true,
+      severity: "major",
+      summary: "La Robustez ha llegado a 0.",
+      notes: ""
+    });
+  }
+
+  return [...manualConditions, ...automaticConditions];
 }
 
 function buildLegacyNotesSections(sheet: z.infer<typeof characterSheetObjectSchema>): z.infer<typeof noteSectionsSchema> {

@@ -101,4 +101,13 @@ describe("modular character sheet layout", () => {
     expect(stylesheet).toMatch(/> \.unified-sheet-stage-subtabs button\s*\{[\s\S]*?border-radius: 999px;[\s\S]*?background: var\(--ui-surface\)/);
     expect(stylesheet).toMatch(/> \.unified-sheet-stage-subtabs button\.is-active\s*\{[\s\S]*?color: var\(--ui-on-brand\);[\s\S]*?background: var\(--ui-brand\)/);
   });
+
+  it("keeps inactive conditions neutral and gives active toggles semantic colors", () => {
+    expect(component).toContain("CHARACTER_CONDITION_DEFINITIONS.map");
+    expect(component).toContain("aria-pressed={isActive}");
+    expect(component).toContain("unified-sheet-condition-badge is-active");
+    expect(stylesheet).toMatch(/:is\(\.unified-sheet-condition-toggle, \.unified-sheet-condition-badge\)\s*\{[\s\S]*?color: var\(--ui-text-muted\);[\s\S]*?background: var\(--ui-surface-muted\);[\s\S]*?opacity: 0\.72/);
+    expect(stylesheet).toMatch(/:is\(\.unified-sheet-condition-toggle, \.unified-sheet-condition-badge\)\.is-active\.is-tone-poison\s*\{[\s\S]*?color: var\(--ui-success\);[\s\S]*?background: var\(--ui-success-soft\)/);
+    expect(stylesheet).toMatch(/\.unified-sheet-condition-badge\.is-active\.is-tone-corruption\s*\{[\s\S]*?color: var\(--ui-corruption\)/);
+  });
 });
