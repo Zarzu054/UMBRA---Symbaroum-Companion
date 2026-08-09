@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ALL_ENTRIES, canonicalizeCompendiumSourceName, type CompendiumEntry } from "../models/compendiumEntries";
 
@@ -126,6 +126,9 @@ describe("CompendiumView library", () => {
 
   it("starts on the section cover and switches between type and source catalogues", async () => {
     renderCompendium();
+    const hero = screen.getByRole("heading", { name: "Compendio Central" }).closest(".compendium-library-hero") as HTMLElement;
+    expect(within(hero).getByRole("searchbox", { name: "Búsqueda global" })).toBeInTheDocument();
+    expect(document.querySelector(".compendium-search-panel")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Favoritos" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Explorar el archivo" })).toBeInTheDocument();
     const abilityCategory = screen.getByRole("button", { name: /Habilidades.*entradas/ });
@@ -138,6 +141,33 @@ describe("CompendiumView library", () => {
     expect(screen.getByRole("button", { name: /Libro Básico.*entradas/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Resumen de Reglas.*entradas/ })).toBeInTheDocument();
     await waitFor(() => expect(serviceMocks.fetchCompendiumLibrary).toHaveBeenCalledWith("access-token"));
+  });
+
+  it("shows the equipment group and renders structured facts, variants and source links", async () => {
+    const antidote = ALL_ENTRIES.find((candidate) => candidate.tipo === "elixir" && candidate.nombre === "Antídoto")!;
+    renderCompendium({ initialEntryId: antidote.id });
+
+    expect(await screen.findByRole("heading", { name: "Antídoto" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Datos de la entrada")).toHaveTextContent("PrecioDesde 1 tálero");
+    expect(screen.getByRole("heading", { name: "Variantes" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Débil" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Libro Básico p.151" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Guía Avanzada del Jugador p.120" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "← Volver al compendio" }));
+    expect(screen.getByRole("heading", { name: "Equipo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Elixires.*entradas/ })).toHaveClass("app-card-accent--elixir");
+    expect(screen.getByRole("button", { name: /Artefactos menores.*entradas/ })).toBeInTheDocument();
+  });
+
+  it("opens related weapon qualities as individual compendium entries", async () => {
+    const longBow = ALL_ENTRIES.find((candidate) => candidate.tipo === "arma" && candidate.nombre === "Arco largo")!;
+    renderCompendium({ initialEntryId: longBow.id, initialTypeFilter: "arma" });
+
+    const related = await screen.findByRole("button", { name: "Precisa" });
+    fireEvent.click(related);
+    expect(await screen.findByRole("heading", { name: "Precisa" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Tipo")).toHaveValue("cualidad_arma");
   });
 
   it("opens a type section and returns to the cover after clearing filters", () => {
@@ -154,13 +184,32 @@ describe("CompendiumView library", () => {
     expect(screen.getByRole("button", { name: "Volver a personajes" })).toBeInTheDocument();
   });
 
-  it("never renders descriptions in the result list, including text searches", () => {
+  it("keeps global search on the cover with quick results and opens the complete result view on demand", () => {
     renderCompendium();
     fireEvent.change(screen.getByRole("searchbox", { name: "Búsqueda global" }), {
       target: { value: "corrupcion" }
     });
+
+    const quickResults = screen.getByRole("listbox", { name: "Resultados de búsqueda global" });
+    expect(within(quickResults).getAllByRole("option").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "Explorar el archivo" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Resultados" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Ver los \d+ resultados/ }));
     expect(screen.getByRole("heading", { name: "Resultados" })).toBeInTheDocument();
     expect(document.querySelector(".compendium-result-snippet")).not.toBeInTheDocument();
+  });
+
+  it("opens an entry directly from the cover search dropdown", async () => {
+    renderCompendium();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Búsqueda global" }), {
+      target: { value: "antidoto" }
+    });
+
+    const quickResults = screen.getByRole("listbox", { name: "Resultados de búsqueda global" });
+    fireEvent.click(within(quickResults).getByRole("option", { name: /^Antídoto/ }));
+    expect(await screen.findByRole("heading", { name: "Antídoto" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "← Volver al compendio" })).toBeInTheDocument();
   });
 
   it("opens a deep-linked entry, records it and serializes all hash fields", async () => {

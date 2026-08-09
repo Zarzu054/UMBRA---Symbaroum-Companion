@@ -118,7 +118,7 @@ type CapabilityTier = {
 
 type WeaponCatalogFilterId = "all" | "one-handed" | "short" | "long" | "heavy" | "ranged" | "thrown" | "shield";
 type ArmorCatalogFilterId = "all" | "light" | "medium" | "heavy";
-type ItemCatalogFilterId = "all" | "consumable" | "travel" | "ammunition" | "tool" | "material" | "ritual" | "valuable" | "artifact";
+type ItemCatalogFilterId = "all" | "elixir" | "minor-artifact" | "trap" | "tool" | "equipment" | "container" | "travel" | "ammunition" | "material" | "ritual" | "valuable";
 
 type MoneyCounters = {
   taleros: number;
@@ -229,14 +229,17 @@ const ARMOR_CATALOG_FILTER_OPTIONS: Array<{ id: ArmorCatalogFilterId; label: str
 
 const ITEM_CATALOG_FILTER_OPTIONS: Array<{ id: ItemCatalogFilterId; label: string }> = [
   { id: "all", label: "Todos" },
-  { id: "consumable", label: "Consumibles" },
+  { id: "elixir", label: "Elixires" },
+  { id: "minor-artifact", label: "Artefactos menores" },
+  { id: "trap", label: "Trampas" },
+  { id: "equipment", label: "Equipo general" },
+  { id: "container", label: "Receptáculos" },
   { id: "travel", label: "Viaje" },
-  { id: "ammunition", label: "Municion" },
+  { id: "ammunition", label: "Munición" },
   { id: "tool", label: "Herramientas" },
   { id: "material", label: "Materiales" },
   { id: "ritual", label: "Rituales" },
-  { id: "valuable", label: "Valiosos" },
-  { id: "artifact", label: "Artefactos" }
+  { id: "valuable", label: "Valiosos" }
 ];
 
 const SHEET_TAB_STORAGE_PREFIX = "umbra:character-sheet-tabs:";
@@ -543,11 +546,14 @@ function matchesItemCatalogFilter(item: ItemTemplate, filterId: ItemCatalogFilte
   if (item.category === "weapon" || item.category === "armor") return false;
   if (filterId === "all") return true;
   const qualities = parseWeaponQualities(item.qualities).map((entry) => entry.toLowerCase());
-  if (filterId === "artifact") return item.category === "artifact" || qualities.includes("mistico");
-  if (filterId === "consumable") return item.category === "consumable";
+  if (filterId === "elixir") return item.catalogGroup === "elixir";
+  if (filterId === "minor-artifact") return item.catalogGroup === "minor-artifact";
+  if (filterId === "trap") return item.catalogGroup === "trap";
+  if (filterId === "equipment") return item.catalogGroup === "equipment";
+  if (filterId === "container") return qualities.includes("contenedor");
   if (filterId === "travel") return qualities.includes("viaje");
   if (filterId === "ammunition") return qualities.includes("municion");
-  if (filterId === "tool") return qualities.includes("herramienta");
+  if (filterId === "tool") return item.catalogGroup === "tool" || qualities.includes("herramienta");
   if (filterId === "material") return qualities.includes("material");
   if (filterId === "ritual") return qualities.includes("ritual");
   if (filterId === "valuable") return item.category === "treasure" || qualities.includes("valioso");
@@ -1100,6 +1106,7 @@ export function UnifiedCharacterSheet({
   const [selectedArmorCatalogFilter, setSelectedArmorCatalogFilter] = useState<ArmorCatalogFilterId>("all");
   const [armorCatalogSearch, setArmorCatalogSearch] = useState("");
   const [selectedItemCatalogFilter, setSelectedItemCatalogFilter] = useState<ItemCatalogFilterId>("all");
+  const [itemCatalogSearch, setItemCatalogSearch] = useState("");
   const [history, setHistory] = useState<Array<{ title: string; detail?: string; rolls: ActionRollResult[] }>>([]);
   const rollDestination: RollDestination = "roll20";
   const [pendingRollConfirmation, setPendingRollConfirmation] = useState<PendingRollConfirmation | null>(null);
@@ -1301,9 +1308,14 @@ export function UnifiedCharacterSheet({
             return !search || normalizeInventoryItemText(`${item.name} ${item.qualities} ${item.description}`).includes(search);
           })
         : inventoryCatalogModalTab === "items"
-          ? modalCatalogItems.filter((item) => matchesItemCatalogFilter(item, selectedItemCatalogFilter))
+          ? modalCatalogItems.filter((item) => {
+              if (!matchesItemCatalogFilter(item, selectedItemCatalogFilter)) return false;
+              const searchTokens = normalizeInventoryItemText(itemCatalogSearch).split(/\s+/).filter(Boolean);
+              const searchableText = normalizeInventoryItemText(`${item.name} ${item.qualities} ${item.description} ${item.value}`);
+              return searchTokens.every((token) => searchableText.includes(token));
+            })
         : modalCatalogItems,
-    [inventoryCatalogModalTab, modalCatalogItems, selectedWeaponCatalogFilter, selectedArmorCatalogFilter, selectedItemCatalogFilter, weaponCatalogSearch, armorCatalogSearch]
+    [inventoryCatalogModalTab, modalCatalogItems, selectedWeaponCatalogFilter, selectedArmorCatalogFilter, selectedItemCatalogFilter, weaponCatalogSearch, armorCatalogSearch, itemCatalogSearch]
   );
 
   useEffect(() => {
@@ -2414,6 +2426,7 @@ export function UnifiedCharacterSheet({
     setSelectedArmorCatalogFilter("all");
     setArmorCatalogSearch("");
     setSelectedItemCatalogFilter("all");
+    setItemCatalogSearch("");
     setSelectedCatalogItemId(filteredItems[0]?.templateId ?? "");
     setInventoryCatalogModalTab(tab);
   }
@@ -4198,6 +4211,38 @@ export function UnifiedCharacterSheet({
                         <small>{item.protectionFormula || "Especial"}</small>
                       </button>
                     )) : <p>No hay armaduras que coincidan con la busqueda.</p>}
+                  </div>
+                </div>
+              ) : inventoryCatalogModalTab === "items" ? (
+                <div className="unified-sheet-weapon-search-selector unified-sheet-object-search-selector">
+                  <label className="field">
+                    <span>Objeto</span>
+                    <input
+                      type="search"
+                      role="combobox"
+                      aria-label="Buscar objeto"
+                      aria-controls="item-catalog-results"
+                      aria-expanded={filteredModalCatalogItems.length > 0}
+                      aria-autocomplete="list"
+                      placeholder="Buscar por nombre, efecto o precio..."
+                      value={itemCatalogSearch}
+                      onChange={(event) => setItemCatalogSearch(event.target.value)}
+                    />
+                  </label>
+                  <div id="item-catalog-results" className="unified-sheet-weapon-search-results" role="listbox" aria-label="Objetos disponibles">
+                    {filteredModalCatalogItems.length > 0 ? filteredModalCatalogItems.map((item) => (
+                      <button
+                        key={item.templateId}
+                        type="button"
+                        role="option"
+                        aria-selected={item.templateId === selectedCatalogItemId}
+                        className={item.templateId === selectedCatalogItemId ? "is-active" : ""}
+                        onClick={() => setSelectedCatalogItemId(item.templateId)}
+                      >
+                        <span>{item.name}</span>
+                        <small>{item.value || "Sin precio"}</small>
+                      </button>
+                    )) : <p>No hay objetos que coincidan con la búsqueda.</p>}
                   </div>
                 </div>
               ) : (

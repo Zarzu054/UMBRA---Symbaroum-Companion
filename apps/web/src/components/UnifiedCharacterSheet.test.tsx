@@ -416,6 +416,39 @@ describe("UnifiedCharacterSheet weapon catalog", () => {
     expect(within(modal).queryAllByRole("option")).toHaveLength(0);
   });
 
+  it("searches the expanded object catalog and keeps minor artifacts outside the DJ artifact tab", () => {
+    const sheet = createEmptyCharacterSheet();
+    render(<UnifiedCharacterSheet title="Inventario" sheet={sheet} editable />);
+
+    const mobileTabs = screen.getByRole("navigation", { name: "Secciones de la ficha" });
+    fireEvent.click(within(mobileTabs).getByRole("button", { name: "Inventario" }));
+    fireEvent.click(screen.getByRole("button", { name: "Objetos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Agregar objeto" }));
+
+    let modal = screen.getByRole("heading", { name: "Agregar objeto" }).closest(".modal-panel") as HTMLElement;
+    fireEvent.change(within(modal).getByLabelText("Tipo"), { target: { value: "elixir" } });
+    const search = within(modal).getByRole("combobox", { name: "Buscar objeto" });
+    fireEvent.change(search, { target: { value: "veneno potente" } });
+    const poison = within(modal).getByRole("option", { name: /^Veneno \(potente\)/ });
+    expect(poison).toHaveTextContent("Veneno (potente)");
+    expect(poison).toHaveTextContent("6 táleros");
+    fireEvent.click(poison);
+    fireEvent.click(within(modal).getByRole("button", { name: "Agregar" }));
+    expect(screen.getByText("Veneno (potente)")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Agregar objeto" }));
+    modal = screen.getByRole("heading", { name: "Agregar objeto" }).closest(".modal-panel") as HTMLElement;
+    fireEvent.change(within(modal).getByLabelText("Tipo"), { target: { value: "minor-artifact" } });
+    fireEvent.change(within(modal).getByRole("combobox", { name: "Buscar objeto" }), { target: { value: "araña curativa" } });
+    fireEvent.click(within(modal).getByRole("option", { name: /Araña curativa/ }));
+    fireEvent.click(within(modal).getByRole("button", { name: "Agregar" }));
+    expect(screen.getByText("Araña curativa")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
+    expect(screen.getByText("El DJ todavia no ha entregado artefactos a este personaje.")).toBeInTheDocument();
+    expect(screen.queryByText("Araña curativa")).not.toBeInTheDocument();
+  });
+
   it("places large money controls on both sides of each coin", () => {
     const sheet = createEmptyCharacterSheet();
     render(<UnifiedCharacterSheet title="Inventario" sheet={sheet} editable />);

@@ -4197,7 +4197,7 @@ td {
 
 .compendium-library-hero {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -4205,6 +4205,30 @@ td {
   background:
     linear-gradient(100deg, rgba(255, 249, 234, 0.98), rgba(232, 215, 181, 0.82)),
     repeating-linear-gradient(90deg, transparent 0 33px, rgba(91, 60, 36, 0.045) 34px 35px);
+}
+
+.compendium-library-hero-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.compendium-library-hero-actions {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex: 0 0 clamp(230px, 18vw, 260px);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 9px;
+}
+
+.compendium-library-back-button {
+  align-self: flex-end;
+}
+
+.compendium-hero-search {
+  position: relative;
+  width: 100%;
 }
 
 .compendium-library-hero::after {
@@ -4279,7 +4303,9 @@ td {
 }
 
 .compendium-global-search {
+  width: 100%;
   max-width: none;
+  gap: 4px;
 }
 
 .compendium-search-input-wrap {
@@ -4300,12 +4326,60 @@ td {
 
 .compendium-global-search input {
   width: 100%;
-  min-height: 46px;
-  padding-left: 42px;
+  min-height: 40px;
+  padding-left: 38px;
   border-color: rgba(120, 77, 47, 0.36);
   background: rgba(255, 253, 247, 0.86);
-  font-size: 1rem;
+  font-size: 0.9rem;
   box-shadow: inset 0 1px 4px rgba(77, 49, 30, 0.07);
+}
+
+.compendium-quick-search-results {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  width: min(390px, calc(100vw - 36px));
+  max-height: min(430px, 62vh);
+  overflow-y: auto;
+  border: 1px solid var(--compendium-rule);
+  border-radius: 10px;
+  background: var(--compendium-paper);
+  box-shadow: 0 14px 32px rgba(44, 29, 18, 0.18);
+}
+
+.compendium-quick-search-entry {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 11px 13px;
+  border: 0;
+  border-bottom: 1px solid var(--compendium-rule);
+  border-radius: 0;
+  color: var(--compendium-ink);
+  background: transparent;
+  text-align: left;
+}
+
+.compendium-quick-search-entry > span {
+  color: var(--compendium-muted);
+  font-size: 0.76rem;
+}
+
+.compendium-quick-search-entry:hover,
+.compendium-quick-search-entry:focus-visible {
+  background: rgba(128, 68, 43, 0.08);
+}
+
+.compendium-quick-search-all {
+  width: 100%;
+  padding: 10px 13px;
+  border: 0;
+  border-radius: 0 0 9px 9px;
+  color: var(--rubric);
+  background: rgba(128, 68, 43, 0.07);
+  font-weight: 700;
 }
 
 .compendium-library-error {
@@ -4854,6 +4928,13 @@ td {
     flex-direction: column;
   }
 
+  .compendium-library-hero-actions {
+    width: min(100%, 320px);
+    flex-basis: auto;
+    align-self: flex-end;
+    align-items: stretch;
+  }
+
   .compendium-type-group {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -4903,6 +4984,16 @@ td {
   }
 
   .compendium-library-hero .subtle-button {
+    width: 100%;
+  }
+
+  .compendium-library-hero-actions {
+    width: 100%;
+  }
+
+  .compendium-quick-search-results {
+    right: auto;
+    left: 0;
     width: 100%;
   }
 

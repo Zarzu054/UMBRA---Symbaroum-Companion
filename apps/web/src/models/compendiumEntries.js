@@ -1,4 +1,6 @@
-import { SYMBAROUM_ABILITIES, SYMBAROUM_ARCHETYPES, SYMBAROUM_CAPABILITIES, SYMBAROUM_CULTURES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RACES, SYMBAROUM_RITUALS } from "@umbra/shared";
+import { SYMBAROUM_ABILITIES, SYMBAROUM_ARCHETYPES, SYMBAROUM_CAPABILITIES, SYMBAROUM_CULTURES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RACES, SYMBAROUM_RITUALS, WEAPON_QUALITY_OPTIONS, WEAPON_TEMPLATES } from "@umbra/shared";
+import { ARMOR_QUALITY_OPTIONS, ITEM_CATALOG } from "./itemCatalog";
+import { EQUIPMENT_CATALOG_DEFINITIONS } from "./equipmentCatalog";
 export const TYPE_LABELS = {
     all: "Todo",
     regla: "Reglas",
@@ -11,7 +13,16 @@ export const TYPE_LABELS = {
     raza: "Razas",
     cultura: "Culturas",
     arquetipo: "Arquetipos",
-    tradicion: "Tradiciones"
+    tradicion: "Tradiciones",
+    arma: "Armas",
+    armadura: "Armaduras",
+    cualidad_arma: "Cualidades de armas",
+    cualidad_armadura: "Cualidades de armaduras",
+    elixir: "Elixires",
+    artefacto_menor: "Artefactos menores",
+    trampa: "Trampas",
+    herramienta: "Herramientas",
+    equipo: "Equipo general"
 };
 function slugify(value) {
     return value
@@ -247,6 +258,176 @@ function buildTraditionEntries() {
         fuente: "Gu\u00eda Avanzada del Jugador",
         tags: ["tradicion", "magia"]
     }));
+}
+function uniqueCompendiumReferences(references) {
+    const unique = new Map();
+    references.forEach((reference) => unique.set(`${reference.source}:${reference.page ?? ""}`, reference));
+    return [...unique.values()];
+}
+function parseEquipmentReferences(notes, fallback) {
+    const references = [];
+    const patterns = [
+        [/Libro B[aá]sico p\.\s*([\d-]+)/gi, "Libro Básico"],
+        [/Gu[ií]a Avanzada del Jugador p\.\s*([\d-]+)/gi, "Guía Avanzada del Jugador"]
+    ];
+    for (const [pattern, source] of patterns) {
+        for (const match of notes.matchAll(pattern)) {
+            const page = Number.parseInt(match[1], 10);
+            if (Number.isFinite(page))
+                references.push({ source, page });
+        }
+    }
+    return uniqueCompendiumReferences(references.length > 0 ? references : fallback);
+}
+function weaponQualityEntryId(label) {
+    const option = WEAPON_QUALITY_OPTIONS.find((quality) => quality.label === label);
+    return `equipment-weapon-quality-${option?.id ?? slugify(label)}`;
+}
+function armorQualityEntryId(label) {
+    const option = ARMOR_QUALITY_OPTIONS.find((quality) => quality.label === label);
+    return `equipment-armor-quality-${option?.id ?? slugify(label)}`;
+}
+function buildWeaponEntries() {
+    const groups = new Map();
+    for (const weapon of WEAPON_TEMPLATES) {
+        const baseName = weapon.name.replace(/\s*\((?:1|2)\s+manos?\)$/i, "");
+        const current = groups.get(baseName) ?? [];
+        groups.set(baseName, [...current, weapon]);
+    }
+    return [...groups.entries()].map(([name, weapons]) => {
+        const primary = weapons[0];
+        const references = uniqueCompendiumReferences(weapons.flatMap((weapon) => parseEquipmentReferences(weapon.notes ?? "", [
+            { source: "Libro Básico", page: 146 },
+            { source: "Guía Avanzada del Jugador", page: 110 }
+        ])));
+        const qualityLabels = [...new Set(weapons.flatMap((weapon) => weapon.qualities))];
+        const facts = weapons.length === 1 ? [
+            { label: "Daño", value: primary.damageFormula || "Especial" },
+            { label: "Precio", value: primary.value },
+            { label: "Peso", value: primary.weight },
+            { label: "Atributo", value: primary.attackAttribute }
+        ] : [{ label: "Precio", value: primary.value }];
+        if (primary.defenseBonus)
+            facts.push({ label: "Defensa", value: `+${primary.defenseBonus}` });
+        return {
+            id: `equipment-weapon-${slugify(name)}`,
+            tipo: "arma",
+            nombre: name,
+            resumen: primary.description,
+            detalle: [primary.description, ...weapons.map((weapon) => weapon.notes ?? "")].filter(Boolean).join("\n\n"),
+            fuente: references[0].source,
+            pagina: references[0].page,
+            references,
+            facts,
+            variants: weapons.length > 1 ? weapons.map((weapon) => ({
+                id: weapon.templateId,
+                label: weapon.name.match(/\((.+)\)$/)?.[1] ?? weapon.name,
+                facts: [
+                    { label: "Daño", value: weapon.damageFormula || "Especial" },
+                    { label: "Precio", value: weapon.value },
+                    { label: "Peso", value: weapon.weight },
+                    { label: "Atributo", value: weapon.attackAttribute },
+                    { label: "Cualidades", value: weapon.qualities.join(", ") || "Ninguna" }
+                ],
+                detail: weapon.description
+            })) : undefined,
+            relations: qualityLabels.map((quality) => ({ entryId: weaponQualityEntryId(quality), label: quality })),
+            tags: ["equipo", "arma", primary.slot, primary.attackAttribute, primary.damageFormula, primary.value, ...qualityLabels]
+        };
+    });
+}
+function buildArmorEntries() {
+    return ITEM_CATALOG.filter((item) => item.category === "armor").map((armor) => {
+        const qualities = armor.qualities.split(",").map((quality) => quality.trim()).filter(Boolean);
+        const references = parseEquipmentReferences(armor.notes, [
+            { source: "Libro Básico", page: 149 },
+            { source: "Guía Avanzada del Jugador", page: 116 }
+        ]);
+        return {
+            id: `equipment-armor-${slugify(armor.name)}`,
+            tipo: "armadura",
+            nombre: armor.name,
+            resumen: armor.description,
+            detalle: [armor.description, armor.notes].filter(Boolean).join("\n\n"),
+            fuente: references[0].source,
+            pagina: references[0].page,
+            references,
+            facts: [
+                { label: "Protección", value: armor.protectionFormula },
+                { label: "Precio", value: armor.value },
+                { label: "Tipo", value: armor.weight },
+                { label: "Cualidades", value: qualities.join(", ") || "Ninguna" }
+            ],
+            relations: qualities.map((quality) => ({ entryId: armorQualityEntryId(quality), label: quality })),
+            tags: ["equipo", "armadura", armor.weight, armor.protectionFormula, armor.value, ...qualities]
+        };
+    });
+}
+function buildQualityEntries() {
+    const weaponEntries = WEAPON_QUALITY_OPTIONS.map((quality) => ({
+        id: `equipment-weapon-quality-${quality.id}`,
+        tipo: "cualidad_arma",
+        nombre: quality.label,
+        resumen: quality.summary,
+        detalle: quality.details ?? quality.summary,
+        fuente: "Libro Básico",
+        pagina: 150,
+        references: [{ source: "Libro Básico", page: 150 }, { source: "Guía Avanzada del Jugador", page: 113 }],
+        facts: quality.grantsAction ? [{ label: "Acción asociada", value: quality.grantsAction === "reload" ? "Recargar" : "Ataque arrojadizo" }] : undefined,
+        tags: ["cualidad", "arma", quality.id, ...(quality.aliases ?? [])]
+    }));
+    const armorEntries = ARMOR_QUALITY_OPTIONS.map((quality) => ({
+        id: `equipment-armor-quality-${quality.id}`,
+        tipo: "cualidad_armadura",
+        nombre: quality.label,
+        resumen: quality.summary,
+        detalle: quality.details ?? quality.summary,
+        fuente: "Libro Básico",
+        pagina: 150,
+        references: [{ source: "Libro Básico", page: 150 }, { source: "Guía Avanzada del Jugador", page: 116 }],
+        tags: ["cualidad", "armadura", quality.id, ...(quality.aliases ?? [])]
+    }));
+    return [...weaponEntries, ...armorEntries];
+}
+function mapEquipmentGroupToEntryType(group) {
+    if (group === "elixir")
+        return "elixir";
+    if (group === "minor-artifact")
+        return "artefacto_menor";
+    if (group === "trap")
+        return "trampa";
+    if (group === "tool")
+        return "herramienta";
+    return "equipo";
+}
+function buildEquipmentCatalogEntries() {
+    return EQUIPMENT_CATALOG_DEFINITIONS.map((definition) => {
+        const references = definition.references.map((reference) => ({
+            source: reference.source,
+            page: reference.page
+        }));
+        return {
+            id: definition.id,
+            tipo: mapEquipmentGroupToEntryType(definition.group),
+            nombre: definition.name,
+            resumen: definition.summary,
+            detalle: definition.detail,
+            fuente: references[0].source,
+            pagina: references[0].page,
+            references,
+            facts: [
+                ...(definition.price ? [{ label: "Precio", value: definition.price }] : []),
+                ...(definition.facts ?? [])
+            ],
+            variants: definition.variants?.map((variant) => ({
+                id: variant.id,
+                label: variant.label,
+                facts: [{ label: "Precio", value: variant.price }, ...(variant.facts ?? [])],
+                detail: variant.effect
+            })),
+            tags: [definition.group, definition.price ?? "", ...(definition.tags ?? []), ...(definition.qualities ?? []), ...(definition.variants?.flatMap((variant) => [variant.label, variant.price, variant.effect ?? ""]) ?? [])].filter(Boolean)
+        };
+    });
 }
 function normalizeLookup(value) {
     return value
@@ -2431,6 +2612,12 @@ export const RULE_SUMMARY_ENTRIES = [
 export const CORE_RULES = [...MANUAL_RULES, ...RULE_SUMMARY_ENTRIES];
 export const SYMBAROUM_BLESSINGS = mergeCompendiumEntries(COMPLETE_BLESSING_OVERRIDES, mergeCompendiumEntries(APG_BLESSING_SUPPLEMENTS, buildBlessingEntries()));
 export const SYMBAROUM_BURDENS = mergeCompendiumEntries(COMPLETE_BURDEN_OVERRIDES, mergeCompendiumEntries(APG_BURDEN_SUPPLEMENTS, buildBurdenEntries()));
+export const SYMBAROUM_EQUIPMENT = [
+    ...buildWeaponEntries(),
+    ...buildArmorEntries(),
+    ...buildQualityEntries(),
+    ...buildEquipmentCatalogEntries()
+];
 export const ALL_ENTRIES = [
     ...CORE_RULES,
     ...buildMonsterRuleEntries(),
@@ -2441,14 +2628,16 @@ export const ALL_ENTRIES = [
     ...buildRaceEntries(),
     ...buildCultureEntries(),
     ...buildArchetypeEntries(),
-    ...buildTraditionEntries()
+    ...buildTraditionEntries(),
+    ...SYMBAROUM_EQUIPMENT
 ];
 export const COMPENDIUM_STATS = {
     totalEntries: ALL_ENTRIES.length,
     traits: buildMonsterTraitEntries().length,
     abilities: SYMBAROUM_ABILITIES.length,
     powers: SYMBAROUM_MYSTIC_POWERS.length,
-    rituals: SYMBAROUM_RITUALS.length
+    rituals: SYMBAROUM_RITUALS.length,
+    equipment: SYMBAROUM_EQUIPMENT.length
 };
 export function findCompendiumCapabilityEntryId(tipo, nombre) {
     const entry = findCompendiumEntryByTypeAndName(tipo, nombre);
