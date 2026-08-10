@@ -12,6 +12,7 @@ import {
 } from "@umbra/shared";
 import { ARMOR_QUALITY_OPTIONS, ITEM_CATALOG } from "./itemCatalog";
 import { EQUIPMENT_CATALOG_DEFINITIONS, type EquipmentReference } from "./equipmentCatalog";
+import { buildPdfViewerUrl } from "../services/pdfViewer";
 
 export type EntryType =
   | "regla"
@@ -25,6 +26,7 @@ export type EntryType =
   | "cultura"
   | "arquetipo"
   | "tradicion"
+  | "profesion"
   | "arma"
   | "armadura"
   | "cualidad_arma"
@@ -79,6 +81,7 @@ export const TYPE_LABELS: Record<"all" | EntryType, string> = {
   cultura: "Culturas",
   arquetipo: "Arquetipos",
   tradicion: "Tradiciones",
+  profesion: "Profesiones",
   arma: "Armas",
   armadura: "Armaduras",
   cualidad_arma: "Cualidades de armas",
@@ -318,15 +321,135 @@ function buildArchetypeEntries(): CompendiumEntry[] {
   });
 }
 
+const MYSTIC_PROFESSION_NAMES: Record<string, string> = {
+  Confesores: "Confesor",
+  "Demon\u00f3logos": "Demon\u00f3logo",
+  Espiritistas: "Espiritista",
+  Ilusionistas: "Ilusionista",
+  Inquisidores: "Inquisidor",
+  Mentalistas: "Mentalista",
+  "Magos del b\u00e1culo": "Mago del b\u00e1culo",
+  Nigromantes: "Nigromante",
+  "N\u00f3madas de la sangre": "N\u00f3mada de la sangre",
+  Piromantes: "Piromante",
+  "Tejedoras verdes": "Tejedora verde"
+};
+
+type CompendiumProfessionDefinition = {
+  name: string;
+  page: number;
+  archetype: string;
+  summary: string;
+  detail: string;
+  attributes: string;
+  requirements: string;
+  exclusive: string;
+  otherRequirements?: string;
+  blessings: string;
+  burdens: string;
+};
+
+const COMPENDIUM_ONLY_PROFESSIONS: CompendiumProfessionDefinition[] = [
+  {
+    name: "Juramentado de hierro",
+    page: 12,
+    archetype: "Cazador",
+    summary: "Agente de pleno derecho del Pacto de Hierro, dedicado a impedir el despertar de Davokar y combatir la corrupci\u00f3n.",
+    detail: "El trabajo del Pacto de Hierro nunca se acaba. Sus agentes superan desaf\u00edos f\u00edsicos y morales antes de prestar el Juramento de Hierro y continuar un adiestramiento que los dedica en cuerpo y alma a luchar contra la corrupci\u00f3n.",
+    attributes: "Diestro 13+, \u00c1gil 11+",
+    requirements: "Armas de asta, Ataque con dos armas, Estudioso, Tirador, Versado en criaturas",
+    exclusive: "Danza de batalla",
+    blessings: "Contactos, Lenguaje de criaturas, Mont\u00e9s, Perro de presa, Piernas de hierro",
+    burdens: "Pesadillas, Sanguinario"
+  },
+  {
+    name: "Templario",
+    page: 16,
+    archetype: "Guerrero",
+    summary: "Caballero del Sol Moribundo fuertemente armado, consagrado a Prios y a la destrucci\u00f3n de abominaciones.",
+    detail: "Los templarios protegen a la Iglesia de Prios y combaten envueltos en acero y fuego sagrado. Su presencia ahuyenta a las abominaciones y refleja la convicci\u00f3n de los Caballeros del Sol Moribundo.",
+    attributes: "Fuerte 13+, Tenaz 11+",
+    requirements: "Combate con armadura, Golpe de hierro, Poder m\u00edstico (Aura sagrada o Martillo de monstruos), Te\u00fargia",
+    exclusive: "M\u00edstico acorazado",
+    blessings: "Contactos, Empresario, Privilegiado, Reliquia familiar, Sirviente, Voz dominante",
+    burdens: "C\u00f3digo de honor, Secreto oscuro"
+  },
+  {
+    name: "Guardia de la Furia",
+    page: 21,
+    archetype: "Guerrero",
+    summary: "Guerrero de \u00e9lite de Karvosti, elegido por su clan para proteger al gran jefe y combatir con una furia implacable.",
+    detail: "Cada clan env\u00eda a sus mejores contendientes para ocupar los puestos de la Guardia de la Furia Dormida. La nominaci\u00f3n es uno de los mayores honores b\u00e1rbaros y obliga a servir al gran jefe de Karvosti.",
+    attributes: "Fuerte 13+, Tenaz 11+",
+    requirements: "Ataque con dos armas, Combate con armadura, Combate con escudo, Golpe de hierro, Recuperaci\u00f3n",
+    otherRequirements: "B\u00e1rbaro humano",
+    exclusive: "Combate sangriento",
+    blessings: "Lazo de sangre, Mont\u00e9s, Mula de carga, Piernas de hierro, Reliquia familiar",
+    burdens: "Rasgos de bestia, Sed de sangre"
+  },
+  {
+    name: "Artesano de artefactos",
+    page: 23,
+    archetype: "M\u00edstico",
+    summary: "Especialista en el arte recuperado de fabricar artefactos m\u00edsticos, conservado por los trolls y adoptado por elfos y humanos.",
+    detail: "La fabricaci\u00f3n de artefactos estuvo perdida durante mucho tiempo para elfos y humanos, pero sobrevivi\u00f3 entre los trolls como una pr\u00e1ctica casi sagrada. Su conocimiento ha resurgido y comienza a extenderse por los cap\u00edtulos de la Ordo M\u00e1gica.",
+    attributes: "Inteligente 13+, Tenaz 11+",
+    requirements: "Estudioso, Herrero, Poder m\u00edstico (opcional), Rituales",
+    exclusive: "Elaboraci\u00f3n de artefactos",
+    blessings: "Archivista, Conocimiento prohibido, Contactos, Empresario, Reliquia familiar",
+    burdens: "Protector, Viejo"
+  },
+  {
+    name: "Mago del b\u00e1culo",
+    page: 24,
+    archetype: "M\u00edstico",
+    summary: "Monje guerrero de la Orden del B\u00e1culo, portador de un b\u00e1culo r\u00fanico que representa a la vez su alma y su arma.",
+    detail: "Los Magos del B\u00e1culo descienden de una orden de monjes guerreros vinculada al antiguo Symbaroum. Desde su castillo oculto en Davokar buscan estudiantes y alianzas para contener los horrores de las ruinas.",
+    attributes: "Tenaz 13+, Inteligente 11+",
+    requirements: "Armas de asta, Combate con arma larga, Estudioso, Poder m\u00edstico (opcional)",
+    otherRequirements: "Corrupci\u00f3n permanente de 3 o menos",
+    exclusive: "Magia del b\u00e1culo, B\u00e1culo arrojadizo, Tormenta de sangre y Terremoto",
+    blessings: "Archivista, Mont\u00e9s, Piernas de hierro, Presencia intimidatoria, Sirviente, Voz dominante",
+    burdens: "C\u00f3digo de honor, Protector"
+  },
+  {
+    name: "Esp\u00eda de la reina",
+    page: 32,
+    archetype: "Maleante",
+    summary: "Agente noble del Secretariado Real que protege los intereses de Korinthia mediante infiltraci\u00f3n, espionaje y desinformaci\u00f3n.",
+    detail: "El Secretariado Real est\u00e1 formado por nobles leales que cumplen en secreto las \u00f3rdenes de la reina. Sus agentes se infiltran, obtienen informaci\u00f3n confidencial y difunden desinformaci\u00f3n entre enemigos y aliados de Ambria.",
+    attributes: "Inteligente 13+, Discreto 11+",
+    requirements: "Ataque con dos armas, Esgrima sagrada, Finta, Venenos o Estrangulador",
+    otherRequirements: "Noble ambrio con la bendici\u00f3n Privilegiado",
+    exclusive: "Pirotecnia",
+    blessings: "Contactos, Empresario, Guarida, Identidad falsa, Privilegiado, Reliquia familiar, Truh\u00e1n",
+    burdens: "Archienemigo, Fugitivo"
+  },
+  {
+    name: "Ladr\u00f3n de guante blanco",
+    page: 36,
+    archetype: "Maleante",
+    summary: "Ladr\u00f3n de \u00e9lite que convierte robos imposibles y entradas en lugares protegidos en demostraciones de elegancia y prestigio.",
+    detail: "Los ladrones de guante blanco pertenecen a la \u00e9lite criminal de Yndaros. Cometen sus golpes con elegancia, evitan la violencia y suelen dejar una firma que reclama la autor\u00eda de la haza\u00f1a.",
+    attributes: "Persuasivo 13+, Inteligente 11+",
+    requirements: "Acr\u00f3bata, Ataque con dos armas o Esgrima sagrada, Dominaci\u00f3n, Trampero",
+    exclusive: "Capa danzante",
+    blessings: "Abrir cerraduras, Contactos, Dedos ligeros, Privilegiado, Reliquia familiar, Sirviente",
+    burdens: "Archienemigo, C\u00f3digo de honor"
+  }
+];
+
 function buildTraditionEntries(): CompendiumEntry[] {
 
   const traditions = new Map<string, { powers: number; rituals: number }>();
   [...SYMBAROUM_MYSTIC_POWERS, ...SYMBAROUM_RITUALS].forEach((entry) => {
     entry.tradiciones.forEach((tradition) => {
-      const current = traditions.get(tradition) ?? { powers: 0, rituals: 0 };
+      if (MYSTIC_PROFESSION_NAMES[tradition]) return;
+      const name = tradition === "Magos del b\u00e1culo" ? "Magia del b\u00e1culo" : tradition;
+      const current = traditions.get(name) ?? { powers: 0, rituals: 0 };
       if (entry.tipo === "poder_mistico") current.powers += 1;
       if (entry.tipo === "ritual") current.rituals += 1;
-      traditions.set(tradition, current);
+      traditions.set(name, current);
     });
   });
 
@@ -341,6 +464,74 @@ function buildTraditionEntries(): CompendiumEntry[] {
       fuente: "Gu\u00eda Avanzada del Jugador",
       tags: ["tradicion", "magia"]
     }));
+}
+
+function buildProfessionEntries(): CompendiumEntry[] {
+  const professions = new Map<string, { powers: number; rituals: number }>();
+  [...SYMBAROUM_MYSTIC_POWERS, ...SYMBAROUM_RITUALS].forEach((entry) => {
+    entry.tradiciones.forEach((path) => {
+      const profession = MYSTIC_PROFESSION_NAMES[path];
+      if (!profession) return;
+
+      const current = professions.get(profession) ?? { powers: 0, rituals: 0 };
+      if (entry.tipo === "poder_mistico") current.powers += 1;
+      if (entry.tipo === "ritual") current.rituals += 1;
+      professions.set(profession, current);
+    });
+  });
+
+  const detailedProfessionNames = new Set(COMPENDIUM_ONLY_PROFESSIONS.map((profession) => profession.name));
+  const linkedEntries: CompendiumEntry[] = [...professions.entries()]
+    .filter(([name]) => !detailedProfessionNames.has(name))
+    .map(([name, counts]) => ({
+      id: `profesion-${slugify(name)}`,
+      tipo: "profesion",
+      nombre: name,
+      resumen: `${counts.powers} poderes m\u00edsticos, ${counts.rituals} rituales.`,
+      detalle: `Profesi\u00f3n m\u00edstica listada en el compendio central de UMBRA. Re\u00fane ${counts.powers} poderes m\u00edsticos y ${counts.rituals} rituales del cat\u00e1logo. Esta entrada es informativa y no incorpora mec\u00e1nicas de profesi\u00f3n a la creaci\u00f3n de personajes.`,
+      fuente: "Gu\u00eda Avanzada del Jugador",
+      facts: [
+        { label: "Poderes", value: String(counts.powers) },
+        { label: "Rituales", value: String(counts.rituals) }
+      ],
+      tags: ["profesion", "magia"]
+    }));
+
+  const detailedEntries: CompendiumEntry[] = COMPENDIUM_ONLY_PROFESSIONS.map((profession) => {
+    const counts = professions.get(profession.name);
+    return {
+      id: `profesion-${slugify(profession.name)}`,
+      tipo: "profesion",
+      nombre: profession.name,
+      resumen: profession.summary,
+      detalle: `${profession.detail}\n\nEsta entrada es informativa y no incorpora mec\u00e1nicas de profesi\u00f3n a la creaci\u00f3n de personajes.`,
+      fuente: "Gu\u00eda Avanzada del Jugador",
+      pagina: profession.page,
+      facts: [
+        { label: "Arquetipo", value: profession.archetype },
+        { label: "Atributos importantes", value: profession.attributes },
+        { label: "Habilidades requeridas", value: profession.requirements },
+        ...(profession.otherRequirements ? [{ label: "Otros requisitos", value: profession.otherRequirements }] : []),
+        { label: "Habilidad o don exclusivo", value: profession.exclusive },
+        { label: "Bendiciones sugeridas", value: profession.blessings },
+        { label: "Cargas sugeridas", value: profession.burdens },
+        ...(counts?.powers ? [{ label: "Poderes asociados", value: String(counts.powers) }] : []),
+        ...(counts?.rituals ? [{ label: "Rituales asociados", value: String(counts.rituals) }] : [])
+      ],
+      references: [{ source: "Gu\u00eda Avanzada del Jugador", page: profession.page }],
+      tags: [
+        "profesion",
+        profession.archetype,
+        profession.exclusive,
+        profession.requirements,
+        profession.blessings,
+        profession.burdens
+      ]
+    };
+  });
+
+  return [...linkedEntries, ...detailedEntries]
+    .sort((left, right) => left.nombre.localeCompare(right.nombre, "es"));
 }
 
 function uniqueCompendiumReferences(references: CompendiumReference[]): CompendiumReference[] {
@@ -1919,8 +2110,8 @@ export const MANUAL_RULES: CompendiumEntry[] = [
     id: "regla-manual-2-atributos-de-creacion",
     tipo: "regla",
     nombre: "Atributos de creaci\u00f3n",
-    resumen: "Los ocho atributos deben sumar 80, estar entre 5 y 15 y solo uno puede alcanzar 15.",
-    detalle: "En la creaci\u00f3n, \u00c1gil, Atento, Discreto, Diestro, Fuerte, Inteligente, Persuasivo y Tenaz deben respetar los l\u00edmites oficiales. UMBRA bloquea cualquier combinaci\u00f3n fuera de 80 puntos o con m\u00e1s de un 15.",
+    resumen: "El reparto base de los ocho atributos debe sumar 80, estar entre 5 y 15 y solo uno puede alcanzar 15.",
+    detalle: "En la creaci\u00f3n, \u00c1gil, Atento, Discreto, Diestro, Fuerte, Inteligente, Persuasivo y Tenaz deben respetar estos l\u00edmites antes de aplicar capacidades. Atributo excepcional se aplica despu\u00e9s: puede adquirirse una vez para cada atributo y elevarlo en +1, +2 o +3 seg\u00fan su nivel, por lo que varios valores finales pueden alcanzar 15 o superarlo.",
     fuente: "Libro B\u00e1sico",
     pagina: 104,
     tags: ["creacion", "atributos", "oficial"]
@@ -2822,6 +3013,7 @@ export const ALL_ENTRIES: CompendiumEntry[] = [
   ...buildCultureEntries(),
   ...buildArchetypeEntries(),
   ...buildTraditionEntries(),
+  ...buildProfessionEntries(),
   ...SYMBAROUM_EQUIPMENT
 ];
 
@@ -3736,11 +3928,7 @@ function resolveCompendiumPdfPage(source: string, page?: number, searchTerm?: st
 }
 
 function buildCompendiumPdfUrl(basePath: string, page?: number): string {
-  if (!page) {
-    return basePath;
-  }
-
-  return `${basePath}#page=${page}`;
+  return buildPdfViewerUrl(basePath, page);
 }
 
 export function getCompendiumSourcePdfUrl(source: string, page?: number, searchTerm?: string): string | null {
@@ -3769,7 +3957,7 @@ export function getCompendiumSummaryLink(entry: CompendiumEntry): CompendiumSumm
     };
   }
 
-  if (entry.tipo === "habilidad" || entry.tipo === "poder_mistico" || entry.tipo === "ritual" || entry.tipo === "tradicion") {
+  if (entry.tipo === "habilidad" || entry.tipo === "poder_mistico" || entry.tipo === "ritual" || entry.tipo === "tradicion" || entry.tipo === "profesion") {
     return {
       url: buildSummaryUrl("capabilities", entry.nombre),
       documentLabel: "Resumen: Habilidades, poderes y rituales",

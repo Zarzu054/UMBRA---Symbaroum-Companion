@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { actorCapabilitySelectionSchema, averageDiceFormula, getActorChallengeFromXp, getActorSpentXp } from "./actorCreation.js";
+import { BASIC_BOOK_MONSTER_TACTICS, CODEX_MONSTER_PROFILE_DATA } from "./monsterCodexCatalog.generated.js";
 export const monsterAttributeKeySchema = z.enum([
     "accurate",
     "cunning",
@@ -39,7 +41,7 @@ export const MONSTER_ATTRIBUTE_LABELS = {
     cunning: "Inteligente",
     discreet: "Discreto",
     persuasive: "Persuasivo",
-    quick: "?gil",
+    quick: "Ágil",
     resolute: "Tenaz",
     strong: "Fuerte",
     vigilant: "Atento"
@@ -56,6 +58,35 @@ export const MONSTER_ATTRIBUTE_KEYS = [
 ];
 export const MONSTER_CATEGORIES = monsterCategorySchema.options;
 export const MONSTER_THREATS = monsterThreatSchema.options;
+export const MONSTER_CODEX_FAMILIES = [
+    "Araks",
+    "Bestiaal",
+    "Centella",
+    "Colosseo",
+    "Destello",
+    "Devorador de río",
+    "Dragón",
+    "Espino viviente",
+    "Fusco",
+    "Gwann",
+    "Maltrasgo",
+    "Managaal",
+    "Mariposas enjambreras nocturnas",
+    "Marlo",
+    "Naturaleza corrupta",
+    "Nefarani",
+    "Pesadilla",
+    "Príncipe de la muerte",
+    "Roecráneos",
+    "Saña",
+    "Sapo real",
+    "Sauce voraz",
+    "Serpiente madre",
+    "Socarrón",
+    "Sombra troll",
+    "Termita purulenta",
+    "Terreno vengativo"
+];
 export const monsterAttributesSchema = z.object({
     accurate: z.number().int().min(1).max(20),
     cunning: z.number().int().min(1).max(20),
@@ -66,17 +97,62 @@ export const monsterAttributesSchema = z.object({
     strong: z.number().int().min(1).max(20),
     vigilant: z.number().int().min(1).max(20)
 });
+export const monsterSourceReferenceSchema = z.object({
+    source: z.string().min(1).max(160),
+    page: z.number().int().min(1).max(2000),
+    pdfPage: z.number().int().min(1).max(2000)
+});
+export const monsterWeaponProfileSchema = z.object({
+    attribute: z.string().max(80).default(""),
+    name: z.string().min(1).max(500),
+    damage: z.string().max(120).default(""),
+    damageFormula: z.string().max(120).default(""),
+    fixedValue: z.number().nullable().default(null),
+    qualities: z.string().max(600).default(""),
+    details: z.string().max(1600).default("")
+});
 export const monsterSheetSchema = z.object({
-    attack: z.string().min(1).max(40),
-    damage: z.string().min(1).max(40),
-    defense: z.string().min(1).max(40),
-    armor: z.string().min(1).max(40),
-    toughness: z.string().min(1).max(40),
-    painThreshold: z.string().min(1).max(40),
-    movement: z.string().min(1).max(80),
+    attack: z.string().min(1).max(160),
+    damage: z.string().min(1).max(500),
+    defense: z.string().min(1).max(240),
+    armor: z.string().min(1).max(1600),
+    toughness: z.string().min(1).max(120),
+    painThreshold: z.string().min(1).max(120),
+    movement: z.string().min(1).max(160),
     attributes: monsterAttributesSchema,
-    traits: z.array(z.string().min(1).max(160)).max(30).default([]),
-    actions: z.array(z.string().min(1).max(160)).max(20).default([]),
+    traits: z.array(z.string().min(1).max(600)).max(30).default([]),
+    actions: z.array(z.string().min(1).max(600)).max(20).default([]),
+    capabilities: z.array(actorCapabilitySelectionSchema).max(300).default([]),
+    equipment: z.array(z.object({
+        catalogId: z.string().min(1).max(180),
+        name: z.string().min(1).max(180),
+        category: z.enum(["weapon", "armor", "gear", "consumable", "artifact", "treasure", "other"]).default("other"),
+        damageFormula: z.string().max(80).default(""),
+        protectionFormula: z.string().max(80).default(""),
+        fixedValue: z.number().nullable().default(null),
+        value: z.string().max(80).default(""),
+        qualities: z.string().max(240).default(""),
+        notes: z.string().max(1200).default("")
+    })).max(200).optional(),
+    fixedValues: z.object({
+        damage: z.number().nullable().default(null),
+        armor: z.number().nullable().default(null)
+    }).default({ damage: null, armor: null }),
+    family: z.string().max(180).default(""),
+    variant: z.string().max(180).default(""),
+    race: z.string().max(240).default(""),
+    description: z.string().max(5000).default(""),
+    conduct: z.string().max(800).default(""),
+    shadow: z.string().max(1600).default(""),
+    corruption: z.number().int().min(0).nullable().default(null),
+    publishedThreat: z.string().max(80).default(""),
+    blessingsBurdens: z.string().max(2400).default(""),
+    sourceReferences: z.array(monsterSourceReferenceSchema).max(12).default([]),
+    weapons: z.array(monsterWeaponProfileSchema).max(30).default([]),
+    armorDetails: z.string().max(1600).default(""),
+    publishedText: z.string().max(12000).default(""),
+    profileFormat: z.enum(["legacy", "extended", "compact", "custom"]).default("custom"),
+    appearanceOrder: z.number().int().min(0).default(0),
     tactics: z.string().max(1200).default(""),
     weakness: z.string().max(1200).default(""),
     loot: z.string().max(1200).default("")
@@ -114,6 +190,27 @@ export function createDefaultMonsterSheet() {
         attributes: { ...DEFAULT_ATTRIBUTE_TEMPLATE },
         traits: [],
         actions: [],
+        capabilities: [],
+        equipment: [],
+        fixedValues: {
+            damage: averageDiceFormula("1d8"),
+            armor: averageDiceFormula("1d4")
+        },
+        family: "",
+        variant: "",
+        race: "",
+        description: "",
+        conduct: "",
+        shadow: "",
+        corruption: null,
+        publishedThreat: "",
+        blessingsBurdens: "",
+        sourceReferences: [],
+        weapons: [],
+        armorDetails: "",
+        publishedText: "",
+        profileFormat: "custom",
+        appearanceOrder: 0,
         tactics: "",
         weakness: "",
         loot: ""
@@ -132,30 +229,172 @@ export function createEmptyMonsterInput() {
 export function getMonsterAttributeTotal(sheet) {
     return MONSTER_ATTRIBUTE_KEYS.reduce((total, key) => total + Number(sheet.attributes[key] || 0), 0);
 }
+export function synchronizeMonsterCreationValues(sheet) {
+    const capabilities = sheet.capabilities.length > 0
+        ? sheet.capabilities
+        : sheet.traits.map((trait, index) => {
+            const normalized = trait.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+            const level = /(?:iii|3)\)?\s*$/.test(normalized) ? "maestro"
+                : /(?:ii|2)\)?\s*$/.test(normalized) ? "adepto"
+                    : "novato";
+            return {
+                catalogId: `legacy-monster-trait-${index}-${normalized.replace(/[^a-z0-9]+/g, "-")}`,
+                name: trait.replace(/\s*\(?(?:i{1,3}|[1-3])\)?\s*$/i, "").trim() || trait,
+                kind: "rasgo_monstruoso",
+                level,
+                origin: "legado",
+                source: "Ficha anterior",
+                legacyData: trait
+            };
+        });
+    return {
+        ...sheet,
+        capabilities,
+        equipment: sheet.equipment ?? [],
+        traits: capabilities
+            .filter((entry) => entry.kind === "rasgo_monstruoso")
+            .map((entry) => `${entry.name}${entry.level ? ` (${entry.level === "maestro" ? "III" : entry.level === "adepto" ? "II" : "I"})` : ""}`),
+        fixedValues: {
+            damage: averageDiceFormula(sheet.damage),
+            armor: averageDiceFormula(sheet.armor)
+        }
+    };
+}
+export function getMonsterCreationXp(sheet) {
+    return getActorSpentXp(sheet.capabilities ?? []);
+}
+export function getMonsterCreationChallenge(sheet) {
+    return getActorChallengeFromXp(getMonsterCreationXp(sheet));
+}
+const FREE_PUBLISHED_TRAITS = new Set(["longevo", "poco longevo", "montes", "vinculo terrenal"]);
+function normalizePublishedName(value) {
+    return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+}
+function splitPublishedEntries(value) {
+    const entries = [];
+    let depth = 0;
+    let current = "";
+    for (const character of value) {
+        if (character === "(")
+            depth += 1;
+        if (character === ")")
+            depth = Math.max(0, depth - 1);
+        if (character === "," && depth === 0) {
+            if (current.trim())
+                entries.push(current.trim());
+            current = "";
+        }
+        else {
+            current += character;
+        }
+    }
+    if (current.trim())
+        entries.push(current.trim());
+    return entries;
+}
+function publishedLevel(value) {
+    const normalized = normalizePublishedName(value);
+    if (/\b(?:maestro|iii)\b/.test(normalized))
+        return "maestro";
+    if (/\b(?:adepto|ii)\b/.test(normalized))
+        return "adepto";
+    return "novato";
+}
+function publishedEntryName(value) {
+    if (/^Atributo excepcional\s*\(/i.test(value))
+        return "Atributo excepcional";
+    return value
+        .replace(/\s*\((?:principiante|adepto|maestro|i{1,3})(?::[^)]*)?\)\s*$/i, "")
+        .trim();
+}
+function createPublishedCapabilities(value, kind, source, page) {
+    return splitPublishedEntries(value)
+        .filter((entry) => entry && normalizePublishedName(entry) !== "ninguna")
+        .map((entry, index) => {
+        const name = publishedEntryName(entry) || entry;
+        const normalizedName = normalizePublishedName(name);
+        const exceptionalAttribute = /^Atributo excepcional\s*\(([^,]+)/i.exec(entry)?.[1]?.trim();
+        const attributeKey = exceptionalAttribute
+            ? Object.entries(MONSTER_ATTRIBUTE_LABELS).find(([, label]) => normalizePublishedName(label) === normalizePublishedName(exceptionalAttribute))?.[0]
+            : undefined;
+        const resolvedKind = kind === "rasgo_monstruoso" && FREE_PUBLISHED_TRAITS.has(normalizedName)
+            ? "rasgo_personaje"
+            : kind;
+        return {
+            catalogId: `publicado-${normalizePublishedName(source).replace(/[^a-z0-9]+/g, "-")}-${page}-${index}-${normalizedName.replace(/[^a-z0-9]+/g, "-")}`,
+            name,
+            kind: resolvedKind,
+            level: resolvedKind === "rasgo_personaje" ? undefined : publishedLevel(entry),
+            origin: resolvedKind === "rasgo_personaje" ? "racial" : "comprada",
+            source,
+            page,
+            references: [{ source, page }],
+            attributeKey,
+            repeatable: attributeKey ? true : undefined,
+            legacyData: entry
+        };
+    });
+}
 const STARTER_MONSTER_TIMESTAMP = "2026-04-10T00:00:00.000Z";
 function createStarterMonster(seed) {
+    const source = seed.source ?? "Libro Básico";
+    const abilityText = seed.actions
+        .filter((entry) => normalizePublishedName(entry).startsWith("habilidades:"))
+        .map((entry) => entry.replace(/^Habilidades:\s*/i, ""))
+        .join(", ");
+    const capabilities = [
+        ...createPublishedCapabilities(seed.traits.join(", "), "rasgo_monstruoso", source, 201),
+        ...createPublishedCapabilities(abilityText, "habilidad", source, 201)
+    ];
+    const sheet = {
+        attack: seed.attack ?? "Ver acciones",
+        damage: seed.damage ?? "Según arma o rasgo",
+        defense: seed.defense,
+        armor: seed.armor,
+        toughness: seed.toughness,
+        painThreshold: seed.painThreshold,
+        movement: seed.movement ?? "-",
+        attributes: seed.attributes,
+        traits: seed.traits,
+        actions: seed.actions,
+        capabilities,
+        equipment: [],
+        fixedValues: {
+            damage: averageDiceFormula(seed.damage),
+            armor: averageDiceFormula(seed.armor)
+        },
+        family: seed.name,
+        variant: "",
+        race: seed.category,
+        description: seed.summary,
+        conduct: "",
+        shadow: "",
+        corruption: null,
+        publishedThreat: seed.threat,
+        blessingsBurdens: "",
+        sourceReferences: [],
+        weapons: [],
+        armorDetails: seed.armor,
+        publishedText: "",
+        profileFormat: "legacy",
+        appearanceOrder: 0,
+        tactics: seed.tactics,
+        weakness: seed.weakness ?? "",
+        loot: seed.loot ?? ""
+    };
     return {
         id: seed.id,
         name: seed.name,
         category: seed.category,
-        threat: seed.threat,
-        source: seed.source ?? "Libro Básico",
+        threat: getMonsterCreationChallenge(sheet),
+        source,
         summary: seed.summary,
-        sheet: {
-            attack: seed.attack ?? "Ver acciones",
-            damage: seed.damage ?? "Según arma o rasgo",
-            defense: seed.defense,
-            armor: seed.armor,
-            toughness: seed.toughness,
-            painThreshold: seed.painThreshold,
-            movement: seed.movement ?? "-",
-            attributes: seed.attributes,
-            traits: seed.traits,
-            actions: seed.actions,
-            tactics: seed.tactics,
-            weakness: seed.weakness ?? "",
-            loot: seed.loot ?? ""
-        },
+        sheet,
+        family: sheet.family,
+        variant: sheet.variant,
+        references: sheet.sourceReferences,
+        appearanceOrder: sheet.appearanceOrder,
+        publishedThreat: seed.threat,
         createdAt: STARTER_MONSTER_TIMESTAMP,
         updatedAt: STARTER_MONSTER_TIMESTAMP
     };
@@ -757,7 +996,241 @@ const BASIC_BOOK_MONSTERS = [
         loot: "Dos espadas espectrales."
     })
 ];
-export const STARTER_MONSTER_CODEX = [
+const BASIC_BOOK_PAGES = [
+    202, 202, 203, 203, 205, 205, 206, 206, 209, 209, 209, 209, 210, 210, 212, 212, 213, 213, 214,
+    214, 217, 217, 218, 218, 219, 221, 221, 223, 223, 224, 224, 226, 226, 228, 228, 230, 231
+];
+const BASIC_BOOK_FAMILIES = [
+    "Elfos", "Elfos", "Elfos", "Elfos",
+    "Trolls", "Trolls", "Trolls", "Trolls",
+    ...Array.from({ length: 12 }, () => "Adversarios humanos"),
+    "Arañas", "Arañas",
+    "Depredadores", "Depredadores", "Depredadores",
+    "Reptiles", "Reptiles",
+    "Criaturas aladas", "Criaturas aladas",
+    "Abominaciones", "Abominaciones", "Abominaciones", "Abominaciones",
+    "Muertos vivientes", "Muertos vivientes", "Muertos vivientes", "Muertos vivientes"
+];
+function firstPublishedNumber(value) {
+    const match = value.match(/(?<![A-Za-z])\d+(?![A-Za-z])/);
+    return match ? Number(match[0]) : null;
+}
+const PUBLISHED_ATTACK_NAMES = [
+    "Lanza de fuego como martillo de guerra",
+    "Daga de fabricación maestra",
+    "Bastón de madera tallada",
+    "Garrote con pinchos",
+    "Lanza de fuego portátil",
+    "Arma a una mano",
+    "Ataque de barrido",
+    "Dos armas a una mano",
+    "Espada a dos manos",
+    "Garras apresadoras",
+    "Garras espectrales",
+    "Golpe de escudo",
+    "Hoja de esgrima",
+    "Lanza arrojadiza",
+    "Mandíbulas roedoras",
+    "Martillo a dos manos",
+    "Ramas desolladoras",
+    "Ramas espinosas",
+    "Ramas firmes",
+    "Ramas nudosas",
+    "Daga de parada",
+    "Daga ritual",
+    "Espada bastarda",
+    "Espada oxidada",
+    "Estilete envenenado",
+    "Garras de oso",
+    "Hacha a dos manos",
+    "Látigo largo",
+    "Martillo largo",
+    "Toque de muerte",
+    "Arco largo",
+    "Arma arrojadiza",
+    "Ataque sin armas",
+    "Abrazo aplastante",
+    "Cuchillo arrojadizo",
+    "Hebras miceliales",
+    "Tajo terrorífico",
+    "Uñas de hielo",
+    "Alabarda",
+    "Aguijón",
+    "Ballesta",
+    "Cabezazo",
+    "Colmillos",
+    "Cuchillo",
+    "Cuernos",
+    "Escalpelo",
+    "Estilete",
+    "Mangual",
+    "Mordisco",
+    "Pezuñas",
+    "Picadura",
+    "Tentáculos",
+    "Espada",
+    "Garras",
+    "Lanza",
+    "Patas",
+    "Puños y botellas",
+    "Puños",
+    "Zarpas",
+    "Arco",
+    "Daga",
+    "Hacha",
+    "Pico",
+    "Vara",
+    "Ahogar"
+];
+const PUBLISHED_ATTACK_PATTERN = new RegExp(`(?<![\\p{L}])(${PUBLISHED_ATTACK_NAMES
+    .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|")})\\s+(\\d+(?:\\/\\d+)?)`, "giu");
+/**
+ * Turns a published `Armas` cell into one profile per actual weapon. Rules that
+ * contain other numbers (poison, corruption, bonuses or extra attacks) remain
+ * attached to the preceding weapon instead of becoming bogus weapon cards.
+ */
+export function parsePublishedWeaponProfiles(value) {
+    let raw = value.trim();
+    if (!raw || ["ninguna", "ninguno"].includes(normalizePublishedName(raw))) {
+        return [];
+    }
+    // These two Basic Book profiles describe physically separate weapons while
+    // publishing a shared damage expression.
+    raw = raw
+        .replace(/\bHacha y espada\s+(\d+(?:\/\d+)?)/iu, (_match, damage) => `Hacha ${damage}, espada ${damage}`)
+        .replace(/\bDos espadas\s+(\d+)\/(\d+)/iu, (_match, first, second) => `Espada ${first}, espada ${second}`);
+    const matches = [...raw.matchAll(PUBLISHED_ATTACK_PATTERN)];
+    if (!matches.length) {
+        const damage = firstPublishedNumber(raw);
+        return [{
+                attribute: "",
+                name: raw.split(/\d/)[0]?.trim().replace(/[,.]+$/, "") || raw,
+                damage: damage === null ? "" : String(damage),
+                damageFormula: "",
+                fixedValue: damage,
+                qualities: raw.match(/\(([^)]+)\)/)?.[1] ?? "",
+                details: raw
+            }];
+    }
+    return matches.map((match, index) => {
+        const start = match.index ?? 0;
+        const end = matches[index + 1]?.index ?? raw.length;
+        const details = raw.slice(start, end).trim().replace(/^[,.;\s]+|[,.;\s]+$/g, "");
+        const damage = match[2] ?? "";
+        return {
+            attribute: "",
+            name: match[1]?.trim() || details,
+            damage,
+            damageFormula: "",
+            fixedValue: firstPublishedNumber(damage),
+            qualities: details.match(/\(([^)]+)\)/)?.[1] ?? "",
+            details
+        };
+    });
+}
+BASIC_BOOK_MONSTERS.forEach((monster, index) => {
+    const page = BASIC_BOOK_PAGES[index] ?? 201;
+    const family = BASIC_BOOK_FAMILIES[index] ?? monster.name;
+    const weaponDetails = monster.sheet.actions.find((entry) => normalizePublishedName(entry).startsWith("armas:"))
+        ?.replace(/^Armas:\s*/i, "") ?? "";
+    const weapons = parsePublishedWeaponProfiles(weaponDetails);
+    const damage = weapons[0]?.fixedValue ?? null;
+    const armor = firstPublishedNumber(monster.sheet.armor);
+    const reference = { source: "Libro Básico", page, pdfPage: page + 1 };
+    monster.sheet.family = family;
+    monster.sheet.description = monster.summary;
+    monster.sheet.tactics = BASIC_BOOK_MONSTER_TACTICS[index] ?? monster.sheet.tactics;
+    monster.sheet.sourceReferences = [reference];
+    monster.sheet.appearanceOrder = index;
+    monster.sheet.weapons = weapons;
+    monster.sheet.actions = [
+        ...weapons.map((weapon) => `Armas: ${weapon.details}`),
+        ...monster.sheet.actions.filter((entry) => !normalizePublishedName(entry).startsWith("armas:"))
+    ];
+    monster.sheet.fixedValues = { damage, armor };
+    monster.sheet.capabilities = monster.sheet.capabilities.map((entry) => ({
+        ...entry,
+        page,
+        references: [{ source: "Libro Básico", page }]
+    }));
+    monster.threat = getMonsterCreationChallenge(monster.sheet);
+    monster.family = family;
+    monster.references = [reference];
+    monster.appearanceOrder = index;
+});
+function createCodexMonster(profile) {
+    const traitCapabilities = createPublishedCapabilities(profile.traitsText, "rasgo_monstruoso", profile.source, profile.page);
+    const abilityCapabilities = createPublishedCapabilities(profile.abilitiesText, "habilidad", profile.source, profile.page);
+    const blessingCapabilities = createPublishedCapabilities(profile.blessingsBurdensText, "bendicion", profile.source, profile.page);
+    const capabilities = [...traitCapabilities, ...abilityCapabilities, ...blessingCapabilities];
+    const traits = splitPublishedEntries(profile.traitsText);
+    const fixedDamage = profile.weapons[0]?.damage ? firstPublishedNumber(profile.weapons[0].damage) : null;
+    const fixedArmor = firstPublishedNumber(profile.armorText);
+    const reference = { source: profile.source, page: profile.page, pdfPage: profile.pdfPage };
+    const weapons = profile.weapons.map((weapon) => ({
+        ...weapon,
+        damageFormula: "",
+        fixedValue: firstPublishedNumber(weapon.damage)
+    }));
+    const sheet = {
+        attack: weapons[0]?.attribute || "Ver armas",
+        damage: weapons[0]?.damage || "Según arma o rasgo",
+        defense: profile.defense,
+        armor: profile.armorText,
+        toughness: profile.toughness,
+        painThreshold: profile.painThreshold,
+        movement: "-",
+        attributes: profile.attributes,
+        traits,
+        actions: [
+            ...weapons.map((weapon) => `Armas: ${weapon.details}`),
+            ...(profile.abilitiesText && normalizePublishedName(profile.abilitiesText) !== "ninguna" ? [`Habilidades: ${profile.abilitiesText}`] : [])
+        ],
+        capabilities,
+        equipment: profile.equipmentText
+            ? [{ catalogId: `publicado-${profile.id}-equipo`, name: profile.equipmentText.slice(0, 180), category: "gear", damageFormula: "", protectionFormula: "", fixedValue: null, value: "", qualities: "", notes: profile.equipmentText }]
+            : [],
+        fixedValues: { damage: fixedDamage, armor: fixedArmor },
+        family: profile.family,
+        variant: profile.variant,
+        race: profile.race,
+        description: profile.description,
+        conduct: profile.conduct,
+        shadow: profile.shadow,
+        corruption: profile.corruption,
+        publishedThreat: profile.publishedThreat,
+        blessingsBurdens: profile.blessingsBurdensText,
+        sourceReferences: [reference],
+        weapons,
+        armorDetails: profile.armorText,
+        publishedText: profile.publishedText,
+        profileFormat: profile.profileFormat,
+        appearanceOrder: 37 + profile.appearanceOrder,
+        tactics: profile.tactics,
+        weakness: "",
+        loot: profile.equipmentText
+    };
+    const threat = getMonsterCreationChallenge(sheet);
+    return {
+        id: profile.id,
+        name: profile.name,
+        category: profile.category,
+        threat,
+        source: profile.source,
+        summary: profile.description.slice(0, 500),
+        sheet,
+        family: profile.family,
+        variant: profile.variant,
+        references: [reference],
+        appearanceOrder: sheet.appearanceOrder,
+        publishedThreat: profile.publishedThreat,
+        createdAt: STARTER_MONSTER_TIMESTAMP,
+        updatedAt: STARTER_MONSTER_TIMESTAMP
+    };
+}
+const CANONICAL_CODEX_MONSTERS = CODEX_MONSTER_PROFILE_DATA.map(createCodexMonster);
+const PROVISIONAL_MONSTER_CODEX = [
     {
         id: "codex-abominacion-devoradora",
         name: "Abominación devoradora",
@@ -783,6 +1256,8 @@ export const STARTER_MONSTER_CODEX = [
                 strong: 14,
                 vigilant: 11
             },
+            capabilities: [],
+            fixedValues: { damage: 5, armor: 3 },
             traits: ["Armadura natural I", "Ataque múltiple I", "Aura corruptora I", "Terrorífico I"],
             actions: ["Zarpazo doble", "Arremetida contaminante"],
             tactics: "Entra por el objetivo más aislado, fuerza chequeos de Resoluto y presiona hasta romper la línea.",
@@ -817,6 +1292,8 @@ export const STARTER_MONSTER_CODEX = [
                 strong: 10,
                 vigilant: 12
             },
+            capabilities: [],
+            fixedValues: { damage: 3, armor: 1 },
             traits: ["Sentidos agudos I", "Ataque en manada I", "Derribo I"],
             actions: ["Mordisco", "Hostigar y retirarse"],
             tactics: "Busca flancos, fuerza persecución y gana bonificadores cuando actúa junto a otros lobos.",
@@ -851,6 +1328,8 @@ export const STARTER_MONSTER_CODEX = [
                 strong: 15,
                 vigilant: 10
             },
+            capabilities: [],
+            fixedValues: { damage: 4, armor: 3 },
             traits: ["No muerto", "Aguante sobrenatural I", "Miedo I", "Garras I"],
             actions: ["Zarpazo necrótico", "Aferrar presa"],
             tactics: "Avanza sin preocuparse por daño crítico, inmoviliza y abre espacio para otros horrores.",
@@ -885,6 +1364,8 @@ export const STARTER_MONSTER_CODEX = [
                 strong: 16,
                 vigilant: 12
             },
+            capabilities: [],
+            fixedValues: { damage: 6, armor: 4 },
             traits: ["Raíces prensiles II", "Nube tóxica II", "Armadura vegetal II", "Regeneración I"],
             actions: ["Látigo de raíces", "Descarga de esporas"],
             tactics: "Convierte el terreno en un embudo, bloquea retirada y desgasta por exposición prolongada.",
@@ -919,6 +1400,8 @@ export const STARTER_MONSTER_CODEX = [
                 strong: 8,
                 vigilant: 10
             },
+            capabilities: [],
+            fixedValues: { damage: 3, armor: 2 },
             traits: ["Montura veloz I", "Escaramuza I", "Truco sucio I"],
             actions: ["Lanza corta", "Disparo rápido", "Retirada táctica"],
             tactics: "Evita quedarse trabado, castiga retaguardia y corta líneas de visión con humo o cobertura.",
@@ -953,6 +1436,8 @@ export const STARTER_MONSTER_CODEX = [
                 strong: 9,
                 vigilant: 14
             },
+            capabilities: [],
+            fixedValues: { damage: 4, armor: 2 },
             traits: ["Intangible por pulsos I", "Oscuridad viva I", "Desorientar I"],
             actions: ["Latigazo umbrío", "Estallido de sombras"],
             tactics: "Aparece, golpea sobre el más frágil mentalmente y desaparece antes de quedar fijada.",
@@ -963,4 +1448,9 @@ export const STARTER_MONSTER_CODEX = [
         updatedAt: "2026-04-10T00:00:00.000Z"
     },
     ...BASIC_BOOK_MONSTERS
+];
+void PROVISIONAL_MONSTER_CODEX;
+export const STARTER_MONSTER_CODEX = [
+    ...BASIC_BOOK_MONSTERS,
+    ...CANONICAL_CODEX_MONSTERS
 ];

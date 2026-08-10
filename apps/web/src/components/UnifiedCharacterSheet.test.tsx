@@ -41,6 +41,22 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(screen.getAllByText("1d8+1").length).toBeGreaterThan(0);
   });
 
+  it("usa valores fijos informativos en fichas del DJ sin lanzar dados", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.resolutionMode = "fixed_average";
+    sheet.identidad.nombrePersonaje = "Guardia";
+    sheet.combate.defensaBase = "12";
+
+    render(
+      <UnifiedCharacterSheet title="Guardia" subtitle="PNJ" sheet={sheet} editable={false} />
+    );
+
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Secciones de la ficha" })).getByRole("button", { name: "Acciones" }));
+    fireEvent.click(screen.getByRole("button", { name: "Daño 1d4" }));
+
+    expect(screen.getByText(/Valor fijo oficial: 2/)).toBeInTheDocument();
+  });
+
   it("renders the sheet modules and two coordinated readers", () => {
     const sheet = createEmptyCharacterSheet();
     sheet.identidad.nombrePersonaje = "Arold";
@@ -507,6 +523,19 @@ describe("UnifiedCharacterSheet background and notes reading views", () => {
     expect(background.querySelector(".form-grid.unified-sheet-background-meta-grid")).toBeInTheDocument();
     expect(within(background).getByRole("textbox", { name: "Sombra" })).toHaveValue("Verde con motas doradas");
     expect(within(background).getByRole("textbox", { name: "Historia (Markdown)" })).toHaveValue(sheet.noteSections.background);
+  });
+
+  it("allows NPC histories to be collapsed without truncating their content", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.noteSections.background = "Una historia extensa que debe conservarse completa.";
+    const { container } = render(<UnifiedCharacterSheet title="Arold" sheet={sheet} editable collapsibleHistory />);
+
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Secciones de la ficha" })).getByRole("button", { name: "Trasfondo" }));
+    const historyCard = container.querySelector("details.unified-sheet-read-section") as HTMLDetailsElement;
+    expect(historyCard.open).toBe(true);
+    expect(historyCard).toHaveTextContent("Una historia extensa que debe conservarse completa.");
+    fireEvent.click(historyCard.querySelector("summary")!);
+    expect(historyCard.open).toBe(false);
   });
 
   it("shows context without fields and renders note details as Markdown", () => {

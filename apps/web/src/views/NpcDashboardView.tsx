@@ -13,6 +13,7 @@ import {
 } from "@umbra/shared";
 import { CharacterBuilderView } from "./CharacterBuilderView";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
+import { NpcCreationWizard } from "../components/ActorCreationWizard";
 import { useNpcController } from "../controllers/npcController";
 import { updateNpc as persistNpcUpdate } from "../services/npcService";
 
@@ -124,9 +125,9 @@ function renderNpcStatBlock(npc: Pick<Npc, "name" | "summary" | "statBlock" | "f
 
       <div className="monster-stat-grid">
         <div className="info-box"><strong>Ataque:</strong>&nbsp;{statBlock.attack}</div>
-        <div className="info-box"><strong>Daño:</strong>&nbsp;{statBlock.damage}</div>
+        <div className="info-box"><strong>Daño:</strong>&nbsp;{statBlock.fixedValues.damage ?? statBlock.damage}{statBlock.fixedValues.damage != null ? <small> ({statBlock.damage})</small> : null}</div>
         <div className="info-box"><strong>Defensa:</strong>&nbsp;{statBlock.defense}</div>
-        <div className="info-box"><strong>Armadura:</strong>&nbsp;{statBlock.armor}</div>
+        <div className="info-box"><strong>Armadura:</strong>&nbsp;{statBlock.fixedValues.armor ?? statBlock.armor}{statBlock.fixedValues.armor != null ? <small> ({statBlock.armor})</small> : null}</div>
         <div className="info-box"><strong>Robustez:</strong>&nbsp;{statBlock.toughness}</div>
         <div className="info-box"><strong>Umbral:</strong>&nbsp;{statBlock.painThreshold}</div>
         <div className="info-box"><strong>Movimiento:</strong>&nbsp;{statBlock.movement}</div>
@@ -527,6 +528,7 @@ export function NpcDashboardView({ ensureAccessToken }: Props) {
           subtitle={`${selectedNpcCharacter.archetype || "Sin arquetipo"} · ${selectedNpcCharacter.race || "Sin raza"} · PNJ`}
           sheet={parseCharacterSheet(selectedNpcCharacter.sheet)}
           editable
+          collapsibleHistory
           onOpenBuilder={() => setPageMode("builder")}
           onSave={saveNpcSheet}
         />
@@ -562,16 +564,29 @@ export function NpcDashboardView({ ensureAccessToken }: Props) {
             {selectedNpc.labels.map((label) => <span key={`${selectedNpc.id}-${label}`} className="compendium-chip">{label}</span>)}
           </div>
 
-          <article className="campaign-sheet-card npc-detail-notes">
-            <h3>Notas</h3>
-            <p className="meta-text">{selectedNpc.summary || "Sin resumen breve."}</p>
-            <p>{selectedNpc.notes || "Sin notas ampliadas."}</p>
-          </article>
+          <details className="campaign-sheet-card npc-detail-notes narrative-collapsible-card" open>
+            <summary><span>Historia y notas</span><small>Mostrar u ocultar</small></summary>
+            <div className="narrative-collapsible-content">
+              <p className="meta-text">{selectedNpc.summary || "Sin resumen breve."}</p>
+              <p>{selectedNpc.notes || "Sin notas ampliadas."}</p>
+            </div>
+          </details>
 
           {selectedNpc.depth !== "notes" ? renderNpcStatBlock(selectedNpc) : null}
         </section>
 
-        {isEditorOpen ? <NpcEditorModal controller={controller} onClose={() => setIsEditorOpen(false)} onSaved={handleEditorSaved} /> : null}
+        {isEditorOpen ? (
+          <section className="modal-backdrop">
+            <NpcCreationWizard
+              controller={controller}
+              onCancel={() => setIsEditorOpen(false)}
+              onSaved={(saved) => {
+                handleEditorSaved(saved);
+                setIsEditorOpen(false);
+              }}
+            />
+          </section>
+        ) : null}
       </div>
     );
   }
@@ -677,7 +692,19 @@ export function NpcDashboardView({ ensureAccessToken }: Props) {
         </div>
       </section>
 
-      {isEditorOpen ? <NpcEditorModal controller={controller} onClose={() => setIsEditorOpen(false)} onSaved={handleEditorSaved} /> : null}
+      {isEditorOpen ? (
+        <section className="modal-backdrop">
+          <NpcCreationWizard
+            controller={controller}
+            onCancel={() => setIsEditorOpen(false)}
+            onSaved={(saved) => {
+              controller.selectNpc(saved.id);
+              setPageMode(saved.depth === "full_sheet" ? "sheet" : "detail");
+              setIsEditorOpen(false);
+            }}
+          />
+        </section>
+      ) : null}
     </div>
   );
 }

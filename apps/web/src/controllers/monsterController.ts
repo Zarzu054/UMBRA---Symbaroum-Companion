@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   createEmptyMonsterInput,
+  getMonsterCreationChallenge,
+  getMonsterCreationXp,
   getMonsterAttributeTotal,
+  removeExceptionalAttributeBonuses,
+  synchronizeMonsterCreationValues,
+  validateCreationAttributes,
   type AuthUser,
   type Monster,
   type MonsterAttributeKey
@@ -52,12 +57,12 @@ export function useMonsterController(user: AuthUser, ensureAccessToken: () => Pr
       const [codex, custom] = await Promise.all([fetchMonsterCodex(token), fetchCustomMonsters(token)]);
       setCodexMonsters(codex);
       setCustomMonsters(custom);
-      setSelectedCodexId((current) => current || codex[0]?.id || "");
+      setSelectedCodexId((current) => current && codex.some((entry) => entry.id === current) ? current : "");
       setSelectedCustomId((current) => {
         if (current && custom.some((entry) => entry.id === current)) {
           return current;
         }
-        return custom[0]?.id ?? null;
+        return null;
       });
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : "No se pudo cargar el módulo de monstruos");
@@ -85,9 +90,29 @@ export function useMonsterController(user: AuthUser, ensureAccessToken: () => Pr
       threat: target.threat,
       source: target.source,
       summary: target.summary,
-      sheet: structuredClone(target.sheet)
+      sheet: synchronizeMonsterCreationValues(structuredClone(target.sheet))
     });
     setFormError(null);
+  }
+
+  function duplicateCodexMonster(monsterId: string): boolean {
+    const target = codexMonsters.find((entry) => entry.id === monsterId);
+    if (!target) return false;
+    const sheet = synchronizeMonsterCreationValues(structuredClone(target.sheet));
+    setSelectedCustomId(null);
+    setDraft({
+      name: target.name,
+      category: target.category,
+      threat: getMonsterCreationChallenge(sheet),
+      source: "Mis monstruos",
+      summary: target.summary,
+      sheet: {
+        ...sheet,
+        profileFormat: "custom"
+      }
+    });
+    setFormError(null);
+    return true;
   }
 
   function updateField(field: MonsterDraftField, value: string): void {
@@ -140,28 +165,31 @@ export function useMonsterController(user: AuthUser, ensureAccessToken: () => Pr
       return "Añade un resumen breve para identificar su función en mesa.";
     }
 
-    const total = getMonsterAttributeTotal(draft.sheet);
-    if (total <= 0) {
+    const baseAttributes = removeExceptionalAttributeBonuses(draft.sheet.attributes, draft.sheet.capabilities);
+    const attributeValidation = validateCreationAttributes(baseAttributes);
+    if (!attributeValidation.valid) {
       return "Los atributos del monstruo no parecen válidos.";
     }
 
     return null;
   }
 
-  async function saveDraft(): Promise<void> {
+  async function saveDraft(): Promise<boolean> {
     const validationError = validateDraft();
     if (validationError) {
       setFormError(validationError);
-      return;
+      return false;
     }
 
+    const synchronizedSheet = synchronizeMonsterCreationValues(draft.sheet);
     const payload = {
       ...draft,
+      threat: getMonsterCreationChallenge(synchronizedSheet),
       source: "Mis monstruos",
       name: draft.name.trim(),
       summary: draft.summary.trim(),
       sheet: {
-        ...draft.sheet,
+        ...synchronizedSheet,
         tactics: draft.sheet.tactics.trim(),
         weakness: draft.sheet.weakness.trim(),
         loot: draft.sheet.loot.trim()
@@ -185,15 +213,17 @@ export function useMonsterController(user: AuthUser, ensureAccessToken: () => Pr
         summary: saved.summary,
         sheet: structuredClone(saved.sheet)
       });
+      return true;
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "No se pudo guardar el monstruo");
+      return false;
     } finally {
       setIsSaving(false);
     }
   }
 
-  async function deleteSelected(): Promise<void> {
-    if (!selectedCustomId) {
+  async function deleteSelected(monsterId: string | null = selectedCustomId): Promise<void> {
+    if (!monsterId) {
       return;
     }
 
@@ -201,7 +231,7 @@ export function useMonsterController(user: AuthUser, ensureAccessToken: () => Pr
     setLoadError(null);
     try {
       const token = await ensureAccessToken();
-      await deleteMonster(selectedCustomId, token);
+      await deleteMonster(monsterId, token);
       await refresh();
       resetDraft();
     } catch (err) {
@@ -211,10 +241,12 @@ export function useMonsterController(user: AuthUser, ensureAccessToken: () => Pr
     }
   }
 
-  const selectedCodexMonster = codexMonsters.find((entry) => entry.id === selectedCodexId) ?? codexMonsters[0] ?? null;
+  const selectedCodexMonster = codexMonsters.find((entry) => entry.id === selectedCodexId) ?? null;
   const selectedCustomMonster =
     customMonsters.find((entry) => entry.id === selectedCustomId) ?? (selectedCustomId ? null : null);
   const draftAttributeTotal = getMonsterAttributeTotal(draft.sheet);
+  const draftSpentXp = getMonsterCreationXp(draft.sheet);
+  const draftChallenge = getMonsterCreationChallenge(draft.sheet);
 
   return useMemo(
     () => ({
@@ -226,6 +258,8 @@ export function useMonsterController(user: AuthUser, ensureAccessToken: () => Pr
       selectedCustomMonster,
       draft,
       draftAttributeTotal,
+      draftSpentXp,
+      draftChallenge,
       loadError,
       formError,
       isLoading,
@@ -233,13 +267,15 @@ export function useMonsterController(user: AuthUser, ensureAccessToken: () => Pr
       refresh,
       setSelectedCodexId,
       selectCustomMonster,
+      duplicateCodexMonster,
       resetDraft,
       updateField,
       updateSheetField,
       updateAttribute,
       updateListField,
       saveDraft,
-      deleteSelected
+      deleteSelected,
+      setDraft
     }),
     [
       codexMonsters,
@@ -250,6 +286,8 @@ export function useMonsterController(user: AuthUser, ensureAccessToken: () => Pr
       selectedCustomMonster,
       draft,
       draftAttributeTotal,
+      draftSpentXp,
+      draftChallenge,
       loadError,
       formError,
       isLoading,

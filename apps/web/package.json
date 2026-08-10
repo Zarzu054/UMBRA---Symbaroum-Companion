@@ -13,6 +13,7 @@
   "dependencies": {
     "@umbra/shared": "file:../../packages/shared",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.4.149",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "umbra-symbaroum-companion": "file:../.."

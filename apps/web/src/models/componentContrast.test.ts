@@ -73,12 +73,20 @@ describe("component contrast contracts", () => {
   });
 
   it("keeps compendium entry colors visible on cards, diamonds and results", () => {
-    for (const type of ["regla", "habilidad", "poder_mistico", "ritual", "tradicion", "raza", "cultura", "arquetipo", "bendicion", "carga", "rasgo"]) {
+    for (const type of ["regla", "habilidad", "poder_mistico", "ritual", "tradicion", "profesion", "raza", "cultura", "arquetipo", "bendicion", "carga", "rasgo"]) {
       expect(stylesheet).toContain(`.compendium-library .app-card-accent--${type}`);
     }
     expect(stylesheet).toMatch(/\.compendium-section-card\.app-card-accent[\s\S]*?border-left: 6px solid var\(--app-card-accent-color\)/);
     expect(stylesheet).toMatch(/\.compendium-section-card\.app-card-accent \.compendium-section-card-ornament[\s\S]*?border: 2px solid var\(--app-card-accent-color\)/);
     expect(stylesheet).toMatch(/\.compendium-result-card\.app-card-accent[\s\S]*?border-left: 6px solid var\(--app-card-accent-color\)/);
+  });
+
+  it("lets the global-search dropdown escape its panel and scroll independently", () => {
+    expect(stylesheet).toMatch(/\.module-theme \.panel\.compendium-library-hero\s*\{[\s\S]*?overflow: visible/);
+    expect(stylesheet).toMatch(/\.compendium-quick-search-results\s*\{[\s\S]*?grid-template-rows: minmax\(0, 1fr\) auto;[\s\S]*?overflow: hidden/);
+    expect(stylesheet).toMatch(/\.compendium-quick-search-list\s*\{[\s\S]*?overflow-y: auto;[\s\S]*?overscroll-behavior: contain/);
+    expect(stylesheet).toMatch(/\.compendium-quick-search-results\.is-portal\s*\{[\s\S]*?position: fixed/);
+    expect(stylesheet).toMatch(/\.compendium-quick-search-results\.is-portal\.has-four-results\s*\{[\s\S]*?min-height: min\(230px/);
   });
 
   it("keeps modal backdrops above navigation and inside the viewport", () => {

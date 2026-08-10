@@ -1,5 +1,5 @@
 ﻿import type { Prisma } from "@prisma/client";
-import { createEmptyCharacterSheet, decodeCampaignSharedNotes, encodeCampaignSharedNotes, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CharacterSheet, type OwnedMysticArtifact, type UserRole } from "@umbra/shared";
+import { createEmptyCharacterSheet, decodeCampaignDmNotes, decodeCampaignSharedNotes, encodeCampaignDmNotes, encodeCampaignSharedNotes, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CharacterSheet, type OwnedMysticArtifact, type UserRole } from "@umbra/shared";
 import { Prisma as PrismaRuntime } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { getEffectiveCharacterExperienceSpent } from "../services/characterExperiencePolicy.js";
@@ -161,13 +161,15 @@ function mapCampaign(
     (message) => isDirector || message.userId === viewerId || message.visibility === "all"
   );
   const decodedSharedNotes = decodeCampaignSharedNotes(row.sharedNotes);
+  const decodedDmNotes = isDirector ? decodeCampaignDmNotes(row.notes) : { legacyText: "", entries: [] };
 
   return {
     id: row.id,
     name: row.name,
     summary: row.summary,
     setting: row.setting,
-    notes: isDirector ? row.notes : "",
+    notes: decodedDmNotes.legacyText,
+    dmNoteEntries: decodedDmNotes.entries,
     sharedNotes: decodedSharedNotes.legacyText,
     sharedNoteEntries: decodedSharedNotes.entries,
     gmId: row.gmId,
@@ -311,7 +313,7 @@ export class CampaignModel {
 
   async create(
     gmId: string,
-    payload: { name: string; summary: string; setting: string; notes: string; sharedNotes: string; sharedNoteEntries?: Campaign["sharedNoteEntries"] },
+    payload: { name: string; summary: string; setting: string; notes: string; dmNoteEntries?: Campaign["dmNoteEntries"]; sharedNotes: string; sharedNoteEntries?: Campaign["sharedNoteEntries"] },
     userRole: UserRole
   ): Promise<Campaign> {
     const row = await prisma.campaign.create({
@@ -320,7 +322,7 @@ export class CampaignModel {
         name: payload.name,
         summary: payload.summary,
         setting: payload.setting,
-        notes: payload.notes,
+        notes: payload.dmNoteEntries?.length ? encodeCampaignDmNotes(payload.dmNoteEntries) : payload.notes,
         sharedNotes: payload.sharedNoteEntries !== undefined ? encodeCampaignSharedNotes(payload.sharedNoteEntries) : payload.sharedNotes,
         members: {
           create: {
@@ -337,14 +339,16 @@ export class CampaignModel {
 
   async update(
     campaignId: string,
-    payload: Partial<{ name: string; summary: string; setting: string; notes: string; sharedNotes: string; sharedNoteEntries: Campaign["sharedNoteEntries"] }>,
+    payload: Partial<{ name: string; summary: string; setting: string; notes: string; dmNoteEntries: Campaign["dmNoteEntries"]; sharedNotes: string; sharedNoteEntries: Campaign["sharedNoteEntries"] }>,
     viewerId: string,
     viewerRole: UserRole
   ): Promise<Campaign> {
     const nextPayload = {
       ...payload,
+      notes: payload.dmNoteEntries !== undefined ? encodeCampaignDmNotes(payload.dmNoteEntries) : payload.notes,
       sharedNotes: payload.sharedNoteEntries !== undefined ? encodeCampaignSharedNotes(payload.sharedNoteEntries) : payload.sharedNotes
     };
+    delete (nextPayload as { dmNoteEntries?: Campaign["dmNoteEntries"] }).dmNoteEntries;
     delete (nextPayload as { sharedNoteEntries?: Campaign["sharedNoteEntries"] }).sharedNoteEntries;
 
     const row = await prisma.campaign.update({

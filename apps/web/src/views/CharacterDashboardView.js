@@ -6,6 +6,7 @@ import { CharacterCard } from "../components/CharacterCard";
 import { AppTopNavigation } from "../components/AppTopNavigation";
 import { AppIcon } from "../components/AppIcon";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
+import { CharacterCreationWizard } from "../components/ActorCreationWizard";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
 import { TYPE_LABELS, findCompendiumCapabilityEntryId, findCompendiumEntryByTypeAndName } from "../models/compendiumEntries";
 import { toCharacterCardViewModel } from "../models/characterModel";
@@ -264,7 +265,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
                                                                                     void controller.importFromPdf(file);
                                                                                 }
                                                                                 event.currentTarget.value = "";
-                                                                            } })] }), _jsx("button", { disabled: controller.isSaving, onClick: () => void controller.createRandomCharacter(), children: "Generar aleatorio" })] })] }), controller.error && !controller.isFormModalOpen ? _jsx("p", { className: "error", children: controller.error }) : null] }), controller.isFormModalOpen ? (_jsx("section", { className: "modal-backdrop", onClick: controller.closeFormModal, children: _jsxs("div", { className: "panel modal-panel character-directory-form-modal", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsx("h2", { children: controller.isEditing ? "Editar personaje" : "Crear personaje" }), _jsxs("div", { className: "toolbar", children: [controller.isEditing ? (_jsx("button", { onClick: () => {
+                                                                            } })] }), _jsx("button", { disabled: controller.isSaving, onClick: () => void controller.createRandomCharacter(), children: "Generar aleatorio" })] })] }), controller.error && !controller.isFormModalOpen ? _jsx("p", { className: "error", children: controller.error }) : null] }), controller.isFormModalOpen ? (_jsx("section", { className: "modal-backdrop", children: _jsx(CharacterCreationWizard, { controller: controller, onCancel: controller.closeFormModal }) })) : null, false && controller.isFormModalOpen ? (_jsx("section", { className: "modal-backdrop", onClick: controller.closeFormModal, children: _jsxs("div", { className: "panel modal-panel character-directory-form-modal", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsx("h2", { children: controller.isEditing ? "Editar personaje" : "Crear personaje" }), _jsxs("div", { className: "toolbar", children: [controller.isEditing ? (_jsx("button", { onClick: () => {
                                                                             const current = controller.characters.find((entry) => entry.id === controller.selectedCharacterId);
                                                                             if (current)
                                                                                 void exportCharacterSheetPdf(current);

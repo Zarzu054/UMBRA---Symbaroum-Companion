@@ -98,6 +98,33 @@ describe("compendium search", () => {
     expect(getEntrySearchRank(nameMatch, "poder mistico")).toBeLessThan(getEntrySearchRank(contentMatch, "poder mistico"));
   });
 
+  it("separates mystical traditions from professions", () => {
+    const traditions = ALL_ENTRIES.filter((candidate) => candidate.tipo === "tradicion");
+    const professions = ALL_ENTRIES.filter((candidate) => candidate.tipo === "profesion");
+
+    expect(traditions).toHaveLength(7);
+    expect(professions).toHaveLength(17);
+    expect(traditions.map((candidate) => candidate.nombre)).toContain("Magia del b\u00e1culo");
+    expect(traditions.map((candidate) => candidate.nombre)).not.toContain("Demon\u00f3logo");
+    expect(traditions.map((candidate) => candidate.nombre)).not.toContain("Mago del b\u00e1culo");
+    expect(professions.map((candidate) => candidate.nombre)).toContain("Demon\u00f3logo");
+    expect(professions.map((candidate) => candidate.nombre)).toContain("Tejedora verde");
+    expect(professions.map((candidate) => candidate.nombre)).toEqual(expect.arrayContaining([
+      "Juramentado de hierro",
+      "Templario",
+      "Guardia de la Furia",
+      "Artesano de artefactos",
+      "Mago del b\u00e1culo",
+      "Esp\u00eda de la reina",
+      "Ladr\u00f3n de guante blanco"
+    ]));
+    expect(professions.find((candidate) => candidate.nombre === "Juramentado de hierro")?.pagina).toBe(12);
+    expect(professions.find((candidate) => candidate.nombre === "Juramentado de hierro")?.facts).toEqual(expect.arrayContaining([
+      { label: "Habilidad o don exclusivo", value: "Danza de batalla" }
+    ]));
+    expect(professions.every((candidate) => candidate.detalle.includes("no incorpora mec\u00e1nicas de profesi\u00f3n"))).toBe(true);
+  });
+
   it("combines type and source filters", () => {
     const results = searchCompendiumEntries([
       entry({ id: "basic-rule" }),
@@ -129,11 +156,19 @@ describe("CompendiumView library", () => {
     const hero = screen.getByRole("heading", { name: "Compendio Central" }).closest(".compendium-library-hero") as HTMLElement;
     expect(within(hero).getByRole("searchbox", { name: "Búsqueda global" })).toBeInTheDocument();
     expect(document.querySelector(".compendium-search-panel")).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Favoritos" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Favoritos" })).not.toBeInTheDocument();
+    fireEvent.click(within(hero).getByRole("button", { name: /Favoritos/ }));
+    const favoritesDialog = screen.getByRole("dialog", { name: "Favoritos" });
+    expect(await within(favoritesDialog).findByText("Todavía no has guardado ninguna entrada.")).toBeInTheDocument();
+    fireEvent.click(within(favoritesDialog).getByRole("button", { name: "Cerrar" }));
+    expect(screen.queryByRole("dialog", { name: "Favoritos" })).not.toBeInTheDocument();
+    expect(within(hero).getByRole("button", { name: /Recientes/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Explorar el archivo" })).toBeInTheDocument();
     const abilityCategory = screen.getByRole("button", { name: /Habilidades.*entradas/ });
     expect(abilityCategory).toHaveClass("app-card-accent--habilidad");
     expect(abilityCategory.querySelector(".compendium-section-card-ornament")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Tradiciones.*7 entradas/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Profesiones.*17 entradas/ })).toHaveClass("app-card-accent--profesion");
 
     fireEvent.click(screen.getByRole("tab", { name: "Por fuente" }));
     expect(screen.getByRole("heading", { name: "Libros" })).toBeInTheDocument();
@@ -192,6 +227,8 @@ describe("CompendiumView library", () => {
 
     const quickResults = screen.getByRole("listbox", { name: "Resultados de búsqueda global" });
     expect(within(quickResults).getAllByRole("option").length).toBeGreaterThan(0);
+    expect(quickResults.parentElement).toHaveClass("is-portal");
+    expect(quickResults.closest(".compendium-library-hero")).toBeNull();
     expect(screen.getByRole("heading", { name: "Explorar el archivo" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Resultados" })).not.toBeInTheDocument();
 

@@ -1467,6 +1467,7 @@ button[disabled] {
 .compendium-library .app-card-accent--poder_mistico { --compendium-entry-color: #287980; }
 .compendium-library .app-card-accent--ritual { --compendium-entry-color: #64753a; }
 .compendium-library .app-card-accent--tradicion { --compendium-entry-color: #2d745e; }
+.compendium-library .app-card-accent--profesion { --compendium-entry-color: #68487e; }
 .compendium-library .app-card-accent--raza { --compendium-entry-color: #5d7b49; }
 .compendium-library .app-card-accent--cultura { --compendium-entry-color: #846735; }
 .compendium-library .app-card-accent--arquetipo { --compendium-entry-color: #854d69; }
@@ -1501,6 +1502,7 @@ button[disabled] {
 .compendium-library-hero {
   z-index: 10;
   min-height: 0;
+  overflow: visible;
   padding: 28px;
   border-bottom: 3px double color-mix(in srgb, var(--ui-metal) 52%, var(--ui-border));
   background:
@@ -1509,6 +1511,11 @@ button[disabled] {
     linear-gradient(var(--ui-metal), var(--ui-metal)) right top / 22px 1px no-repeat,
     linear-gradient(var(--ui-metal), var(--ui-metal)) right top / 1px 15px no-repeat,
     var(--ui-surface);
+}
+
+/* The global search is an anchored popover and must escape the generic panel crop. */
+.module-theme .panel.compendium-library-hero {
+  overflow: visible;
 }
 
 .compendium-library-hero-actions .compendium-library-error {
@@ -1612,10 +1619,38 @@ button[disabled] {
 }
 
 .compendium-result-list {
-  gap: 0;
-  border: 1px solid var(--ui-border);
-  border-radius: var(--ui-radius-md);
-  overflow: hidden;
+  gap: 9px;
+  padding: 3px 9px 6px 3px;
+  border: 0;
+  border-radius: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ui-brand) 42%, var(--ui-border)) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.compendium-result-list::-webkit-scrollbar {
+  width: 9px;
+}
+
+.compendium-result-list::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: transparent;
+}
+
+.compendium-result-list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ui-brand) 42%, var(--ui-border));
+  background-clip: padding-box;
+}
+
+.compendium-result-list::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--ui-brand) 62%, var(--ui-border));
+  background-clip: padding-box;
 }
 
 .compendium-result-card,
@@ -1634,19 +1669,28 @@ button[disabled] {
 .compendium-result-card.app-card-accent {
   border: 1px solid color-mix(in srgb, var(--app-card-accent-color) 45%, var(--ui-border));
   border-left: 6px solid var(--app-card-accent-color);
+  border-radius: 12px;
   background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--app-card-accent-color) 10%, var(--ui-surface)),
-    var(--ui-surface) 34%
+    112deg,
+    color-mix(in srgb, var(--app-card-accent-color) 12%, var(--ui-surface)),
+    var(--ui-surface) 46%
   );
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 48%, transparent),
+    0 3px 9px color-mix(in srgb, var(--ui-text) 8%, transparent);
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
 .compendium-result-card.app-card-accent:hover,
 .compendium-result-card.app-card-accent:focus-visible,
 .compendium-result-card.app-card-accent.is-active {
+  border-color: color-mix(in srgb, var(--app-card-accent-color) 76%, var(--ui-border));
   border-left-color: var(--app-card-accent-color);
   background: color-mix(in srgb, var(--app-card-accent-color) 14%, var(--ui-surface));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-card-accent-color) 34%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--app-card-accent-color) 34%, transparent),
+    0 7px 16px color-mix(in srgb, var(--app-card-accent-color) 14%, transparent);
+  transform: translateY(-1px);
 }
 
 .compendium-result-card.app-card-accent .compendium-chip {
@@ -1665,25 +1709,70 @@ button[disabled] {
 }
 
 .compendium-result-card:last-child {
-  border-bottom: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--app-card-accent-color, var(--ui-brand)) 45%, var(--ui-border));
 }
 
 .compendium-result-card:hover,
 .compendium-result-card.is-active {
   color: var(--ui-text);
-  border-color: var(--ui-border);
-  background: var(--ui-surface-hover);
-  transform: none;
+  background: color-mix(in srgb, var(--app-card-accent-color, var(--ui-brand)) 14%, var(--ui-surface));
 }
 
 .compendium-result-card.is-active {
-  box-shadow: inset 0 -2px 0 var(--ui-metal);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--app-card-accent-color, var(--ui-brand)) 34%, transparent),
+    0 7px 16px color-mix(in srgb, var(--app-card-accent-color, var(--ui-brand)) 14%, transparent);
 }
 
 .compendium-quick-search-results {
+  grid-template-rows: minmax(0, 1fr) auto;
+  max-height: min(430px, calc(100dvh - 140px));
+  overflow: hidden;
   border-color: var(--ui-border);
   background: var(--ui-surface);
   box-shadow: 0 14px 32px color-mix(in srgb, var(--ui-text) 18%, transparent);
+}
+
+.compendium-quick-search-results.is-portal {
+  position: fixed;
+  top: auto;
+  right: auto;
+  z-index: 900;
+  --compendium-ink: var(--ui-text);
+  --compendium-muted: var(--ui-text-muted);
+  --compendium-rule: var(--ui-border);
+  --compendium-paper: var(--ui-surface);
+}
+
+.compendium-quick-search-results.is-portal.has-four-results {
+  min-height: min(230px, calc(100dvh - 24px));
+}
+
+.compendium-quick-search-list {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ui-brand) 48%, var(--ui-border)) transparent;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.compendium-quick-search-list::-webkit-scrollbar {
+  width: 9px;
+}
+
+.compendium-quick-search-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.compendium-quick-search-list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ui-brand) 48%, var(--ui-border));
+  background-clip: padding-box;
 }
 
 .compendium-quick-search-entry.app-card-accent {
@@ -2247,6 +2336,217 @@ button[disabled] {
   .modal-backdrop,
   .admin-drawer-backdrop {
     padding: 0;
+  }
+}
+
+/* Full-height monster workspace */
+:root[data-character-sheet-background] body:has(.module-theme--monsters) {
+  background:
+    radial-gradient(circle at 12% -16%, color-mix(in srgb, var(--ui-metal) 8%, transparent) 0, transparent 34rem),
+    linear-gradient(145deg, color-mix(in srgb, var(--ui-brand) 2.5%, var(--ui-canvas)), var(--ui-canvas) 42%);
+}
+
+.app-content.module-theme--monsters {
+  width: 100%;
+  max-width: none;
+  height: calc(100dvh - 64px);
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.monster-catalog-module {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.monster-catalog-workspace.panel {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--ui-surface);
+}
+
+.monster-catalog-list-pane {
+  height: 100%;
+}
+
+.monster-catalog-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 52px;
+  padding: 0;
+  border-bottom: 1px solid var(--ui-border);
+  background: color-mix(in srgb, var(--ui-surface-muted) 82%, var(--ui-surface));
+}
+
+.monster-catalog-tabs button {
+  width: 100%;
+  min-height: 52px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.monster-catalog-tabs button + button {
+  border-left: 1px solid var(--ui-border);
+}
+
+.monster-catalog-tabs button.is-active {
+  color: var(--ui-brand-strong);
+  border-bottom-color: var(--ui-brand);
+  background: var(--ui-brand-soft);
+}
+
+.monster-catalog-list-header {
+  flex: 0 0 auto;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.monster-catalog-list-header > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.monster-catalog-list-header h1 {
+  font-size: clamp(1.3rem, 2vw, 1.75rem);
+  letter-spacing: 0.035em;
+}
+
+.monster-catalog-list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.monster-catalog-list-actions button {
+  min-height: 38px;
+  padding: 7px 10px;
+}
+
+.monster-catalog-results {
+  overflow-y: auto;
+}
+
+.monster-catalog-detail-pane {
+  height: 100%;
+  background: var(--ui-surface-muted);
+}
+
+.monster-reference-sheet {
+  background-color: var(--ui-surface-muted);
+}
+
+.monster-filter-modal-backdrop {
+  z-index: 1300;
+  display: grid;
+  place-items: center;
+  padding: 14px;
+}
+
+.monster-filter-modal {
+  display: grid;
+  width: min(620px, calc(100vw - 28px));
+  max-height: min(760px, calc(100dvh - 28px));
+  overflow: hidden;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-lg);
+  color: var(--ui-text);
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow-overlay);
+}
+
+.monster-filter-modal > header,
+.monster-filter-modal > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+}
+
+.monster-filter-modal > header {
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.monster-filter-modal > header h2 {
+  font-size: 1.5rem;
+}
+
+.monster-filter-modal > footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--ui-border);
+}
+
+.monster-filter-modal .monster-catalog-filters {
+  max-height: calc(100dvh - 190px);
+  overflow-y: auto;
+  padding: 18px;
+  border: 0;
+}
+
+@media (max-width: 1023px) {
+  .monster-catalog-workspace.panel,
+  .monster-catalog-list-pane {
+    min-height: 0;
+  }
+
+  .monster-catalog-results {
+    overflow-y: auto;
+  }
+
+  .monster-catalog-detail-pane.is-open {
+    inset: 64px 0 0;
+    width: 100vw;
+    height: calc(100dvh - 64px);
+  }
+}
+
+@media (max-width: 900px) {
+  .app-content.module-theme--monsters {
+    height: calc(100dvh - 58px);
+    padding: 0;
+  }
+
+  .monster-catalog-detail-pane.is-open {
+    inset: 58px 0 0;
+    height: calc(100dvh - 58px);
+  }
+}
+
+@media (max-width: 600px) {
+  .monster-catalog-list-header {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 13px 14px;
+  }
+
+  .monster-catalog-list-actions,
+  .monster-catalog-list-actions button {
+    width: 100%;
+  }
+
+  .monster-filter-modal {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+
+  .monster-filter-modal .monster-catalog-filters {
+    max-height: calc(100dvh - 176px);
+    padding: 14px;
   }
 }
 
@@ -4276,5 +4576,257 @@ button[disabled] {
 
   .unified-sheet-resources-module .unified-sheet-header-stats {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Content-sized cards and collapsible narrative blocks. */
+.monster-reference-sheet__scroll {
+  grid-auto-rows: max-content;
+}
+
+.monster-reference-sheet__scroll > *,
+.monster-reference-columns,
+.monster-reference-section,
+.monster-reference-sources {
+  min-height: max-content;
+  height: auto;
+  overflow: visible;
+}
+
+.monster-reference-columns {
+  align-items: stretch;
+  grid-auto-rows: max-content;
+}
+
+.monster-reference-section,
+.monster-reference-sources {
+  min-height: 72px;
+  padding: 14px;
+}
+
+.monster-reference-section p,
+.monster-reference-sources > div,
+.narrative-collapsible-content {
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}
+
+.narrative-collapsible-card {
+  min-width: 0;
+  min-height: 48px;
+  height: auto;
+  overflow: visible;
+}
+
+.narrative-collapsible-card > summary {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  color: var(--ui-brand-strong);
+  cursor: pointer;
+  font-size: 0.83rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  list-style: none;
+  text-transform: uppercase;
+}
+
+.narrative-collapsible-card > summary::-webkit-details-marker {
+  display: none;
+}
+
+.narrative-collapsible-card > summary::after {
+  content: "+";
+  flex: 0 0 auto;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.narrative-collapsible-card[open] > summary {
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.narrative-collapsible-card[open] > summary::after {
+  content: "−";
+}
+
+.narrative-collapsible-card > summary small {
+  margin-left: auto;
+  color: var(--ui-text-muted);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.narrative-collapsible-content {
+  padding: 14px;
+  color: var(--ui-text);
+}
+
+.narrative-collapsible-content > :first-child {
+  margin-top: 0;
+}
+
+.narrative-collapsible-content > :last-child {
+  margin-bottom: 0;
+}
+
+.monster-reference-collapsible {
+  flex: 0 0 auto;
+  min-height: 48px;
+}
+
+.npc-detail-notes.narrative-collapsible-card {
+  padding: 0;
+}
+
+.unified-sheet-read-section.narrative-collapsible-card {
+  padding: 0;
+}
+
+@media (max-width: 680px) {
+  .monster-reference-section,
+  .monster-reference-sources {
+    min-height: 64px;
+  }
+
+  .narrative-collapsible-card > summary small {
+    display: none;
+  }
+}
+
+/* Personal compendium library shortcuts and dialogs. */
+.compendium-library-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 0 0 auto;
+  width: min(100%, 250px);
+  align-self: center;
+  gap: 7px;
+}
+
+.compendium-library-shortcuts button {
+  display: flex;
+  min-width: 0;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+}
+
+.compendium-library-shortcuts button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compendium-library-shortcuts button b {
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid var(--ui-border-strong);
+  border-radius: 999px;
+  color: var(--ui-brand-strong);
+  background: var(--ui-surface);
+  font-size: 0.7rem;
+}
+
+.compendium-library-modal-backdrop {
+  z-index: 1300;
+  display: grid;
+  place-items: center;
+  padding: 14px;
+}
+
+.compendium-library-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(760px, calc(100vw - 28px));
+  max-height: min(760px, calc(100dvh - 28px));
+  overflow: hidden;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-lg);
+  color: var(--ui-text);
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow-overlay);
+}
+
+.compendium-library-modal > header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.compendium-library-modal > header h2,
+.compendium-library-modal > header p {
+  margin: 0;
+}
+
+.compendium-library-modal > header h2 {
+  font-size: 1.55rem;
+}
+
+.compendium-library-modal > header p {
+  margin-top: 3px;
+  color: var(--ui-text-muted);
+  font-size: 0.82rem;
+}
+
+.compendium-library-modal-content {
+  min-height: 180px;
+  overflow-y: auto;
+  padding: 4px 18px 18px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.compendium-library-modal-content .compendium-shelf-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+  padding-bottom: 0;
+}
+
+@media (max-width: 900px) {
+  .compendium-library-shortcuts {
+    width: min(100%, 320px);
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 680px) {
+  .compendium-library-shortcuts {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .compendium-library-modal {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+
+  .compendium-library-modal > header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 14px;
+  }
+
+  .compendium-library-modal > header .compendium-count-seal {
+    display: none;
+  }
+
+  .compendium-library-modal-content {
+    padding: 2px 14px 14px;
+  }
+
+  .compendium-library-modal-content .compendium-shelf-list {
+    grid-template-columns: 1fr;
   }
 }

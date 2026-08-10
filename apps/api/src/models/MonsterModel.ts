@@ -31,6 +31,7 @@ function mapRow(row: {
   createdAt: Date;
   updatedAt: Date;
 }): Monster {
+  const sheet = normalizeSheet(row.sheet);
   return {
     id: row.id,
     name: row.name,
@@ -38,7 +39,12 @@ function mapRow(row: {
     threat: normalizeMonsterThreat(row.threat),
     source: row.source,
     summary: row.summary,
-    sheet: normalizeSheet(row.sheet),
+    sheet,
+    family: sheet.family || undefined,
+    variant: sheet.variant || undefined,
+    references: sheet.sourceReferences,
+    appearanceOrder: sheet.appearanceOrder,
+    publishedThreat: sheet.publishedThreat || undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()
   };

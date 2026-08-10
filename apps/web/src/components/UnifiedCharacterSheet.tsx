@@ -5,6 +5,7 @@ import {
   WEAPON_QUALITY_OPTIONS,
   SYMBAROUM_ABILITIES,
   buildRollRequest,
+  averageDiceFormula,
   deriveCharacterActions,
   executeCharacterAction,
   findWeaponQualityOption,
@@ -64,6 +65,7 @@ type Props = {
   onBack?: () => void;
   onOpenBuilder?: () => void;
   backgroundPreferenceScope?: string;
+  collapsibleHistory?: boolean;
   onOpenCompendiumCapability?: (tipo: "habilidad" | "poder_mistico" | "ritual" | "bendicion" | "carga", nombre: string) => void;
   onUseArtifactAbility?: (artifactId: string, abilityId: string) => Promise<void>;
 };
@@ -1089,6 +1091,7 @@ export function UnifiedCharacterSheet({
   onOpenBuilder,
   onUseArtifactAbility,
   backgroundPreferenceScope,
+  collapsibleHistory = false,
   onOpenCompendiumCapability
 }: Props) {
   const { draft, isSavingLocal, setDraft, updateField, save } = useUnifiedCharacterSheet({
@@ -1138,6 +1141,7 @@ export function UnifiedCharacterSheet({
   useBodyScrollLock(isSheetModalOpen);
 
   const normalizedSheet = useMemo(() => synchronizeCharacterSheet(draft), [draft]);
+  const usesFixedAverages = normalizedSheet.resolutionMode === "fixed_average";
   const derived = useMemo(() => computeDerivedStats(normalizedSheet), [normalizedSheet]);
   const actions = useMemo(() => deriveCharacterActions(normalizedSheet), [normalizedSheet]);
   const defenseAlternativeActions = useMemo(
@@ -1836,6 +1840,12 @@ export function UnifiedCharacterSheet({
   }
 
   function runAction(action: CharacterActionDefinition, phase: CharacterActionPhase, damageVariantId?: string): void {
+    if (usesFixedAverages) {
+      const formula = phase === "damage" ? action.damageFormula : "1d20";
+      const fixed = formula ? averageDiceFormula(formula) : null;
+      pushHistory(action.label, [], fixed == null ? "Acción informativa del DJ: esta ficha no lanza dados automáticamente." : `Valor fijo oficial: ${fixed} (fórmula conservada: ${formula}).`);
+      return;
+    }
       if (rollDestination !== "umbra") {
       queueRoll20Request(action, phase, `${action.label} - ${phase === "damage" ? "Daño" : "Tirada"}`);
         return;
@@ -1850,6 +1860,12 @@ export function UnifiedCharacterSheet({
     damageVariantId: string,
     damageLabel: string
   ): void {
+    if (usesFixedAverages) {
+      const variant = action.damageModifiers?.find((entry) => entry.id === damageVariantId);
+      const formula = variant?.formula ?? action.damageFormula;
+      pushHistory(`${action.label} · ${damageLabel}`, [], formula ? `Valor fijo oficial: ${averageDiceFormula(formula) ?? formula} (fórmula conservada: ${formula}).` : "Acción informativa del DJ.");
+      return;
+    }
     if (rollDestination !== "umbra") {
       queueRoll20Request(
         action,
@@ -1888,6 +1904,10 @@ export function UnifiedCharacterSheet({
   }
 
   async function runAttackAction(action: CharacterActionDefinition): Promise<void> {
+    if (usesFixedAverages) {
+      pushHistory(action.label, [], "Acción informativa del DJ: el ataque no lanza dados automáticamente.");
+      return;
+    }
     if (rollDestination !== "umbra") {
       queueRoll20Request(action, "attack", `${action.label} · Tirada`);
       return;
@@ -1899,6 +1919,10 @@ export function UnifiedCharacterSheet({
   }
 
   async function runDamageAction(action: CharacterActionDefinition): Promise<void> {
+    if (usesFixedAverages) {
+      pushHistory(action.label, [], action.damageFormula ? `Valor fijo oficial: ${averageDiceFormula(action.damageFormula) ?? action.damageFormula} (fórmula conservada: ${action.damageFormula}).` : "Acción informativa del DJ.");
+      return;
+    }
     if (rollDestination !== "umbra") {
       queueRoll20Request(action, "damage", `${action.label} · Daño`);
       return;
@@ -1911,6 +1935,10 @@ export function UnifiedCharacterSheet({
 
   function runAttributeRoll(attribute: keyof CharacterSheet["atributos"]): void {
     const label = `Prueba de ${ATTRIBUTE_LABELS[attribute]}`;
+    if (usesFixedAverages) {
+      pushHistory(label, [], `Valor fijo del atributo: ${normalizedSheet.atributos[attribute]}. La ficha del DJ no realiza esta tirada.`);
+      return;
+    }
     if (rollDestination !== "umbra") {
       queueRoll20Request(
         {
@@ -1945,6 +1973,10 @@ export function UnifiedCharacterSheet({
 
   function runDefenseRoll(): void {
     const label = "Defensa";
+    if (usesFixedAverages) {
+      pushHistory(label, [], `Defensa fija: ${derived.defensaTotal}. La ficha del DJ no realiza esta tirada.`);
+      return;
+    }
     if (rollDestination !== "umbra") {
       setPendingRollConfirmation({
         request: {
@@ -1985,6 +2017,10 @@ export function UnifiedCharacterSheet({
     const formula = activeArmor?.protectionFormula || derived.armaduraActiva;
     if (!formula) return;
     const label = activeArmor?.name || normalizedSheet.combate.armadura || (derived.armaduraNatural ? "Armadura natural" : "Armadura");
+    if (usesFixedAverages) {
+      pushHistory(label, [], `Protección fija: ${averageDiceFormula(formula) ?? formula} (fórmula conservada: ${formula}).`);
+      return;
+    }
     if (rollDestination !== "umbra") {
       const formulaBreakdown = activeArmor?.protectionFormula
         ? [{
@@ -2936,6 +2972,27 @@ export function UnifiedCharacterSheet({
                     </>
                   ) : null}
                 </div>
+                <div className="unified-sheet-action-history" aria-live="polite">
+                  <h4>Historial de acciones</h4>
+                  {history.length > 0 ? (
+                    <div className="roll-log">
+                      {history.map((entry, index) => (
+                        <div key={`${entry.title}-${index}`} className="character-action-history-entry">
+                          <strong>{entry.title}</strong>
+                          {entry.rolls.map((roll, rollIndex) => (
+                            <span key={`${roll.kind}-${rollIndex}`}>
+                              {roll.label}: {roll.formula} = {roll.total}
+                              {roll.success == null ? "" : roll.success ? " · Éxito" : " · Fallo"}
+                            </span>
+                          ))}
+                          {entry.detail ? <p>{entry.detail}</p> : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="section-help">Aún no hay acciones resueltas desde esta hoja.</p>
+                  )}
+                </div>
               </article>
             </section>
           ) : null}
@@ -3139,10 +3196,17 @@ export function UnifiedCharacterSheet({
                     </dl>
                     <section className="unified-sheet-read-section"><h4>Apariencia</h4><p>{normalizedSheet.identidad.apariencia || "Sin apariencia registrada."}</p></section>
                     <section className="unified-sheet-read-section"><h4>Objetivo personal</h4><p>{normalizedSheet.identidad.objetivoPersonal || "Sin objetivo personal registrado."}</p></section>
-                    <section className="unified-sheet-read-section">
-                      <h4>Historia</h4>
-                      <div className="campaign-markdown unified-sheet-history-markdown">{renderSimpleMarkdownBlocks(normalizedSheet.noteSections.background || "Sin historia registrada.")}</div>
-                    </section>
+                    {collapsibleHistory ? (
+                      <details className="unified-sheet-read-section narrative-collapsible-card" open>
+                        <summary><span>Historia</span><small>Mostrar u ocultar</small></summary>
+                        <div className="narrative-collapsible-content campaign-markdown unified-sheet-history-markdown">{renderSimpleMarkdownBlocks(normalizedSheet.noteSections.background || "Sin historia registrada.")}</div>
+                      </details>
+                    ) : (
+                      <section className="unified-sheet-read-section">
+                        <h4>Historia</h4>
+                        <div className="campaign-markdown unified-sheet-history-markdown">{renderSimpleMarkdownBlocks(normalizedSheet.noteSections.background || "Sin historia registrada.")}</div>
+                      </section>
+                    )}
                   </div>
                 )}
               </article>

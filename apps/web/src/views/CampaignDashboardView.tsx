@@ -40,6 +40,7 @@ import {
 } from "../services/mysticArtifactService";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { ALL_ENTRIES } from "../models/compendiumEntries";
+import { buildPdfViewerUrl } from "../services/pdfViewer";
 
 type Props = {
   user: AuthUser;
@@ -54,6 +55,7 @@ type CampaignHashState = {
 
 type CampaignSection = "dmNotes" | "sharedNotes" | "wiki" | "members" | "characters" | "artifacts";
 type CampaignSharedNoteEntry = Campaign["sharedNoteEntries"][number];
+type CampaignDmNoteEntry = Campaign["dmNoteEntries"][number];
 type SharedNoteSortOption = "updated_desc" | "updated_asc" | "title_asc" | "title_desc";
 type ExperienceGrantDraft = {
   characterId: string;
@@ -67,6 +69,7 @@ const emptyCampaignForm: CreateCampaignInput = {
   summary: "",
   setting: "",
   notes: "",
+  dmNoteEntries: [],
   sharedNotes: "",
   sharedNoteEntries: []
 };
@@ -550,6 +553,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [referenceForm, setReferenceForm] = useState<CreateCampaignReferenceInput>(emptyReferenceForm);
   const [referenceAliasesText, setReferenceAliasesText] = useState("");
   const [isReferenceCreateModalOpen, setIsReferenceCreateModalOpen] = useState(false);
+  const [selectedDmNoteId, setSelectedDmNoteId] = useState<string | null>(null);
+  const [dmNoteEditor, setDmNoteEditor] = useState<{ mode: "create" | "edit"; note: CampaignDmNoteEntry } | null>(null);
+  const [dmNoteError, setDmNoteError] = useState<string | null>(null);
+  const [dmNoteSearch, setDmNoteSearch] = useState("");
+  const [dmNoteSort, setDmNoteSort] = useState<SharedNoteSortOption>("updated_desc");
   const [selectedSharedNoteId, setSelectedSharedNoteId] = useState<string | null>(null);
   const [sharedNoteEditor, setSharedNoteEditor] = useState<{ mode: "create" | "edit"; note: CampaignSharedNoteEntry } | null>(null);
   const [sharedNoteError, setSharedNoteError] = useState<string | null>(null);
@@ -577,6 +585,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
     [campaigns, selectedCampaignId]
   );
+  const experienceLogByCharacterId = useMemo(() => {
+    const groupedEntries = new Map<string, Campaign["experienceLog"]>();
+    for (const entry of selectedCampaign?.experienceLog ?? []) {
+      const characterEntries = groupedEntries.get(entry.characterId) ?? [];
+      characterEntries.push(entry);
+      groupedEntries.set(entry.characterId, characterEntries);
+    }
+    return groupedEntries;
+  }, [selectedCampaign]);
   const selectedSheetEntry = useMemo(
     () => selectedCampaign?.characters.find((entry) => entry.id === selectedSheetId) ?? null,
     [selectedCampaign, selectedSheetId]
@@ -584,6 +601,20 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const selectedReference = useMemo(
     () => selectedCampaign?.references.find((entry) => entry.id === selectedReferenceId) ?? null,
     [selectedCampaign, selectedReferenceId]
+  );
+  const allSortedDmNotes = useMemo(
+    () => sortSharedNoteEntries(selectedCampaign?.dmNoteEntries ?? [], dmNoteSort),
+    [dmNoteSort, selectedCampaign]
+  );
+  const sortedDmNotes = useMemo(() => {
+    const normalizedSearch = normalizeLookupValue(dmNoteSearch);
+    return allSortedDmNotes.filter((entry) =>
+      !normalizedSearch || normalizeLookupValue(entry.title).includes(normalizedSearch)
+    );
+  }, [allSortedDmNotes, dmNoteSearch]);
+  const selectedDmNote = useMemo(
+    () => allSortedDmNotes.find((entry) => entry.id === selectedDmNoteId) ?? null,
+    [allSortedDmNotes, selectedDmNoteId]
   );
   const allSortedSharedNotes = useMemo(
     () => sortSharedNoteEntries(selectedCampaign?.sharedNoteEntries ?? [], sharedNoteSort),
@@ -631,6 +662,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     () => selectedSharedNote ? (selectedCampaign?.references ?? []).filter((reference) => referenceMatchesText(reference, selectedSharedNote.content)) : [],
     [selectedCampaign, selectedSharedNote]
   );
+  const selectedDmNoteReferenceHighlights = useMemo(
+    () => selectedDmNote ? (selectedCampaign?.references ?? []).filter((reference) => referenceMatchesText(reference, selectedDmNote.content)) : [],
+    [selectedCampaign, selectedDmNote]
+  );
   const burdenEntries = useMemo(
     () => ALL_ENTRIES.filter((entry) => entry.tipo === "carga"),
     []
@@ -664,6 +699,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const isAnyModalOpen =
     isCreateCampaignModalOpen ||
     isCampaignDetailsModalOpen ||
+    Boolean(selectedDmNoteId) ||
+    Boolean(dmNoteEditor) ||
     Boolean(selectedSharedNoteId) ||
     Boolean(sharedNoteEditor) ||
     isReferenceCreateModalOpen ||
@@ -749,6 +786,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setSelectedReferenceId(null);
       setReferenceForm(emptyReferenceForm);
       setReferenceAliasesText("");
+      setSelectedDmNoteId(null);
+      setDmNoteEditor(null);
+      setDmNoteError(null);
+      setDmNoteSearch("");
       setSelectedSharedNoteId(null);
       setSharedNoteEditor(null);
       setSharedNoteError(null);
@@ -768,6 +809,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       summary: selectedCampaign.summary,
       setting: selectedCampaign.setting,
       notes: selectedCampaign.notes,
+      dmNoteEntries: selectedCampaign.dmNoteEntries,
       sharedNotes: selectedCampaign.sharedNotes,
       sharedNoteEntries: selectedCampaign.sharedNoteEntries
     });
@@ -890,18 +932,76 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     }
   }
 
-  async function handleSaveDmNotes(): Promise<void> {
-    if (!selectedCampaign) {
+  function buildDmNoteDraft(entry?: CampaignDmNoteEntry): CampaignDmNoteEntry {
+    const now = new Date().toISOString();
+    return {
+      id: entry?.id ?? buildTimestampedNoteId("dm-note"),
+      title: entry?.title ?? "",
+      content: entry?.content ?? "",
+      authorId: entry?.authorId || user.id,
+      authorEmail: entry?.authorEmail || user.email,
+      createdAt: entry?.createdAt || now,
+      updatedAt: entry?.updatedAt || now
+    };
+  }
+
+  async function persistDmNotes(nextEntries: CampaignDmNoteEntry[]): Promise<Campaign | null> {
+    if (!selectedCampaign) return null;
+    const token = await ensureAccessToken();
+    const updated = await updateCampaign(selectedCampaign.id, {
+      dmNoteEntries: sortSharedNoteEntries(nextEntries, "updated_desc")
+    }, token);
+    upsertCampaign(updated);
+    return updated;
+  }
+
+  async function handleSaveDmNote(): Promise<void> {
+    if (!selectedCampaign || !dmNoteEditor) return;
+
+    const trimmedTitle = dmNoteEditor.note.title.trim();
+    const trimmedContent = dmNoteEditor.note.content.trim();
+    if (trimmedTitle.length < 2) {
+      setDmNoteError("El titulo debe tener al menos 2 caracteres.");
       return;
     }
 
+    setDmNoteError(null);
     setFormError(null);
     setIsSaving(true);
     try {
-      const token = await ensureAccessToken();
-      upsertCampaign(await updateCampaign(selectedCampaign.id, { notes: draft.notes }, token));
+      const now = new Date().toISOString();
+      const normalized = {
+        ...dmNoteEditor.note,
+        title: trimmedTitle,
+        content: trimmedContent,
+        updatedAt: now,
+        createdAt: dmNoteEditor.note.createdAt || now,
+        authorId: dmNoteEditor.note.authorId || user.id,
+        authorEmail: dmNoteEditor.note.authorEmail || user.email
+      };
+      const nextEntries = dmNoteEditor.mode === "create"
+        ? [normalized, ...allSortedDmNotes]
+        : allSortedDmNotes.map((entry) => entry.id === normalized.id ? normalized : entry);
+      await persistDmNotes(nextEntries);
+      setSelectedDmNoteId(normalized.id);
+      setDmNoteEditor(null);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "No se pudieron guardar las notas del DJ");
+      setDmNoteError(err instanceof Error ? err.message : "No se pudo guardar la nota privada");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDeleteDmNote(noteId: string): Promise<void> {
+    setDmNoteError(null);
+    setFormError(null);
+    setIsSaving(true);
+    try {
+      await persistDmNotes(allSortedDmNotes.filter((entry) => entry.id !== noteId));
+      if (selectedDmNoteId === noteId) setSelectedDmNoteId(null);
+      setDmNoteEditor(null);
+    } catch (err) {
+      setDmNoteError(err instanceof Error ? err.message : "No se pudo eliminar la nota privada");
     } finally {
       setIsSaving(false);
     }
@@ -1247,7 +1347,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     try {
       const token = await ensureAccessToken();
       const source = await fetchMysticArtifactSource(artifact.id, token);
-      opened.location.href = `${source.objectUrl}#page=${source.pdfPage}`;
+      opened.location.href = buildPdfViewerUrl(source.objectUrl, source.pdfPage);
       window.setTimeout(() => URL.revokeObjectURL(source.objectUrl), 60_000);
     } catch (error) {
       opened.close();
@@ -1369,7 +1469,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               </div>
             </div>
 
-            {formError && !selectedSharedNoteId && !sharedNoteEditor && !isCampaignDetailsModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen ? (
+            {formError && !selectedDmNoteId && !dmNoteEditor && !selectedSharedNoteId && !sharedNoteEditor && !isCampaignDetailsModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen ? (
               <p className="error-text">{formError}</p>
             ) : null}
 
@@ -1426,20 +1526,63 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           {isDirector && activeSection === "dmNotes" ? (
             <section className="panel">
               <div className="row-actions">
-                <h3>Notas privadas del DJ</h3>
-                <button type="button" disabled={isSaving} onClick={() => void handleSaveDmNotes()}>
-                  {isSaving ? "Guardando..." : "Guardar"}
-                </button>
+                <div>
+                  <h3>Notas privadas del DJ</h3>
+                  <p className="section-help">Entradas privadas en Markdown, visibles exclusivamente para el director de juego.</p>
+                </div>
+                <div className="inline-row campaign-inline-form">
+                  <label className="field">
+                    <span>Buscar por titulo</span>
+                    <input
+                      value={dmNoteSearch}
+                      onChange={(event) => setDmNoteSearch(event.target.value)}
+                      placeholder="Nombre de la nota"
+                    />
+                  </label>
+                  <label className="field">
+                    <span>Ordenar</span>
+                    <select
+                      value={dmNoteSort}
+                      onChange={(event) => setDmNoteSort(event.target.value as SharedNoteSortOption)}
+                    >
+                      <option value="updated_desc">Mas recientes</option>
+                      <option value="updated_asc">Mas antiguas</option>
+                      <option value="title_asc">Titulo A-Z</option>
+                      <option value="title_desc">Titulo Z-A</option>
+                    </select>
+                  </label>
+                  <button type="button" disabled={isSaving} onClick={() => {
+                    setDmNoteError(null);
+                    setDmNoteEditor({ mode: "create", note: buildDmNoteDraft() });
+                  }}>
+                    Nueva nota
+                  </button>
+                </div>
               </div>
-              <label className="field">
-                <span>Apuntes privados de campaña</span>
-                <textarea
-                  rows={14}
-                  value={draft.notes}
-                  onChange={(event) => setDraft((current) => ({ ...current, notes: event.target.value }))}
-                  placeholder="Notas privadas para el director de juego"
-                />
-              </label>
+              <div className="campaign-reference-list">
+                {sortedDmNotes.map((note) => (
+                  <button
+                    key={note.id}
+                    type="button"
+                    className="campaign-list-item"
+                    onClick={() => {
+                      setDmNoteError(null);
+                      setSelectedDmNoteId(note.id);
+                    }}
+                  >
+                    <strong>{note.title}</strong>
+                    <span>Nota privada del DJ</span>
+                    <span>Actualizada: {note.updatedAt || note.createdAt ? formatDate(note.updatedAt || note.createdAt) : "Sin fecha registrada"}</span>
+                  </button>
+                ))}
+                {sortedDmNotes.length === 0 ? (
+                  <p className="section-help">
+                    {dmNoteSearch.trim()
+                      ? "No hay notas privadas que coincidan con ese titulo."
+                      : "Aun no hay notas privadas registradas."}
+                  </p>
+                ) : null}
+              </div>
             </section>
           ) : null}
 
@@ -1621,8 +1764,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               <div className="cards">
                 {selectedCampaign.characters.map((entry) => {
                   const canManageLink = isDirector || entry.ownerId === user.id;
+                  const characterExperienceLog = experienceLogByCharacterId.get(entry.characterId) ?? [];
                   return (
-                    <article key={entry.id} className="card">
+                    <article key={entry.id} className="card campaign-character-card" aria-label={`Personaje ${entry.name}`}>
                       <strong>{entry.name}</strong>
                       <span>{entry.ownerEmail}</span>
                       <span>PX total: {entry.experienceTotal} | Gastada: {entry.experienceSpent} | Disponible: {Math.max(0, entry.experienceTotal - entry.experienceSpent)}</span>
@@ -1668,6 +1812,22 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                           </button>
                         ) : null}
                       </div>
+                      <section className="campaign-character-experience" aria-label={`Historial de experiencia de ${entry.name}`}>
+                        <h4>Historial de experiencia</h4>
+                        {characterExperienceLog.length > 0 ? (
+                          <div className="campaign-character-experience-list">
+                            {characterExperienceLog.map((logEntry) => (
+                              <article key={logEntry.id} className="campaign-character-experience-entry">
+                                <strong>+{logEntry.amount} PX</strong>
+                                <span>{logEntry.reason}</span>
+                                <span>{formatDate(logEntry.createdAt)} · {logEntry.grantedByEmail}</span>
+                              </article>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="section-help">Todavia no hay experiencia concedida a este personaje.</p>
+                        )}
+                      </section>
                     </article>
                   );
                 })}
@@ -1675,21 +1835,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   <p className="section-help">Todavia no hay personajes vinculados.</p>
                 ) : null}
               </div>
-
-              {selectedCampaign.experienceLog.length > 0 ? (
-                <section className="campaign-experience-history">
-                  <h4>Historial de experiencia</h4>
-                  <div className="cards">
-                    {selectedCampaign.experienceLog.slice(0, 8).map((entry) => (
-                      <article key={entry.id} className="card">
-                        <strong>+{entry.amount} PX · {entry.characterName}</strong>
-                        <span>{entry.reason}</span>
-                        <span>{formatDate(entry.createdAt)} · {entry.grantedByEmail}</span>
-                      </article>
-                    ))}
-                  </div>
-                </section>
-              ) : null}
 
             </section>
           ) : null}
@@ -1893,6 +2038,119 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           onClose={() => setArtifactDetails(null)}
           onOpenSource={handleOpenArtifactSource}
         />
+      ) : null}
+
+      {isDirector && selectedDmNote && selectedCampaign ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setDmNoteError(null);
+              setSelectedDmNoteId(null);
+            }
+          }}
+        >
+          <div className="panel modal-panel campaign-shared-notes-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="row-actions">
+              <div>
+                <h3>{selectedDmNote.title}</h3>
+                <p className="section-help">Nota privada del DJ{selectedDmNote.updatedAt || selectedDmNote.createdAt ? ` · Actualizada ${formatDate(selectedDmNote.updatedAt || selectedDmNote.createdAt)}` : ""}</p>
+              </div>
+              <div className="toolbar">
+                <button type="button" disabled={isSaving} onClick={() => {
+                  setDmNoteError(null);
+                  setDmNoteEditor({ mode: "edit", note: buildDmNoteDraft(selectedDmNote) });
+                }}>
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setDmNoteError(null);
+                    setSelectedDmNoteId(null);
+                  }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            {selectedDmNoteReferenceHighlights.length > 0 ? (
+              <div className="compendium-tags">
+                {selectedDmNoteReferenceHighlights.map((reference) => (
+                  <button key={reference.id} type="button" className="compendium-chip" onClick={() => openReferenceDetail(reference.id)}>
+                    {reference.name}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <div className="campaign-markdown">
+              {renderMarkdownBlocks(selectedDmNote.content || "Sin contenido detallado.", selectedDmNoteReferenceHighlights, openReferenceDetail)}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {isDirector && dmNoteEditor && selectedCampaign ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setDmNoteEditor(null);
+              setDmNoteError(null);
+            }
+          }}
+        >
+          <div className="panel modal-panel campaign-shared-notes-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="row-actions">
+              <div>
+                <h3>{dmNoteEditor.mode === "create" ? "Nueva nota privada" : "Editar nota privada"}</h3>
+                <p className="section-help">La nota acepta Markdown y solo sera visible para el director de juego.</p>
+              </div>
+              <div className="toolbar">
+                <button type="button" disabled={isSaving} onClick={() => void handleSaveDmNote()}>
+                  {isSaving ? "Guardando..." : "Guardar"}
+                </button>
+                {dmNoteEditor.mode === "edit" ? (
+                  <button type="button" className="danger-button" disabled={isSaving} onClick={() => void handleDeleteDmNote(dmNoteEditor.note.id)}>
+                    Eliminar
+                  </button>
+                ) : null}
+                <button type="button" disabled={isSaving} onClick={() => {
+                  setDmNoteEditor(null);
+                  setDmNoteError(null);
+                }}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            {dmNoteError ? <p className="error-text">{dmNoteError}</p> : null}
+            <div className="form-grid">
+              <label className="field">
+                <span>Titulo</span>
+                <input
+                  value={dmNoteEditor.note.title}
+                  onChange={(event) => setDmNoteEditor((current) => current ? {
+                    ...current,
+                    note: { ...current.note, title: event.target.value }
+                  } : null)}
+                />
+              </label>
+            </div>
+            <label className="field">
+              <span>Contenido</span>
+              <textarea
+                rows={16}
+                value={dmNoteEditor.note.content}
+                onChange={(event) => setDmNoteEditor((current) => current ? {
+                  ...current,
+                  note: { ...current.note, content: event.target.value }
+                } : null)}
+                placeholder="Secretos, pistas, planes de sesion y recordatorios privados..."
+              />
+            </label>
+          </div>
+        </section>
       ) : null}
 
       {selectedSharedNote && selectedCampaign ? (

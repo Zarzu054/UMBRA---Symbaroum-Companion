@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createEmptyMonsterInput, getMonsterAttributeTotal } from "@umbra/shared";
+import { createEmptyMonsterInput, getMonsterCreationChallenge, getMonsterCreationXp, getMonsterAttributeTotal, removeExceptionalAttributeBonuses, synchronizeMonsterCreationValues, validateCreationAttributes } from "@umbra/shared";
 import { createMonster, deleteMonster, fetchCustomMonsters, fetchMonsterCodex, updateMonster } from "../services/monsterService";
 function normalizeLines(value) {
     return value
@@ -28,12 +28,12 @@ export function useMonsterController(user, ensureAccessToken) {
             const [codex, custom] = await Promise.all([fetchMonsterCodex(token), fetchCustomMonsters(token)]);
             setCodexMonsters(codex);
             setCustomMonsters(custom);
-            setSelectedCodexId((current) => current || codex[0]?.id || "");
+            setSelectedCodexId((current) => current && codex.some((entry) => entry.id === current) ? current : "");
             setSelectedCustomId((current) => {
                 if (current && custom.some((entry) => entry.id === current)) {
                     return current;
                 }
-                return custom[0]?.id ?? null;
+                return null;
             });
         }
         catch (err) {
@@ -60,9 +60,29 @@ export function useMonsterController(user, ensureAccessToken) {
             threat: target.threat,
             source: target.source,
             summary: target.summary,
-            sheet: structuredClone(target.sheet)
+            sheet: synchronizeMonsterCreationValues(structuredClone(target.sheet))
         });
         setFormError(null);
+    }
+    function duplicateCodexMonster(monsterId) {
+        const target = codexMonsters.find((entry) => entry.id === monsterId);
+        if (!target)
+            return false;
+        const sheet = synchronizeMonsterCreationValues(structuredClone(target.sheet));
+        setSelectedCustomId(null);
+        setDraft({
+            name: target.name,
+            category: target.category,
+            threat: getMonsterCreationChallenge(sheet),
+            source: "Mis monstruos",
+            summary: target.summary,
+            sheet: {
+                ...sheet,
+                profileFormat: "custom"
+            }
+        });
+        setFormError(null);
+        return true;
     }
     function updateField(field, value) {
         setDraft((current) => ({ ...current, [field]: value }));
@@ -108,8 +128,9 @@ export function useMonsterController(user, ensureAccessToken) {
         if (!draft.summary.trim()) {
             return "Añade un resumen breve para identificar su función en mesa.";
         }
-        const total = getMonsterAttributeTotal(draft.sheet);
-        if (total <= 0) {
+        const baseAttributes = removeExceptionalAttributeBonuses(draft.sheet.attributes, draft.sheet.capabilities);
+        const attributeValidation = validateCreationAttributes(baseAttributes);
+        if (!attributeValidation.valid) {
             return "Los atributos del monstruo no parecen válidos.";
         }
         return null;
@@ -118,15 +139,17 @@ export function useMonsterController(user, ensureAccessToken) {
         const validationError = validateDraft();
         if (validationError) {
             setFormError(validationError);
-            return;
+            return false;
         }
+        const synchronizedSheet = synchronizeMonsterCreationValues(draft.sheet);
         const payload = {
             ...draft,
+            threat: getMonsterCreationChallenge(synchronizedSheet),
             source: "Mis monstruos",
             name: draft.name.trim(),
             summary: draft.summary.trim(),
             sheet: {
-                ...draft.sheet,
+                ...synchronizedSheet,
                 tactics: draft.sheet.tactics.trim(),
                 weakness: draft.sheet.weakness.trim(),
                 loot: draft.sheet.loot.trim()
@@ -149,23 +172,25 @@ export function useMonsterController(user, ensureAccessToken) {
                 summary: saved.summary,
                 sheet: structuredClone(saved.sheet)
             });
+            return true;
         }
         catch (err) {
             setFormError(err instanceof Error ? err.message : "No se pudo guardar el monstruo");
+            return false;
         }
         finally {
             setIsSaving(false);
         }
     }
-    async function deleteSelected() {
-        if (!selectedCustomId) {
+    async function deleteSelected(monsterId = selectedCustomId) {
+        if (!monsterId) {
             return;
         }
         setIsSaving(true);
         setLoadError(null);
         try {
             const token = await ensureAccessToken();
-            await deleteMonster(selectedCustomId, token);
+            await deleteMonster(monsterId, token);
             await refresh();
             resetDraft();
         }
@@ -176,9 +201,11 @@ export function useMonsterController(user, ensureAccessToken) {
             setIsSaving(false);
         }
     }
-    const selectedCodexMonster = codexMonsters.find((entry) => entry.id === selectedCodexId) ?? codexMonsters[0] ?? null;
+    const selectedCodexMonster = codexMonsters.find((entry) => entry.id === selectedCodexId) ?? null;
     const selectedCustomMonster = customMonsters.find((entry) => entry.id === selectedCustomId) ?? (selectedCustomId ? null : null);
     const draftAttributeTotal = getMonsterAttributeTotal(draft.sheet);
+    const draftSpentXp = getMonsterCreationXp(draft.sheet);
+    const draftChallenge = getMonsterCreationChallenge(draft.sheet);
     return useMemo(() => ({
         codexMonsters,
         customMonsters,
@@ -188,6 +215,8 @@ export function useMonsterController(user, ensureAccessToken) {
         selectedCustomMonster,
         draft,
         draftAttributeTotal,
+        draftSpentXp,
+        draftChallenge,
         loadError,
         formError,
         isLoading,
@@ -195,13 +224,15 @@ export function useMonsterController(user, ensureAccessToken) {
         refresh,
         setSelectedCodexId,
         selectCustomMonster,
+        duplicateCodexMonster,
         resetDraft,
         updateField,
         updateSheetField,
         updateAttribute,
         updateListField,
         saveDraft,
-        deleteSelected
+        deleteSelected,
+        setDraft
     }), [
         codexMonsters,
         customMonsters,
@@ -211,6 +242,8 @@ export function useMonsterController(user, ensureAccessToken) {
         selectedCustomMonster,
         draft,
         draftAttributeTotal,
+        draftSpentXp,
+        draftChallenge,
         loadError,
         formError,
         isLoading,
