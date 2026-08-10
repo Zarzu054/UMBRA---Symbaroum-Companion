@@ -1,4 +1,4 @@
-import type { CharacterSheet } from "@umbra/shared";
+import { getActorCapabilityXpDelta, type CharacterSheet } from "@umbra/shared";
 
 function normalizeCapabilityName(value: string): string {
   return String(value ?? "")
@@ -32,6 +32,27 @@ export type CharacterExperienceSummary = {
 };
 
 export function getCharacterExperienceSummary(sheet: CharacterSheet): CharacterExperienceSummary {
+  if ((sheet.capabilitySelections?.length ?? 0) > 0) {
+    const spent = sheet.capabilitySelections.reduce(
+      (total, entry) => total + Math.max(0, getActorCapabilityXpDelta(entry)),
+      0
+    );
+    const extraFromBurdens = sheet.capabilitySelections.filter((entry) => entry.kind === "carga").length * 5;
+    const effectiveTotal = sheet.progreso.experienciaTotal + extraFromBurdens;
+    return {
+      spentFromCapabilities: sheet.capabilitySelections
+        .filter((entry) => !["ritual", "bendicion", "carga", "rasgo_personaje"].includes(entry.kind))
+        .reduce((total, entry) => total + Math.max(0, getActorCapabilityXpDelta(entry)), 0),
+      spentFromRituals: sheet.capabilitySelections.filter((entry) => entry.kind === "ritual").length * 10,
+      spentFromBlessings: sheet.capabilitySelections
+        .filter((entry) => entry.kind === "bendicion")
+        .reduce((total, entry) => total + Math.max(0, getActorCapabilityXpDelta(entry)), 0),
+      extraFromBurdens,
+      computedSpent: spent,
+      effectiveTotal,
+      effectiveAvailable: Math.max(0, effectiveTotal - Math.max(sheet.progreso.experienciaGastada, spent))
+    };
+  }
   const spentFromAbilities = sheet.habilidades
     .filter((entry) => normalizeCapabilityName(entry.nombre) !== "poder mistico")
     .reduce(
@@ -47,7 +68,7 @@ export function getCharacterExperienceSummary(sheet: CharacterSheet): CharacterE
   const spentFromBlessings = (sheet.bendiciones?.length ?? 0) * 5;
   const extraFromBurdens = (sheet.cargas?.length ?? 0) * 5;
   const computedSpent = spentFromCapabilities + spentFromRituals + spentFromBlessings;
-  const effectiveTotal = sheet.progreso.experienciaTotal;
+  const effectiveTotal = sheet.progreso.experienciaTotal + extraFromBurdens;
   const effectiveAvailable = Math.max(0, effectiveTotal - Math.max(sheet.progreso.experienciaGastada, computedSpent));
 
   return {

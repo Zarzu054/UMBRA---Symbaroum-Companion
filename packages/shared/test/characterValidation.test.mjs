@@ -70,7 +70,7 @@ test("acepta personaje nivel 1 con patron 2 novato + 1 adepto", () => {
   assert.equal(parsed.success, true);
 });
 
-test("rechaza patron inicial distinto de 5 novato o 2 novato + 1 adepto", () => {
+test("acepta cualquier reparto de capacidades mientras respete la bolsa de PX", () => {
   const payload = buildPayload();
   payload.sheet.habilidades = makeAbilities([
     ["Acróbata", "novato"],
@@ -78,17 +78,76 @@ test("rechaza patron inicial distinto de 5 novato o 2 novato + 1 adepto", () => 
     ["Armas a dos manos", "novato"],
     ["Combate con escudo", "novato"]
   ]);
-  expectIssue(payload, "habilidades iniciales");
+  const parsed = createCharacterSchema.safeParse(payload);
+  assert.equal(parsed.success, true);
 });
 
-test("rechaza habilidades maestro en nivel 1", () => {
+test("valida el límite de 15 sobre los atributos base y admite varios valores finales elevados", () => {
+  const payload = buildPayload();
+  payload.sheet.atributos = {
+    agil: 16,
+    atento: 15,
+    discreto: 10,
+    diestro: 10,
+    fuerte: 10,
+    inteligente: 10,
+    persuasivo: 6,
+    tenaz: 5
+  };
+  payload.sheet.capabilitySelections = [
+    { catalogId: "atributo-excepcional", name: "Atributo excepcional", kind: "habilidad", level: "novato", origin: "comprada", source: "Libro Básico", attributeKey: "agil" },
+    { catalogId: "atributo-excepcional", name: "Atributo excepcional", kind: "habilidad", level: "novato", origin: "comprada", source: "Libro Básico", attributeKey: "atento" }
+  ];
+
+  assert.equal(createCharacterSchema.safeParse(payload).success, true);
+});
+
+test("rechaza dos adquisiciones de Atributo excepcional para el mismo atributo", () => {
+  const payload = buildPayload();
+  payload.sheet.capabilitySelections = [
+    { catalogId: "atributo-excepcional", name: "Atributo excepcional", kind: "habilidad", level: "novato", origin: "comprada", source: "Libro Básico", attributeKey: "agil" },
+    { catalogId: "atributo-excepcional", name: "Atributo excepcional", kind: "habilidad", level: "adepto", origin: "comprada", source: "Libro Básico", attributeKey: "agil" }
+  ];
+  payload.sheet.atributos.agil = 13;
+
+  expectIssue(payload, "una vez para cada atributo");
+});
+
+test("acepta capacidades de maestro cuando caben en la bolsa de PX", () => {
   const payload = buildPayload();
   payload.sheet.habilidades = makeAbilities([
     ["Acróbata", "novato"],
     ["Alquimista", "novato"],
     ["Armas a dos manos", "maestro"]
   ]);
-  expectIssue(payload, "nivel maestro");
+  payload.sheet.progreso.experienciaTotal = 60;
+  const parsed = createCharacterSchema.safeParse(payload);
+  assert.equal(parsed.success, true);
+});
+
+test("rechaza capacidades estructuradas que superan la bolsa efectiva de PX", () => {
+  const payload = buildPayload();
+  payload.sheet.capabilitySelections = [{
+    catalogId: "habilidad-berserker",
+    name: "Berserker",
+    kind: "habilidad",
+    level: "maestro",
+    origin: "comprada",
+    source: "Libro Básico"
+  }];
+  expectIssue(payload, "experiencia disponible");
+});
+
+test("las cargas amplían realmente la bolsa efectiva de PX", () => {
+  const payload = buildPayload();
+  payload.sheet.cargas = ["Paria", "Bestial"];
+  payload.sheet.capabilitySelections = [
+    { catalogId: "carga-paria", name: "Paria", kind: "carga", origin: "racial", source: "Libro Básico" },
+    { catalogId: "carga-bestial", name: "Bestial", kind: "carga", origin: "trasfondo", source: "Guía Avanzada del Jugador" },
+    { catalogId: "habilidad-berserker", name: "Berserker", kind: "habilidad", level: "maestro", origin: "comprada", source: "Libro Básico" }
+  ];
+  const parsed = createCharacterSchema.safeParse(payload);
+  assert.equal(parsed.success, true);
 });
 
 test("acepta poderes misticos sin habilidad mistica base", () => {

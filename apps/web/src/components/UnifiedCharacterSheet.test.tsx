@@ -41,6 +41,22 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(screen.getAllByText("1d8+1").length).toBeGreaterThan(0);
   });
 
+  it("usa valores fijos informativos en fichas del DJ sin lanzar dados", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.resolutionMode = "fixed_average";
+    sheet.identidad.nombrePersonaje = "Guardia";
+    sheet.combate.defensaBase = "12";
+
+    render(
+      <UnifiedCharacterSheet title="Guardia" subtitle="PNJ" sheet={sheet} editable={false} />
+    );
+
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Secciones de la ficha" })).getByRole("button", { name: "Acciones" }));
+    fireEvent.click(screen.getByRole("button", { name: "Daño 1d4" }));
+
+    expect(screen.getByText(/Valor fijo oficial: 2/)).toBeInTheDocument();
+  });
+
   it("renders the sheet modules and two coordinated readers", () => {
     const sheet = createEmptyCharacterSheet();
     sheet.identidad.nombrePersonaje = "Arold";
@@ -106,6 +122,50 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(builder).toHaveClass("unified-sheet-builder-icon");
     expect(builder).toHaveAttribute("title", "Abrir constructor");
     expect(screen.queryByRole("region", { name: "Controles de ficha" })).not.toBeInTheDocument();
+  });
+
+  it("shows every manual condition in grey and toggles each one independently", () => {
+    const sheet = createEmptyCharacterSheet();
+    render(<UnifiedCharacterSheet title="Arold" subtitle="Guerrero" sheet={sheet} editable />);
+
+    const conditions = screen.getByRole("region", { name: "Condiciones" });
+    for (const name of ["Ardiendo", "Aturdido", "Cegado", "Derribado", "Envenenado", "Inmovilizado", "Paralizado", "Sangrando"]) {
+      expect(within(conditions).getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
+    }
+    expect(within(conditions).queryByText("Moribundo")).not.toBeInTheDocument();
+    expect(within(conditions).queryByText("Corrupción")).not.toBeInTheDocument();
+
+    const poisoned = within(conditions).getByRole("button", { name: "Envenenado" });
+    const stunned = within(conditions).getByRole("button", { name: "Aturdido" });
+    fireEvent.click(poisoned);
+    expect(poisoned).toHaveAttribute("aria-pressed", "true");
+    expect(poisoned).toHaveClass("is-active", "is-tone-poison");
+    expect(stunned).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(stunned);
+    expect(poisoned).toHaveAttribute("aria-pressed", "true");
+    expect(stunned).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(poisoned);
+    expect(poisoned).toHaveAttribute("aria-pressed", "false");
+    expect(stunned).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("only shows automatic conditions while they apply and never renders them as toggles", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.corrupcion.temporal = 1;
+    sheet.combate.robustezActual = 0;
+
+    render(<UnifiedCharacterSheet title="Arold" subtitle="Guerrero" sheet={sheet} editable />);
+
+    const conditions = screen.getByRole("region", { name: "Condiciones" });
+    const corruption = within(conditions).getByText("Corrupción");
+    const dying = within(conditions).getByText("Moribundo");
+
+    expect(corruption).toHaveClass("unified-sheet-condition-badge", "is-active", "is-tone-corruption");
+    expect(dying).toHaveClass("unified-sheet-condition-badge", "is-active", "is-tone-critical");
+    expect(within(conditions).queryByRole("button", { name: "Corrupción" })).not.toBeInTheDocument();
+    expect(within(conditions).queryByRole("button", { name: "Moribundo" })).not.toBeInTheDocument();
   });
 
   it("splits narrative and mechanical desktop sections into left and right readers", () => {
@@ -372,6 +432,39 @@ describe("UnifiedCharacterSheet weapon catalog", () => {
     expect(within(modal).queryAllByRole("option")).toHaveLength(0);
   });
 
+  it("searches the expanded object catalog and keeps minor artifacts outside the DJ artifact tab", () => {
+    const sheet = createEmptyCharacterSheet();
+    render(<UnifiedCharacterSheet title="Inventario" sheet={sheet} editable />);
+
+    const mobileTabs = screen.getByRole("navigation", { name: "Secciones de la ficha" });
+    fireEvent.click(within(mobileTabs).getByRole("button", { name: "Inventario" }));
+    fireEvent.click(screen.getByRole("button", { name: "Objetos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Agregar objeto" }));
+
+    let modal = screen.getByRole("heading", { name: "Agregar objeto" }).closest(".modal-panel") as HTMLElement;
+    fireEvent.change(within(modal).getByLabelText("Tipo"), { target: { value: "elixir" } });
+    const search = within(modal).getByRole("combobox", { name: "Buscar objeto" });
+    fireEvent.change(search, { target: { value: "veneno potente" } });
+    const poison = within(modal).getByRole("option", { name: /^Veneno \(potente\)/ });
+    expect(poison).toHaveTextContent("Veneno (potente)");
+    expect(poison).toHaveTextContent("6 táleros");
+    fireEvent.click(poison);
+    fireEvent.click(within(modal).getByRole("button", { name: "Agregar" }));
+    expect(screen.getByText("Veneno (potente)")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Agregar objeto" }));
+    modal = screen.getByRole("heading", { name: "Agregar objeto" }).closest(".modal-panel") as HTMLElement;
+    fireEvent.change(within(modal).getByLabelText("Tipo"), { target: { value: "minor-artifact" } });
+    fireEvent.change(within(modal).getByRole("combobox", { name: "Buscar objeto" }), { target: { value: "araña curativa" } });
+    fireEvent.click(within(modal).getByRole("option", { name: /Araña curativa/ }));
+    fireEvent.click(within(modal).getByRole("button", { name: "Agregar" }));
+    expect(screen.getByText("Araña curativa")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
+    expect(screen.getByText("El DJ todavia no ha entregado artefactos a este personaje.")).toBeInTheDocument();
+    expect(screen.queryByText("Araña curativa")).not.toBeInTheDocument();
+  });
+
   it("places large money controls on both sides of each coin", () => {
     const sheet = createEmptyCharacterSheet();
     render(<UnifiedCharacterSheet title="Inventario" sheet={sheet} editable />);
@@ -430,6 +523,19 @@ describe("UnifiedCharacterSheet background and notes reading views", () => {
     expect(background.querySelector(".form-grid.unified-sheet-background-meta-grid")).toBeInTheDocument();
     expect(within(background).getByRole("textbox", { name: "Sombra" })).toHaveValue("Verde con motas doradas");
     expect(within(background).getByRole("textbox", { name: "Historia (Markdown)" })).toHaveValue(sheet.noteSections.background);
+  });
+
+  it("allows NPC histories to be collapsed without truncating their content", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.noteSections.background = "Una historia extensa que debe conservarse completa.";
+    const { container } = render(<UnifiedCharacterSheet title="Arold" sheet={sheet} editable collapsibleHistory />);
+
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Secciones de la ficha" })).getByRole("button", { name: "Trasfondo" }));
+    const historyCard = container.querySelector("details.unified-sheet-read-section") as HTMLDetailsElement;
+    expect(historyCard.open).toBe(true);
+    expect(historyCard).toHaveTextContent("Una historia extensa que debe conservarse completa.");
+    fireEvent.click(historyCard.querySelector("summary")!);
+    expect(historyCard.open).toBe(false);
   });
 
   it("shows context without fields and renders note details as Markdown", () => {

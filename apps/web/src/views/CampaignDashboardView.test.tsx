@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { createEmptyCharacterSheet, type AuthUser, type Campaign, type MysticArtifact } from "@umbra/shared";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const serviceMocks = vi.hoisted(() => ({
@@ -73,6 +73,7 @@ function buildCampaign(total = 10, mysticArtifacts: MysticArtifact[] = []): Camp
     summary: "",
     setting: "",
     notes: "",
+    dmNoteEntries: [],
     sharedNotes: "",
     sharedNoteEntries: [],
     gmId: gm.id,
@@ -130,6 +131,112 @@ describe("CampaignDashboardView experience grants", () => {
       "token-a"
     ));
     expect(await screen.findByText(/PX total: 15/)).toBeInTheDocument();
+  });
+
+  it("shows a separate experience history for each linked character", async () => {
+    const campaign = buildCampaign();
+    const secondSheet = createEmptyCharacterSheet();
+    secondSheet.identidad.nombrePersonaje = "Beremo";
+    campaign.characters.push({
+      ...campaign.characters[0],
+      id: "link-b",
+      characterId: "00000000-0000-4000-8000-000000000002",
+      name: "Beremo",
+      ownerId: "player-b",
+      ownerEmail: "beremo@example.com",
+      sheet: secondSheet
+    });
+    campaign.experienceLog = [
+      {
+        id: "experience-a",
+        sessionId: null,
+        characterId: "00000000-0000-4000-8000-000000000001",
+        characterName: "Alda",
+        grantedById: gm.id,
+        grantedByEmail: gm.email,
+        amount: 5,
+        reason: "Recompensa de Alda",
+        createdAt: "2026-08-09T10:00:00.000Z"
+      },
+      {
+        id: "experience-b",
+        sessionId: null,
+        characterId: "00000000-0000-4000-8000-000000000002",
+        characterName: "Beremo",
+        grantedById: gm.id,
+        grantedByEmail: gm.email,
+        amount: 3,
+        reason: "Recompensa de Beremo",
+        createdAt: "2026-08-10T10:00:00.000Z"
+      }
+    ];
+    serviceMocks.fetchCampaigns.mockResolvedValue([campaign]);
+
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+
+    await screen.findByRole("heading", { name: "Personajes vinculados" });
+    const aldaCard = screen.getByRole("article", { name: "Personaje Alda" });
+    const beremoCard = screen.getByRole("article", { name: "Personaje Beremo" });
+
+    expect(within(aldaCard).getByText("+5 PX")).toBeInTheDocument();
+    expect(within(aldaCard).getByText("Recompensa de Alda")).toBeInTheDocument();
+    expect(within(aldaCard).queryByText("+3 PX")).not.toBeInTheDocument();
+    expect(within(beremoCard).getByText("+3 PX")).toBeInTheDocument();
+    expect(within(beremoCard).getByText("Recompensa de Beremo")).toBeInTheDocument();
+    expect(within(beremoCard).queryByText("+5 PX")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "Historial de experiencia" })).toHaveLength(2);
+  });
+
+  it("shows private GM notes as Markdown entries instead of an always-visible form", async () => {
+    const campaign = buildCampaign();
+    campaign.dmNoteEntries = [{
+      id: "dm-note-1",
+      title: "Plan secreto",
+      content: "## Emboscada\n\n- Tres guardias\n- Una salida oculta",
+      authorId: gm.id,
+      authorEmail: gm.email,
+      createdAt: "2026-08-10T10:00:00.000Z",
+      updatedAt: "2026-08-10T10:00:00.000Z"
+    }];
+    window.history.replaceState(null, "", "#campaigns?id=campaign-a&section=dmNotes");
+    serviceMocks.fetchCampaigns.mockResolvedValue([campaign]);
+
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+
+    await screen.findByRole("heading", { name: "Notas privadas del DJ" });
+    expect(screen.queryByPlaceholderText("Notas privadas para el director de juego")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Plan secreto/ }));
+    expect(await screen.findByRole("heading", { name: "Emboscada" })).toBeInTheDocument();
+    expect(screen.getByText("Tres guardias")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Editar" })).toBeInTheDocument();
+  });
+
+  it("creates private GM note entries through the modal editor", async () => {
+    const campaign = buildCampaign();
+    window.history.replaceState(null, "", "#campaigns?id=campaign-a&section=dmNotes");
+    serviceMocks.fetchCampaigns.mockResolvedValue([campaign]);
+    serviceMocks.updateCampaign.mockImplementation(async (_campaignId, input) => ({
+      ...campaign,
+      dmNoteEntries: input.dmNoteEntries ?? []
+    }));
+
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+    await screen.findByRole("heading", { name: "Notas privadas del DJ" });
+    fireEvent.click(screen.getByRole("button", { name: "Nueva nota" }));
+    fireEvent.change(screen.getByLabelText("Titulo"), { target: { value: "Villano oculto" } });
+    fireEvent.change(screen.getByLabelText("Contenido"), { target: { value: "**No revelar** a los jugadores." } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    await waitFor(() => expect(serviceMocks.updateCampaign).toHaveBeenCalledWith(
+      "campaign-a",
+      expect.objectContaining({
+        dmNoteEntries: [expect.objectContaining({
+          title: "Villano oculto",
+          content: "**No revelar** a los jugadores."
+        })]
+      }),
+      "token-a"
+    ));
   });
 
   it("shows the GM-only artifact management section", async () => {

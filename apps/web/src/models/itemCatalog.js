@@ -1,4 +1,5 @@
 import { buildWeaponCatalogNotes, WEAPON_QUALITY_OPTIONS, WEAPON_TEMPLATES, formatWeaponQualities } from "@umbra/shared";
+import { EQUIPMENT_CATALOG_DEFINITIONS, getEquipmentDefinitionInventoryVariants } from "./equipmentCatalog";
 export const ARMOR_QUALITY_OPTIONS = [
     { id: "ligera", label: "Ligera", summary: "Armadura de proteccion liviana y de uso cotidiano.", details: "Las armaduras ligeras priorizan movilidad y discrecion frente a la proteccion bruta." },
     { id: "media", label: "Media", summary: "Proteccion intermedia para combate sostenido.", details: "Las armaduras medias equilibran resistencia y movilidad, pero ya resultan mas aparatosas que las ligeras." },
@@ -1108,6 +1109,51 @@ const OTHER_ITEM_TEMPLATES = [
         modifiers: []
     }
 ];
+function extractEquipmentRolls(value) {
+    const formulas = Array.from(new Set(value.match(/\b\d+D\d+(?:[+-]\d+)?\b/gi) ?? []));
+    return formulas.slice(0, 8).map((formula, index) => ({
+        id: `effect-${index + 1}`,
+        kind: "custom",
+        label: `Tirar ${formula.toUpperCase()}`,
+        formula: formula.toUpperCase()
+    }));
+}
+const EXPANDED_EQUIPMENT_ITEM_TEMPLATES = EQUIPMENT_CATALOG_DEFINITIONS.flatMap((definition) => getEquipmentDefinitionInventoryVariants(definition).map(({ templateId, name, price, description }) => {
+    const rolls = definition.usable ? extractEquipmentRolls(description) : [];
+    return {
+        templateId,
+        catalogGroup: definition.group,
+        name,
+        category: definition.category,
+        stackable: definition.stackable ?? false,
+        isCustom: false,
+        description,
+        weight: "",
+        value: price,
+        slot: definition.slot ?? "none",
+        attackAttribute: undefined,
+        damageFormula: "",
+        protectionFormula: "",
+        qualities: formatWeaponQualities(definition.qualities ?? []),
+        notes: definition.summary,
+        grantedActions: definition.usable ? [{
+                id: `use-${templateId}`,
+                label: `Usar ${name}`,
+                cost: "movement",
+                effectSummary: description,
+                rolls: rolls.length > 0 ? rolls : undefined
+            }] : [],
+        modifiers: [],
+        defaultQuantity: definition.defaultQuantity ?? 1
+    };
+}));
+function normalizeCatalogName(value) {
+    return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("es");
+}
+const EXPANDED_EQUIPMENT_NAMES = new Set([
+    ...EQUIPMENT_CATALOG_DEFINITIONS.map((definition) => normalizeCatalogName(definition.name)),
+    ...EXPANDED_EQUIPMENT_ITEM_TEMPLATES.map((template) => normalizeCatalogName(template.name))
+]);
 const ARMOR_CATALOG_ORDER = [
     "Armadura ligera", "Armadura oculta", "Capa de la Ordo", "Coraza de escaldo", "Cuero tachonado",
     "Hilo de seda", "Piel de lobo", "Ropajes de bruja", "Túnica bendita", "Armadura media",
@@ -1115,7 +1161,11 @@ const ARMOR_CATALOG_ORDER = [
     "Armadura pesada", "Armadura completa", "Armadura completa de templario", "Armadura de la furia",
     "Armadura de placas", "Armadura de placas pansar"
 ];
-export const ITEM_CATALOG = [...WEAPON_ITEM_TEMPLATES, ...OTHER_ITEM_TEMPLATES]
+export const ITEM_CATALOG = [
+    ...WEAPON_ITEM_TEMPLATES,
+    ...OTHER_ITEM_TEMPLATES.filter((template) => !EXPANDED_EQUIPMENT_NAMES.has(normalizeCatalogName(template.name))),
+    ...EXPANDED_EQUIPMENT_ITEM_TEMPLATES
+]
     .filter((template) => template.templateId !== "artifact-generic")
     .sort((left, right) => {
     if (left.category !== "armor" || right.category !== "armor")

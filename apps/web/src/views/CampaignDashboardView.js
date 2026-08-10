@@ -8,11 +8,13 @@ import { MysticArtifactDetailsModal } from "../components/MysticArtifactDetailsM
 import { assignMysticArtifactOwner, bindNpcMysticArtifact, createCampaignMysticArtifact, deleteCampaignMysticArtifact, fetchMysticArtifactPresets, fetchMysticArtifactSource, unbindMysticArtifact, updateCampaignMysticArtifact, updateMysticArtifactResource, useMysticArtifactAbility } from "../services/mysticArtifactService";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { ALL_ENTRIES } from "../models/compendiumEntries";
+import { buildPdfViewerUrl } from "../services/pdfViewer";
 const emptyCampaignForm = {
     name: "",
     summary: "",
     setting: "",
     notes: "",
+    dmNoteEntries: [],
     sharedNotes: "",
     sharedNoteEntries: []
 };
@@ -394,6 +396,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
     const [referenceForm, setReferenceForm] = useState(emptyReferenceForm);
     const [referenceAliasesText, setReferenceAliasesText] = useState("");
     const [isReferenceCreateModalOpen, setIsReferenceCreateModalOpen] = useState(false);
+    const [selectedDmNoteId, setSelectedDmNoteId] = useState(null);
+    const [dmNoteEditor, setDmNoteEditor] = useState(null);
+    const [dmNoteError, setDmNoteError] = useState(null);
+    const [dmNoteSearch, setDmNoteSearch] = useState("");
+    const [dmNoteSort, setDmNoteSort] = useState("updated_desc");
     const [selectedSharedNoteId, setSelectedSharedNoteId] = useState(null);
     const [sharedNoteEditor, setSharedNoteEditor] = useState(null);
     const [sharedNoteError, setSharedNoteError] = useState(null);
@@ -417,8 +424,23 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
     const [artifactDetails, setArtifactDetails] = useState(null);
     const [artifactError, setArtifactError] = useState(null);
     const selectedCampaign = useMemo(() => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null, [campaigns, selectedCampaignId]);
+    const experienceLogByCharacterId = useMemo(() => {
+        const groupedEntries = new Map();
+        for (const entry of selectedCampaign?.experienceLog ?? []) {
+            const characterEntries = groupedEntries.get(entry.characterId) ?? [];
+            characterEntries.push(entry);
+            groupedEntries.set(entry.characterId, characterEntries);
+        }
+        return groupedEntries;
+    }, [selectedCampaign]);
     const selectedSheetEntry = useMemo(() => selectedCampaign?.characters.find((entry) => entry.id === selectedSheetId) ?? null, [selectedCampaign, selectedSheetId]);
     const selectedReference = useMemo(() => selectedCampaign?.references.find((entry) => entry.id === selectedReferenceId) ?? null, [selectedCampaign, selectedReferenceId]);
+    const allSortedDmNotes = useMemo(() => sortSharedNoteEntries(selectedCampaign?.dmNoteEntries ?? [], dmNoteSort), [dmNoteSort, selectedCampaign]);
+    const sortedDmNotes = useMemo(() => {
+        const normalizedSearch = normalizeLookupValue(dmNoteSearch);
+        return allSortedDmNotes.filter((entry) => !normalizedSearch || normalizeLookupValue(entry.title).includes(normalizedSearch));
+    }, [allSortedDmNotes, dmNoteSearch]);
+    const selectedDmNote = useMemo(() => allSortedDmNotes.find((entry) => entry.id === selectedDmNoteId) ?? null, [allSortedDmNotes, selectedDmNoteId]);
     const allSortedSharedNotes = useMemo(() => sortSharedNoteEntries(selectedCampaign?.sharedNoteEntries ?? [], sharedNoteSort), [selectedCampaign, sharedNoteSort]);
     const filteredSharedNotes = useMemo(() => {
         const normalizedSearch = normalizeLookupValue(sharedNoteSearch);
@@ -437,6 +459,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
     }, [artifactSearch, artifactSourceFilter, selectedCampaign]);
     const selectedPreset = useMemo(() => artifactPresets.find((artifact) => artifact.id === selectedPresetId) ?? null, [artifactPresets, selectedPresetId]);
     const selectedSharedNoteReferenceHighlights = useMemo(() => selectedSharedNote ? (selectedCampaign?.references ?? []).filter((reference) => referenceMatchesText(reference, selectedSharedNote.content)) : [], [selectedCampaign, selectedSharedNote]);
+    const selectedDmNoteReferenceHighlights = useMemo(() => selectedDmNote ? (selectedCampaign?.references ?? []).filter((reference) => referenceMatchesText(reference, selectedDmNote.content)) : [], [selectedCampaign, selectedDmNote]);
     const burdenEntries = useMemo(() => ALL_ENTRIES.filter((entry) => entry.tipo === "carga"), []);
     const campaignBurdenDigest = useMemo(() => {
         if (!selectedCampaign || !isDirector) {
@@ -462,6 +485,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
     const isSheetModalOpen = Boolean(campaignSheetModalEntry);
     const isAnyModalOpen = isCreateCampaignModalOpen ||
         isCampaignDetailsModalOpen ||
+        Boolean(selectedDmNoteId) ||
+        Boolean(dmNoteEditor) ||
         Boolean(selectedSharedNoteId) ||
         Boolean(sharedNoteEditor) ||
         isReferenceCreateModalOpen ||
@@ -537,6 +562,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
             setSelectedReferenceId(null);
             setReferenceForm(emptyReferenceForm);
             setReferenceAliasesText("");
+            setSelectedDmNoteId(null);
+            setDmNoteEditor(null);
+            setDmNoteError(null);
+            setDmNoteSearch("");
             setSelectedSharedNoteId(null);
             setSharedNoteEditor(null);
             setSharedNoteError(null);
@@ -555,6 +584,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
             summary: selectedCampaign.summary,
             setting: selectedCampaign.setting,
             notes: selectedCampaign.notes,
+            dmNoteEntries: selectedCampaign.dmNoteEntries,
             sharedNotes: selectedCampaign.sharedNotes,
             sharedNoteEntries: selectedCampaign.sharedNoteEntries
         });
@@ -667,18 +697,77 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
             setIsSaving(false);
         }
     }
-    async function handleSaveDmNotes() {
-        if (!selectedCampaign) {
+    function buildDmNoteDraft(entry) {
+        const now = new Date().toISOString();
+        return {
+            id: entry?.id ?? buildTimestampedNoteId("dm-note"),
+            title: entry?.title ?? "",
+            content: entry?.content ?? "",
+            authorId: entry?.authorId || user.id,
+            authorEmail: entry?.authorEmail || user.email,
+            createdAt: entry?.createdAt || now,
+            updatedAt: entry?.updatedAt || now
+        };
+    }
+    async function persistDmNotes(nextEntries) {
+        if (!selectedCampaign)
+            return null;
+        const token = await ensureAccessToken();
+        const updated = await updateCampaign(selectedCampaign.id, {
+            dmNoteEntries: sortSharedNoteEntries(nextEntries, "updated_desc")
+        }, token);
+        upsertCampaign(updated);
+        return updated;
+    }
+    async function handleSaveDmNote() {
+        if (!selectedCampaign || !dmNoteEditor)
+            return;
+        const trimmedTitle = dmNoteEditor.note.title.trim();
+        const trimmedContent = dmNoteEditor.note.content.trim();
+        if (trimmedTitle.length < 2) {
+            setDmNoteError("El titulo debe tener al menos 2 caracteres.");
             return;
         }
+        setDmNoteError(null);
         setFormError(null);
         setIsSaving(true);
         try {
-            const token = await ensureAccessToken();
-            upsertCampaign(await updateCampaign(selectedCampaign.id, { notes: draft.notes }, token));
+            const now = new Date().toISOString();
+            const normalized = {
+                ...dmNoteEditor.note,
+                title: trimmedTitle,
+                content: trimmedContent,
+                updatedAt: now,
+                createdAt: dmNoteEditor.note.createdAt || now,
+                authorId: dmNoteEditor.note.authorId || user.id,
+                authorEmail: dmNoteEditor.note.authorEmail || user.email
+            };
+            const nextEntries = dmNoteEditor.mode === "create"
+                ? [normalized, ...allSortedDmNotes]
+                : allSortedDmNotes.map((entry) => entry.id === normalized.id ? normalized : entry);
+            await persistDmNotes(nextEntries);
+            setSelectedDmNoteId(normalized.id);
+            setDmNoteEditor(null);
         }
         catch (err) {
-            setFormError(err instanceof Error ? err.message : "No se pudieron guardar las notas del DJ");
+            setDmNoteError(err instanceof Error ? err.message : "No se pudo guardar la nota privada");
+        }
+        finally {
+            setIsSaving(false);
+        }
+    }
+    async function handleDeleteDmNote(noteId) {
+        setDmNoteError(null);
+        setFormError(null);
+        setIsSaving(true);
+        try {
+            await persistDmNotes(allSortedDmNotes.filter((entry) => entry.id !== noteId));
+            if (selectedDmNoteId === noteId)
+                setSelectedDmNoteId(null);
+            setDmNoteEditor(null);
+        }
+        catch (err) {
+            setDmNoteError(err instanceof Error ? err.message : "No se pudo eliminar la nota privada");
         }
         finally {
             setIsSaving(false);
@@ -1025,7 +1114,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         try {
             const token = await ensureAccessToken();
             const source = await fetchMysticArtifactSource(artifact.id, token);
-            opened.location.href = `${source.objectUrl}#page=${source.pdfPage}`;
+            opened.location.href = buildPdfViewerUrl(source.objectUrl, source.pdfPage);
             window.setTimeout(() => URL.revokeObjectURL(source.objectUrl), 60_000);
         }
         catch (error) {
@@ -1072,7 +1161,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                                                 }, children: "Volver a campa\u00F1as" }), isDirector ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => {
                                                     setFormError(null);
                                                     setIsCampaignDetailsModalOpen(true);
-                                                }, children: "Detalles" })) : null] })] }), formError && !selectedSharedNoteId && !sharedNoteEditor && !isCampaignDetailsModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen ? (_jsx("p", { className: "error-text", children: formError })) : null, _jsxs("div", { className: "toolbar campaign-section-nav", children: [isDirector ? (_jsx("button", { type: "button", className: activeSection === "dmNotes" ? "is-active" : "", onClick: () => setActiveSection("dmNotes"), children: "Notas DJ" })) : null, _jsx("button", { type: "button", className: activeSection === "sharedNotes" ? "is-active" : "", onClick: () => setActiveSection("sharedNotes"), children: "Notas compartidas" }), _jsx("button", { type: "button", className: activeSection === "wiki" ? "is-active" : "", onClick: () => setActiveSection("wiki"), children: "Wiki" }), _jsx("button", { type: "button", className: activeSection === "members" ? "is-active" : "", onClick: () => setActiveSection("members"), children: "Miembros" }), _jsx("button", { type: "button", className: activeSection === "characters" ? "is-active" : "", onClick: () => setActiveSection("characters"), children: "Personajes" }), isDirector ? (_jsx("button", { type: "button", className: activeSection === "artifacts" ? "is-active" : "", onClick: () => setActiveSection("artifacts"), children: "Artefactos" })) : null] })] }), isDirector && activeSection === "dmNotes" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Notas privadas del DJ" }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleSaveDmNotes(), children: isSaving ? "Guardando..." : "Guardar" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Apuntes privados de campa\u00F1a" }), _jsx("textarea", { rows: 14, value: draft.notes, onChange: (event) => setDraft((current) => ({ ...current, notes: event.target.value })), placeholder: "Notas privadas para el director de juego" })] })] })) : null, activeSection === "sharedNotes" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Notas compartidas" }), _jsx("p", { className: "section-help", children: "Entradas en Markdown visibles para toda la campa\u00F1a, con busqueda por titulo y enlaces a la wiki detectados dentro de cada nota." })] }), _jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Buscar por titulo" }), _jsx("input", { value: sharedNoteSearch, onChange: (event) => setSharedNoteSearch(event.target.value), placeholder: "Nombre de la nota" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Ordenar" }), _jsxs("select", { value: sharedNoteSort, onChange: (event) => setSharedNoteSort(event.target.value), children: [_jsx("option", { value: "updated_desc", children: "Mas recientes" }), _jsx("option", { value: "updated_asc", children: "Mas antiguas" }), _jsx("option", { value: "title_asc", children: "Titulo A-Z" }), _jsx("option", { value: "title_desc", children: "Titulo Z-A" })] })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                }, children: "Detalles" })) : null] })] }), formError && !selectedDmNoteId && !dmNoteEditor && !selectedSharedNoteId && !sharedNoteEditor && !isCampaignDetailsModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen ? (_jsx("p", { className: "error-text", children: formError })) : null, _jsxs("div", { className: "toolbar campaign-section-nav", children: [isDirector ? (_jsx("button", { type: "button", className: activeSection === "dmNotes" ? "is-active" : "", onClick: () => setActiveSection("dmNotes"), children: "Notas DJ" })) : null, _jsx("button", { type: "button", className: activeSection === "sharedNotes" ? "is-active" : "", onClick: () => setActiveSection("sharedNotes"), children: "Notas compartidas" }), _jsx("button", { type: "button", className: activeSection === "wiki" ? "is-active" : "", onClick: () => setActiveSection("wiki"), children: "Wiki" }), _jsx("button", { type: "button", className: activeSection === "members" ? "is-active" : "", onClick: () => setActiveSection("members"), children: "Miembros" }), _jsx("button", { type: "button", className: activeSection === "characters" ? "is-active" : "", onClick: () => setActiveSection("characters"), children: "Personajes" }), isDirector ? (_jsx("button", { type: "button", className: activeSection === "artifacts" ? "is-active" : "", onClick: () => setActiveSection("artifacts"), children: "Artefactos" })) : null] })] }), isDirector && activeSection === "dmNotes" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Notas privadas del DJ" }), _jsx("p", { className: "section-help", children: "Entradas privadas en Markdown, visibles exclusivamente para el director de juego." })] }), _jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Buscar por titulo" }), _jsx("input", { value: dmNoteSearch, onChange: (event) => setDmNoteSearch(event.target.value), placeholder: "Nombre de la nota" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Ordenar" }), _jsxs("select", { value: dmNoteSort, onChange: (event) => setDmNoteSort(event.target.value), children: [_jsx("option", { value: "updated_desc", children: "Mas recientes" }), _jsx("option", { value: "updated_asc", children: "Mas antiguas" }), _jsx("option", { value: "title_asc", children: "Titulo A-Z" }), _jsx("option", { value: "title_desc", children: "Titulo Z-A" })] })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                    setDmNoteError(null);
+                                                    setDmNoteEditor({ mode: "create", note: buildDmNoteDraft() });
+                                                }, children: "Nueva nota" })] })] }), _jsxs("div", { className: "campaign-reference-list", children: [sortedDmNotes.map((note) => (_jsxs("button", { type: "button", className: "campaign-list-item", onClick: () => {
+                                            setDmNoteError(null);
+                                            setSelectedDmNoteId(note.id);
+                                        }, children: [_jsx("strong", { children: note.title }), _jsx("span", { children: "Nota privada del DJ" }), _jsxs("span", { children: ["Actualizada: ", note.updatedAt || note.createdAt ? formatDate(note.updatedAt || note.createdAt) : "Sin fecha registrada"] })] }, note.id))), sortedDmNotes.length === 0 ? (_jsx("p", { className: "section-help", children: dmNoteSearch.trim()
+                                            ? "No hay notas privadas que coincidan con ese titulo."
+                                            : "Aun no hay notas privadas registradas." })) : null] })] })) : null, activeSection === "sharedNotes" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Notas compartidas" }), _jsx("p", { className: "section-help", children: "Entradas en Markdown visibles para toda la campa\u00F1a, con busqueda por titulo y enlaces a la wiki detectados dentro de cada nota." })] }), _jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Buscar por titulo" }), _jsx("input", { value: sharedNoteSearch, onChange: (event) => setSharedNoteSearch(event.target.value), placeholder: "Nombre de la nota" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Ordenar" }), _jsxs("select", { value: sharedNoteSort, onChange: (event) => setSharedNoteSort(event.target.value), children: [_jsx("option", { value: "updated_desc", children: "Mas recientes" }), _jsx("option", { value: "updated_asc", children: "Mas antiguas" }), _jsx("option", { value: "title_asc", children: "Titulo A-Z" }), _jsx("option", { value: "title_desc", children: "Titulo Z-A" })] })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
                                                     setSharedNoteError(null);
                                                     setSharedNoteEditor({ mode: "create", note: buildSharedNoteDraft() });
                                                 }, children: "Nueva nota" })] })] }), _jsxs("div", { className: "campaign-reference-list", children: [sortedSharedNotes.map((note) => (_jsxs("button", { type: "button", className: "campaign-list-item", onClick: () => {
@@ -1082,7 +1179,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                                             ? "No hay notas compartidas que coincidan con ese titulo."
                                             : "Aun no hay notas compartidas registradas." })) : null] })] })) : null, activeSection === "wiki" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Wiki de campa\u00F1a" }), _jsx("p", { className: "section-help", children: "Jugadores pueden aportar entradas visibles para toda la campa\u00F1a. El DJ puede mantener entradas privadas o compartirlas con jugadores concretos." })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: handlePrepareNewReference, children: "Nueva referencia" })] }), _jsxs("div", { className: "campaign-reference-list", children: [selectedCampaign.references.map((reference) => (_jsxs("button", { type: "button", className: "campaign-list-item", onClick: () => openReferenceDetail(reference.id), children: [_jsx("strong", { children: reference.name }), _jsx("span", { children: reference.label }), _jsx("span", { children: reference.summary || "Sin resumen breve" }), reference.aliases.length > 0 ? _jsxs("span", { children: ["Alias: ", reference.aliases.join(", ")] }) : null, _jsx("span", { children: describeReferenceVisibility(reference) }), _jsxs("span", { children: ["Autor: ", reference.authorEmail] })] }, reference.id))), selectedCampaign.references.length === 0 ? (_jsx("p", { className: "section-help", children: "Aun no hay referencias en esta campa\u00F1a." })) : null] })] })) : null, activeSection === "members" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Miembros" }), isDirector ? (_jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Email del jugador" }), _jsx("input", { value: memberEmail, onChange: (event) => setMemberEmail(event.target.value) })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleAddMember(), children: "Agregar" })] })) : null] }), _jsx("div", { className: "cards", children: selectedCampaign.members.map((member) => (_jsxs("article", { className: "card", children: [_jsx("strong", { children: member.email }), _jsx("span", { children: member.role === "gm" ? "Director" : "Jugador" }), _jsxs("span", { children: ["Alta: ", new Date(member.joinedAt).toLocaleDateString()] }), isDirector && member.role !== "gm" ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleRemoveMember(member.id), children: "Quitar" })) : null] }, member.id))) })] })) : null, activeSection === "characters" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Personajes vinculados" }), _jsx("p", { className: "section-help", children: "El director concede la experiencia desde aqui. Los jugadores pueden invertirla desde el constructor de su personaje." })] }), _jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Personaje disponible" }), _jsxs("select", { value: selectedAvailableCharacterId, onChange: (event) => setSelectedAvailableCharacterId(event.target.value), children: [linkableCharacters.length === 0 ? _jsx("option", { value: "", children: "Sin personajes disponibles" }) : null, linkableCharacters.map((entry) => (_jsxs("option", { value: entry.characterId, children: [entry.name, " - ", entry.ownerEmail] }, entry.characterId)))] })] }), _jsx("button", { type: "button", disabled: isSaving || !selectedAvailableCharacterId, onClick: () => void handleLinkCharacter(), children: "Vincular" }), isDirector ? (_jsx("button", { type: "button", className: "subtle-button", onClick: () => setIsBurdenSummaryModalOpen(true), children: "Resumen de cargas" })) : null] })] }), _jsxs("div", { className: "cards", children: [selectedCampaign.characters.map((entry) => {
                                         const canManageLink = isDirector || entry.ownerId === user.id;
-                                        return (_jsxs("article", { className: "card", children: [_jsx("strong", { children: entry.name }), _jsx("span", { children: entry.ownerEmail }), _jsxs("span", { children: ["PX total: ", entry.experienceTotal, " | Gastada: ", entry.experienceSpent, " | Disponible: ", Math.max(0, entry.experienceTotal - entry.experienceSpent)] }), _jsxs("span", { children: ["Actualizado: ", formatDate(entry.updatedAt)] }), _jsxs("div", { className: "card-actions", children: [isDirector && entry.sheet ? (_jsx("button", { type: "button", onClick: () => {
+                                        const characterExperienceLog = experienceLogByCharacterId.get(entry.characterId) ?? [];
+                                        return (_jsxs("article", { className: "card campaign-character-card", "aria-label": `Personaje ${entry.name}`, children: [_jsx("strong", { children: entry.name }), _jsx("span", { children: entry.ownerEmail }), _jsxs("span", { children: ["PX total: ", entry.experienceTotal, " | Gastada: ", entry.experienceSpent, " | Disponible: ", Math.max(0, entry.experienceTotal - entry.experienceSpent)] }), _jsxs("span", { children: ["Actualizado: ", formatDate(entry.updatedAt)] }), _jsxs("div", { className: "card-actions", children: [isDirector && entry.sheet ? (_jsx("button", { type: "button", onClick: () => {
                                                                 setSelectedSheetId(entry.id);
                                                             }, children: "Abrir hoja" })) : null, isDirector ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => {
                                                                 setExperienceGrantError(null);
@@ -1095,8 +1193,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                                                             }, children: "Conceder PX" })) : null, canManageLink ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => {
                                                                 setFormError(null);
                                                                 setPendingUnlinkCharacter(entry);
-                                                            }, children: "Desvincular" })) : null] })] }, entry.id));
-                                    }), selectedCampaign.characters.length === 0 ? (_jsx("p", { className: "section-help", children: "Todavia no hay personajes vinculados." })) : null] }), selectedCampaign.experienceLog.length > 0 ? (_jsxs("section", { className: "campaign-experience-history", children: [_jsx("h4", { children: "Historial de experiencia" }), _jsx("div", { className: "cards", children: selectedCampaign.experienceLog.slice(0, 8).map((entry) => (_jsxs("article", { className: "card", children: [_jsxs("strong", { children: ["+", entry.amount, " PX \u00B7 ", entry.characterName] }), _jsx("span", { children: entry.reason }), _jsxs("span", { children: [formatDate(entry.createdAt), " \u00B7 ", entry.grantedByEmail] })] }, entry.id))) })] })) : null] })) : null, isDirector && activeSection === "artifacts" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Artefactos m\u00EDsticos" }), _jsx("p", { className: "section-help", children: "Solo se muestran los artefactos que el DJ ha incluido en esta campa\u00F1a." })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                            }, children: "Desvincular" })) : null] }), _jsxs("section", { className: "campaign-character-experience", "aria-label": `Historial de experiencia de ${entry.name}`, children: [_jsx("h4", { children: "Historial de experiencia" }), characterExperienceLog.length > 0 ? (_jsx("div", { className: "campaign-character-experience-list", children: characterExperienceLog.map((logEntry) => (_jsxs("article", { className: "campaign-character-experience-entry", children: [_jsxs("strong", { children: ["+", logEntry.amount, " PX"] }), _jsx("span", { children: logEntry.reason }), _jsxs("span", { children: [formatDate(logEntry.createdAt), " \u00B7 ", logEntry.grantedByEmail] })] }, logEntry.id))) })) : (_jsx("p", { className: "section-help", children: "Todavia no hay experiencia concedida a este personaje." }))] })] }, entry.id));
+                                    }), selectedCampaign.characters.length === 0 ? (_jsx("p", { className: "section-help", children: "Todavia no hay personajes vinculados." })) : null] })] })) : null, isDirector && activeSection === "artifacts" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Artefactos m\u00EDsticos" }), _jsx("p", { className: "section-help", children: "Solo se muestran los artefactos que el DJ ha incluido en esta campa\u00F1a." })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
                                             setArtifactError(null);
                                             setIsArtifactAddModalOpen(true);
                                         }, children: "A\u00F1adir artefacto" })] }), artifactError ? _jsx("p", { className: "error-text", children: artifactError }) : null, _jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Buscar" }), _jsx("input", { value: artifactSearch, onChange: (event) => setArtifactSearch(event.target.value), placeholder: "Nombre, texto o poseedor" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Libro o aventura" }), _jsxs("select", { value: artifactSourceFilter, onChange: (event) => setArtifactSourceFilter(event.target.value), children: [_jsx("option", { value: "", children: "Todos" }), artifactSources.map((source) => _jsx("option", { value: source, children: source }, source))] })] })] }), _jsxs("div", { className: "cards", children: [visibleCampaignArtifacts.map((artifact) => {
@@ -1121,7 +1219,32 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                                     }, children: "Crear personalizado" })] })] }) })) : null, artifactEditor ? (_jsx("section", { className: "modal-backdrop", onClick: () => !isSaving && setArtifactEditor(null), children: _jsx(MysticArtifactEditorWizard, { title: artifactEditor.id ? "Editar artefacto" : "Crear artefacto personalizado", initialValue: artifactEditor.definition, busy: isSaving, externalError: artifactError, onCancel: () => {
                         setArtifactError(null);
                         setArtifactEditor(null);
-                    }, onSave: handleSaveArtifactEditor }) })) : null, artifactDetails ? (_jsx(MysticArtifactDetailsModal, { artifact: artifactDetails, busy: isSaving, onClose: () => setArtifactDetails(null), onOpenSource: handleOpenArtifactSource })) : null, selectedSharedNote && selectedCampaign ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
+                    }, onSave: handleSaveArtifactEditor }) })) : null, artifactDetails ? (_jsx(MysticArtifactDetailsModal, { artifact: artifactDetails, busy: isSaving, onClose: () => setArtifactDetails(null), onOpenSource: handleOpenArtifactSource })) : null, isDirector && selectedDmNote && selectedCampaign ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
+                    if (!isSaving) {
+                        setDmNoteError(null);
+                        setSelectedDmNoteId(null);
+                    }
+                }, children: _jsxs("div", { className: "panel modal-panel campaign-shared-notes-modal", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: selectedDmNote.title }), _jsxs("p", { className: "section-help", children: ["Nota privada del DJ", selectedDmNote.updatedAt || selectedDmNote.createdAt ? ` · Actualizada ${formatDate(selectedDmNote.updatedAt || selectedDmNote.createdAt)}` : ""] })] }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                setDmNoteError(null);
+                                                setDmNoteEditor({ mode: "edit", note: buildDmNoteDraft(selectedDmNote) });
+                                            }, children: "Editar" }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                setDmNoteError(null);
+                                                setSelectedDmNoteId(null);
+                                            }, children: "Cerrar" })] })] }), selectedDmNoteReferenceHighlights.length > 0 ? (_jsx("div", { className: "compendium-tags", children: selectedDmNoteReferenceHighlights.map((reference) => (_jsx("button", { type: "button", className: "compendium-chip", onClick: () => openReferenceDetail(reference.id), children: reference.name }, reference.id))) })) : null, _jsx("div", { className: "campaign-markdown", children: renderMarkdownBlocks(selectedDmNote.content || "Sin contenido detallado.", selectedDmNoteReferenceHighlights, openReferenceDetail) })] }) })) : null, isDirector && dmNoteEditor && selectedCampaign ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
+                    if (!isSaving) {
+                        setDmNoteEditor(null);
+                        setDmNoteError(null);
+                    }
+                }, children: _jsxs("div", { className: "panel modal-panel campaign-shared-notes-modal", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: dmNoteEditor.mode === "create" ? "Nueva nota privada" : "Editar nota privada" }), _jsx("p", { className: "section-help", children: "La nota acepta Markdown y solo sera visible para el director de juego." })] }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleSaveDmNote(), children: isSaving ? "Guardando..." : "Guardar" }), dmNoteEditor.mode === "edit" ? (_jsx("button", { type: "button", className: "danger-button", disabled: isSaving, onClick: () => void handleDeleteDmNote(dmNoteEditor.note.id), children: "Eliminar" })) : null, _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                setDmNoteEditor(null);
+                                                setDmNoteError(null);
+                                            }, children: "Cerrar" })] })] }), dmNoteError ? _jsx("p", { className: "error-text", children: dmNoteError }) : null, _jsx("div", { className: "form-grid", children: _jsxs("label", { className: "field", children: [_jsx("span", { children: "Titulo" }), _jsx("input", { value: dmNoteEditor.note.title, onChange: (event) => setDmNoteEditor((current) => current ? {
+                                            ...current,
+                                            note: { ...current.note, title: event.target.value }
+                                        } : null) })] }) }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Contenido" }), _jsx("textarea", { rows: 16, value: dmNoteEditor.note.content, onChange: (event) => setDmNoteEditor((current) => current ? {
+                                        ...current,
+                                        note: { ...current.note, content: event.target.value }
+                                    } : null), placeholder: "Secretos, pistas, planes de sesion y recordatorios privados..." })] })] }) })) : null, selectedSharedNote && selectedCampaign ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
                     if (!isSaving) {
                         setSharedNoteError(null);
                         setSelectedSharedNoteId(null);

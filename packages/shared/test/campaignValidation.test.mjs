@@ -8,12 +8,35 @@ import {
   createCampaignReferenceSchema,
   createCampaignSessionSchema,
   executeCharacterAction,
+  decodeCampaignDmNotes,
+  encodeCampaignDmNotes,
   grantCampaignExperienceSchema,
   getEffectiveCharacterRobustezMax,
   getCharacterMonsterTraitEffects,
   synchronizeCharacterSheet,
   SYMBAROUM_ABILITIES
 } from "../dist/index.js";
+
+test("las notas privadas del DJ conservan entradas Markdown y migran el texto antiguo", () => {
+  const legacy = decodeCampaignDmNotes("# Secreto\n\nNo mostrar a los jugadores.");
+  assert.equal(legacy.entries.length, 1);
+  assert.equal(legacy.entries[0].title, "Notas privadas del DJ");
+  assert.match(legacy.entries[0].content, /No mostrar/);
+
+  const encoded = encodeCampaignDmNotes([{
+    id: "dm-note-1",
+    title: "Plan de la sesi\u00f3n",
+    content: "## Emboscada\n\n- Tres guardias",
+    authorId: "gm-a",
+    authorEmail: "gm@example.com",
+    createdAt: "2026-08-10T10:00:00.000Z",
+    updatedAt: "2026-08-10T10:00:00.000Z"
+  }]);
+  const decoded = decodeCampaignDmNotes(encoded);
+  assert.equal(decoded.legacyText, "");
+  assert.equal(decoded.entries[0].title, "Plan de la sesi\u00f3n");
+  assert.match(decoded.entries[0].content, /## Emboscada/);
+});
 
 test("createCampaignSessionSchema acepta una sesion valida", () => {
   const parsed = createCampaignSessionSchema.parse({
@@ -910,6 +933,24 @@ test("al migrar el minimo de robustez se conservan los puntos de dano existentes
   const synchronized = synchronizeCharacterSheet(sheet);
   assert.equal(synchronized.combate.robustezMax, 10);
   assert.equal(synchronized.combate.robustezActual, 3);
+});
+
+test("sincroniza automaticamente Corrupcion y Moribundo y los retira cuando dejan de aplicar", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.corrupcion.temporal = 2;
+  sheet.combate.robustezActual = 0;
+
+  const affected = synchronizeCharacterSheet(sheet);
+  assert.deepEqual(
+    affected.conditions.filter((condition) => condition.active).map((condition) => condition.id).sort(),
+    ["legacy-corruption", "legacy-dying"]
+  );
+
+  affected.corrupcion.temporal = 0;
+  affected.combate.robustezActual = 1;
+  const recovered = synchronizeCharacterSheet(affected);
+  assert.equal(recovered.conditions.some((condition) => condition.id === "legacy-corruption"), false);
+  assert.equal(recovered.conditions.some((condition) => condition.id === "legacy-dying"), false);
 });
 
 test("deriveCharacterActions reemplaza acciones guardadas obsoletas de Arma natural por la derivada actual", () => {

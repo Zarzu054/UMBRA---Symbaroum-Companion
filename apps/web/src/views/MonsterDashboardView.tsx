@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getDerivedMonsterSheetStats,
   MONSTER_ATTRIBUTE_KEYS,
@@ -10,6 +10,8 @@ import {
 } from "@umbra/shared";
 import { useMonsterController } from "../controllers/monsterController";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { MonsterCreationWizard } from "../components/ActorCreationWizard";
+import { MonsterReferenceSheet } from "../components/MonsterReferenceSheet";
 
 type Props = {
   user: AuthUser;
@@ -46,9 +48,9 @@ function renderMonsterTable(monster: MonsterTableViewModel) {
 
       <div className="monster-stat-grid">
         <div className="info-box"><strong>Ataque:</strong>&nbsp;{monster.sheet.attack}</div>
-        <div className="info-box"><strong>Daño:</strong>&nbsp;{monster.sheet.damage}</div>
+        <div className="info-box"><strong>Daño:</strong>&nbsp;{monster.sheet.fixedValues.damage ?? monster.sheet.damage}<small> ({monster.sheet.damage})</small></div>
         <div className="info-box"><strong>Defensa:</strong>&nbsp;{derivedSheet.defense}</div>
-        <div className="info-box"><strong>Armadura:</strong>&nbsp;{derivedSheet.armor}</div>
+        <div className="info-box"><strong>Armadura:</strong>&nbsp;{monster.sheet.fixedValues.armor ?? derivedSheet.armor}<small> ({monster.sheet.armor})</small></div>
         <div className="info-box"><strong>Robustez:</strong>&nbsp;{derivedSheet.toughness}</div>
         <div className="info-box"><strong>Umbral:</strong>&nbsp;{derivedSheet.painThreshold}</div>
         <div className="info-box"><strong>Movimiento:</strong>&nbsp;{monster.sheet.movement}</div>
@@ -74,8 +76,18 @@ function renderMonsterTable(monster: MonsterTableViewModel) {
       </div>
 
       <div className="monster-detail-grid">
+        {(monster.sheet.equipment?.length ?? 0) > 0 ? (
+          <article className="entry-row">
+            <strong>Equipo</strong>
+            <ul className="tag-list">
+              {monster.sheet.equipment?.map((item, index) => (
+                <li key={`${item.catalogId}-${index}`}>{item.name}{item.fixedValue != null ? ` · ${item.fixedValue} (${item.damageFormula || item.protectionFormula})` : ""}</li>
+              ))}
+            </ul>
+          </article>
+        ) : null}
         <article className="entry-row">
-          <strong>Rasgos</strong>
+          <strong>Capacidades y rasgos</strong>
           <ul className="tag-list">
             {monster.sheet.traits.map((trait) => (
               <li key={trait}>{trait}</li>
@@ -342,7 +354,7 @@ function MonsterSheetModal({ monster, onClose }: MonsterSheetModalProps) {
   );
 }
 
-export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
+function LegacyMonsterDashboardView({ user, ensureAccessToken }: Props) {
   const controller = useMonsterController(user, ensureAccessToken);
   const [activeTab, setActiveTab] = useState<MonsterModuleTab>("codex");
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -561,13 +573,269 @@ export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
         ) : null}
       </div>
 
-      {isEditorOpen ? <MonsterEditorModal controller={controller} onClose={() => setIsEditorOpen(false)} /> : null}
+      {isEditorOpen ? (
+        <div className="modal-backdrop">
+          <MonsterCreationWizard controller={controller} onCancel={() => setIsEditorOpen(false)} />
+        </div>
+      ) : null}
       {sheetPreviewMonster ? (
         <MonsterSheetModal monster={sheetPreviewMonster} onClose={() => setSheetPreviewMonsterId(null)} />
       ) : null}
       {isCodexSheetOpen && visibleCodexMonster ? (
         <MonsterSheetModal monster={visibleCodexMonster} onClose={() => setIsCodexSheetOpen(false)} />
       ) : null}
+    </div>
+  );
+}
+
+type MonsterSortMode = "alphabetical" | "appearance";
+
+export function sortMonsterCatalog(monsters: Monster[], mode: MonsterSortMode): Monster[] {
+  const sorted = [...monsters];
+  if (mode === "appearance") {
+    return sorted.sort((a, b) => (a.appearanceOrder ?? a.sheet.appearanceOrder ?? Number.MAX_SAFE_INTEGER) - (b.appearanceOrder ?? b.sheet.appearanceOrder ?? Number.MAX_SAFE_INTEGER));
+  }
+  return sorted.sort((a, b) => {
+    const familyA = a.sheet.family || a.family || a.name;
+    const familyB = b.sheet.family || b.family || b.name;
+    return familyA.localeCompare(familyB, "es", { sensitivity: "base" }) || a.name.localeCompare(b.name, "es", { sensitivity: "base" });
+  });
+}
+
+function monsterSearchText(monster: Monster): string {
+  return normalizeSearchValue([
+    monster.name,
+    monster.family,
+    monster.variant,
+    monster.category,
+    monster.threat,
+    monster.source,
+    monster.summary,
+    monster.sheet.family,
+    monster.sheet.variant,
+    monster.sheet.race,
+    monster.sheet.description,
+    monster.sheet.conduct,
+    monster.sheet.shadow,
+    monster.sheet.traits.join(" "),
+    monster.sheet.actions.join(" "),
+    monster.sheet.capabilities.map((entry) => `${entry.name} ${entry.legacyData ?? ""}`).join(" "),
+    monster.sheet.weapons.map((weapon) => `${weapon.name} ${weapon.details} ${weapon.qualities}`).join(" "),
+    monster.sheet.tactics,
+    monster.sheet.loot
+  ].filter(Boolean).join(" "));
+}
+
+function useNarrowMonsterLayout(): boolean {
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.matchMedia?.("(max-width: 1023px)").matches === true);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(max-width: 1023px)");
+    const update = () => setNarrow(media.matches);
+    update();
+    media.addEventListener?.("change", update);
+    return () => media.removeEventListener?.("change", update);
+  }, []);
+  return narrow;
+}
+
+export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
+  const controller = useMonsterController(user, ensureAccessToken);
+  const [activeTab, setActiveTab] = useState<MonsterModuleTab>("codex");
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [customDetailId, setCustomDetailId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [familyFilter, setFamilyFilter] = useState("");
+  const [threatFilter, setThreatFilter] = useState("");
+  const [sortMode, setSortMode] = useState<MonsterSortMode>("alphabetical");
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const lastTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const filtersTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const filtersSearchRef = useRef<HTMLInputElement | null>(null);
+  const isNarrow = useNarrowMonsterLayout();
+  const selectedId = activeTab === "codex" ? controller.selectedCodexId : customDetailId;
+  useBodyScrollLock(isFiltersOpen || (isNarrow && Boolean(selectedId)));
+
+  const sourceMonsters = activeTab === "codex" ? controller.codexMonsters : controller.customMonsters;
+  const sources = useMemo(() => Array.from(new Set(sourceMonsters.map((monster) => monster.source))).sort((a, b) => a.localeCompare(b, "es")), [sourceMonsters]);
+  const families = useMemo(() => Array.from(new Set(sourceMonsters.map((monster) => monster.sheet.family || monster.family || monster.name))).sort((a, b) => a.localeCompare(b, "es")), [sourceMonsters]);
+
+  const filteredMonsters = useMemo(() => {
+    const query = normalizeSearchValue(search);
+    const filtered = sourceMonsters.filter((monster) => {
+      if (query && !monsterSearchText(monster).includes(query)) return false;
+      if (sourceFilter && monster.source !== sourceFilter) return false;
+      if (categoryFilter && monster.category !== categoryFilter) return false;
+      if (familyFilter && (monster.sheet.family || monster.family || monster.name) !== familyFilter) return false;
+      if (threatFilter && monster.threat !== threatFilter) return false;
+      return true;
+    });
+
+    return sortMonsterCatalog(filtered, sortMode);
+  }, [sourceMonsters, search, sourceFilter, categoryFilter, familyFilter, threatFilter, sortMode]);
+
+  const selectedMonster = useMemo(() => {
+    if (!selectedId) return null;
+    return sourceMonsters.find((monster) => monster.id === selectedId) ?? null;
+  }, [selectedId, sourceMonsters]);
+
+  useEffect(() => {
+    if (!selectedId || filteredMonsters.some((monster) => monster.id === selectedId)) return;
+    if (activeTab === "codex") controller.setSelectedCodexId("");
+    else setCustomDetailId(null);
+  }, [activeTab, filteredMonsters, selectedId]);
+
+  useEffect(() => {
+    if (!isFiltersOpen) return;
+    filtersSearchRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setIsFiltersOpen(false);
+      window.setTimeout(() => filtersTriggerRef.current?.focus(), 0);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [isFiltersOpen]);
+
+  function closeSheet(): void {
+    if (activeTab === "codex") controller.setSelectedCodexId("");
+    else setCustomDetailId(null);
+    window.setTimeout(() => lastTriggerRef.current?.focus(), 0);
+  }
+
+  function selectMonster(monsterId: string, trigger: HTMLButtonElement): void {
+    lastTriggerRef.current = trigger;
+    if (activeTab === "codex") controller.setSelectedCodexId(monsterId);
+    else setCustomDetailId(monsterId);
+  }
+
+  function changeTab(tab: MonsterModuleTab): void {
+    if (tab === activeTab) return;
+    closeSheet();
+    setActiveTab(tab);
+    setSourceFilter("");
+    setCategoryFilter("");
+    setFamilyFilter("");
+    setThreatFilter("");
+  }
+
+  function openCreate(): void {
+    controller.resetDraft();
+    setIsEditorOpen(true);
+  }
+
+  function openEdit(monsterId: string): void {
+    controller.selectCustomMonster(monsterId);
+    setIsEditorOpen(true);
+  }
+
+  function duplicateOfficial(monsterId: string): void {
+    if (controller.duplicateCodexMonster(monsterId)) setIsEditorOpen(true);
+  }
+
+  function closeFilters(): void {
+    setIsFiltersOpen(false);
+    window.setTimeout(() => filtersTriggerRef.current?.focus(), 0);
+  }
+
+  function clearFilters(): void {
+    setSearch("");
+    setSourceFilter("");
+    setCategoryFilter("");
+    setFamilyFilter("");
+    setThreatFilter("");
+    setSortMode("alphabetical");
+  }
+
+  async function removeCustom(monster: Monster): Promise<void> {
+    if (!window.confirm(`¿Eliminar definitivamente a ${monster.name}?`)) return;
+    await controller.deleteSelected(monster.id);
+    setCustomDetailId(null);
+  }
+
+  return (
+    <div className="monster-module monster-catalog-module">
+      <section className="panel monster-catalog-workspace">
+        <aside className="monster-catalog-list-pane" aria-label="Listado de monstruos">
+          <nav className="monster-catalog-tabs" aria-label="Secciones del módulo de monstruos">
+            <button type="button" className={activeTab === "codex" ? "is-active" : ""} aria-pressed={activeTab === "codex"} onClick={() => changeTab("codex")}>Catálogo oficial</button>
+            <button type="button" className={activeTab === "custom" ? "is-active" : ""} aria-pressed={activeTab === "custom"} onClick={() => changeTab("custom")}>Mis monstruos</button>
+          </nav>
+          <div className="monster-catalog-list-header">
+            <div>
+              <span className="compendium-eyebrow">Archivo del Director de Juego</span>
+              <h1>Monstruos y adversarios</h1>
+              <span>{filteredMonsters.length} resultados{controller.isLoading ? " · Cargando..." : ""}</span>
+            </div>
+            <div className="monster-catalog-list-actions">
+              <button ref={filtersTriggerRef} type="button" className="subtle-button" onClick={() => setIsFiltersOpen(true)}>
+                Buscar y filtrar{search || sourceFilter || categoryFilter || familyFilter || threatFilter || sortMode !== "alphabetical" ? " · Activo" : ""}
+              </button>
+              {activeTab === "custom" ? <button type="button" onClick={openCreate}>Nuevo monstruo</button> : null}
+            </div>
+          </div>
+
+          {controller.loadError ? <p className="error">{controller.loadError}</p> : null}
+          <div className="monster-catalog-results">
+            {filteredMonsters.length ? filteredMonsters.map((monster, index) => {
+              const family = monster.sheet.family || monster.family || monster.name;
+              const previousFamily = index > 0 ? filteredMonsters[index - 1]?.sheet.family || filteredMonsters[index - 1]?.family || filteredMonsters[index - 1]?.name : null;
+              return (
+                <div key={monster.id} className="monster-catalog-result-group">
+                  {family !== previousFamily ? <h3>{family}</h3> : null}
+                  <button
+                    type="button"
+                    className={`monster-catalog-result${selectedMonster?.id === monster.id ? " is-active" : ""}`}
+                    aria-current={selectedMonster?.id === monster.id ? "true" : undefined}
+                    onClick={(event) => selectMonster(monster.id, event.currentTarget)}
+                  >
+                    <span><strong>{monster.name}</strong><small>{monster.source}{monster.references?.[0]?.page ? ` · p.${monster.references[0].page}` : ""}</small></span>
+                    <span className="monster-catalog-result-meta"><em>{monster.category}</em><b>{monster.threat}</b></span>
+                  </button>
+                </div>
+              );
+            }) : <div className="monster-catalog-empty"><strong>No hay coincidencias.</strong><p>Ajusta la búsqueda o limpia algún filtro.</p></div>}
+          </div>
+        </aside>
+
+        <div className={`monster-catalog-detail-pane${selectedMonster ? " is-open" : ""}`}>
+          {selectedMonster ? (
+            <MonsterReferenceSheet
+              monster={selectedMonster}
+              backgroundPreferenceScope={`${user.id}:monster-sheets`}
+              official={activeTab === "codex"}
+              busy={controller.isSaving}
+              onClose={closeSheet}
+              onDuplicate={activeTab === "codex" ? () => duplicateOfficial(selectedMonster.id) : undefined}
+              onEdit={activeTab === "custom" ? () => openEdit(selectedMonster.id) : undefined}
+              onDelete={activeTab === "custom" ? () => void removeCustom(selectedMonster) : undefined}
+            />
+          ) : <div className="monster-catalog-detail-empty"><span aria-hidden="true">✦</span><h2>Selecciona un monstruo</h2><p>Su ficha aparecerá aquí sin abandonar el listado.</p></div>}
+        </div>
+      </section>
+
+      {isFiltersOpen ? (
+        <div className="modal-backdrop monster-filter-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeFilters(); }}>
+          <section className="monster-filter-modal" role="dialog" aria-modal="true" aria-labelledby="monster-filter-title">
+            <header>
+              <div><span className="compendium-eyebrow">Catálogo de monstruos</span><h2 id="monster-filter-title">Buscar y ordenar</h2></div>
+              <button type="button" className="subtle-button" onClick={closeFilters}>Cerrar</button>
+            </header>
+            <div className="monster-catalog-filters">
+              <label className="field monster-catalog-search"><span>Buscar</span><input ref={filtersSearchRef} type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Nombre, rasgo, arma, táctica..." /></label>
+              <label className="field"><span>Orden</span><select value={sortMode} onChange={(event) => setSortMode(event.target.value as MonsterSortMode)}><option value="alphabetical">Alfabético</option><option value="appearance">Orden de los libros</option></select></label>
+              <label className="field"><span>Manual</span><select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}><option value="">Todos</option>{sources.map((source) => <option key={source}>{source}</option>)}</select></label>
+              <label className="field"><span>Categoría</span><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><option value="">Todas</option>{MONSTER_CATEGORIES.map((category) => <option key={category}>{category}</option>)}</select></label>
+              <label className="field"><span>Familia</span><select value={familyFilter} onChange={(event) => setFamilyFilter(event.target.value)}><option value="">Todas</option>{families.map((family) => <option key={family}>{family}</option>)}</select></label>
+              <label className="field"><span>Desafío</span><select value={threatFilter} onChange={(event) => setThreatFilter(event.target.value)}><option value="">Todos</option>{MONSTER_THREATS.map((threat) => <option key={threat}>{threat}</option>)}</select></label>
+            </div>
+            <footer><button type="button" className="subtle-button" onClick={clearFilters}>Limpiar</button><button type="button" onClick={closeFilters}>Ver {filteredMonsters.length} resultados</button></footer>
+          </section>
+        </div>
+      ) : null}
+      {isEditorOpen ? <div className="modal-backdrop"><MonsterCreationWizard controller={controller} onCancel={() => setIsEditorOpen(false)} /></div> : null}
     </div>
   );
 }

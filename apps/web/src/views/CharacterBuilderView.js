@@ -238,7 +238,7 @@ export function CharacterBuilderView({ character, busy = false, onBackToCharacte
     const experience = useMemo(() => getCharacterExperienceSummary(draft), [draft]);
     const manualSpentTotal = useMemo(() => Math.max(0, manualSpentAdjustment), [manualSpentAdjustment]);
     const effectiveSpent = useMemo(() => Math.max(0, experience.computedSpent + artifactBindingXpSpent + manualSpentTotal), [artifactBindingXpSpent, experience.computedSpent, manualSpentTotal]);
-    const effectiveAvailable = useMemo(() => Math.max(0, draft.progreso.experienciaTotal - effectiveSpent), [draft.progreso.experienciaTotal, effectiveSpent]);
+    const effectiveAvailable = useMemo(() => Math.max(0, experience.effectiveTotal - effectiveSpent), [experience.effectiveTotal, effectiveSpent]);
     const subtitle = `${draft.identidad.cultura || "Sin cultura"} · ${draft.identidad.arquetipo || "Sin arquetipo"} · ${draft.identidad.raza || "Sin raza"}`;
     const acquisitionCatalogEntries = useMemo(() => acquisitionModal ? getCatalogEntries(acquisitionModal.section) : [], [acquisitionModal]);
     const filteredAcquisitionEntries = useMemo(() => {
@@ -505,8 +505,8 @@ export function CharacterBuilderView({ character, busy = false, onBackToCharacte
         setIsSaving(true);
         setError(null);
         try {
-            if (effectiveSpent > draft.progreso.experienciaTotal) {
-                setError(`No puedes gastar ${effectiveSpent} PX: el personaje solo tiene ${draft.progreso.experienciaTotal} PX concedidos.`);
+            if (effectiveSpent > experience.effectiveTotal) {
+                setError(`No puedes gastar ${effectiveSpent} PX: el personaje solo tiene ${experience.effectiveTotal} PX efectivos.`);
                 return;
             }
             const nextSheet = synchronizeCharacterSheet({

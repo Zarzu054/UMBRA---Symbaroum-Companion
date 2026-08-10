@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ALL_ENTRIES,
   TYPE_LABELS,
@@ -16,6 +17,7 @@ import {
 } from "../services/compendiumService";
 
 export type CompendiumBrowseMode = "type" | "source";
+type CompendiumLibraryModal = "favorites" | "recent";
 
 type Props = {
   onBackToCharacters: () => void;
@@ -39,6 +41,14 @@ type SearchOptions = {
   source: string;
 };
 
+type QuickSearchPosition = {
+  top?: number;
+  bottom?: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+};
+
 const MOBILE_DETAIL_QUERY = "(max-width: 900px)";
 const RECENT_ENTRY_LIMIT = 8;
 
@@ -47,12 +57,17 @@ const TYPE_GROUPS: Array<{ label: string; description: string; types: EntryType[
   {
     label: "Capacidades",
     description: "Opciones activas y conocimiento místico",
-    types: ["habilidad", "poder_mistico", "ritual", "tradicion"]
+    types: ["habilidad", "poder_mistico", "ritual", "tradicion", "profesion"]
   },
   {
     label: "Personajes",
     description: "Origen, identidad, ventajas y complicaciones",
     types: ["raza", "cultura", "arquetipo", "bendicion", "carga"]
+  },
+  {
+    label: "Equipo",
+    description: "Armas, protecciones, consumibles y herramientas",
+    types: ["arma", "armadura", "cualidad_arma", "cualidad_armadura", "elixir", "artefacto_menor", "trampa", "herramienta", "equipo"]
   },
   { label: "Criaturas", description: "Rasgos y recursos de monstruos", types: ["rasgo"] }
 ];
@@ -85,11 +100,26 @@ function getQueryTokens(query: string): string[] {
 
 function getSearchFields(entry: CompendiumEntry) {
   const source = canonicalizeCompendiumSourceName(entry.fuente);
+  const structuredContent = [
+    ...(entry.facts ?? []).flatMap((fact) => [fact.label, fact.value]),
+    ...(entry.variants ?? []).flatMap((variant) => [
+      variant.label,
+      variant.detail ?? "",
+      ...variant.facts.flatMap((fact) => [fact.label, fact.value])
+    ]),
+    ...(entry.relations ?? []).map((relation) => relation.label),
+    ...(entry.references ?? []).flatMap((reference) => [reference.source, String(reference.page ?? "")])
+  ].join(" ");
   return {
     name: normalizeCompendiumText(entry.nombre),
     metadata: normalizeCompendiumText(`${TYPE_LABELS[entry.tipo]} ${source} ${entry.tags.join(" ")}`),
-    content: normalizeCompendiumText(`${entry.resumen} ${entry.detalle}`)
+    content: normalizeCompendiumText(`${entry.resumen} ${entry.detalle} ${structuredContent}`)
   };
+}
+
+function getEntrySources(entry: CompendiumEntry): string[] {
+  return [...new Set((entry.references?.length ? entry.references : [{ source: entry.fuente }])
+    .map((reference) => canonicalizeCompendiumSourceName(reference.source)))];
 }
 
 export function getEntrySearchRank(entry: CompendiumEntry, query: string): number {
@@ -111,7 +141,7 @@ export function searchCompendiumEntries(entries: CompendiumEntry[], options: Sea
   return entries
     .filter((entry) => {
       if (options.type !== "all" && entry.tipo !== options.type) return false;
-      if (options.source !== "all" && canonicalizeCompendiumSourceName(entry.fuente) !== options.source) return false;
+      if (options.source !== "all" && !getEntrySources(entry).includes(options.source)) return false;
       if (tokens.length === 0) return true;
 
       const fields = getSearchFields(entry);
@@ -226,6 +256,7 @@ export function CompendiumView({
   focusToken = 0
 }: Props) {
   const [query, setQuery] = useState(initialQuery);
+  const [isQueryExplorerOpen, setIsQueryExplorerOpen] = useState(Boolean(initialQuery.trim()));
   const [typeFilter, setTypeFilter] = useState<"all" | EntryType>(initialTypeFilter);
   const [sourceFilter, setSourceFilter] = useState(initialSourceFilter);
   const [browseMode, setBrowseMode] = useState<CompendiumBrowseMode>(initialBrowseMode);
@@ -237,12 +268,17 @@ export function CompendiumView({
   const [savingFavoriteIds, setSavingFavoriteIds] = useState<Set<string>>(new Set());
   const [linkCopied, setLinkCopied] = useState(false);
   const [isMobileDetail, setIsMobileDetail] = useState(isMobileDetailViewport);
+  const [libraryModal, setLibraryModal] = useState<CompendiumLibraryModal | null>(null);
+  const [quickSearchPosition, setQuickSearchPosition] = useState<QuickSearchPosition | null>(null);
   const lastEntryTriggerRef = useRef<HTMLElement | null>(null);
   const detailHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const readerRef = useRef<HTMLElement | null>(null);
+  const libraryModalTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const libraryModalCloseRef = useRef<HTMLButtonElement | null>(null);
+  const quickSearchAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const sources = useMemo(
-    () => [...new Set(ALL_ENTRIES.map((entry) => canonicalizeCompendiumSourceName(entry.fuente)))]
+    () => [...new Set(ALL_ENTRIES.flatMap(getEntrySources))]
       .sort((left, right) => left.localeCompare(right, "es", { sensitivity: "base" })),
     []
   );
@@ -256,8 +292,7 @@ export function CompendiumView({
   const sourceCounts = useMemo(() => {
     const counts = new Map<string, number>();
     ALL_ENTRIES.forEach((entry) => {
-      const source = canonicalizeCompendiumSourceName(entry.fuente);
-      counts.set(source, (counts.get(source) ?? 0) + 1);
+      getEntrySources(entry).forEach((source) => counts.set(source, (counts.get(source) ?? 0) + 1));
     });
     return counts;
   }, []);
@@ -300,18 +335,30 @@ export function CompendiumView({
       .filter((entry): entry is CompendiumEntry => Boolean(entry)),
     [favoriteIds, recentIds]
   );
-  const isExplorerOpen = Boolean(query.trim() || typeFilter !== "all" || sourceFilter !== "all" || selectedEntry);
+  const isExplorerOpen = Boolean(isQueryExplorerOpen || typeFilter !== "all" || sourceFilter !== "all" || selectedEntry);
+  const quickSearchEntries = !isExplorerOpen && query.trim() ? filteredEntries.slice(0, 7) : [];
+  const isQuickSearchOpen = Boolean(!isExplorerOpen && query.trim());
+  const activeLibraryEntries = libraryModal === "favorites" ? favoriteEntries : recentEntries;
+  const activeLibraryTitle = libraryModal === "favorites" ? "Favoritos" : "Consultado recientemente";
+  const activeLibraryDescription = libraryModal === "favorites"
+    ? "Tus referencias guardadas, disponibles en cualquier dispositivo."
+    : "Las últimas ocho entradas abiertas.";
+  const activeLibraryEmptyText = libraryModal === "favorites"
+    ? "Todavía no has guardado ninguna entrada."
+    : "Las entradas que abras aparecerán aquí.";
 
   const canonicalSelectedSource = selectedEntry ? canonicalizeCompendiumSourceName(selectedEntry.fuente) : "";
-  const sourcePdfUrl = selectedEntry
-    ? getCompendiumSourcePdfUrl(selectedEntry.fuente, selectedEntry.pagina, selectedEntry.nombre)
-    : null;
+  const selectedReferences = selectedEntry
+    ? selectedEntry.references?.length
+      ? selectedEntry.references
+      : [{ source: selectedEntry.fuente, page: selectedEntry.pagina }]
+    : [];
   const summaryLink = selectedEntry ? getCompendiumSummaryLink(selectedEntry) : null;
   const parsedCapabilityDetail = selectedEntry && (selectedEntry.tipo === "habilidad" || selectedEntry.tipo === "poder_mistico")
     ? parseCapabilityTiers(selectedEntry.detalle)
     : null;
 
-  useBodyScrollLock(Boolean(selectedEntry && isMobileDetail));
+  useBodyScrollLock(Boolean(libraryModal || (selectedEntry && isMobileDetail)));
 
   useEffect(() => {
     const mediaQuery = window.matchMedia?.(MOBILE_DETAIL_QUERY);
@@ -323,7 +370,56 @@ export function CompendiumView({
   }, []);
 
   useEffect(() => {
+    if (!isQuickSearchOpen || !quickSearchAnchorRef.current) {
+      setQuickSearchPosition(null);
+      return;
+    }
+
+    const updatePosition = () => {
+      const anchor = quickSearchAnchorRef.current;
+      if (!anchor) return;
+
+      const rect = anchor.getBoundingClientRect();
+      const viewportPadding = 12;
+      const gap = 7;
+      const desiredWidth = Math.min(390, window.innerWidth - viewportPadding * 2);
+      const width = Math.max(Math.min(rect.width, desiredWidth), desiredWidth);
+      const left = Math.min(
+        Math.max(viewportPadding, rect.right - width),
+        Math.max(viewportPadding, window.innerWidth - width - viewportPadding)
+      );
+      const availableBelow = window.innerHeight - rect.bottom - gap - viewportPadding;
+      const availableAbove = rect.top - gap - viewportPadding;
+      const openAbove = availableBelow < 240 && availableAbove > availableBelow;
+      const availableHeight = Math.max(160, openAbove ? availableAbove : availableBelow);
+
+      setQuickSearchPosition({
+        ...(openAbove
+          ? { bottom: window.innerHeight - rect.top + gap }
+          : { top: rect.bottom + gap }),
+        left,
+        width,
+        maxHeight: Math.min(430, availableHeight)
+      });
+    };
+
+    updatePosition();
+    const resizeObserver = typeof ResizeObserver === "function"
+      ? new ResizeObserver(updatePosition)
+      : null;
+    resizeObserver?.observe(quickSearchAnchorRef.current);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [isQuickSearchOpen]);
+
+  useEffect(() => {
     setQuery(initialQuery);
+    setIsQueryExplorerOpen(Boolean(initialQuery.trim()));
     setTypeFilter(initialTypeFilter);
     setSourceFilter(
       initialSourceFilter === "all" ? "all" : canonicalizeCompendiumSourceName(initialSourceFilter)
@@ -381,7 +477,7 @@ export function CompendiumView({
   }, [filteredEntries, selectedEntry]);
 
   useEffect(() => {
-    if (!selectedEntry) return;
+    if (!selectedEntry || libraryModal) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         closeDetail();
@@ -405,11 +501,43 @@ export function CompendiumView({
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, [isMobileDetail, selectedEntry]);
+  }, [isMobileDetail, libraryModal, selectedEntry]);
+
+  useEffect(() => {
+    if (!libraryModal) return;
+    window.setTimeout(() => libraryModalCloseRef.current?.focus(), 0);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeLibraryModal();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [libraryModal]);
 
   function openEntry(entryId: string, trigger?: HTMLElement): void {
     if (trigger) lastEntryTriggerRef.current = trigger;
     setSelectedId(entryId);
+  }
+
+  function openLibraryModal(kind: CompendiumLibraryModal, trigger: HTMLButtonElement): void {
+    libraryModalTriggerRef.current = trigger;
+    setLibraryModal(kind);
+  }
+
+  function closeLibraryModal(restoreFocus = true): void {
+    setLibraryModal(null);
+    if (restoreFocus) window.setTimeout(() => libraryModalTriggerRef.current?.focus(), 0);
+  }
+
+  function openRelatedEntry(entryId: string, trigger: HTMLElement): void {
+    const target = ALL_ENTRIES.find((entry) => entry.id === entryId);
+    if (!target) return;
+    lastEntryTriggerRef.current = trigger;
+    setQuery("");
+    setSourceFilter("all");
+    setTypeFilter(target.tipo);
+    setSelectedId(target.id);
   }
 
   function closeDetail(restoreFocus = true): void {
@@ -419,12 +547,14 @@ export function CompendiumView({
 
   function clearFilters(): void {
     setQuery("");
+    setIsQueryExplorerOpen(false);
     setTypeFilter("all");
     setSourceFilter("all");
     closeDetail(false);
   }
 
   function selectTypeSection(type: EntryType): void {
+    setIsQueryExplorerOpen(false);
     setBrowseMode("type");
     setTypeFilter(type);
     setSourceFilter("all");
@@ -432,6 +562,7 @@ export function CompendiumView({
   }
 
   function selectSourceSection(source: string): void {
+    setIsQueryExplorerOpen(false);
     setBrowseMode("source");
     setSourceFilter(source);
     setTypeFilter("all");
@@ -474,80 +605,142 @@ export function CompendiumView({
     window.setTimeout(() => setLinkCopied(false), 1500);
   }
 
-  function renderShelf(title: string, description: string, entries: CompendiumEntry[], emptyText: string) {
+  function renderLibraryEntries(entries: CompendiumEntry[], emptyText: string) {
+    if (entries.length === 0) {
+      return <p className="compendium-empty-note">{isLibraryLoading ? "Sincronizando biblioteca…" : emptyText}</p>;
+    }
     return (
-      <section className="compendium-shelf" aria-labelledby={`shelf-${normalizeCompendiumText(title).replace(/\s/g, "-")}`}>
-        <div className="compendium-section-heading">
-          <div>
-            <h3 id={`shelf-${normalizeCompendiumText(title).replace(/\s/g, "-")}`}>{title}</h3>
-            <p>{description}</p>
-          </div>
-          <span className="compendium-count-seal">{entries.length}</span>
-        </div>
-        {entries.length > 0 ? (
-          <div className="compendium-shelf-list">
-            {entries.map((entry) => (
-              <button
-                key={entry.id}
-                type="button"
-                className={`compendium-shelf-entry app-card-accent app-card-accent--${entry.tipo}`}
-                onClick={(event) => openEntry(entry.id, event.currentTarget)}
-              >
-                <span className="compendium-shelf-entry-title">{entry.nombre}</span>
-                <span>{TYPE_LABELS[entry.tipo]} · {canonicalizeCompendiumSourceName(entry.fuente)}</span>
-              </button>
-            ))}
-          </div>
-        ) : <p className="compendium-empty-note">{isLibraryLoading ? "Sincronizando biblioteca…" : emptyText}</p>}
-      </section>
+      <div className="compendium-shelf-list">
+        {entries.map((entry) => (
+          <button
+            key={entry.id}
+            type="button"
+            className={`compendium-shelf-entry app-card-accent app-card-accent--${entry.tipo}`}
+            onClick={() => {
+              closeLibraryModal(false);
+              openEntry(entry.id, libraryModalTriggerRef.current ?? undefined);
+            }}
+          >
+            <span className="compendium-shelf-entry-title">{entry.nombre}</span>
+            <span>{TYPE_LABELS[entry.tipo]} · {canonicalizeCompendiumSourceName(entry.fuente)}</span>
+          </button>
+        ))}
+      </div>
     );
   }
+
+  const quickSearchPopover = isQuickSearchOpen && quickSearchPosition && typeof document !== "undefined"
+    ? createPortal(
+      <div
+        className={`compendium-quick-search-results is-portal${quickSearchEntries.length >= 4 ? " has-four-results" : ""}`}
+        style={quickSearchPosition}
+      >
+        <div
+          id="compendium-quick-search-results"
+          className="compendium-quick-search-list"
+          role="listbox"
+          aria-label="Resultados de búsqueda global"
+        >
+          {quickSearchEntries.length > 0 ? quickSearchEntries.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              role="option"
+              aria-selected="false"
+              className={`compendium-quick-search-entry app-card-accent app-card-accent--${entry.tipo}`}
+              onClick={(event) => openEntry(entry.id, event.currentTarget)}
+            >
+              <strong>{renderHighlightedText(entry.nombre, query)}</strong>
+              <span>{TYPE_LABELS[entry.tipo]} · {canonicalizeCompendiumSourceName(entry.fuente)}</span>
+            </button>
+          )) : <p className="compendium-empty-note">No hay entradas que coincidan.</p>}
+        </div>
+        {filteredEntries.length > quickSearchEntries.length ? (
+          <button
+            type="button"
+            className="compendium-quick-search-all"
+            onClick={() => setIsQueryExplorerOpen(true)}
+          >
+            Ver los {filteredEntries.length} resultados
+          </button>
+        ) : null}
+      </div>,
+      document.body
+    )
+    : null;
 
   return (
     <div className="compendium-library">
       <section className="panel lore-panel compendium-library-hero">
-        <div>
+        <div className="compendium-library-hero-copy">
           <span className="compendium-eyebrow">Archivo de consulta</span>
           <h2>Compendio Central</h2>
           <p>Encuentra reglas, capacidades y referencias por el camino que recuerdes: su tipo, su fuente o sus palabras.</p>
         </div>
-        <button
-          type="button"
-          className="subtle-button"
-          onClick={isExplorerOpen ? clearFilters : onBackToCharacters}
-        >
-          {isExplorerOpen ? "← Volver al compendio" : "Volver a personajes"}
-        </button>
+        <div className="compendium-library-shortcuts" aria-label="Biblioteca personal">
+          <button type="button" className="subtle-button" onClick={(event) => openLibraryModal("favorites", event.currentTarget)}>
+            <span>Favoritos</span><b>{favoriteEntries.length}</b>
+          </button>
+          <button type="button" className="subtle-button" onClick={(event) => openLibraryModal("recent", event.currentTarget)}>
+            <span>Recientes</span><b>{recentEntries.length}</b>
+          </button>
+        </div>
+        <div className="compendium-library-hero-actions">
+          <button
+            type="button"
+            className="subtle-button compendium-library-back-button"
+            onClick={isExplorerOpen ? clearFilters : onBackToCharacters}
+          >
+            {isExplorerOpen ? "← Volver al compendio" : "Volver a personajes"}
+          </button>
+          <div ref={quickSearchAnchorRef} className="compendium-hero-search">
+            <label className="field compendium-global-search">
+              <span>Búsqueda global</span>
+              <span className="compendium-search-input-wrap">
+                <span aria-hidden="true" className="compendium-search-glyph">⌕</span>
+                <input
+                  type="search"
+                  placeholder="Buscar en el compendio…"
+                  value={query}
+                  aria-autocomplete="list"
+                  aria-controls="compendium-quick-search-results"
+                  aria-expanded={Boolean(!isExplorerOpen && query.trim())}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && query.trim()) setIsQueryExplorerOpen(true);
+                    if (event.key === "Escape") setQuery("");
+                  }}
+                />
+              </span>
+            </label>
+          </div>
+          {libraryError ? <p className="compendium-library-error" role="alert">{libraryError}</p> : null}
+        </div>
       </section>
 
-      <section className="panel compendium-search-panel">
-        {isExplorerOpen ? (
-          <nav className="compendium-breadcrumb" aria-label="Ruta del compendio">
-            <button type="button" onClick={clearFilters}>Biblioteca</button>
-            <span aria-hidden="true">/</span>
-            <span>{typeFilter !== "all" ? TYPE_LABELS[typeFilter] : sourceFilter !== "all" ? sourceFilter : "Resultados"}</span>
-          </nav>
-        ) : null}
-        <label className="field compendium-global-search">
-          <span>Búsqueda global</span>
-          <span className="compendium-search-input-wrap">
-            <span aria-hidden="true" className="compendium-search-glyph">⌕</span>
-            <input
-              type="search"
-              placeholder="Busca una regla, poder, tradición, libro…"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </span>
-        </label>
-        {libraryError ? <p className="compendium-library-error" role="alert">{libraryError}</p> : null}
-      </section>
+      {quickSearchPopover}
+
+      {libraryModal ? (
+        <div className="modal-backdrop compendium-library-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeLibraryModal(); }}>
+          <section className="compendium-library-modal" role="dialog" aria-modal="true" aria-labelledby="compendium-library-modal-title">
+            <header>
+              <div>
+                <span className="compendium-eyebrow">Biblioteca personal</span>
+                <h2 id="compendium-library-modal-title">{activeLibraryTitle}</h2>
+                <p>{activeLibraryDescription}</p>
+              </div>
+              <span className="compendium-count-seal">{activeLibraryEntries.length}</span>
+              <button ref={libraryModalCloseRef} type="button" className="subtle-button" onClick={() => closeLibraryModal()}>Cerrar</button>
+            </header>
+            <div className="compendium-library-modal-content">
+              {renderLibraryEntries(activeLibraryEntries, activeLibraryEmptyText)}
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {!isExplorerOpen ? (
         <main className="compendium-library-home">
-          {renderShelf("Favoritos", "Tus referencias guardadas, disponibles en cualquier dispositivo.", favoriteEntries, "Todavía no has guardado ninguna entrada.")}
-          {renderShelf("Consultado recientemente", "Las últimas ocho entradas abiertas.", recentEntries, "Las entradas que abras aparecerán aquí.")}
-
           <section className="panel compendium-catalogue">
             <div className="compendium-catalogue-header">
               <div>
@@ -632,6 +825,11 @@ export function CompendiumView({
       ) : (
         <main className={`compendium-explorer${selectedEntry ? " has-selection" : ""}`}>
           <section className="panel compendium-results-panel" aria-label="Resultados del compendio">
+            <nav className="compendium-breadcrumb" aria-label="Ruta del compendio">
+              <button type="button" onClick={clearFilters}>Biblioteca</button>
+              <span aria-hidden="true">/</span>
+              <span>{typeFilter !== "all" ? TYPE_LABELS[typeFilter] : sourceFilter !== "all" ? sourceFilter : "Resultados"}</span>
+            </nav>
             <div className="compendium-explorer-controls">
               <label className="field">
                 <span>Tipo</span>
@@ -711,6 +909,36 @@ export function CompendiumView({
                 </header>
 
                 <div className="compendium-reader-body">
+                  {selectedEntry.facts?.length ? (
+                    <dl className="compendium-fact-grid" aria-label="Datos de la entrada">
+                      {selectedEntry.facts.map((fact) => (
+                        <div key={`${selectedEntry.id}-${fact.label}`} className="compendium-fact-card">
+                          <dt>{fact.label}</dt>
+                          <dd>{renderHighlightedText(fact.value, query)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  ) : null}
+
+                  {selectedEntry.variants?.length ? (
+                    <section className="compendium-variant-section" aria-labelledby="compendium-variant-title">
+                      <h4 id="compendium-variant-title">Variantes</h4>
+                      <div className="compendium-variant-list">
+                        {selectedEntry.variants.map((variant) => (
+                          <article key={`${selectedEntry.id}-${variant.id}`} className="compendium-variant-card">
+                            <h5>{variant.label}</h5>
+                            <dl>
+                              {variant.facts.map((fact) => (
+                                <div key={`${variant.id}-${fact.label}`}><dt>{fact.label}</dt><dd>{renderHighlightedText(fact.value, query)}</dd></div>
+                              ))}
+                            </dl>
+                            {variant.detail ? <p>{renderHighlightedText(variant.detail, query)}</p> : null}
+                          </article>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
+
                   {parsedCapabilityDetail && parsedCapabilityDetail.tiers.length > 0 ? (
                     <div className="capability-tier-list">
                       {parsedCapabilityDetail.tiers.map((tier) => (
@@ -729,6 +957,22 @@ export function CompendiumView({
                     </div>
                   )}
 
+                  {selectedEntry.relations?.length ? (
+                    <section className="compendium-related-section" aria-labelledby="compendium-related-title">
+                      <h4 id="compendium-related-title">Cualidades relacionadas</h4>
+                      <div className="compendium-related-list">
+                        {selectedEntry.relations.map((relation) => (
+                          <button
+                            key={`${selectedEntry.id}-${relation.entryId}`}
+                            type="button"
+                            className="compendium-tag"
+                            onClick={(event) => openRelatedEntry(relation.entryId, event.currentTarget)}
+                          >{relation.label}</button>
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
+
                   {selectedEntry.media?.length ? (
                     <div className="compendium-media-list">
                       {selectedEntry.media.map((asset) => (
@@ -742,13 +986,20 @@ export function CompendiumView({
 
                   {selectedEntry.tags.length > 0 ? (
                     <div className="compendium-tags" aria-label="Etiquetas">
-                      {selectedEntry.tags.map((tag) => <span key={`${selectedEntry.id}-${tag}`} className="compendium-tag">{renderHighlightedText(tag, query)}</span>)}
+                      {Array.from(new Set(selectedEntry.tags)).map((tag) => <span key={`${selectedEntry.id}-${tag}`} className="compendium-tag">{renderHighlightedText(tag, query)}</span>)}
                     </div>
                   ) : null}
                 </div>
 
                 <footer className="compendium-reader-footer">
-                  {sourcePdfUrl ? <a className="subtle-button" href={sourcePdfUrl} target="_blank" rel="noreferrer">{selectedEntry.pagina ? `Abrir PDF p.${selectedEntry.pagina}` : "Abrir PDF"}</a> : null}
+                  {selectedReferences.map((reference) => {
+                    const url = getCompendiumSourcePdfUrl(reference.source, reference.page, selectedEntry.nombre);
+                    return url ? (
+                      <a key={`${reference.source}-${reference.page ?? ""}`} className="subtle-button" href={url} target="_blank" rel="noreferrer">
+                        {reference.page ? `${canonicalizeCompendiumSourceName(reference.source)} p.${reference.page}` : canonicalizeCompendiumSourceName(reference.source)}
+                      </a>
+                    ) : null;
+                  })}
                   {summaryLink ? <a className="subtle-button" href={summaryLink.url} target="_blank" rel="noreferrer">{summaryLink.documentLabel}</a> : null}
                   <button type="button" className="subtle-button" onClick={() => void copyDeepLink()}>{linkCopied ? "Enlace copiado" : "Copiar enlace"}</button>
                 </footer>

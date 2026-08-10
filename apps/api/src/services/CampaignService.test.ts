@@ -34,6 +34,31 @@ function createModel(currentSheet: CharacterSheet) {
 }
 
 describe("CampaignService character experience", () => {
+  it("does not allow players to read-write the GM private-note collection", async () => {
+    const model = {
+      findAccessibleById: vi.fn().mockResolvedValue({ id: "campaign-a" }),
+      update: vi.fn()
+    };
+
+    await expect(new CampaignService(model as never).updateCampaign(
+      "player-a",
+      "player",
+      "campaign-a",
+      {
+        dmNoteEntries: [{
+          id: "dm-note-1",
+          title: "Secreto",
+          content: "No revelar",
+          authorId: "player-a",
+          authorEmail: "player@example.com",
+          createdAt: "",
+          updatedAt: ""
+        }]
+      }
+    )).rejects.toThrow("Solo puedes editar las notas compartidas");
+    expect(model.update).not.toHaveBeenCalled();
+  });
+
   it("allows only a game master to grant XP", async () => {
     const model = { grantExperience: vi.fn() };
 

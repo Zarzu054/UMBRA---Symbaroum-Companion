@@ -1,12 +1,20 @@
 import { z } from "zod";
 import { SYMBAROUM_ABILITIES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS } from "./symbaroumCompendium.js";
 import { getCharacterMonsterTraitEffects } from "./monsterTraitRules.js";
+import {
+  actorCapabilitySelectionSchema,
+  getActorSpentXp,
+  removeExceptionalAttributeBonuses,
+  validateCreationAttributes,
+  validateExceptionalAttributeSelections
+} from "./actorCreation.js";
 import { STARTER_MONSTER_CODEX, createDefaultMonsterSheet, monsterSheetSchema, type MonsterSheet } from "./monsterCodex.js";
 import type { MysticArtifact, OwnedMysticArtifact } from "./mysticArtifacts.js";
 export * from "./symbaroumCompendium.js";
 export * from "./campaignActionEngine.js";
 export * from "./monsterCodex.js";
 export * from "./monsterTraitRules.js";
+export * from "./actorCreation.js";
 export * from "./weaponCatalog.js";
 export * from "./mysticArtifacts.js";
 export * from "./mysticArtifactProjection.js";
@@ -97,7 +105,6 @@ export const ATTRIBUTE_LABELS: Record<AttributeKey, string> = {
   tenaz: "Tenaz"
 };
 
-const STARTING_ABILITY_PATTERNS = new Set(["5novato", "2novato_1adepto"]);
 const MYSTIC_ABILITY_NAMES = ["Magia", "Teúrgia", "Brujería", "Hechicería"];
 const SHEET_HIDDEN_ABILITY_NAMES = ["Poder místico"];
 const NORMALIZED_MYSTIC_ABILITY_NAMES = MYSTIC_ABILITY_NAMES.map(normalizeName);
@@ -109,14 +116,14 @@ function nullableDefaultString(maxLength: number, fallback = "") {
 }
 
 const attributeBlockSchema = z.object({
-  agil: z.number().int().min(5).max(15),
-  atento: z.number().int().min(5).max(15),
-  discreto: z.number().int().min(5).max(15),
-  diestro: z.number().int().min(5).max(15),
-  fuerte: z.number().int().min(5).max(15),
-  inteligente: z.number().int().min(5).max(15),
-  persuasivo: z.number().int().min(5).max(15),
-  tenaz: z.number().int().min(5).max(15)
+  agil: z.number().int().min(5).max(18),
+  atento: z.number().int().min(5).max(18),
+  discreto: z.number().int().min(5).max(18),
+  diestro: z.number().int().min(5).max(18),
+  fuerte: z.number().int().min(5).max(18),
+  inteligente: z.number().int().min(5).max(18),
+  persuasivo: z.number().int().min(5).max(18),
+  tenaz: z.number().int().min(5).max(18)
 });
 
 const actionMetadataSchema = z.object({
@@ -294,6 +301,7 @@ const campaignSharedNoteEntrySchema = structuredNoteEntrySchema.extend({
 });
 
 const STRUCTURED_SHARED_NOTES_PREFIX = "__UMBRA_SHARED_NOTES_V1__:";
+const STRUCTURED_DM_NOTES_PREFIX = "__UMBRA_DM_NOTES_V1__:";
 
 function buildLegacyCharacterNoteEntries(
   input: { noteSections?: Partial<z.infer<typeof noteSectionsSchema>>; notas?: string }
@@ -402,7 +410,50 @@ export function decodeCampaignSharedNotes(raw: string): {
   }
 }
 
+export function encodeCampaignDmNotes(entries: Array<z.infer<typeof campaignSharedNoteEntrySchema>>): string {
+  const normalized = normalizeCampaignSharedNoteEntries(entries);
+  if (normalized.length === 0) {
+    return "";
+  }
+  return `${STRUCTURED_DM_NOTES_PREFIX}${JSON.stringify(normalized)}`;
+}
+
+export function decodeCampaignDmNotes(raw: string): {
+  legacyText: string;
+  entries: Array<z.infer<typeof campaignSharedNoteEntrySchema>>;
+} {
+  const normalizedRaw = String(raw ?? "");
+  if (!normalizedRaw.startsWith(STRUCTURED_DM_NOTES_PREFIX)) {
+    const legacyText = normalizedRaw.trim();
+    return {
+      legacyText,
+      entries: legacyText
+        ? [{
+            id: "legacy-dm-note",
+            title: "Notas privadas del DJ",
+            content: legacyText,
+            authorId: "",
+            authorEmail: "",
+            createdAt: "",
+            updatedAt: ""
+          }]
+        : []
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(normalizedRaw.slice(STRUCTURED_DM_NOTES_PREFIX.length));
+    return {
+      legacyText: "",
+      entries: normalizeCampaignSharedNoteEntries(parsed)
+    };
+  } catch {
+    return { legacyText: "", entries: [] };
+  }
+}
+
 const characterSheetObjectSchema = z.object({
+  resolutionMode: z.enum(["player_rolls", "fixed_average"]).default("player_rolls"),
   identidad: z.object({
     nombrePersonaje: z.string().max(120).default(""),
     nombreJugador: z.string().max(120).default(""),
@@ -463,6 +514,7 @@ const characterSheetObjectSchema = z.object({
   bendiciones: z.array(z.string().min(1).max(120)).max(40).default([]),
   cargas: z.array(z.string().min(1).max(120)).max(40).default([]),
   rasgos: z.array(z.string().min(1).max(120)).max(40).default([]),
+  capabilitySelections: z.array(actorCapabilitySelectionSchema).max(300).default([]),
   habilidades: z.array(ratedEntrySchema).max(120).default([]),
   poderesMisticos: z.array(ratedEntrySchema).max(120).default([]),
   rituales: z.array(ratedEntrySchema).max(120).default([]),
@@ -508,6 +560,11 @@ const characterSheetObjectSchema = z.object({
     traits: "",
     campaign: ""
   }),
+  gmBackground: z.object({
+    tactics: z.string().max(2000).default(""),
+    weakness: z.string().max(2000).default(""),
+    loot: z.string().max(2000).default("")
+  }).default({ tactics: "", weakness: "", loot: "" }),
   referencias: z.array(sourceRefSchema).max(300).default([]),
   notas: z.string().max(8000).default("")
 });
@@ -530,44 +587,24 @@ export const characterSheetSchema = characterSheetObjectSchema.superRefine((shee
       });
     }
 
-    const attributeValues = Object.values(sheet.atributos);
-    const totalAttributes = attributeValues.reduce((sum, value) => sum + value, 0);
-    if (totalAttributes !== 80) {
+    const baseAttributes = removeExceptionalAttributeBonuses(sheet.atributos, sheet.capabilitySelections);
+    const attributeValidation = validateCreationAttributes(baseAttributes);
+    for (const message of attributeValidation.errors) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["atributos"],
-        message: "La suma total de atributos debe ser 80 en creación de personaje"
+        message
       });
     }
-
-    const countFifteen = attributeValues.filter((value) => value === 15).length;
-    if (countFifteen > 1) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["atributos"],
-        message: "Solo un atributo puede tener valor 15"
-      });
+    for (const message of validateExceptionalAttributeSelections(sheet.capabilitySelections, ATTRIBUTE_KEYS)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["capabilitySelections"], message });
     }
 
-    const novice = sheet.habilidades.filter((entry) => entry.nivel === "novato").length;
-    const adept = sheet.habilidades.filter((entry) => entry.nivel === "adepto").length;
-    const master = sheet.habilidades.filter((entry) => entry.nivel === "maestro").length;
-    const patternKey = `${novice}novato_${adept}adepto`;
-    const normalizedPattern = novice === 5 && adept === 0 ? "5novato" : patternKey;
-
-    if (!STARTING_ABILITY_PATTERNS.has(normalizedPattern)) {
+    if (sheet.resolutionMode === "player_rolls" && sheet.capabilitySelections.length > 0 && getActorSpentXp(sheet.capabilitySelections) > getEffectiveExperienceTotal(sheet)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["habilidades"],
-        message: "Las habilidades iniciales deben ser 5 novato o 2 novato + 1 adepto"
-      });
-    }
-
-    if (master > 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["habilidades"],
-        message: "No se permiten habilidades en nivel maestro durante creación"
+        path: ["capabilitySelections"],
+        message: "Las capacidades seleccionadas superan la experiencia disponible"
       });
     }
   });
@@ -947,7 +984,7 @@ function buildLegacyConditions(sheet: z.infer<typeof characterSheetObjectSchema>
   if (sheet.corrupcion.temporal > 0 || sheet.corrupcion.permanente > 0) {
     conditions.push({
       id: "legacy-corruption",
-      name: "Corrupcion",
+      name: "Corrupción",
       category: "corruption",
       active: true,
       severity: sheet.corrupcion.permanente > 0 ? "major" : "moderate",
@@ -960,26 +997,36 @@ function buildLegacyConditions(sheet: z.infer<typeof characterSheetObjectSchema>
 
 function synchronizeAutomaticConditions(
   conditions: z.infer<typeof conditionSchema>[],
-  sheet: Pick<z.infer<typeof characterSheetObjectSchema>, "corrupcion">
+  sheet: Pick<z.infer<typeof characterSheetObjectSchema>, "corrupcion" | "combate">
 ): z.infer<typeof conditionSchema>[] {
-  const manualConditions = conditions.filter((condition) => condition.id !== "legacy-corruption");
+  const manualConditions = conditions.filter((condition) => !["legacy-corruption", "legacy-dying", "condition-dying"].includes(condition.id));
+  const automaticConditions: z.infer<typeof conditionSchema>[] = [];
 
-  if (sheet.corrupcion.temporal <= 0 && sheet.corrupcion.permanente <= 0) {
-    return manualConditions;
-  }
-
-  return [
-    ...manualConditions,
-    {
+  if (sheet.corrupcion.temporal > 0 || sheet.corrupcion.permanente > 0) {
+    automaticConditions.push({
       id: "legacy-corruption",
-      name: "Corrupcion",
+      name: "Corrupción",
       category: "corruption",
       active: true,
       severity: sheet.corrupcion.permanente > 0 ? "major" : "moderate",
       summary: `Temporal ${sheet.corrupcion.temporal} / Permanente ${sheet.corrupcion.permanente}`,
       notes: sheet.corrupcion.notas
-    }
-  ];
+    });
+  }
+
+  if (sheet.combate.robustezActual <= 0) {
+    automaticConditions.push({
+      id: "legacy-dying",
+      name: "Moribundo",
+      category: "injury",
+      active: true,
+      severity: "major",
+      summary: "La Robustez ha llegado a 0.",
+      notes: ""
+    });
+  }
+
+  return [...manualConditions, ...automaticConditions];
 }
 
 function buildLegacyNotesSections(sheet: z.infer<typeof characterSheetObjectSchema>): z.infer<typeof noteSectionsSchema> {
@@ -1577,6 +1624,7 @@ export const importedCharacterSheetSchema = characterSheetObjectSchema.superRefi
 
 export function createEmptyCharacterSheet(): CharacterSheet {
   return {
+    resolutionMode: "player_rolls",
     identidad: {
       nombrePersonaje: "",
       nombreJugador: "",
@@ -1606,7 +1654,7 @@ export function createEmptyCharacterSheet(): CharacterSheet {
     },
     progreso: {
       nivel: 1,
-      experienciaTotal: 0,
+      experienciaTotal: 50,
       experienciaGastada: 0
     },
     combate: {
@@ -1646,6 +1694,7 @@ export function createEmptyCharacterSheet(): CharacterSheet {
         bendiciones: [],
         cargas: [],
         rasgos: [],
+        capabilitySelections: [],
         habilidades: [],
         poderesMisticos: [],
     rituales: [],
@@ -1688,6 +1737,11 @@ export function createEmptyCharacterSheet(): CharacterSheet {
       background: "",
       traits: "",
       campaign: ""
+    },
+    gmBackground: {
+      tactics: "",
+      weakness: "",
+      loot: ""
     },
     referencias: [],
     notas: ""
@@ -1747,6 +1801,7 @@ export function createNpcSheetSeed(input: Pick<CreateNpcInput, "name" | "race" |
   const sheet = createEmptyCharacterSheet();
   return synchronizeCharacterSheet({
     ...sheet,
+    resolutionMode: "fixed_average",
     identidad: {
       ...sheet.identidad,
       nombrePersonaje: input.name.trim(),
@@ -1878,6 +1933,7 @@ export const createCampaignSchema = z.object({
   summary: z.string().max(400).default(""),
   setting: z.string().max(200).default(""),
   notes: z.string().max(4000).default(""),
+  dmNoteEntries: z.array(campaignSharedNoteEntrySchema).max(200).default([]),
   sharedNotes: z.string().max(6000).default(""),
   sharedNoteEntries: z.array(campaignSharedNoteEntrySchema).max(200).default([])
 });
@@ -2270,6 +2326,7 @@ export type Campaign = {
   summary: string;
   setting: string;
   notes: string;
+  dmNoteEntries: Array<z.infer<typeof campaignSharedNoteEntrySchema>>;
   sharedNotes: string;
   sharedNoteEntries: Array<z.infer<typeof campaignSharedNoteEntrySchema>>;
   gmId: string;

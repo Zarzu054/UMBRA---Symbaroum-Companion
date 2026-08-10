@@ -5,6 +5,7 @@ import {
   WEAPON_QUALITY_OPTIONS,
   SYMBAROUM_ABILITIES,
   buildRollRequest,
+  averageDiceFormula,
   deriveCharacterActions,
   executeCharacterAction,
   findWeaponQualityOption,
@@ -44,6 +45,15 @@ type InventoryTabId = "money" | "weapons" | "armors" | "artifacts" | "items";
 type RatedEntry = CharacterSheet["habilidades"][number];
 type SimpleSheetListSection = "bendiciones" | "cargas" | "rasgos";
 type CharacterPersonalNoteEntry = CharacterSheet["personalNotes"][number];
+type CharacterConditionEntry = CharacterSheet["conditions"][number];
+type ConditionTone = "danger" | "warning" | "info" | "poison" | "critical" | "corruption";
+
+type CharacterConditionDefinition = {
+  id: string;
+  name: string;
+  category: CharacterConditionEntry["category"];
+  tone: ConditionTone;
+};
 
 type Props = {
   title: string;
@@ -55,6 +65,7 @@ type Props = {
   onBack?: () => void;
   onOpenBuilder?: () => void;
   backgroundPreferenceScope?: string;
+  collapsibleHistory?: boolean;
   onOpenCompendiumCapability?: (tipo: "habilidad" | "poder_mistico" | "ritual" | "bendicion" | "carga", nombre: string) => void;
   onUseArtifactAbility?: (artifactId: string, abilityId: string) => Promise<void>;
 };
@@ -109,7 +120,7 @@ type CapabilityTier = {
 
 type WeaponCatalogFilterId = "all" | "one-handed" | "short" | "long" | "heavy" | "ranged" | "thrown" | "shield";
 type ArmorCatalogFilterId = "all" | "light" | "medium" | "heavy";
-type ItemCatalogFilterId = "all" | "consumable" | "travel" | "ammunition" | "tool" | "material" | "ritual" | "valuable" | "artifact";
+type ItemCatalogFilterId = "all" | "elixir" | "minor-artifact" | "trap" | "tool" | "equipment" | "container" | "travel" | "ammunition" | "material" | "ritual" | "valuable";
 
 type MoneyCounters = {
   taleros: number;
@@ -174,6 +185,32 @@ const ACTION_TAB_IDS: ActionTabId[] = ["all", "favorites", "attacks", "powers", 
 const CAPABILITY_TAB_IDS: CapabilityTabId[] = ["traits", "blessings", "burdens", "abilities", "powers", "rituals"];
 const INVENTORY_TAB_IDS: InventoryTabId[] = ["money", "weapons", "armors", "artifacts", "items"];
 
+const CHARACTER_CONDITION_DEFINITIONS: CharacterConditionDefinition[] = [
+  { id: "condition-burning", name: "Ardiendo", category: "injury", tone: "danger" },
+  { id: "condition-stunned", name: "Aturdido", category: "state", tone: "warning" },
+  { id: "condition-blinded", name: "Cegado", category: "state", tone: "warning" },
+  { id: "condition-prone", name: "Derribado", category: "state", tone: "info" },
+  { id: "condition-poisoned", name: "Envenenado", category: "injury", tone: "poison" },
+  { id: "condition-immobilized", name: "Inmovilizado", category: "state", tone: "info" },
+  { id: "condition-paralyzed", name: "Paralizado", category: "state", tone: "critical" },
+  { id: "condition-bleeding", name: "Sangrando", category: "injury", tone: "danger" }
+];
+
+function normalizeConditionName(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+}
+
+function matchesConditionDefinition(condition: CharacterConditionEntry, definition: CharacterConditionDefinition): boolean {
+  return condition.id === definition.id || normalizeConditionName(condition.name) === normalizeConditionName(definition.name);
+}
+
+function getStoredConditionTone(condition: CharacterConditionEntry): ConditionTone {
+  if (condition.category === "injury") return "danger";
+  if (condition.category === "corruption") return "critical";
+  if (condition.category === "state") return "info";
+  return "warning";
+}
+
 const WEAPON_CATALOG_FILTER_OPTIONS: Array<{ id: WeaponCatalogFilterId; label: string }> = [
   { id: "all", label: "Todas" },
   { id: "one-handed", label: "Una mano" },
@@ -194,14 +231,17 @@ const ARMOR_CATALOG_FILTER_OPTIONS: Array<{ id: ArmorCatalogFilterId; label: str
 
 const ITEM_CATALOG_FILTER_OPTIONS: Array<{ id: ItemCatalogFilterId; label: string }> = [
   { id: "all", label: "Todos" },
-  { id: "consumable", label: "Consumibles" },
+  { id: "elixir", label: "Elixires" },
+  { id: "minor-artifact", label: "Artefactos menores" },
+  { id: "trap", label: "Trampas" },
+  { id: "equipment", label: "Equipo general" },
+  { id: "container", label: "Receptáculos" },
   { id: "travel", label: "Viaje" },
-  { id: "ammunition", label: "Municion" },
+  { id: "ammunition", label: "Munición" },
   { id: "tool", label: "Herramientas" },
   { id: "material", label: "Materiales" },
   { id: "ritual", label: "Rituales" },
-  { id: "valuable", label: "Valiosos" },
-  { id: "artifact", label: "Artefactos" }
+  { id: "valuable", label: "Valiosos" }
 ];
 
 const SHEET_TAB_STORAGE_PREFIX = "umbra:character-sheet-tabs:";
@@ -508,11 +548,14 @@ function matchesItemCatalogFilter(item: ItemTemplate, filterId: ItemCatalogFilte
   if (item.category === "weapon" || item.category === "armor") return false;
   if (filterId === "all") return true;
   const qualities = parseWeaponQualities(item.qualities).map((entry) => entry.toLowerCase());
-  if (filterId === "artifact") return item.category === "artifact" || qualities.includes("mistico");
-  if (filterId === "consumable") return item.category === "consumable";
+  if (filterId === "elixir") return item.catalogGroup === "elixir";
+  if (filterId === "minor-artifact") return item.catalogGroup === "minor-artifact";
+  if (filterId === "trap") return item.catalogGroup === "trap";
+  if (filterId === "equipment") return item.catalogGroup === "equipment";
+  if (filterId === "container") return qualities.includes("contenedor");
   if (filterId === "travel") return qualities.includes("viaje");
   if (filterId === "ammunition") return qualities.includes("municion");
-  if (filterId === "tool") return qualities.includes("herramienta");
+  if (filterId === "tool") return item.catalogGroup === "tool" || qualities.includes("herramienta");
   if (filterId === "material") return qualities.includes("material");
   if (filterId === "ritual") return qualities.includes("ritual");
   if (filterId === "valuable") return item.category === "treasure" || qualities.includes("valioso");
@@ -1048,6 +1091,7 @@ export function UnifiedCharacterSheet({
   onOpenBuilder,
   onUseArtifactAbility,
   backgroundPreferenceScope,
+  collapsibleHistory = false,
   onOpenCompendiumCapability
 }: Props) {
   const { draft, isSavingLocal, setDraft, updateField, save } = useUnifiedCharacterSheet({
@@ -1065,6 +1109,7 @@ export function UnifiedCharacterSheet({
   const [selectedArmorCatalogFilter, setSelectedArmorCatalogFilter] = useState<ArmorCatalogFilterId>("all");
   const [armorCatalogSearch, setArmorCatalogSearch] = useState("");
   const [selectedItemCatalogFilter, setSelectedItemCatalogFilter] = useState<ItemCatalogFilterId>("all");
+  const [itemCatalogSearch, setItemCatalogSearch] = useState("");
   const [history, setHistory] = useState<Array<{ title: string; detail?: string; rolls: ActionRollResult[] }>>([]);
   const rollDestination: RollDestination = "roll20";
   const [pendingRollConfirmation, setPendingRollConfirmation] = useState<PendingRollConfirmation | null>(null);
@@ -1096,6 +1141,7 @@ export function UnifiedCharacterSheet({
   useBodyScrollLock(isSheetModalOpen);
 
   const normalizedSheet = useMemo(() => synchronizeCharacterSheet(draft), [draft]);
+  const usesFixedAverages = normalizedSheet.resolutionMode === "fixed_average";
   const derived = useMemo(() => computeDerivedStats(normalizedSheet), [normalizedSheet]);
   const actions = useMemo(() => deriveCharacterActions(normalizedSheet), [normalizedSheet]);
   const defenseAlternativeActions = useMemo(
@@ -1153,6 +1199,17 @@ export function UnifiedCharacterSheet({
     });
   };
   const personalNotes = useMemo(() => sortCharacterPersonalNotes(normalizedSheet.personalNotes ?? []), [normalizedSheet.personalNotes]);
+  const automaticConditions = useMemo(
+    () => normalizedSheet.conditions.filter((condition) => ["legacy-corruption", "legacy-dying"].includes(condition.id) && condition.active),
+    [normalizedSheet.conditions]
+  );
+  const additionalConditions = useMemo(
+    () => normalizedSheet.conditions.filter((condition) => (
+      !["legacy-corruption", "legacy-dying", "condition-dying"].includes(condition.id)
+      && !CHARACTER_CONDITION_DEFINITIONS.some((definition) => matchesConditionDefinition(condition, definition))
+    )),
+    [normalizedSheet.conditions]
+  );
   const selectedPersonalNote = useMemo(
     () => personalNotes.find((entry) => entry.id === selectedPersonalNoteId) ?? null,
     [personalNotes, selectedPersonalNoteId]
@@ -1255,9 +1312,14 @@ export function UnifiedCharacterSheet({
             return !search || normalizeInventoryItemText(`${item.name} ${item.qualities} ${item.description}`).includes(search);
           })
         : inventoryCatalogModalTab === "items"
-          ? modalCatalogItems.filter((item) => matchesItemCatalogFilter(item, selectedItemCatalogFilter))
+          ? modalCatalogItems.filter((item) => {
+              if (!matchesItemCatalogFilter(item, selectedItemCatalogFilter)) return false;
+              const searchTokens = normalizeInventoryItemText(itemCatalogSearch).split(/\s+/).filter(Boolean);
+              const searchableText = normalizeInventoryItemText(`${item.name} ${item.qualities} ${item.description} ${item.value}`);
+              return searchTokens.every((token) => searchableText.includes(token));
+            })
         : modalCatalogItems,
-    [inventoryCatalogModalTab, modalCatalogItems, selectedWeaponCatalogFilter, selectedArmorCatalogFilter, selectedItemCatalogFilter, weaponCatalogSearch, armorCatalogSearch]
+    [inventoryCatalogModalTab, modalCatalogItems, selectedWeaponCatalogFilter, selectedArmorCatalogFilter, selectedItemCatalogFilter, weaponCatalogSearch, armorCatalogSearch, itemCatalogSearch]
   );
 
   useEffect(() => {
@@ -1778,6 +1840,12 @@ export function UnifiedCharacterSheet({
   }
 
   function runAction(action: CharacterActionDefinition, phase: CharacterActionPhase, damageVariantId?: string): void {
+    if (usesFixedAverages) {
+      const formula = phase === "damage" ? action.damageFormula : "1d20";
+      const fixed = formula ? averageDiceFormula(formula) : null;
+      pushHistory(action.label, [], fixed == null ? "Acción informativa del DJ: esta ficha no lanza dados automáticamente." : `Valor fijo oficial: ${fixed} (fórmula conservada: ${formula}).`);
+      return;
+    }
       if (rollDestination !== "umbra") {
       queueRoll20Request(action, phase, `${action.label} - ${phase === "damage" ? "Daño" : "Tirada"}`);
         return;
@@ -1792,6 +1860,12 @@ export function UnifiedCharacterSheet({
     damageVariantId: string,
     damageLabel: string
   ): void {
+    if (usesFixedAverages) {
+      const variant = action.damageModifiers?.find((entry) => entry.id === damageVariantId);
+      const formula = variant?.formula ?? action.damageFormula;
+      pushHistory(`${action.label} · ${damageLabel}`, [], formula ? `Valor fijo oficial: ${averageDiceFormula(formula) ?? formula} (fórmula conservada: ${formula}).` : "Acción informativa del DJ.");
+      return;
+    }
     if (rollDestination !== "umbra") {
       queueRoll20Request(
         action,
@@ -1830,6 +1904,10 @@ export function UnifiedCharacterSheet({
   }
 
   async function runAttackAction(action: CharacterActionDefinition): Promise<void> {
+    if (usesFixedAverages) {
+      pushHistory(action.label, [], "Acción informativa del DJ: el ataque no lanza dados automáticamente.");
+      return;
+    }
     if (rollDestination !== "umbra") {
       queueRoll20Request(action, "attack", `${action.label} · Tirada`);
       return;
@@ -1841,6 +1919,10 @@ export function UnifiedCharacterSheet({
   }
 
   async function runDamageAction(action: CharacterActionDefinition): Promise<void> {
+    if (usesFixedAverages) {
+      pushHistory(action.label, [], action.damageFormula ? `Valor fijo oficial: ${averageDiceFormula(action.damageFormula) ?? action.damageFormula} (fórmula conservada: ${action.damageFormula}).` : "Acción informativa del DJ.");
+      return;
+    }
     if (rollDestination !== "umbra") {
       queueRoll20Request(action, "damage", `${action.label} · Daño`);
       return;
@@ -1853,6 +1935,10 @@ export function UnifiedCharacterSheet({
 
   function runAttributeRoll(attribute: keyof CharacterSheet["atributos"]): void {
     const label = `Prueba de ${ATTRIBUTE_LABELS[attribute]}`;
+    if (usesFixedAverages) {
+      pushHistory(label, [], `Valor fijo del atributo: ${normalizedSheet.atributos[attribute]}. La ficha del DJ no realiza esta tirada.`);
+      return;
+    }
     if (rollDestination !== "umbra") {
       queueRoll20Request(
         {
@@ -1887,6 +1973,10 @@ export function UnifiedCharacterSheet({
 
   function runDefenseRoll(): void {
     const label = "Defensa";
+    if (usesFixedAverages) {
+      pushHistory(label, [], `Defensa fija: ${derived.defensaTotal}. La ficha del DJ no realiza esta tirada.`);
+      return;
+    }
     if (rollDestination !== "umbra") {
       setPendingRollConfirmation({
         request: {
@@ -1927,6 +2017,10 @@ export function UnifiedCharacterSheet({
     const formula = activeArmor?.protectionFormula || derived.armaduraActiva;
     if (!formula) return;
     const label = activeArmor?.name || normalizedSheet.combate.armadura || (derived.armaduraNatural ? "Armadura natural" : "Armadura");
+    if (usesFixedAverages) {
+      pushHistory(label, [], `Protección fija: ${averageDiceFormula(formula) ?? formula} (fórmula conservada: ${formula}).`);
+      return;
+    }
     if (rollDestination !== "umbra") {
       const formulaBreakdown = activeArmor?.protectionFormula
         ? [{
@@ -2368,6 +2462,7 @@ export function UnifiedCharacterSheet({
     setSelectedArmorCatalogFilter("all");
     setArmorCatalogSearch("");
     setSelectedItemCatalogFilter("all");
+    setItemCatalogSearch("");
     setSelectedCatalogItemId(filteredItems[0]?.templateId ?? "");
     setInventoryCatalogModalTab(tab);
   }
@@ -2627,16 +2722,49 @@ export function UnifiedCharacterSheet({
     });
   }
 
-  function updateCondition(index: number, field: keyof CharacterSheet["conditions"][number], value: string | boolean): void {
-    setDraft({ ...draft, conditions: draft.conditions.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)) });
+  function toggleDefinedCondition(definition: CharacterConditionDefinition): void {
+    if (!editable || busy || isSavingLocal) {
+      return;
+    }
+
+    const conditionIndex = draft.conditions.findIndex((condition) => matchesConditionDefinition(condition, definition));
+    if (conditionIndex >= 0) {
+      setDraft({
+        ...draft,
+        conditions: draft.conditions.map((condition, index) => (
+          index === conditionIndex ? { ...condition, active: !condition.active } : condition
+        ))
+      });
+      return;
+    }
+
+    setDraft({
+      ...draft,
+      conditions: [
+        ...draft.conditions,
+        {
+          id: definition.id,
+          name: definition.name,
+          category: definition.category,
+          active: true,
+          severity: "minor",
+          summary: "",
+          notes: ""
+        }
+      ]
+    });
   }
 
-  function addCondition(): void {
-    setDraft({ ...draft, conditions: [...draft.conditions, { id: `condition-${Date.now()}`, name: "", category: "custom", active: true, severity: "minor", summary: "", notes: "" }] });
-  }
-
-  function removeCondition(index: number): void {
-    setDraft({ ...draft, conditions: draft.conditions.filter((_, itemIndex) => itemIndex !== index) });
+  function toggleStoredCondition(conditionId: string): void {
+    if (!editable || busy || isSavingLocal) {
+      return;
+    }
+    setDraft({
+      ...draft,
+      conditions: draft.conditions.map((condition) => (
+        condition.id === conditionId ? { ...condition, active: !condition.active } : condition
+      ))
+    });
   }
 
   function adjustNumber(path: string, delta: number, min = 0): void {
@@ -2844,6 +2972,27 @@ export function UnifiedCharacterSheet({
                     </>
                   ) : null}
                 </div>
+                <div className="unified-sheet-action-history" aria-live="polite">
+                  <h4>Historial de acciones</h4>
+                  {history.length > 0 ? (
+                    <div className="roll-log">
+                      {history.map((entry, index) => (
+                        <div key={`${entry.title}-${index}`} className="character-action-history-entry">
+                          <strong>{entry.title}</strong>
+                          {entry.rolls.map((roll, rollIndex) => (
+                            <span key={`${roll.kind}-${rollIndex}`}>
+                              {roll.label}: {roll.formula} = {roll.total}
+                              {roll.success == null ? "" : roll.success ? " · Éxito" : " · Fallo"}
+                            </span>
+                          ))}
+                          {entry.detail ? <p>{entry.detail}</p> : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="section-help">Aún no hay acciones resueltas desde esta hoja.</p>
+                  )}
+                </div>
               </article>
             </section>
           ) : null}
@@ -3047,10 +3196,17 @@ export function UnifiedCharacterSheet({
                     </dl>
                     <section className="unified-sheet-read-section"><h4>Apariencia</h4><p>{normalizedSheet.identidad.apariencia || "Sin apariencia registrada."}</p></section>
                     <section className="unified-sheet-read-section"><h4>Objetivo personal</h4><p>{normalizedSheet.identidad.objetivoPersonal || "Sin objetivo personal registrado."}</p></section>
-                    <section className="unified-sheet-read-section">
-                      <h4>Historia</h4>
-                      <div className="campaign-markdown unified-sheet-history-markdown">{renderSimpleMarkdownBlocks(normalizedSheet.noteSections.background || "Sin historia registrada.")}</div>
-                    </section>
+                    {collapsibleHistory ? (
+                      <details className="unified-sheet-read-section narrative-collapsible-card" open>
+                        <summary><span>Historia</span><small>Mostrar u ocultar</small></summary>
+                        <div className="narrative-collapsible-content campaign-markdown unified-sheet-history-markdown">{renderSimpleMarkdownBlocks(normalizedSheet.noteSections.background || "Sin historia registrada.")}</div>
+                      </details>
+                    ) : (
+                      <section className="unified-sheet-read-section">
+                        <h4>Historia</h4>
+                        <div className="campaign-markdown unified-sheet-history-markdown">{renderSimpleMarkdownBlocks(normalizedSheet.noteSections.background || "Sin historia registrada.")}</div>
+                      </section>
+                    )}
                   </div>
                 )}
               </article>
@@ -3350,10 +3506,48 @@ export function UnifiedCharacterSheet({
           <h2 id="unified-sheet-conditions-title" className="unified-sheet-module-title">Condiciones</h2>
           <div className="unified-sheet-quick-row is-conditions">
             <article className="unified-sheet-quick-card is-wide">
-              <div className="unified-sheet-quick-tags">
-                {normalizedSheet.conditions.length > 0 ? normalizedSheet.conditions.slice(0, 4).map((condition) => (
-                  <span key={condition.id} className={`unified-sheet-tag is-${condition.category}`}>{condition.name || "Condicion"}</span>
-                )) : <span className="unified-sheet-tag">Sin condiciones</span>}
+              <div className="unified-sheet-condition-grid">
+                {automaticConditions.map((condition) => (
+                  <span
+                    key={condition.id}
+                    className={`unified-sheet-condition-badge is-active ${condition.id === "legacy-corruption" ? "is-tone-corruption" : "is-tone-critical"}`}
+                    title="Condición activada automáticamente"
+                  >
+                    {condition.name}
+                  </span>
+                ))}
+                {CHARACTER_CONDITION_DEFINITIONS.map((definition) => {
+                  const condition = normalizedSheet.conditions.find((entry) => matchesConditionDefinition(entry, definition));
+                  const isActive = condition?.active === true;
+                  return (
+                    <button
+                      key={definition.id}
+                      type="button"
+                      className={`unified-sheet-condition-toggle is-tone-${definition.tone}${isActive ? " is-active" : ""}`}
+                      aria-pressed={isActive}
+                      aria-disabled={!editable || busy || isSavingLocal}
+                      title={`${isActive ? "Desactivar" : "Activar"} ${definition.name}`}
+                      tabIndex={editable ? 0 : -1}
+                      onClick={() => toggleDefinedCondition(definition)}
+                    >
+                      {definition.name}
+                    </button>
+                  );
+                })}
+                {additionalConditions.map((condition) => (
+                  <button
+                    key={condition.id}
+                    type="button"
+                    className={`unified-sheet-condition-toggle is-tone-${getStoredConditionTone(condition)}${condition.active ? " is-active" : ""}`}
+                    aria-pressed={condition.active}
+                    aria-disabled={!editable || busy || isSavingLocal}
+                    title={`${condition.active ? "Desactivar" : "Activar"} ${condition.name}`}
+                    tabIndex={editable ? 0 : -1}
+                    onClick={() => toggleStoredCondition(condition.id)}
+                  >
+                    {condition.name}
+                  </button>
+                ))}
               </div>
             </article>
           </div>
@@ -4081,6 +4275,38 @@ export function UnifiedCharacterSheet({
                         <small>{item.protectionFormula || "Especial"}</small>
                       </button>
                     )) : <p>No hay armaduras que coincidan con la busqueda.</p>}
+                  </div>
+                </div>
+              ) : inventoryCatalogModalTab === "items" ? (
+                <div className="unified-sheet-weapon-search-selector unified-sheet-object-search-selector">
+                  <label className="field">
+                    <span>Objeto</span>
+                    <input
+                      type="search"
+                      role="combobox"
+                      aria-label="Buscar objeto"
+                      aria-controls="item-catalog-results"
+                      aria-expanded={filteredModalCatalogItems.length > 0}
+                      aria-autocomplete="list"
+                      placeholder="Buscar por nombre, efecto o precio..."
+                      value={itemCatalogSearch}
+                      onChange={(event) => setItemCatalogSearch(event.target.value)}
+                    />
+                  </label>
+                  <div id="item-catalog-results" className="unified-sheet-weapon-search-results" role="listbox" aria-label="Objetos disponibles">
+                    {filteredModalCatalogItems.length > 0 ? filteredModalCatalogItems.map((item) => (
+                      <button
+                        key={item.templateId}
+                        type="button"
+                        role="option"
+                        aria-selected={item.templateId === selectedCatalogItemId}
+                        className={item.templateId === selectedCatalogItemId ? "is-active" : ""}
+                        onClick={() => setSelectedCatalogItemId(item.templateId)}
+                      >
+                        <span>{item.name}</span>
+                        <small>{item.value || "Sin precio"}</small>
+                      </button>
+                    )) : <p>No hay objetos que coincidan con la búsqueda.</p>}
                   </div>
                 </div>
               ) : (

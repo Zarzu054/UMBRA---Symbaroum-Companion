@@ -113,7 +113,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     }
   }
 
-  function updateSheet(path: string, value: string | number): void {
+  function updateSheet(path: string, value: string | number | boolean): void {
     setValidationErrors([]);
     setForm((prev) => {
       const next = structuredClone(prev);
@@ -244,23 +244,24 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     setIsFormModalOpen(false);
   }
 
-  async function submit(): Promise<void> {
+  async function submit(overrideForm?: CharacterFormState): Promise<boolean> {
     setError(null);
     setValidationErrors([]);
     setIsSaving(true);
     try {
+      const sourceForm = overrideForm ?? form;
       const payload: CreateCharacterInput = {
-        ...form,
+        ...sourceForm,
         level: 1,
-        name: form.name.trim(),
-        archetype: form.sheet.identidad.arquetipo,
-        race: form.sheet.identidad.raza,
-        culture: form.sheet.identidad.cultura,
-        profession: form.sheet.identidad.profesion,
+        name: sourceForm.sheet.identidad.nombrePersonaje.trim(),
+        archetype: sourceForm.sheet.identidad.arquetipo,
+        race: sourceForm.sheet.identidad.raza,
+        culture: sourceForm.sheet.identidad.cultura,
+        profession: sourceForm.sheet.identidad.profesion,
         sheet: {
-          ...form.sheet,
+          ...sourceForm.sheet,
           progreso: {
-            ...form.sheet.progreso,
+            ...sourceForm.sheet.progreso,
             nivel: 1
           }
         }
@@ -276,7 +277,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
           )
         );
         setError("Hay errores de validacion en la ficha");
-        return;
+        return false;
       }
 
       const token = await ensureAccessToken();
@@ -289,8 +290,10 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
 
       await refresh();
       closeFormModal();
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar el personaje");
+      return false;
     } finally {
       setIsSaving(false);
     }
@@ -455,6 +458,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
       error,
       validationErrors,
       form,
+      setForm,
       listInput,
       catalogSelection,
       rollState,

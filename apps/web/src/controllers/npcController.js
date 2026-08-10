@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createEmptyNpcInput, createNpcSheetSeed, createDefaultMonsterSheet } from "@umbra/shared";
+import { averageDiceFormula, createEmptyNpcInput, createNpcSheetSeed, createDefaultMonsterSheet, synchronizeCharacterSheet, synchronizeMonsterCreationValues } from "@umbra/shared";
 import { createNpc, deleteNpc, fetchNpcs, updateNpc } from "../services/npcService";
 function normalizeListValue(value) {
     return value
@@ -50,9 +50,60 @@ export function useNpcController(ensureAccessToken) {
         setSelectedNpcId(npcId);
     }
     function loadDraftFromNpc(npc) {
+        const legacyStatBlock = npc.depth === "stat_block" && npc.statBlock ? synchronizeMonsterCreationValues(npc.statBlock) : null;
+        const legacyCapabilities = legacyStatBlock
+            ? legacyStatBlock.traits.map((trait, index) => ({
+                catalogId: `legacy-trait-${index}-${trait.toLocaleLowerCase("es").replace(/[^a-z0-9]+/g, "-")}`,
+                name: trait.replace(/\s*\(?(?:i{1,3}|[1-3])\)?\s*$/i, "").trim() || trait,
+                kind: "rasgo_monstruoso",
+                level: /(?:iii|3)\)?$/i.test(trait) ? "maestro" : /(?:ii|2)\)?$/i.test(trait) ? "adepto" : "novato",
+                origin: "legado",
+                source: "Bloque rápido original",
+                legacyData: trait
+            }))
+            : [];
+        const convertedSheet = legacyStatBlock
+            ? synchronizeCharacterSheet({
+                ...createNpcSheetSeed(npc),
+                resolutionMode: "fixed_average",
+                atributos: {
+                    agil: legacyStatBlock.attributes.quick,
+                    atento: legacyStatBlock.attributes.vigilant,
+                    discreto: legacyStatBlock.attributes.discreet,
+                    diestro: legacyStatBlock.attributes.accurate,
+                    fuerte: legacyStatBlock.attributes.strong,
+                    inteligente: legacyStatBlock.attributes.cunning,
+                    persuasivo: legacyStatBlock.attributes.persuasive,
+                    tenaz: legacyStatBlock.attributes.resolute
+                },
+                capabilitySelections: legacyCapabilities,
+                rasgos: [...legacyStatBlock.traits],
+                combate: {
+                    ...createNpcSheetSeed(npc).combate,
+                    defensaBase: legacyStatBlock.defense,
+                    armadura: "Armadura del bloque rápido",
+                    armaduraProteccion: legacyStatBlock.armor,
+                    armaPrincipal: "Ataque del bloque rápido",
+                    danioPrincipal: legacyStatBlock.damage
+                },
+                gmBackground: {
+                    tactics: legacyStatBlock.tactics,
+                    weakness: legacyStatBlock.weakness,
+                    loot: legacyStatBlock.loot
+                },
+                notas: [
+                    npc.notes,
+                    "## Respaldo legado del bloque rápido",
+                    `Ataque: ${legacyStatBlock.attack}`,
+                    `Daño: ${legacyStatBlock.damage}${averageDiceFormula(legacyStatBlock.damage) != null ? ` (valor medio ${averageDiceFormula(legacyStatBlock.damage)})` : ""}`,
+                    `Armadura: ${legacyStatBlock.armor}${averageDiceFormula(legacyStatBlock.armor) != null ? ` (valor medio ${averageDiceFormula(legacyStatBlock.armor)})` : ""}`,
+                    legacyStatBlock.actions.length ? `Acciones no reconocidas (legado): ${legacyStatBlock.actions.join("; ")}` : ""
+                ].filter(Boolean).join("\n\n")
+            })
+            : null;
         setDraft({
             name: npc.name,
-            depth: npc.depth,
+            depth: npc.depth === "stat_block" ? "full_sheet" : npc.depth,
             race: npc.race,
             archetype: npc.archetype,
             occupation: npc.occupation,
@@ -60,8 +111,8 @@ export function useNpcController(ensureAccessToken) {
             labels: [...npc.labels],
             summary: npc.summary,
             notes: npc.notes,
-            statBlock: npc.statBlock ? structuredClone(npc.statBlock) : null,
-            sheet: npc.sheet ? structuredClone(npc.sheet) : null
+            statBlock: legacyStatBlock ? structuredClone(legacyStatBlock) : npc.statBlock ? structuredClone(npc.statBlock) : null,
+            sheet: npc.sheet ? structuredClone(npc.sheet) : convertedSheet
         });
         setFormError(null);
     }
@@ -113,6 +164,21 @@ export function useNpcController(ensureAccessToken) {
         setFormError(null);
         try {
             const token = await ensureAccessToken();
+            const synchronizedSheet = draft.depth === "full_sheet" && draft.sheet
+                ? synchronizeCharacterSheet({
+                    ...draft.sheet,
+                    resolutionMode: "fixed_average",
+                    identidad: {
+                        ...draft.sheet.identidad,
+                        nombrePersonaje: draft.name.trim(),
+                        raza: draft.race.trim() || "Humano",
+                        arquetipo: draft.archetype.trim() || "Guerrero",
+                        profesion: draft.occupation.trim(),
+                        apariencia: draft.summary.trim(),
+                        trasfondo: draft.notes.trim()
+                    }
+                })
+                : null;
             const payload = {
                 ...draft,
                 name: draft.name.trim(),
@@ -121,7 +187,8 @@ export function useNpcController(ensureAccessToken) {
                 occupation: draft.occupation.trim(),
                 faction: draft.faction.trim(),
                 summary: draft.summary.trim(),
-                notes: draft.notes.trim()
+                notes: draft.notes.trim(),
+                sheet: synchronizedSheet
             };
             const saved = selectedNpcId
                 ? await updateNpc(selectedNpcId, payload, token)

@@ -19,6 +19,7 @@ import { CharacterCard } from "../components/CharacterCard";
 import { AppTopNavigation, type AppNavigationItem } from "../components/AppTopNavigation";
 import { AppIcon } from "../components/AppIcon";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
+import { CharacterCreationWizard } from "../components/ActorCreationWizard";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
 import {
   TYPE_LABELS,
@@ -459,6 +460,12 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   </section>
 
                   {controller.isFormModalOpen ? (
+                    <section className="modal-backdrop">
+                      <CharacterCreationWizard controller={controller} onCancel={controller.closeFormModal} />
+                    </section>
+                  ) : null}
+
+                  {false && controller.isFormModalOpen ? (
                     <section className="modal-backdrop" onClick={controller.closeFormModal}>
                       <div className="panel modal-panel character-directory-form-modal" onClick={(event) => event.stopPropagation()}>
         <div className="row-actions">
