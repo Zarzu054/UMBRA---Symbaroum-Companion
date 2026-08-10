@@ -3980,8 +3980,7 @@ td {
   gap: 8px;
 }
 
-.monster-reference-sources a,
-.monster-reference-sources span {
+.monster-reference-sources > div > span {
   padding: 6px 9px;
   border-radius: 999px;
   color: var(--ui-brand-strong, #7f2f35);
@@ -7667,7 +7666,7 @@ td {
   margin-top: 0.15rem;
 }
 
-.unified-sheet-action-detail-body .unified-sheet-capability-meta a {
+.unified-sheet-action-detail-body .unified-sheet-capability-meta a:not(.source-reference-link) {
   display: inline-flex;
   align-items: center;
   min-height: 30px;
@@ -7683,8 +7682,8 @@ td {
   transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
 }
 
-.unified-sheet-action-detail-body .unified-sheet-capability-meta a:hover,
-.unified-sheet-action-detail-body .unified-sheet-capability-meta a:focus-visible {
+.unified-sheet-action-detail-body .unified-sheet-capability-meta a:not(.source-reference-link):hover,
+.unified-sheet-action-detail-body .unified-sheet-capability-meta a:not(.source-reference-link):focus-visible {
   background: rgba(226, 239, 245, 0.96);
   border-color: rgba(78, 121, 145, 0.44);
   color: #24455b;

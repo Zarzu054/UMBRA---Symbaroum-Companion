@@ -10,6 +10,7 @@ import {
   type EntryType
 } from "../models/compendiumEntries";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { SourceReferenceLink } from "../components/SourceReferenceLink";
 import {
   fetchCompendiumLibrary,
   recordCompendiumView,
@@ -995,12 +996,18 @@ export function CompendiumView({
                   {selectedReferences.map((reference) => {
                     const url = getCompendiumSourcePdfUrl(reference.source, reference.page, selectedEntry.nombre);
                     return url ? (
-                      <a key={`${reference.source}-${reference.page ?? ""}`} className="subtle-button" href={url} target="_blank" rel="noreferrer">
-                        {reference.page ? `${canonicalizeCompendiumSourceName(reference.source)} p.${reference.page}` : canonicalizeCompendiumSourceName(reference.source)}
-                      </a>
+                      <SourceReferenceLink
+                        key={`${reference.source}-${reference.page ?? ""}`}
+                        href={url}
+                        source={canonicalizeCompendiumSourceName(reference.source)}
+                        page={reference.page}
+                        ariaLabel={reference.page
+                          ? `${canonicalizeCompendiumSourceName(reference.source)} p.${reference.page}`
+                          : canonicalizeCompendiumSourceName(reference.source)}
+                      />
                     ) : null;
                   })}
-                  {summaryLink ? <a className="subtle-button" href={summaryLink.url} target="_blank" rel="noreferrer">{summaryLink.documentLabel}</a> : null}
+                  {summaryLink ? <SourceReferenceLink href={summaryLink.url} source={summaryLink.documentLabel} eyebrow="Resumen" /> : null}
                   <button type="button" className="subtle-button" onClick={() => void copyDeepLink()}>{linkCopied ? "Enlace copiado" : "Copiar enlace"}</button>
                 </footer>
               </>

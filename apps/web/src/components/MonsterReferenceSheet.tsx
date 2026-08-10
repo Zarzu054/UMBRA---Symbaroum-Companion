@@ -24,6 +24,7 @@ import {
 } from "../models/compendiumEntries";
 import { buildPdfViewerUrl } from "../services/pdfViewer";
 import { CharacterSheetBackgroundPicker } from "./CharacterSheetBackgroundPicker";
+import { SourceReferenceLink } from "./SourceReferenceLink";
 
 type Props = {
   monster: Monster;
@@ -806,7 +807,7 @@ export function MonsterReferenceSheet({
               const pdf = sourcePdf(reference.source);
               const label = `${reference.source} · p.${reference.page}`;
               return pdf
-                ? <a key={`${reference.source}-${reference.page}-${index}`} href={buildPdfViewerUrl(pdf, reference.pdfPage)} target="_blank" rel="noreferrer">{label}</a>
+                ? <SourceReferenceLink key={`${reference.source}-${reference.page}-${index}`} href={buildPdfViewerUrl(pdf, reference.pdfPage)} source={reference.source} page={reference.page} ariaLabel={label} />
                 : <span key={`${reference.source}-${reference.page}-${index}`}>{label}</span>;
             })}
           </div>
@@ -908,7 +909,7 @@ export function MonsterReferenceSheet({
             </div>
 
             <footer className="monster-capability-modal__actions">
-              {selectedTraitSourceUrl ? <a href={selectedTraitSourceUrl} target="_blank" rel="noreferrer">Abrir fuente</a> : null}
+              {selectedTraitSourceUrl ? <SourceReferenceLink href={selectedTraitSourceUrl} source={selectedTrait.source} page={selectedTrait.page} ariaLabel="Abrir fuente" /> : null}
               <button ref={traitCloseRef} type="button" className="subtle-button" onClick={() => setSelectedTrait(null)}>Cerrar</button>
             </footer>
           </div>
@@ -966,7 +967,7 @@ export function MonsterReferenceSheet({
             </div>
 
             <footer className="monster-capability-modal__actions">
-              {selectedSourceUrl ? <a href={selectedSourceUrl} target="_blank" rel="noreferrer">Abrir fuente</a> : null}
+              {selectedSourceUrl ? <SourceReferenceLink href={selectedSourceUrl} source={selectedCapability.source} page={selectedCapability.page} ariaLabel="Abrir fuente" /> : null}
               <button ref={capabilityCloseRef} type="button" className="subtle-button" onClick={() => setSelectedCapability(null)}>Cerrar</button>
             </footer>
           </div>

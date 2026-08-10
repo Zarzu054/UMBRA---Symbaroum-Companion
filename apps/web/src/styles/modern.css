@@ -3080,13 +3080,13 @@ button[disabled] {
   background: var(--ui-surface-hover);
 }
 
-:root[data-theme][data-palette] :is(.unified-sheet-weapon-quality-info, .unified-sheet-action-detail-body .unified-sheet-capability-meta a) {
+:root[data-theme][data-palette] :is(.unified-sheet-weapon-quality-info, .unified-sheet-action-detail-body .unified-sheet-capability-meta a:not(.source-reference-link)) {
   color: var(--ui-info);
   border-color: var(--ui-info);
   background: var(--ui-info-soft);
 }
 
-:root[data-theme][data-palette] :is(.unified-sheet-weapon-quality-info, .unified-sheet-action-detail-body .unified-sheet-capability-meta a):hover,
+:root[data-theme][data-palette] :is(.unified-sheet-weapon-quality-info, .unified-sheet-action-detail-body .unified-sheet-capability-meta a:not(.source-reference-link)):hover,
 :root[data-theme][data-palette] .unified-sheet-weapon-quality-info.is-active {
   color: var(--ui-text);
   border-color: var(--ui-brand);
@@ -3269,6 +3269,35 @@ button[disabled] {
   .unified-sheet-xp-row > span
 ) {
   color: var(--ui-text-muted);
+}
+
+:root[data-theme][data-palette] .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card h3 {
+  color: var(--ui-text);
+}
+
+:root[data-theme="dark"][data-palette] .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card.app-card-accent {
+  --app-card-bg-top: color-mix(in srgb, var(--ui-surface) 90%, var(--app-card-accent-color));
+  --app-card-bg-bottom: color-mix(in srgb, var(--ui-surface-muted) 92%, var(--app-card-accent-color));
+  color: var(--ui-text);
+  border-color: color-mix(in srgb, var(--app-card-accent-color) 52%, var(--ui-border));
+  background: linear-gradient(180deg, var(--app-card-bg-top), var(--app-card-bg-bottom));
+  box-shadow:
+    inset 4px 0 0 var(--app-card-accent-color),
+    inset 0 0 0 1px color-mix(in srgb, var(--ui-border) 74%, transparent);
+}
+
+:root[data-theme="dark"][data-palette] .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card.app-card-accent.is-clickable:hover,
+:root[data-theme="dark"][data-palette] .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card.app-card-accent.is-clickable:focus-visible {
+  border-color: color-mix(in srgb, var(--app-card-accent-color) 78%, var(--ui-border-strong));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ui-surface-hover) 86%, var(--app-card-accent-color)),
+    color-mix(in srgb, var(--ui-surface-muted) 86%, var(--app-card-accent-color))
+  );
+  box-shadow:
+    inset 4px 0 0 var(--app-card-accent-color),
+    inset 0 0 0 1px color-mix(in srgb, var(--ui-border-strong) 72%, transparent),
+    0 8px 20px color-mix(in srgb, #000 24%, transparent);
 }
 
 :root[data-theme][data-palette] :is(
@@ -4697,6 +4726,127 @@ button[disabled] {
 
   .narrative-collapsible-card > summary small {
     display: none;
+  }
+}
+
+/* Shared links to books, summaries and other source documents. */
+.source-reference-link.source-reference-link {
+  min-width: 0;
+  width: auto;
+  min-height: 46px;
+  display: inline-grid;
+  grid-template-columns: 32px minmax(0, max-content) auto 16px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 7px;
+  border: 1px solid color-mix(in srgb, var(--ui-brand) 54%, var(--ui-border));
+  border-radius: 999px 14px 14px 999px;
+  color: var(--ui-text);
+  background:
+    linear-gradient(110deg, color-mix(in srgb, var(--ui-brand-soft) 82%, var(--ui-surface)), var(--ui-surface) 72%);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--ui-brand) 12%, transparent);
+  font: inherit;
+  line-height: 1.1;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+
+.source-reference-link.source-reference-link:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--ui-brand-strong);
+  color: var(--ui-text);
+  background: linear-gradient(110deg, var(--ui-brand-soft), var(--ui-surface-hover));
+  box-shadow: 0 6px 15px color-mix(in srgb, var(--ui-brand) 18%, transparent);
+}
+
+.source-reference-link.source-reference-link:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--ui-focus) 38%, transparent);
+  outline-offset: 2px;
+}
+
+.source-reference-link.source-reference-link:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
+.source-reference-link__icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--ui-brand) 44%, transparent);
+  border-radius: 50%;
+  color: var(--ui-brand-strong);
+  background: color-mix(in srgb, var(--ui-brand-soft) 82%, var(--ui-surface));
+}
+
+.source-reference-link__icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.source-reference-link__copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  color: inherit;
+  background: none;
+}
+
+.source-reference-link__copy small {
+  color: var(--ui-text-muted);
+  font-size: 0.58rem;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.source-reference-link__copy strong {
+  overflow: hidden;
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-reference-link__page {
+  padding: 4px 7px;
+  border: 1px solid color-mix(in srgb, var(--ui-brand) 30%, var(--ui-border));
+  border-radius: 999px;
+  color: var(--ui-brand-strong);
+  background: var(--ui-surface);
+  font-size: 0.69rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.source-reference-link__arrow {
+  padding: 0;
+  color: var(--ui-brand-strong);
+  background: none;
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .source-reference-link.source-reference-link {
+    grid-template-columns: 32px minmax(0, 1fr) auto 16px;
+  }
+
+  .source-reference-link__copy strong {
+    white-space: normal;
   }
 }
 

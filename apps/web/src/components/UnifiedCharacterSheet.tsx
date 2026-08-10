@@ -29,6 +29,7 @@ import { ALL_ENTRIES, findCompendiumEntryByTypeAndName, getCompendiumSourcePdfUr
 import { useUnifiedCharacterSheet } from "../hooks/useUnifiedCharacterSheet";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { CharacterSheetBackgroundPicker } from "./CharacterSheetBackgroundPicker";
+import { SourceReferenceLink } from "./SourceReferenceLink";
 import {
   dispatchRoll20Request,
   setRollDestination as persistRollDestination,
@@ -3889,9 +3890,7 @@ export function UnifiedCharacterSheet({
               {actionDetailModal.references && actionDetailModal.references.length > 0 ? (
                 <div className="unified-sheet-capability-meta">
                   {actionDetailModal.references.map((reference) => (
-                    <a key={reference.url} href={reference.url} target="_blank" rel="noreferrer">
-                      {reference.label}
-                    </a>
+                    <SourceReferenceLink key={reference.url} href={reference.url} source={reference.label} />
                   ))}
                 </div>
               ) : null}
