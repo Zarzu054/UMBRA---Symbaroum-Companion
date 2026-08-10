@@ -8,6 +8,7 @@ import { verifyDatabaseConnection, prisma } from "./config/prisma.js";
 import { env } from "./config/env.js";
 import { registerRoutes } from "./routes/index.js";
 import { AppError } from "./utils/AppError.js";
+import { getStaticContentType } from "./utils/staticContentType.js";
 
 async function bootstrap(): Promise<void> {
   const app = Fastify({ logger: true });
@@ -126,7 +127,7 @@ function registerProductionFrontend(app: FastifyInstance): void {
       return;
     }
 
-    reply.type(getContentType(filePath));
+    reply.type(getStaticContentType(filePath));
     reply.send(await readFile(filePath));
   });
 }
@@ -137,32 +138,6 @@ async function fileExists(path: string): Promise<boolean> {
     return true;
   } catch {
     return false;
-  }
-}
-
-function getContentType(path: string): string {
-  switch (extname(path).toLowerCase()) {
-    case ".css":
-      return "text/css; charset=utf-8";
-    case ".html":
-      return "text/html; charset=utf-8";
-    case ".js":
-      return "application/javascript; charset=utf-8";
-    case ".json":
-      return "application/json; charset=utf-8";
-    case ".svg":
-      return "image/svg+xml";
-    case ".png":
-      return "image/png";
-    case ".jpg":
-    case ".jpeg":
-      return "image/jpeg";
-    case ".woff2":
-      return "font/woff2";
-    case ".pdf":
-      return "application/pdf";
-    default:
-      return "application/octet-stream";
   }
 }
 
