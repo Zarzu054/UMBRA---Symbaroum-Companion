@@ -3,6 +3,8 @@ import type { WheelEvent as ReactWheelEvent } from "react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
+const pdfJsWasmUrl = new URL(`${import.meta.env.BASE_URL}pdfjs/wasm/`, window.location.origin).href;
+
 type Props = {
   source: string;
   initialPage: number;
@@ -46,7 +48,10 @@ export function PdfPageViewer({ source, initialPage, onClose }: Props) {
 
     void import("pdfjs-dist").then(async ({ getDocument, GlobalWorkerOptions }) => {
       GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-      const loadingTask = getDocument(source);
+      const loadingTask = getDocument({
+        url: source,
+        wasmUrl: pdfJsWasmUrl
+      });
       try {
         const document = await loadingTask.promise;
         if (disposed) {
