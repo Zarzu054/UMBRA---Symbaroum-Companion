@@ -4,9 +4,12 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const serviceMocks = vi.hoisted(() => ({
+  acceptCampaignInvitation: vi.fn(),
+  dismissCampaignInvitation: vi.fn(),
   fetchCampaigns: vi.fn(),
+  fetchCampaignInvitations: vi.fn(),
   grantCampaignExperience: vi.fn(),
-  addCampaignMember: vi.fn(),
+  sendCampaignInvitation: vi.fn(),
   createCampaign: vi.fn(),
   createCampaignReference: vi.fn(),
   deleteCampaignReference: vi.fn(),
@@ -107,6 +110,7 @@ describe("CampaignDashboardView experience grants", () => {
     vi.clearAllMocks();
     window.history.replaceState(null, "", "#campaigns?id=campaign-a&section=characters");
     serviceMocks.fetchCampaigns.mockResolvedValue([buildCampaign()]);
+    serviceMocks.fetchCampaignInvitations.mockResolvedValue([]);
     serviceMocks.grantCampaignExperience.mockResolvedValue(buildCampaign(15));
   });
 
@@ -131,6 +135,78 @@ describe("CampaignDashboardView experience grants", () => {
       "token-a"
     ));
     expect(await screen.findByText(/PX total: 15/)).toBeInTheDocument();
+  });
+
+  it("sends an invitation instead of adding a campaign member directly", async () => {
+    const campaign = buildCampaign();
+    const invitedCampaign = {
+      ...campaign,
+      pendingInvitations: [{
+        id: "10000000-0000-4000-8000-000000000001",
+        campaignId: campaign.id,
+        campaignName: campaign.name,
+        gmEmail: gm.email,
+        invitedEmail: "player@example.com",
+        createdAt: "2026-08-10T10:00:00.000Z"
+      }]
+    };
+    window.history.replaceState(null, "", "#campaigns?id=campaign-a&section=members");
+    serviceMocks.fetchCampaigns.mockResolvedValue([campaign]);
+    serviceMocks.sendCampaignInvitation.mockResolvedValue(invitedCampaign);
+
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+
+    await screen.findByRole("heading", { name: "Miembros" });
+    fireEvent.change(screen.getByLabelText("Email del jugador"), { target: { value: "player@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar invitación" }));
+
+    await waitFor(() => expect(serviceMocks.sendCampaignInvitation).toHaveBeenCalledWith(
+      "campaign-a",
+      { email: "player@example.com" },
+      "token-a"
+    ));
+    expect(await screen.findByText("Pendiente de aceptación")).toBeInTheDocument();
+    expect(screen.getByText("player@example.com")).toBeInTheDocument();
+  });
+
+  it("requires the invited player to accept before opening the campaign", async () => {
+    const player: AuthUser = {
+      id: "player-a",
+      email: "player@example.com",
+      role: "player",
+      status: "active",
+      mustChangePassword: false
+    };
+    const invitation = {
+      id: "10000000-0000-4000-8000-000000000001",
+      campaignId: "campaign-a",
+      campaignName: "Davokar",
+      gmEmail: gm.email,
+      invitedEmail: player.email,
+      createdAt: "2026-08-10T10:00:00.000Z"
+    };
+    const acceptedCampaign = buildCampaign();
+    acceptedCampaign.members.push({
+      id: "member-player",
+      userId: player.id,
+      email: player.email,
+      role: "player",
+      joinedAt: "2026-08-10T10:05:00.000Z"
+    });
+    window.history.replaceState(null, "", `#campaigns?invitation=${invitation.id}`);
+    serviceMocks.fetchCampaigns.mockResolvedValue([]);
+    serviceMocks.fetchCampaignInvitations.mockResolvedValue([invitation]);
+    serviceMocks.acceptCampaignInvitation.mockResolvedValue(acceptedCampaign);
+
+    render(<CampaignDashboardView user={player} ensureAccessToken={vi.fn().mockResolvedValue("token-player")} />);
+
+    expect(await screen.findByRole("dialog", { name: "Davokar" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Notas compartidas" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Aceptar invitación" }));
+
+    await waitFor(() => expect(serviceMocks.acceptCampaignInvitation).toHaveBeenCalledWith(invitation.id, "token-player"));
+    expect(await screen.findByRole("heading", { name: "Davokar" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Notas compartidas" })).toBeInTheDocument();
   });
 
   it("shows a separate experience history for each linked character", async () => {

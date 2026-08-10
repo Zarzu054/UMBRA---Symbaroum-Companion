@@ -1,6 +1,7 @@
 ﻿import {
-  addCampaignMemberSchema,
+  createCampaignInvitationSchema,
   assignCampaignSessionExperienceSchema,
+  campaignInvitationIdSchema,
   createCampaignChatMessageSchema,
   createCampaignNpcSchema,
   createCampaignReferenceSchema,
@@ -21,9 +22,10 @@
   updateCampaignSchema,
   updateCampaignCharacterSheetSchema,
   updateCampaignSessionSchema,
-  type AddCampaignMemberInput,
+  type CreateCampaignInvitationInput,
   type AssignCampaignSessionExperienceInput,
   type Campaign,
+  type CampaignInvitation,
   type CampaignChatMessage,
   type CreateCampaignChatMessageInput,
   type CreateCampaignInput,
@@ -91,7 +93,17 @@ function toSessionPayload(input: CreateCampaignSessionInput | UpdateCampaignSess
 }
 
 export class CampaignService {
-  constructor(private readonly model: CampaignModel) {}
+  constructor(
+    private readonly model: CampaignModel,
+    private readonly mailService?: {
+      sendCampaignInvitationEmail(
+        recipientEmail: string,
+        campaignName: string,
+        gmEmail: string,
+        invitationId: string
+      ): Promise<void>;
+    }
+  ) {}
 
   private normalizeReferencePayload(
     campaign: Campaign,
@@ -227,18 +239,78 @@ export class CampaignService {
     }, userId, userRole);
   }
 
-  async addMember(userId: string, userRole: UserRole, campaignId: string, input: AddCampaignMemberInput): Promise<Campaign> {
+  async inviteMember(userId: string, userRole: UserRole, campaignId: string, input: CreateCampaignInvitationInput): Promise<Campaign> {
     requireDirectorRole(userRole);
     await this.assertCampaignManagedBy(userId, userRole, campaignId);
-    const payload = addCampaignMemberSchema.parse(input);
+    const payload = createCampaignInvitationSchema.parse(input);
     const target = await this.model.findMemberByEmail(payload.email.trim().toLowerCase());
 
     if (!target) {
       throw new AppError("USER_NOT_FOUND", "No existe un usuario con ese email", 404);
     }
 
-    await this.model.addMember(campaignId, target.id);
+    if (target.status !== "active") {
+      throw new AppError("USER_NOT_ACTIVE", "La cuenta del jugador no está activa", 409);
+    }
+
+    if (target.role !== "player") {
+      throw new AppError("CAMPAIGN_PLAYER_REQUIRED", "Solo se puede invitar a cuentas de jugador", 400);
+    }
+
+    const campaign = await this.getCampaign(userId, userRole, campaignId);
+    if (campaign.members.some((member) => member.userId === target.id)) {
+      throw new AppError("CAMPAIGN_MEMBER_EXISTS", "El jugador ya pertenece a esta campaña", 409);
+    }
+
+    const invitation = await this.model.createInvitation(campaignId, target.id, userId);
+    try {
+      const mailService = this.mailService ?? new (await import("./MailService.js")).MailService();
+      await mailService.sendCampaignInvitationEmail(
+        target.email,
+        campaign.name,
+        campaign.gmEmail,
+        invitation.id
+      );
+    } catch (error) {
+      await this.model.deleteInvitation(invitation.id);
+      throw error;
+    }
+
     return this.getCampaign(userId, userRole, campaignId);
+  }
+
+  async listInvitations(userId: string): Promise<CampaignInvitation[]> {
+    return this.model.listInvitationsForUser(userId);
+  }
+
+  async acceptInvitation(userId: string, userRole: UserRole, invitationId: string): Promise<Campaign> {
+    const normalizedInvitationId = campaignInvitationIdSchema.parse(invitationId);
+    const invitation = await this.model.findInvitationById(normalizedInvitationId);
+    if (!invitation || invitation.userId !== userId) {
+      throw new AppError("CAMPAIGN_INVITATION_NOT_FOUND", "Invitación de campaña no encontrada", 404);
+    }
+
+    const campaignId = await this.model.acceptInvitation(normalizedInvitationId, userId);
+    if (!campaignId) {
+      throw new AppError("CAMPAIGN_INVITATION_NOT_FOUND", "La invitación ya no está disponible", 404);
+    }
+    return this.getCampaign(userId, userRole, campaignId);
+  }
+
+  async dismissInvitation(userId: string, userRole: UserRole, invitationId: string): Promise<void> {
+    const normalizedInvitationId = campaignInvitationIdSchema.parse(invitationId);
+    const invitation = await this.model.findInvitationById(normalizedInvitationId);
+    if (!invitation) {
+      throw new AppError("CAMPAIGN_INVITATION_NOT_FOUND", "Invitación de campaña no encontrada", 404);
+    }
+
+    const canDismiss = invitation.userId === userId || userRole === "superadmin" || (
+      isDirectorRole(userRole) && (await this.model.findCampaignOwner(invitation.campaignId))?.gmId === userId
+    );
+    if (!canDismiss) {
+      throw new AppError("CAMPAIGN_FORBIDDEN", "No puedes gestionar esta invitación", 403);
+    }
+    await this.model.deleteInvitation(normalizedInvitationId);
   }
 
   async removeMember(userId: string, userRole: UserRole, memberId: string): Promise<Campaign> {

@@ -4850,6 +4850,73 @@ button[disabled] {
   }
 }
 
+/* Campaign membership invitations. */
+.campaign-invitations-section,
+.campaign-pending-invitations {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--ui-border);
+}
+
+.campaign-invitations-section h2,
+.campaign-pending-invitations h4 {
+  margin: 0;
+}
+
+.campaign-invite-item {
+  min-width: 0;
+  justify-content: space-between;
+  border-color: var(--ui-border);
+  background: var(--ui-surface-muted);
+  color: var(--ui-text);
+}
+
+.campaign-invite-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.campaign-invite-copy span {
+  color: var(--ui-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.campaign-invitation-modal {
+  width: min(560px, 100%);
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+  border-radius: 22px;
+}
+
+.campaign-invitation-modal :is(h2, p) {
+  margin: 0;
+}
+
+.campaign-invitation-actions {
+  margin-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .campaign-invite-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .campaign-invite-item .toolbar,
+  .campaign-invitation-actions {
+    width: 100%;
+  }
+
+  .campaign-invite-item .toolbar button,
+  .campaign-invitation-actions button {
+    flex: 1 1 auto;
+  }
+}
+
 /* Personal compendium library shortcuts and dialogs. */
 .compendium-library-shortcuts {
   display: grid;
@@ -4946,7 +5013,7 @@ button[disabled] {
   padding-bottom: 0;
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .compendium-library-shortcuts {
     width: min(100%, 320px);
     align-self: flex-end;

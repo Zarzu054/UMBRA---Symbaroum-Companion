@@ -1686,9 +1686,10 @@ export const createCampaignSchema = z.object({
     sharedNoteEntries: z.array(campaignSharedNoteEntrySchema).max(200).default([])
 });
 export const updateCampaignSchema = createCampaignSchema.partial();
-export const addCampaignMemberSchema = z.object({
+export const createCampaignInvitationSchema = z.object({
     email: z.string().email()
 });
+export const campaignInvitationIdSchema = z.string().uuid();
 export const linkCampaignCharacterSchema = z.object({
     characterId: z.string().uuid()
 });

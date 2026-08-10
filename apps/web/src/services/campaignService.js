@@ -14,7 +14,17 @@ export async function fetchCampaignChatMessages(campaignId, accessToken) { retur
 export async function createCampaign(input, accessToken) { return (await request("/api/campaigns", accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
 export async function createCampaignChatMessage(campaignId, input, accessToken) { return (await request(`/api/campaigns/${campaignId}/chat-messages`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
 export async function updateCampaign(campaignId, input, accessToken) { return (await request(`/api/campaigns/${campaignId}`, accessToken, { method: "PUT", body: JSON.stringify(input) })).data; }
-export async function addCampaignMember(campaignId, input, accessToken) { return (await request(`/api/campaigns/${campaignId}/members`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
+export async function sendCampaignInvitation(campaignId, input, accessToken) { return (await request(`/api/campaigns/${campaignId}/invitations`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
+export async function fetchCampaignInvitations(accessToken) { return (await request("/api/campaign-invitations", accessToken)).data; }
+export async function acceptCampaignInvitation(invitationId, accessToken) { return (await request(`/api/campaign-invitations/${invitationId}/accept`, accessToken, { method: "POST" })).data; }
+export async function dismissCampaignInvitation(invitationId, accessToken) {
+    const response = await fetch(`/api/campaign-invitations/${invitationId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!response.ok)
+        throw new Error(await readFriendlyApiError(response));
+}
 export async function removeCampaignMember(memberId, accessToken) { return (await request(`/api/campaign-members/${memberId}`, accessToken, { method: "DELETE" })).data; }
 export async function linkCampaignCharacter(campaignId, characterId, accessToken) { return (await request(`/api/campaigns/${campaignId}/characters`, accessToken, { method: "POST", body: JSON.stringify({ characterId }) })).data; }
 export async function unlinkCampaignCharacter(linkId, accessToken) { return (await request(`/api/campaign-characters/${linkId}`, accessToken, { method: "DELETE" })).data; }

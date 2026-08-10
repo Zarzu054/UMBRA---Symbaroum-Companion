@@ -1,7 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useMemo, useState } from "react";
 import { createCampaignReferenceSchema, createCampaignSchema } from "@umbra/shared";
-import { addCampaignMember, createCampaign, createCampaignReference, deleteCampaignReference, fetchCampaigns, linkCampaignCharacter, removeCampaignMember, unlinkCampaignCharacter, grantCampaignExperience, updateCampaign, updateCampaignReference } from "../services/campaignService";
+import { acceptCampaignInvitation, createCampaign, createCampaignReference, deleteCampaignReference, fetchCampaigns, fetchCampaignInvitations, linkCampaignCharacter, removeCampaignMember, dismissCampaignInvitation, sendCampaignInvitation, unlinkCampaignCharacter, grantCampaignExperience, updateCampaign, updateCampaignReference } from "../services/campaignService";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { MysticArtifactEditorWizard } from "../components/MysticArtifactEditorWizard";
 import { MysticArtifactDetailsModal } from "../components/MysticArtifactDetailsModal";
@@ -330,7 +330,7 @@ function describeReferenceVisibility(reference) {
 function parseCampaignHash() {
     const rawHash = window.location.hash.replace(/^#/, "");
     if (!rawHash.startsWith("campaigns")) {
-        return { campaignId: null, sheetId: null, section: null };
+        return { campaignId: null, sheetId: null, section: null, invitationId: null };
     }
     const [, search = ""] = rawHash.split("?");
     const params = new URLSearchParams(search);
@@ -346,10 +346,11 @@ function parseCampaignHash() {
     return {
         campaignId: params.get("id"),
         sheetId: params.get("sheetId"),
-        section
+        section,
+        invitationId: params.get("invitation")
     };
 }
-function replaceCampaignHash(campaignId, sheetId, section) {
+function replaceCampaignHash(campaignId, sheetId, section, invitationId = null) {
     const params = new URLSearchParams();
     if (campaignId) {
         params.set("id", campaignId);
@@ -359,6 +360,9 @@ function replaceCampaignHash(campaignId, sheetId, section) {
     }
     if (campaignId && section) {
         params.set("section", section);
+    }
+    if (invitationId) {
+        params.set("invitation", invitationId);
     }
     const nextHash = params.toString() ? `#campaigns?${params.toString()}` : "#campaigns";
     if (window.location.hash !== nextHash) {
@@ -380,6 +384,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
     const isDirector = user.role === "gm" || user.role === "superadmin";
     const defaultSection = isDirector ? "dmNotes" : "sharedNotes";
     const [campaigns, setCampaigns] = useState([]);
+    const [invitations, setInvitations] = useState([]);
+    const [focusedInvitationId, setFocusedInvitationId] = useState(initialHash.invitationId);
     const [selectedCampaignId, setSelectedCampaignId] = useState(initialHash.campaignId);
     const [selectedSheetId, setSelectedSheetId] = useState(initialHash.sheetId);
     const [activeSection, setActiveSection] = useState(initialHash.section && (isDirector || initialHash.section !== "dmNotes") ? initialHash.section : defaultSection);
@@ -424,6 +430,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
     const [artifactDetails, setArtifactDetails] = useState(null);
     const [artifactError, setArtifactError] = useState(null);
     const selectedCampaign = useMemo(() => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null, [campaigns, selectedCampaignId]);
+    const focusedInvitation = useMemo(() => invitations.find((invitation) => invitation.id === focusedInvitationId) ?? null, [focusedInvitationId, invitations]);
     const experienceLogByCharacterId = useMemo(() => {
         const groupedEntries = new Map();
         for (const entry of selectedCampaign?.experienceLog ?? []) {
@@ -496,7 +503,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         Boolean(experienceGrantDraft) ||
         isArtifactAddModalOpen ||
         Boolean(artifactEditor) ||
-        isSheetModalOpen;
+        isSheetModalOpen ||
+        Boolean(focusedInvitation);
     useBodyScrollLock(isAnyModalOpen);
     useEffect(() => {
         void refresh();
@@ -531,6 +539,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
             const next = parseCampaignHash();
             setSelectedCampaignId(next.campaignId);
             setSelectedSheetId(next.sheetId);
+            setFocusedInvitationId(next.invitationId);
             setActiveSection(next.section && (isDirector || next.section !== "dmNotes") ? next.section : defaultSection);
         }
         syncSelectionFromHash();
@@ -538,8 +547,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         return () => window.removeEventListener("hashchange", syncSelectionFromHash);
     }, [defaultSection, isDirector]);
     useEffect(() => {
-        replaceCampaignHash(selectedCampaignId, selectedSheetId, selectedCampaignId ? activeSection : null);
-    }, [activeSection, selectedCampaignId, selectedSheetId]);
+        replaceCampaignHash(selectedCampaignId, selectedSheetId, selectedCampaignId ? activeSection : null, focusedInvitationId);
+    }, [activeSection, focusedInvitationId, selectedCampaignId, selectedSheetId]);
     useEffect(() => {
         if (!isDirector && activeSection === "dmNotes") {
             setActiveSection("sharedNotes");
@@ -637,7 +646,16 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         setLoadError(null);
         try {
             const token = await ensureAccessToken();
-            setCampaigns(await fetchCampaigns(token));
+            const [nextCampaigns, nextInvitations] = await Promise.all([
+                fetchCampaigns(token),
+                fetchCampaignInvitations(token)
+            ]);
+            setCampaigns(nextCampaigns);
+            setInvitations(nextInvitations);
+            if (focusedInvitationId && !nextInvitations.some((invitation) => invitation.id === focusedInvitationId)) {
+                setFocusedInvitationId(null);
+                setFormError("La invitación del enlace ya no está disponible o ya fue respondida.");
+            }
         }
         catch (err) {
             setLoadError(err instanceof Error ? err.message : "No se pudieron cargar las campañas");
@@ -852,7 +870,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
             setIsSaving(false);
         }
     }
-    async function handleAddMember() {
+    async function handleSendInvitation() {
         if (!selectedCampaign || !memberEmail.trim()) {
             return;
         }
@@ -860,11 +878,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         setIsSaving(true);
         try {
             const token = await ensureAccessToken();
-            upsertCampaign(await addCampaignMember(selectedCampaign.id, { email: memberEmail.trim() }, token));
+            upsertCampaign(await sendCampaignInvitation(selectedCampaign.id, { email: memberEmail.trim() }, token));
             setMemberEmail("");
         }
         catch (err) {
-            setFormError(err instanceof Error ? err.message : "No se pudo agregar el miembro");
+            setFormError(err instanceof Error ? err.message : "No se pudo enviar la invitación");
         }
         finally {
             setIsSaving(false);
@@ -947,6 +965,46 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         }
         catch (err) {
             setReferenceCreateError(describeReferenceValidationError(err));
+        }
+        finally {
+            setIsSaving(false);
+        }
+    }
+    async function handleAcceptInvitation(invitationId) {
+        setFormError(null);
+        setIsSaving(true);
+        try {
+            const token = await ensureAccessToken();
+            const campaign = await acceptCampaignInvitation(invitationId, token);
+            setInvitations((current) => current.filter((entry) => entry.id !== invitationId));
+            setFocusedInvitationId(null);
+            upsertCampaign(campaign);
+            setActiveSection("sharedNotes");
+        }
+        catch (err) {
+            setFormError(err instanceof Error ? err.message : "No se pudo aceptar la invitación");
+        }
+        finally {
+            setIsSaving(false);
+        }
+    }
+    async function handleDismissInvitation(invitationId, campaignId) {
+        setFormError(null);
+        setIsSaving(true);
+        try {
+            const token = await ensureAccessToken();
+            await dismissCampaignInvitation(invitationId, token);
+            setInvitations((current) => current.filter((entry) => entry.id !== invitationId));
+            setFocusedInvitationId((current) => current === invitationId ? null : current);
+            if (campaignId) {
+                setCampaigns((current) => current.map((campaign) => campaign.id === campaignId ? {
+                    ...campaign,
+                    pendingInvitations: (campaign.pendingInvitations ?? []).filter((entry) => entry.id !== invitationId)
+                } : campaign));
+            }
+        }
+        catch (err) {
+            setFormError(err instanceof Error ? err.message : "No se pudo retirar la invitación");
         }
         finally {
             setIsSaving(false);
@@ -1150,7 +1208,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
     return (_jsxs("main", { className: "campaign-dashboard", children: [!selectedCampaign ? (_jsxs("section", { className: "panel campaign-list-panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h1", { children: "Campa\u00F1as" }), _jsx("p", { className: "section-help", children: "Notas compartidas, notas del DJ y personajes vinculados." })] }), _jsxs("div", { className: "toolbar", children: [isDirector ? (_jsx("button", { type: "button", onClick: () => {
                                             setFormError(null);
                                             setIsCreateCampaignModalOpen(true);
-                                        }, children: "Nueva campa\u00F1a" })) : null, _jsx("button", { type: "button", disabled: isLoading, onClick: () => void refresh(), children: "Recargar" })] })] }), loadError ? _jsx("p", { className: "error-text", children: loadError }) : null, isLoading ? _jsx("p", { children: "Cargando campa\u00F1as..." }) : null, _jsxs("div", { className: "campaign-list", children: [campaigns.map((campaign) => (_jsxs("button", { type: "button", className: `campaign-list-item${selectedCampaignId === campaign.id ? " is-active" : ""}`, onClick: () => {
+                                        }, children: "Nueva campa\u00F1a" })) : null, _jsx("button", { type: "button", disabled: isLoading, onClick: () => void refresh(), children: "Recargar" })] })] }), loadError ? _jsx("p", { className: "error-text", children: loadError }) : null, formError ? _jsx("p", { className: "error-text", children: formError }) : null, isLoading ? _jsx("p", { children: "Cargando campa\u00F1as..." }) : null, invitations.length > 0 ? (_jsxs("section", { className: "campaign-invitations-section", "aria-labelledby": "campaign-invitations-title", children: [_jsxs("div", { children: [_jsx("h2", { id: "campaign-invitations-title", children: "Invitaciones pendientes" }), _jsx("p", { className: "section-help", children: "Solo entrar\u00E1s en una campa\u00F1a despu\u00E9s de aceptar su invitaci\u00F3n." })] }), _jsx("div", { className: "campaign-invite-grid", children: invitations.map((invitation) => (_jsxs("article", { className: "campaign-invite-item", children: [_jsxs("div", { className: "campaign-invite-copy", children: [_jsx("strong", { children: invitation.campaignName }), _jsxs("span", { children: ["Invitaci\u00F3n de ", invitation.gmEmail] }), _jsxs("span", { children: ["Enviada: ", formatDate(invitation.createdAt)] })] }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleAcceptInvitation(invitation.id), children: "Aceptar" }), _jsx("button", { type: "button", className: "subtle-button", disabled: isSaving, onClick: () => void handleDismissInvitation(invitation.id), children: "Rechazar" })] })] }, invitation.id))) })] })) : null, _jsxs("div", { className: "campaign-list", children: [campaigns.map((campaign) => (_jsxs("button", { type: "button", className: `campaign-list-item${selectedCampaignId === campaign.id ? " is-active" : ""}`, onClick: () => {
                                     setSelectedCampaignId(campaign.id);
                                     setSelectedSheetId(null);
                                     setActiveSection(isDirector ? "dmNotes" : "sharedNotes");
@@ -1177,7 +1235,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                                             setSelectedSharedNoteId(note.id);
                                         }, children: [_jsx("strong", { children: note.title }), _jsx("span", { children: note.authorEmail ? `Autor: ${note.authorEmail}` : "Nota compartida" }), _jsxs("span", { children: ["Actualizada: ", formatDate(note.updatedAt || note.createdAt)] })] }, note.id))), sortedSharedNotes.length === 0 ? (_jsx("p", { className: "section-help", children: sharedNoteSearch.trim()
                                             ? "No hay notas compartidas que coincidan con ese titulo."
-                                            : "Aun no hay notas compartidas registradas." })) : null] })] })) : null, activeSection === "wiki" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Wiki de campa\u00F1a" }), _jsx("p", { className: "section-help", children: "Jugadores pueden aportar entradas visibles para toda la campa\u00F1a. El DJ puede mantener entradas privadas o compartirlas con jugadores concretos." })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: handlePrepareNewReference, children: "Nueva referencia" })] }), _jsxs("div", { className: "campaign-reference-list", children: [selectedCampaign.references.map((reference) => (_jsxs("button", { type: "button", className: "campaign-list-item", onClick: () => openReferenceDetail(reference.id), children: [_jsx("strong", { children: reference.name }), _jsx("span", { children: reference.label }), _jsx("span", { children: reference.summary || "Sin resumen breve" }), reference.aliases.length > 0 ? _jsxs("span", { children: ["Alias: ", reference.aliases.join(", ")] }) : null, _jsx("span", { children: describeReferenceVisibility(reference) }), _jsxs("span", { children: ["Autor: ", reference.authorEmail] })] }, reference.id))), selectedCampaign.references.length === 0 ? (_jsx("p", { className: "section-help", children: "Aun no hay referencias en esta campa\u00F1a." })) : null] })] })) : null, activeSection === "members" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Miembros" }), isDirector ? (_jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Email del jugador" }), _jsx("input", { value: memberEmail, onChange: (event) => setMemberEmail(event.target.value) })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleAddMember(), children: "Agregar" })] })) : null] }), _jsx("div", { className: "cards", children: selectedCampaign.members.map((member) => (_jsxs("article", { className: "card", children: [_jsx("strong", { children: member.email }), _jsx("span", { children: member.role === "gm" ? "Director" : "Jugador" }), _jsxs("span", { children: ["Alta: ", new Date(member.joinedAt).toLocaleDateString()] }), isDirector && member.role !== "gm" ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleRemoveMember(member.id), children: "Quitar" })) : null] }, member.id))) })] })) : null, activeSection === "characters" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Personajes vinculados" }), _jsx("p", { className: "section-help", children: "El director concede la experiencia desde aqui. Los jugadores pueden invertirla desde el constructor de su personaje." })] }), _jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Personaje disponible" }), _jsxs("select", { value: selectedAvailableCharacterId, onChange: (event) => setSelectedAvailableCharacterId(event.target.value), children: [linkableCharacters.length === 0 ? _jsx("option", { value: "", children: "Sin personajes disponibles" }) : null, linkableCharacters.map((entry) => (_jsxs("option", { value: entry.characterId, children: [entry.name, " - ", entry.ownerEmail] }, entry.characterId)))] })] }), _jsx("button", { type: "button", disabled: isSaving || !selectedAvailableCharacterId, onClick: () => void handleLinkCharacter(), children: "Vincular" }), isDirector ? (_jsx("button", { type: "button", className: "subtle-button", onClick: () => setIsBurdenSummaryModalOpen(true), children: "Resumen de cargas" })) : null] })] }), _jsxs("div", { className: "cards", children: [selectedCampaign.characters.map((entry) => {
+                                            : "Aun no hay notas compartidas registradas." })) : null] })] })) : null, activeSection === "wiki" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Wiki de campa\u00F1a" }), _jsx("p", { className: "section-help", children: "Jugadores pueden aportar entradas visibles para toda la campa\u00F1a. El DJ puede mantener entradas privadas o compartirlas con jugadores concretos." })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: handlePrepareNewReference, children: "Nueva referencia" })] }), _jsxs("div", { className: "campaign-reference-list", children: [selectedCampaign.references.map((reference) => (_jsxs("button", { type: "button", className: "campaign-list-item", onClick: () => openReferenceDetail(reference.id), children: [_jsx("strong", { children: reference.name }), _jsx("span", { children: reference.label }), _jsx("span", { children: reference.summary || "Sin resumen breve" }), reference.aliases.length > 0 ? _jsxs("span", { children: ["Alias: ", reference.aliases.join(", ")] }) : null, _jsx("span", { children: describeReferenceVisibility(reference) }), _jsxs("span", { children: ["Autor: ", reference.authorEmail] })] }, reference.id))), selectedCampaign.references.length === 0 ? (_jsx("p", { className: "section-help", children: "Aun no hay referencias en esta campa\u00F1a." })) : null] })] })) : null, activeSection === "members" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Miembros" }), isDirector ? (_jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Email del jugador" }), _jsx("input", { type: "email", autoComplete: "email", value: memberEmail, onChange: (event) => setMemberEmail(event.target.value) })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleSendInvitation(), children: "Enviar invitaci\u00F3n" })] })) : null] }), _jsx("div", { className: "cards", children: selectedCampaign.members.map((member) => (_jsxs("article", { className: "card", children: [_jsx("strong", { children: member.email }), _jsx("span", { children: member.role === "gm" ? "Director" : "Jugador" }), _jsxs("span", { children: ["Alta: ", new Date(member.joinedAt).toLocaleDateString()] }), isDirector && member.role !== "gm" ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleRemoveMember(member.id), children: "Quitar" })) : null] }, member.id))) }), isDirector && (selectedCampaign.pendingInvitations ?? []).length > 0 ? (_jsxs("div", { className: "campaign-pending-invitations", children: [_jsx("h4", { children: "Invitaciones pendientes" }), _jsx("div", { className: "campaign-invite-grid", children: (selectedCampaign.pendingInvitations ?? []).map((invitation) => (_jsxs("article", { className: "campaign-invite-item", children: [_jsxs("div", { className: "campaign-invite-copy", children: [_jsx("strong", { children: invitation.invitedEmail }), _jsx("span", { children: "Pendiente de aceptaci\u00F3n" }), _jsxs("span", { children: ["Enviada: ", formatDate(invitation.createdAt)] })] }), _jsx("button", { type: "button", className: "subtle-button", disabled: isSaving, onClick: () => void handleDismissInvitation(invitation.id, selectedCampaign.id), children: "Cancelar invitaci\u00F3n" })] }, invitation.id))) })] })) : null] })) : null, activeSection === "characters" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Personajes vinculados" }), _jsx("p", { className: "section-help", children: "El director concede la experiencia desde aqui. Los jugadores pueden invertirla desde el constructor de su personaje." })] }), _jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Personaje disponible" }), _jsxs("select", { value: selectedAvailableCharacterId, onChange: (event) => setSelectedAvailableCharacterId(event.target.value), children: [linkableCharacters.length === 0 ? _jsx("option", { value: "", children: "Sin personajes disponibles" }) : null, linkableCharacters.map((entry) => (_jsxs("option", { value: entry.characterId, children: [entry.name, " - ", entry.ownerEmail] }, entry.characterId)))] })] }), _jsx("button", { type: "button", disabled: isSaving || !selectedAvailableCharacterId, onClick: () => void handleLinkCharacter(), children: "Vincular" }), isDirector ? (_jsx("button", { type: "button", className: "subtle-button", onClick: () => setIsBurdenSummaryModalOpen(true), children: "Resumen de cargas" })) : null] })] }), _jsxs("div", { className: "cards", children: [selectedCampaign.characters.map((entry) => {
                                         const canManageLink = isDirector || entry.ownerId === user.id;
                                         const characterExperienceLog = experienceLogByCharacterId.get(entry.characterId) ?? [];
                                         return (_jsxs("article", { className: "card campaign-character-card", "aria-label": `Personaje ${entry.name}`, children: [_jsx("strong", { children: entry.name }), _jsx("span", { children: entry.ownerEmail }), _jsxs("span", { children: ["PX total: ", entry.experienceTotal, " | Gastada: ", entry.experienceSpent, " | Disponible: ", Math.max(0, entry.experienceTotal - entry.experienceSpent)] }), _jsxs("span", { children: ["Actualizado: ", formatDate(entry.updatedAt)] }), _jsxs("div", { className: "card-actions", children: [isDirector && entry.sheet ? (_jsx("button", { type: "button", onClick: () => {
@@ -1360,5 +1418,5 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                                                                     sharedWithUserIds: event.target.checked
                                                                         ? [...current.sharedWithUserIds, member.userId]
                                                                         : current.sharedWithUserIds.filter((entry) => entry !== member.userId)
-                                                                })) }), _jsx("span", { children: member.email })] }, member.id))) })] })) : null] })) : (_jsx("p", { className: "section-help", children: "Tu entrada sigue siendo visible para toda la campa\u00F1a." }))] })) : (_jsxs("article", { className: "campaign-reference-detail-card", children: [_jsxs("div", { className: "campaign-reference-detail-header", children: [_jsxs("div", { children: [_jsx("p", { className: "campaign-reference-detail-kicker", children: "Entrada de wiki" }), _jsx("h4", { children: selectedReference.name })] }), _jsxs("div", { className: "campaign-reference-detail-meta", children: [_jsx("span", { className: "compendium-chip", children: selectedReference.label }), _jsx("span", { className: "compendium-chip", children: describeReferenceVisibility(selectedReference) })] })] }), _jsxs("div", { className: "campaign-reference-detail-grid", children: [_jsxs("article", { className: "campaign-reference-preview", children: [_jsx("span", { className: "meta-text", children: "Resumen" }), _jsx("p", { children: selectedReference.summary || "Sin resumen breve." })] }), _jsxs("article", { className: "campaign-reference-preview campaign-reference-preview--author", children: [_jsx("span", { className: "meta-text", children: "Autor" }), _jsx("p", { children: selectedReference.authorEmail })] })] }), selectedReference.aliases.length > 0 ? (_jsxs("article", { className: "campaign-reference-preview", children: [_jsx("span", { className: "meta-text", children: "Alias" }), _jsx("div", { className: "compendium-tags", children: selectedReference.aliases.map((alias) => (_jsx("span", { className: "compendium-chip", children: alias }, `${selectedReference.id}-${alias}`))) })] })) : null, _jsxs("article", { className: "campaign-reference-preview campaign-reference-preview--content", children: [_jsx("span", { className: "meta-text", children: "Contenido" }), _jsx("div", { className: "campaign-markdown", children: renderMarkdownBlocks(selectedReference.content || "Sin contenido detallado.", selectedCampaign?.references ?? [selectedReference], openReferenceDetail) })] })] }))] }) })) : null] }));
+                                                                })) }), _jsx("span", { children: member.email })] }, member.id))) })] })) : null] })) : (_jsx("p", { className: "section-help", children: "Tu entrada sigue siendo visible para toda la campa\u00F1a." }))] })) : (_jsxs("article", { className: "campaign-reference-detail-card", children: [_jsxs("div", { className: "campaign-reference-detail-header", children: [_jsxs("div", { children: [_jsx("p", { className: "campaign-reference-detail-kicker", children: "Entrada de wiki" }), _jsx("h4", { children: selectedReference.name })] }), _jsxs("div", { className: "campaign-reference-detail-meta", children: [_jsx("span", { className: "compendium-chip", children: selectedReference.label }), _jsx("span", { className: "compendium-chip", children: describeReferenceVisibility(selectedReference) })] })] }), _jsxs("div", { className: "campaign-reference-detail-grid", children: [_jsxs("article", { className: "campaign-reference-preview", children: [_jsx("span", { className: "meta-text", children: "Resumen" }), _jsx("p", { children: selectedReference.summary || "Sin resumen breve." })] }), _jsxs("article", { className: "campaign-reference-preview campaign-reference-preview--author", children: [_jsx("span", { className: "meta-text", children: "Autor" }), _jsx("p", { children: selectedReference.authorEmail })] })] }), selectedReference.aliases.length > 0 ? (_jsxs("article", { className: "campaign-reference-preview", children: [_jsx("span", { className: "meta-text", children: "Alias" }), _jsx("div", { className: "compendium-tags", children: selectedReference.aliases.map((alias) => (_jsx("span", { className: "compendium-chip", children: alias }, `${selectedReference.id}-${alias}`))) })] })) : null, _jsxs("article", { className: "campaign-reference-preview campaign-reference-preview--content", children: [_jsx("span", { className: "meta-text", children: "Contenido" }), _jsx("div", { className: "campaign-markdown", children: renderMarkdownBlocks(selectedReference.content || "Sin contenido detallado.", selectedCampaign?.references ?? [selectedReference], openReferenceDetail) })] })] }))] }) })) : null, focusedInvitation ? (_jsx("section", { className: "modal-backdrop", "aria-label": "Invitaci\u00F3n de campa\u00F1a", children: _jsxs("div", { className: "panel modal-panel campaign-invitation-modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "campaign-invitation-modal-title", children: [_jsx("p", { className: "campaign-reference-detail-kicker", children: "Invitaci\u00F3n de campa\u00F1a" }), _jsx("h2", { id: "campaign-invitation-modal-title", children: focusedInvitation.campaignName }), _jsxs("p", { children: [_jsx("strong", { children: focusedInvitation.gmEmail }), " te invita a participar como jugador."] }), _jsx("p", { className: "section-help", children: "La campa\u00F1a solo aparecer\u00E1 entre tus campa\u00F1as despu\u00E9s de que aceptes." }), formError ? _jsx("p", { className: "error-text", children: formError }) : null, _jsxs("div", { className: "toolbar campaign-invitation-actions", children: [_jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleAcceptInvitation(focusedInvitation.id), children: isSaving ? "Aceptando..." : "Aceptar invitación" }), _jsx("button", { type: "button", className: "subtle-button", disabled: isSaving, onClick: () => void handleDismissInvitation(focusedInvitation.id), children: "Rechazar" }), _jsx("button", { type: "button", className: "subtle-button", disabled: isSaving, onClick: () => setFocusedInvitationId(null), children: "Decidir m\u00E1s tarde" })] })] }) })) : null] }));
 }

@@ -1,5 +1,5 @@
 ﻿import type { Prisma } from "@prisma/client";
-import { createEmptyCharacterSheet, decodeCampaignDmNotes, decodeCampaignSharedNotes, encodeCampaignDmNotes, encodeCampaignSharedNotes, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CharacterSheet, type OwnedMysticArtifact, type UserRole } from "@umbra/shared";
+import { createEmptyCharacterSheet, decodeCampaignDmNotes, decodeCampaignSharedNotes, encodeCampaignDmNotes, encodeCampaignSharedNotes, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CampaignInvitation, type CharacterSheet, type OwnedMysticArtifact, type UserRole } from "@umbra/shared";
 import { Prisma as PrismaRuntime } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { getEffectiveCharacterExperienceSpent } from "../services/characterExperiencePolicy.js";
@@ -69,6 +69,15 @@ const campaignInclude = {
     },
     orderBy: {
       createdAt: "asc"
+    }
+  },
+  invitations: {
+    include: {
+      user: true,
+      invitedBy: true
+    },
+    orderBy: {
+      createdAt: "desc"
     }
   },
   mysticArtifacts: {
@@ -183,6 +192,14 @@ function mapCampaign(
       role: member.role,
       joinedAt: member.joinedAt.toISOString()
     })),
+    pendingInvitations: isDirector ? row.invitations.map((invitation) => ({
+      id: invitation.id,
+      campaignId: invitation.campaignId,
+      campaignName: row.name,
+      gmEmail: invitation.invitedBy.email,
+      invitedEmail: invitation.user.email,
+      createdAt: invitation.createdAt.toISOString()
+    })) : [],
     characters: row.characters.map((entry) => {
       let experienceTotal = 0;
       let experienceSpent = 0;
@@ -361,23 +378,6 @@ export class CampaignModel {
     return mapCampaign(row, viewerId, viewerRole, availableRows);
   }
 
-  async addMember(campaignId: string, userId: string): Promise<void> {
-    await prisma.campaignMember.upsert({
-      where: {
-        campaignId_userId: {
-          campaignId,
-          userId
-        }
-      },
-      update: {},
-      create: {
-        campaignId,
-        userId,
-        role: "player"
-      }
-    });
-  }
-
   async removeMember(memberId: string): Promise<void> {
     await prisma.campaignMember.delete({
       where: { id: memberId }
@@ -403,6 +403,79 @@ export class CampaignModel {
   async unlinkCharacter(linkId: string): Promise<void> {
     await prisma.campaignCharacter.delete({
       where: { id: linkId }
+    });
+  }
+
+  async createInvitation(campaignId: string, userId: string, invitedById: string): Promise<CampaignInvitation> {
+    const row = await prisma.campaignInvitation.upsert({
+      where: { campaignId_userId: { campaignId, userId } },
+      update: { invitedById, createdAt: new Date() },
+      create: { campaignId, userId, invitedById },
+      include: {
+        campaign: { include: { gm: true } },
+        user: true,
+        invitedBy: true
+      }
+    });
+
+    return {
+      id: row.id,
+      campaignId: row.campaignId,
+      campaignName: row.campaign.name,
+      gmEmail: row.campaign.gm.email,
+      invitedEmail: row.user.email,
+      createdAt: row.createdAt.toISOString()
+    };
+  }
+
+  async deleteInvitation(invitationId: string): Promise<void> {
+    await prisma.campaignInvitation.deleteMany({ where: { id: invitationId } });
+  }
+
+  async findInvitationById(invitationId: string): Promise<{
+    id: string;
+    campaignId: string;
+    userId: string;
+    invitedById: string;
+  } | null> {
+    return prisma.campaignInvitation.findUnique({
+      where: { id: invitationId },
+      select: { id: true, campaignId: true, userId: true, invitedById: true }
+    });
+  }
+
+  async listInvitationsForUser(userId: string): Promise<CampaignInvitation[]> {
+    const rows = await prisma.campaignInvitation.findMany({
+      where: { userId },
+      include: { campaign: { include: { gm: true } }, user: true, invitedBy: true },
+      orderBy: { createdAt: "desc" }
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      campaignId: row.campaignId,
+      campaignName: row.campaign.name,
+      gmEmail: row.campaign.gm.email,
+      invitedEmail: row.user.email,
+      createdAt: row.createdAt.toISOString()
+    }));
+  }
+
+  async acceptInvitation(invitationId: string, userId: string): Promise<string | null> {
+    return prisma.$transaction(async (transaction) => {
+      const invitation = await transaction.campaignInvitation.findFirst({
+        where: { id: invitationId, userId },
+        select: { campaignId: true }
+      });
+      if (!invitation) return null;
+
+      await transaction.campaignMember.upsert({
+        where: { campaignId_userId: { campaignId: invitation.campaignId, userId } },
+        update: {},
+        create: { campaignId: invitation.campaignId, userId, role: "player" }
+      });
+      await transaction.campaignInvitation.delete({ where: { id: invitationId } });
+      return invitation.campaignId;
     });
   }
 
@@ -660,10 +733,10 @@ export class CampaignModel {
     return rows.map((row) => mapChatMessage(row));
   }
 
-  async findMemberByEmail(email: string): Promise<{ id: string; email: string; role: string } | null> {
+  async findMemberByEmail(email: string): Promise<{ id: string; email: string; role: string; status: string } | null> {
     return prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, role: true }
+      select: { id: true, email: true, role: true, status: true }
     });
   }
 

@@ -34,6 +34,90 @@ function createModel(currentSheet: CharacterSheet) {
 }
 
 describe("CampaignService character experience", () => {
+  it("sends a campaign invitation without creating membership", async () => {
+    const invitation = {
+      id: "10000000-0000-4000-8000-000000000001",
+      campaignId: "campaign-a",
+      campaignName: "Davokar",
+      gmEmail: "gm@example.com",
+      invitedEmail: "player@example.com",
+      createdAt: "2026-08-10T10:00:00.000Z"
+    };
+    const campaign = {
+      id: "campaign-a",
+      name: "Davokar",
+      gmId: "gm-a",
+      gmEmail: "gm@example.com",
+      members: []
+    };
+    const model = {
+      findCampaignOwner: vi.fn().mockResolvedValue({ gmId: "gm-a" }),
+      findMemberByEmail: vi.fn().mockResolvedValue({ id: "player-a", email: "player@example.com", role: "player", status: "active" }),
+      findAccessibleById: vi.fn().mockResolvedValue(campaign),
+      createInvitation: vi.fn().mockResolvedValue(invitation),
+      deleteInvitation: vi.fn(),
+      addMember: vi.fn()
+    };
+    const mailService = { sendCampaignInvitationEmail: vi.fn().mockResolvedValue(undefined) };
+
+    await new CampaignService(model as never, mailService as never).inviteMember(
+      "gm-a",
+      "gm",
+      "campaign-a",
+      { email: "PLAYER@example.com" }
+    );
+
+    expect(model.createInvitation).toHaveBeenCalledWith("campaign-a", "player-a", "gm-a");
+    expect(mailService.sendCampaignInvitationEmail).toHaveBeenCalledWith(
+      "player@example.com",
+      "Davokar",
+      "gm@example.com",
+      invitation.id
+    );
+    expect(model.addMember).not.toHaveBeenCalled();
+  });
+
+  it("only creates membership when the invited player accepts", async () => {
+    const model = {
+      findInvitationById: vi.fn().mockResolvedValue({
+        id: "10000000-0000-4000-8000-000000000001",
+        campaignId: "campaign-a",
+        userId: "player-a",
+        invitedById: "gm-a"
+      }),
+      acceptInvitation: vi.fn().mockResolvedValue("campaign-a"),
+      findAccessibleById: vi.fn().mockResolvedValue({ id: "campaign-a", members: [{ userId: "player-a" }] })
+    };
+
+    const result = await new CampaignService(model as never).acceptInvitation(
+      "player-a",
+      "player",
+      "10000000-0000-4000-8000-000000000001"
+    );
+
+    expect(model.acceptInvitation).toHaveBeenCalledWith("10000000-0000-4000-8000-000000000001", "player-a");
+    expect(result.id).toBe("campaign-a");
+  });
+
+  it("prevents another user from accepting the invitation", async () => {
+    const model = {
+      findInvitationById: vi.fn().mockResolvedValue({
+        id: "10000000-0000-4000-8000-000000000001",
+        campaignId: "campaign-a",
+        userId: "player-a",
+        invitedById: "gm-a"
+      }),
+      acceptInvitation: vi.fn()
+    };
+
+    await expect(new CampaignService(model as never).acceptInvitation(
+      "player-b",
+      "player",
+      "10000000-0000-4000-8000-000000000001"
+    )).rejects.toThrow("Invitación de campaña no encontrada");
+    expect(model.acceptInvitation).not.toHaveBeenCalled();
+  });
+
   it("does not allow players to read-write the GM private-note collection", async () => {
     const model = {
       findAccessibleById: vi.fn().mockResolvedValue({ id: "campaign-a" }),

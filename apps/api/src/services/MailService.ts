@@ -134,6 +134,44 @@ export class MailService {
     });
   }
 
+  async sendCampaignInvitationEmail(
+    recipientEmail: string,
+    campaignName: string,
+    gmEmail: string,
+    invitationId: string
+  ): Promise<void> {
+    this.ensureConfigured();
+    const invitationUrl = `${env.APP_BASE_URL.replace(/\/$/, "")}/#campaigns?invitation=${encodeURIComponent(invitationId)}`;
+
+    await this.transporter.sendMail({
+      from: getConfiguredFromAddress(),
+      to: recipientEmail,
+      subject: `UMBRA · Invitación a ${campaignName}`,
+      text: [
+        `${gmEmail} te ha invitado a unirte a la campaña «${campaignName}» en UMBRA.`,
+        "",
+        "La campaña no se añadirá a tu cuenta hasta que aceptes la invitación.",
+        `Revisar invitación: ${invitationUrl}`,
+        "",
+        "Si no esperabas este mensaje, puedes ignorarlo o rechazar la invitación desde UMBRA."
+      ].join("\n"),
+      html: `
+        <div style="font-family:Georgia,serif;color:#231913;line-height:1.5;">
+          <h2 style="margin-bottom:12px;">Invitación a una campaña de UMBRA</h2>
+          <p><strong>${escapeHtml(gmEmail)}</strong> te ha invitado a unirte a <strong>${escapeHtml(campaignName)}</strong>.</p>
+          <p>La campaña no se añadirá a tu cuenta hasta que aceptes la invitación.</p>
+          <p>
+            <a href="${escapeHtml(invitationUrl)}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#7d3035;border:1px solid #64252a;color:#fff;text-decoration:none;font-weight:700;">
+              Revisar invitación
+            </a>
+          </p>
+          <p style="word-break:break-all;color:#65554c;">${escapeHtml(invitationUrl)}</p>
+          <p>Si no esperabas este mensaje, puedes ignorarlo o rechazar la invitación desde UMBRA.</p>
+        </div>
+      `
+    });
+  }
+
   private ensureConfigured(): void {
     if (!this.isConfigured()) {
       throw new AppError("MAIL_NOT_CONFIGURED", "El envio de correo no esta configurado", 503);

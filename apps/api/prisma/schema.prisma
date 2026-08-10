@@ -122,6 +122,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   gmCampaigns         Campaign[]         @relation("CampaignGm")
   campaignMemberships CampaignMember[]
+  receivedCampaignInvitations CampaignInvitation[] @relation("CampaignInvitationRecipient")
+  sentCampaignInvitations CampaignInvitation[] @relation("CampaignInvitationSender")
   campaignXpGrants    CampaignXpLog[]    @relation("CampaignXpGrantUser")
   campaignChatMessages CampaignChatMessage[]
   authoredCampaignReferences CampaignReference[] @relation("CampaignReferenceAuthor")
@@ -270,6 +272,7 @@ model Campaign {
   updatedAt    DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
   gm           User                @relation("CampaignGm", fields: [gmId], references: [id], onDelete: Cascade)
   members      CampaignMember[]
+  invitations  CampaignInvitation[]
   characters   CampaignCharacter[]
   npcs         CampaignNpc[]
   experienceLog CampaignXpLog[]
@@ -294,6 +297,23 @@ model CampaignMember {
   @@unique([campaignId, userId])
   @@index([userId])
   @@map("campaign_members")
+}
+
+model CampaignInvitation {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId  String   @map("campaign_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  invitedById String   @map("invited_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user        User     @relation("CampaignInvitationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy   User     @relation("CampaignInvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, userId])
+  @@index([userId, createdAt])
+  @@index([invitedById])
+  @@map("campaign_invitations")
 }
 
 model CampaignCharacter {

@@ -4,6 +4,7 @@ import {
   createCampaignSchema,
   type AuthUser,
   type Campaign,
+  type CampaignInvitation,
   type CampaignReference,
   type CreateCampaignReferenceInput,
   type CreateCampaignInput,
@@ -11,13 +12,16 @@ import {
   type MysticArtifactDefinitionInput
 } from "@umbra/shared";
 import {
-  addCampaignMember,
+  acceptCampaignInvitation,
   createCampaign,
   createCampaignReference,
   deleteCampaignReference,
   fetchCampaigns,
+  fetchCampaignInvitations,
   linkCampaignCharacter,
   removeCampaignMember,
+  dismissCampaignInvitation,
+  sendCampaignInvitation,
   unlinkCampaignCharacter,
   grantCampaignExperience,
   updateCampaign,
@@ -51,6 +55,7 @@ type CampaignHashState = {
   campaignId: string | null;
   sheetId: string | null;
   section: CampaignSection | null;
+  invitationId: string | null;
 };
 
 type CampaignSection = "dmNotes" | "sharedNotes" | "wiki" | "members" | "characters" | "artifacts";
@@ -474,7 +479,7 @@ function describeReferenceVisibility(reference: CampaignReference): string {
 function parseCampaignHash(): CampaignHashState {
   const rawHash = window.location.hash.replace(/^#/, "");
   if (!rawHash.startsWith("campaigns")) {
-    return { campaignId: null, sheetId: null, section: null };
+    return { campaignId: null, sheetId: null, section: null, invitationId: null };
   }
 
   const [, search = ""] = rawHash.split("?");
@@ -492,14 +497,16 @@ function parseCampaignHash(): CampaignHashState {
   return {
     campaignId: params.get("id"),
     sheetId: params.get("sheetId"),
-    section
+    section,
+    invitationId: params.get("invitation")
   };
 }
 
 function replaceCampaignHash(
   campaignId: string | null,
   sheetId: string | null,
-  section: CampaignSection | null
+  section: CampaignSection | null,
+  invitationId: string | null = null
 ): void {
   const params = new URLSearchParams();
   if (campaignId) {
@@ -510,6 +517,9 @@ function replaceCampaignHash(
   }
   if (campaignId && section) {
     params.set("section", section);
+  }
+  if (invitationId) {
+    params.set("invitation", invitationId);
   }
 
   const nextHash = params.toString() ? `#campaigns?${params.toString()}` : "#campaigns";
@@ -535,6 +545,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const isDirector = user.role === "gm" || user.role === "superadmin";
   const defaultSection: CampaignSection = isDirector ? "dmNotes" : "sharedNotes";
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [invitations, setInvitations] = useState<CampaignInvitation[]>([]);
+  const [focusedInvitationId, setFocusedInvitationId] = useState<string | null>(initialHash.invitationId);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(initialHash.campaignId);
   const [selectedSheetId, setSelectedSheetId] = useState<string | null>(initialHash.sheetId);
   const [activeSection, setActiveSection] = useState<CampaignSection>(
@@ -584,6 +596,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const selectedCampaign = useMemo(
     () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
     [campaigns, selectedCampaignId]
+  );
+  const focusedInvitation = useMemo(
+    () => invitations.find((invitation) => invitation.id === focusedInvitationId) ?? null,
+    [focusedInvitationId, invitations]
   );
   const experienceLogByCharacterId = useMemo(() => {
     const groupedEntries = new Map<string, Campaign["experienceLog"]>();
@@ -710,7 +726,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     Boolean(experienceGrantDraft) ||
     isArtifactAddModalOpen ||
     Boolean(artifactEditor) ||
-    isSheetModalOpen;
+    isSheetModalOpen ||
+    Boolean(focusedInvitation);
 
   useBodyScrollLock(isAnyModalOpen);
 
@@ -748,6 +765,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const next = parseCampaignHash();
       setSelectedCampaignId(next.campaignId);
       setSelectedSheetId(next.sheetId);
+      setFocusedInvitationId(next.invitationId);
       setActiveSection(next.section && (isDirector || next.section !== "dmNotes") ? next.section : defaultSection);
     }
 
@@ -757,8 +775,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   }, [defaultSection, isDirector]);
 
   useEffect(() => {
-    replaceCampaignHash(selectedCampaignId, selectedSheetId, selectedCampaignId ? activeSection : null);
-  }, [activeSection, selectedCampaignId, selectedSheetId]);
+    replaceCampaignHash(selectedCampaignId, selectedSheetId, selectedCampaignId ? activeSection : null, focusedInvitationId);
+  }, [activeSection, focusedInvitationId, selectedCampaignId, selectedSheetId]);
 
   useEffect(() => {
     if (!isDirector && activeSection === "dmNotes") {
@@ -871,7 +889,16 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     setLoadError(null);
     try {
       const token = await ensureAccessToken();
-      setCampaigns(await fetchCampaigns(token));
+      const [nextCampaigns, nextInvitations] = await Promise.all([
+        fetchCampaigns(token),
+        fetchCampaignInvitations(token)
+      ]);
+      setCampaigns(nextCampaigns);
+      setInvitations(nextInvitations);
+      if (focusedInvitationId && !nextInvitations.some((invitation) => invitation.id === focusedInvitationId)) {
+        setFocusedInvitationId(null);
+        setFormError("La invitación del enlace ya no está disponible o ya fue respondida.");
+      }
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : "No se pudieron cargar las campañas");
     } finally {
@@ -1088,7 +1115,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     }
   }
 
-  async function handleAddMember(): Promise<void> {
+  async function handleSendInvitation(): Promise<void> {
     if (!selectedCampaign || !memberEmail.trim()) {
       return;
     }
@@ -1097,10 +1124,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
-      upsertCampaign(await addCampaignMember(selectedCampaign.id, { email: memberEmail.trim() }, token));
+      upsertCampaign(await sendCampaignInvitation(selectedCampaign.id, { email: memberEmail.trim() }, token));
       setMemberEmail("");
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "No se pudo agregar el miembro");
+      setFormError(err instanceof Error ? err.message : "No se pudo enviar la invitación");
     } finally {
       setIsSaving(false);
     }
@@ -1183,6 +1210,44 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setIsReferenceDetailModalOpen(Boolean(createdReference));
     } catch (err) {
       setReferenceCreateError(describeReferenceValidationError(err));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleAcceptInvitation(invitationId: string): Promise<void> {
+    setFormError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      const campaign = await acceptCampaignInvitation(invitationId, token);
+      setInvitations((current) => current.filter((entry) => entry.id !== invitationId));
+      setFocusedInvitationId(null);
+      upsertCampaign(campaign);
+      setActiveSection("sharedNotes");
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo aceptar la invitación");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDismissInvitation(invitationId: string, campaignId?: string): Promise<void> {
+    setFormError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      await dismissCampaignInvitation(invitationId, token);
+      setInvitations((current) => current.filter((entry) => entry.id !== invitationId));
+      setFocusedInvitationId((current) => current === invitationId ? null : current);
+      if (campaignId) {
+        setCampaigns((current) => current.map((campaign) => campaign.id === campaignId ? {
+          ...campaign,
+          pendingInvitations: (campaign.pendingInvitations ?? []).filter((entry) => entry.id !== invitationId)
+        } : campaign));
+      }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo retirar la invitación");
     } finally {
       setIsSaving(false);
     }
@@ -1407,7 +1472,36 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           </div>
 
           {loadError ? <p className="error-text">{loadError}</p> : null}
+          {formError ? <p className="error-text">{formError}</p> : null}
           {isLoading ? <p>Cargando campañas...</p> : null}
+
+          {invitations.length > 0 ? (
+            <section className="campaign-invitations-section" aria-labelledby="campaign-invitations-title">
+              <div>
+                <h2 id="campaign-invitations-title">Invitaciones pendientes</h2>
+                <p className="section-help">Solo entrarás en una campaña después de aceptar su invitación.</p>
+              </div>
+              <div className="campaign-invite-grid">
+                {invitations.map((invitation) => (
+                  <article key={invitation.id} className="campaign-invite-item">
+                    <div className="campaign-invite-copy">
+                      <strong>{invitation.campaignName}</strong>
+                      <span>Invitación de {invitation.gmEmail}</span>
+                      <span>Enviada: {formatDate(invitation.createdAt)}</span>
+                    </div>
+                    <div className="toolbar">
+                      <button type="button" disabled={isSaving} onClick={() => void handleAcceptInvitation(invitation.id)}>
+                        Aceptar
+                      </button>
+                      <button type="button" className="subtle-button" disabled={isSaving} onClick={() => void handleDismissInvitation(invitation.id)}>
+                        Rechazar
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <div className="campaign-list">
             {campaigns.map((campaign) => (
@@ -1692,10 +1786,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   <div className="inline-row campaign-inline-form">
                     <label className="field">
                       <span>Email del jugador</span>
-                      <input value={memberEmail} onChange={(event) => setMemberEmail(event.target.value)} />
+                      <input
+                        type="email"
+                        autoComplete="email"
+                        value={memberEmail}
+                        onChange={(event) => setMemberEmail(event.target.value)}
+                      />
                     </label>
-                    <button type="button" disabled={isSaving} onClick={() => void handleAddMember()}>
-                      Agregar
+                    <button type="button" disabled={isSaving} onClick={() => void handleSendInvitation()}>
+                      Enviar invitación
                     </button>
                   </div>
                 ) : null}
@@ -1715,6 +1814,31 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   </article>
                 ))}
               </div>
+
+              {isDirector && (selectedCampaign.pendingInvitations ?? []).length > 0 ? (
+                <div className="campaign-pending-invitations">
+                  <h4>Invitaciones pendientes</h4>
+                  <div className="campaign-invite-grid">
+                    {(selectedCampaign.pendingInvitations ?? []).map((invitation) => (
+                      <article key={invitation.id} className="campaign-invite-item">
+                        <div className="campaign-invite-copy">
+                          <strong>{invitation.invitedEmail}</strong>
+                          <span>Pendiente de aceptación</span>
+                          <span>Enviada: {formatDate(invitation.createdAt)}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="subtle-button"
+                          disabled={isSaving}
+                          onClick={() => void handleDismissInvitation(invitation.id, selectedCampaign.id)}
+                        >
+                          Cancelar invitación
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </section>
           ) : null}
 
@@ -1925,6 +2049,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   </p>
                 ) : null}
               </div>
+
             </section>
           ) : null}
 
@@ -2916,6 +3041,29 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 </article>
               </article>
             )}
+          </div>
+        </section>
+      ) : null}
+
+      {focusedInvitation ? (
+        <section className="modal-backdrop" aria-label="Invitación de campaña">
+          <div className="panel modal-panel campaign-invitation-modal" role="dialog" aria-modal="true" aria-labelledby="campaign-invitation-modal-title">
+            <p className="campaign-reference-detail-kicker">Invitación de campaña</p>
+            <h2 id="campaign-invitation-modal-title">{focusedInvitation.campaignName}</h2>
+            <p><strong>{focusedInvitation.gmEmail}</strong> te invita a participar como jugador.</p>
+            <p className="section-help">La campaña solo aparecerá entre tus campañas después de que aceptes.</p>
+            {formError ? <p className="error-text">{formError}</p> : null}
+            <div className="toolbar campaign-invitation-actions">
+              <button type="button" disabled={isSaving} onClick={() => void handleAcceptInvitation(focusedInvitation.id)}>
+                {isSaving ? "Aceptando..." : "Aceptar invitación"}
+              </button>
+              <button type="button" className="subtle-button" disabled={isSaving} onClick={() => void handleDismissInvitation(focusedInvitation.id)}>
+                Rechazar
+              </button>
+              <button type="button" className="subtle-button" disabled={isSaving} onClick={() => setFocusedInvitationId(null)}>
+                Decidir más tarde
+              </button>
+            </div>
           </div>
         </section>
       ) : null}

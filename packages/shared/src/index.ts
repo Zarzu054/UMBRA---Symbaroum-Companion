@@ -1940,9 +1940,11 @@ export const createCampaignSchema = z.object({
 
 export const updateCampaignSchema = createCampaignSchema.partial();
 
-export const addCampaignMemberSchema = z.object({
+export const createCampaignInvitationSchema = z.object({
   email: z.string().email()
 });
+
+export const campaignInvitationIdSchema = z.string().uuid();
 
 export const linkCampaignCharacterSchema = z.object({
   characterId: z.string().uuid()
@@ -2062,7 +2064,7 @@ export type CampaignSessionStatus = z.infer<typeof campaignSessionStatusSchema>;
 export type CampaignReferenceVisibility = z.infer<typeof campaignReferenceVisibilitySchema>;
 export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
 export type UpdateCampaignInput = z.infer<typeof updateCampaignSchema>;
-export type AddCampaignMemberInput = z.infer<typeof addCampaignMemberSchema>;
+export type CreateCampaignInvitationInput = z.infer<typeof createCampaignInvitationSchema>;
 export type LinkCampaignCharacterInput = z.infer<typeof linkCampaignCharacterSchema>;
 export type CreateCampaignNpcInput = z.infer<typeof createCampaignNpcSchema>;
 export type UpdateCampaignNpcInput = z.infer<typeof updateCampaignNpcSchema>;
@@ -2229,6 +2231,15 @@ export type CampaignReference = {
   updatedAt: string;
 };
 
+export type CampaignInvitation = {
+  id: string;
+  campaignId: string;
+  campaignName: string;
+  gmEmail: string;
+  invitedEmail: string;
+  createdAt: string;
+};
+
 export type CharacterActionDefinition = {
   id: string;
   label: string;
@@ -2334,6 +2345,7 @@ export type Campaign = {
   createdAt: string;
   updatedAt: string;
   members: CampaignMember[];
+  pendingInvitations?: CampaignInvitation[];
   characters: CampaignCharacter[];
   availableCharacters: CampaignAvailableCharacter[];
   npcs: CampaignNpc[];
