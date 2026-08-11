@@ -43,3 +43,4 @@ export async function updateCampaignReference(referenceId, input, accessToken) {
 export async function deleteCampaignReference(referenceId, accessToken) { return (await request(`/api/campaign-references/${referenceId}`, accessToken, { method: "DELETE" })).data; }
 export async function assignCampaignSessionExperience(sessionId, input, accessToken) { return (await request(`/api/campaign-sessions/${sessionId}/xp-awards`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
 export async function grantCampaignExperience(campaignId, input, accessToken) { return (await request(`/api/campaigns/${campaignId}/xp-grants`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
+export async function decideProfessionRequest(campaignId, requestId, input, accessToken) { return (await request(`/api/campaigns/${campaignId}/profession-requests/${requestId}/decision`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }

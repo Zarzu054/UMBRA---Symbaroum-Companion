@@ -1,4 +1,4 @@
-import { SYMBAROUM_ABILITIES, SYMBAROUM_ARCHETYPES, SYMBAROUM_CAPABILITIES, SYMBAROUM_CULTURES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RACES, SYMBAROUM_RITUALS, WEAPON_QUALITY_OPTIONS, WEAPON_TEMPLATES } from "@umbra/shared";
+import { SYMBAROUM_ABILITIES, SYMBAROUM_ARCHETYPES, SYMBAROUM_CAPABILITIES, SYMBAROUM_CULTURES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RACES, SYMBAROUM_RITUALS, SYMBAROUM_PROFESSIONS, WEAPON_QUALITY_OPTIONS, WEAPON_TEMPLATES } from "@umbra/shared";
 import { ARMOR_QUALITY_OPTIONS, ITEM_CATALOG } from "./itemCatalog";
 import { EQUIPMENT_CATALOG_DEFINITIONS } from "./equipmentCatalog";
 import { buildPdfViewerUrl } from "../services/pdfViewer";
@@ -429,8 +429,43 @@ function buildProfessionEntries() {
             ]
         };
     });
-    return [...linkedEntries, ...detailedEntries]
-        .sort((left, right) => left.nombre.localeCompare(right.nombre, "es"));
+    void linkedEntries;
+    void detailedEntries;
+    return buildCanonicalProfessionEntries();
+}
+function buildCanonicalProfessionEntries() {
+    const capabilityIdByName = new Map([...SYMBAROUM_ABILITIES, ...SYMBAROUM_MYSTIC_POWERS, ...SYMBAROUM_RITUALS]
+        .map((entry) => [slugify(entry.nombre), entry.id]));
+    return SYMBAROUM_PROFESSIONS.map((profession) => {
+        const requirementText = profession.requirements.map((requirement) => requirement.label).join("; ");
+        const benefitText = profession.benefits.map((benefit) => benefit.upgradesFrom ? `${benefit.name} (requiere ${benefit.upgradesFrom})` : benefit.name).join("; ");
+        const higherRituals = profession.benefits.filter((benefit) => benefit.upgradesFrom);
+        return {
+            id: `profesion-${profession.id}`,
+            tipo: "profesion",
+            nombre: profession.name,
+            resumen: profession.summary,
+            detalle: `${profession.summary}\n\nPara ingresar hay que poseer todos los requisitos, resolver cada alternativa con una opción válida y tener al menos una de las capacidades requeridas a nivel maestro. Los rituales y las opciones meramente opcionales no cuentan para cumplir la regla de maestro. Si el personaje está vinculado a una campaña, el DJ debe aprobar su solicitud. Los beneficios quedan desbloqueados, pero se compran con su coste normal de PX.`,
+            fuente: "Guía Avanzada del Jugador",
+            pagina: profession.page,
+            facts: [
+                { label: "Arquetipo", value: profession.archetype },
+                ...(profession.importantAttributes ? [{ label: "Atributos importantes", value: profession.importantAttributes }] : []),
+                { label: "Requisitos", value: requirementText },
+                { label: "Regla de maestro", value: "Al menos una capacidad requerida a nivel maestro" },
+                ...(profession.optionalCapabilities?.length ? [{ label: "Opcionales", value: profession.optionalCapabilities.join("; ") }] : []),
+                ...(profession.otherRequirement ? [{ label: "Condición especial", value: profession.otherRequirement.label }] : []),
+                { label: "Habilidad o don exclusivo", value: benefitText },
+                ...(higherRituals.length ? [{ label: "Rituales superiores", value: higherRituals.map((benefit) => `${benefit.upgradesFrom} → ${benefit.name}`).join("; ") }] : [])
+            ],
+            relations: profession.benefits.flatMap((benefit) => {
+                const entryId = capabilityIdByName.get(slugify(benefit.name));
+                return entryId ? [{ entryId, label: benefit.name }] : [];
+            }),
+            references: [{ source: "Guía Avanzada del Jugador", page: profession.page }],
+            tags: ["profesion", profession.archetype, requirementText, benefitText, ...(profession.optionalCapabilities ?? [])]
+        };
+    }).sort((left, right) => left.nombre.localeCompare(right.nombre, "es"));
 }
 function uniqueCompendiumReferences(references) {
     const unique = new Map();

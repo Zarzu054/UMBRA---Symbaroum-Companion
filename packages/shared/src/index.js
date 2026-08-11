@@ -8,6 +8,7 @@ export * from "./campaignActionEngine.js";
 export * from "./monsterCodex.js";
 export * from "./monsterTraitRules.js";
 export * from "./actorCreation.js";
+export * from "./professionCatalog.js";
 export * from "./weaponCatalog.js";
 export * from "./mysticArtifacts.js";
 export * from "./mysticArtifactProjection.js";
@@ -1628,7 +1629,8 @@ export const importCharacterSchema = z.object({
     sheet: importedCharacterSheetSchema
 });
 export const updateCharacterSchema = createCharacterSchema.partial().extend({
-    sheet: importedCharacterSheetSchema
+    sheet: importedCharacterSheetSchema,
+    editSource: z.enum(["sheet", "builder"]).optional()
 });
 export const loginSchema = z.object({
     email: z.string().email(),
@@ -1706,7 +1708,8 @@ export const createCampaignNpcSchema = z.object({
 });
 export const updateCampaignNpcSchema = createCampaignNpcSchema.partial();
 export const updateCampaignCharacterSheetSchema = z.object({
-    sheet: importedCharacterSheetSchema
+    sheet: importedCharacterSheetSchema,
+    editSource: z.enum(["sheet", "builder"]).optional()
 });
 export const updateCampaignNpcSheetSchema = z.object({
     sheet: characterSheetSchema.nullable()
@@ -1772,4 +1775,9 @@ export const compendiumEntryIdSchema = z.string().trim().min(1).max(200);
 export const setCompendiumFavoriteSchema = z.object({
     favorite: z.boolean()
 }).strict();
+export const professionIdSchema = z.string().trim().min(1).max(120);
+export const professionDecisionSchema = z.object({
+    decision: z.enum(["approve", "reject"]),
+    note: z.string().trim().max(500).default("")
+});
 export const updateCampaignReferenceSchema = createCampaignReferenceSchema.partial();

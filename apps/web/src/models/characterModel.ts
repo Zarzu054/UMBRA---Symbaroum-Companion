@@ -7,6 +7,7 @@ export type CharacterCardViewModel = {
   subtitle: string;
   meta: string;
   createdLabel: string;
+  unreadChangeCount: number;
 };
 
 export function toCharacterCardViewModel(character: Character): CharacterCardViewModel {
@@ -21,6 +22,7 @@ export function toCharacterCardViewModel(character: Character): CharacterCardVie
     title: character.name,
     subtitle: `${character.archetype} - ${character.race}`,
     meta: `Hab: ${totalHabilidades} - Poderes: ${totalPoderes} - Rituales: ${totalRituales} - PX: ${totalXpGastada} - Corr: ${character.sheet.corrupcion.temporal}/${character.sheet.corrupcion.permanente}`,
-    createdLabel: new Date(character.updatedAt).toLocaleString()
+    createdLabel: new Date(character.updatedAt).toLocaleString(),
+    unreadChangeCount: character.unreadChangeCount ?? 0
   };
 }

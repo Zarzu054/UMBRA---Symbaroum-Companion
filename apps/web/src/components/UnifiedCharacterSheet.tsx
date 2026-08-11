@@ -14,9 +14,13 @@ import {
   synchronizeCharacterSheet,
   SYMBAROUM_MYSTIC_POWERS,
   SYMBAROUM_RITUALS,
+  evaluateProfession,
+  getBenefitProfessionIds,
+  normalizeProfessionCapabilities,
   type ActionRollResult,
   type CharacterActionDefinition,
   type CharacterActionPhase,
+  type CharacterProfessionMembership,
   type CharacterSheet,
   type RollDestination,
   type RollRequest
@@ -69,6 +73,8 @@ type Props = {
   collapsibleHistory?: boolean;
   onOpenCompendiumCapability?: (tipo: "habilidad" | "poder_mistico" | "ritual" | "bendicion" | "carga", nombre: string) => void;
   onUseArtifactAbility?: (artifactId: string, abilityId: string) => Promise<void>;
+  professionMemberships?: CharacterProfessionMembership[];
+  enforceProfessionRestrictions?: boolean;
 };
 
 type PendingRollConfirmation = {
@@ -1093,7 +1099,9 @@ export function UnifiedCharacterSheet({
   onUseArtifactAbility,
   backgroundPreferenceScope,
   collapsibleHistory = false,
-  onOpenCompendiumCapability
+  onOpenCompendiumCapability,
+  professionMemberships = [],
+  enforceProfessionRestrictions = false
 }: Props) {
   const { draft, isSavingLocal, setDraft, updateField, save } = useUnifiedCharacterSheet({
     sheet,
@@ -1143,8 +1151,38 @@ export function UnifiedCharacterSheet({
 
   const normalizedSheet = useMemo(() => synchronizeCharacterSheet(draft), [draft]);
   const usesFixedAverages = normalizedSheet.resolutionMode === "fixed_average";
-  const derived = useMemo(() => computeDerivedStats(normalizedSheet), [normalizedSheet]);
-  const actions = useMemo(() => deriveCharacterActions(normalizedSheet), [normalizedSheet]);
+  const activeProfessionIds = useMemo(() => new Set(
+    professionMemberships
+      .filter((membership) => membership.state === "active" && evaluateProfession(membership.professionId, {
+        race: normalizedSheet.identidad.raza,
+        culture: normalizedSheet.identidad.cultura,
+        permanentCorruption: normalizedSheet.corrupcion.permanente,
+        blessings: normalizedSheet.bendiciones,
+        capabilities: normalizeProfessionCapabilities([
+          ...normalizedSheet.capabilitySelections,
+          ...normalizedSheet.habilidades.map((entry) => ({ name: entry.nombre, kind: "habilidad" as const, level: entry.nivel })),
+          ...normalizedSheet.poderesMisticos.map((entry) => ({ name: entry.nombre, kind: "poder_mistico" as const, level: entry.nivel })),
+          ...normalizedSheet.rituales.map((entry) => ({ name: entry.nombre, kind: "ritual" as const, level: entry.nivel }))
+        ])
+      }, { includeAdmissionOnly: false }).eligible)
+      .map((membership) => membership.professionId)
+  ), [normalizedSheet, professionMemberships]);
+  const mechanicalSheet = useMemo(() => {
+    const isEnabled = (name: string) => {
+      if (!enforceProfessionRestrictions) return true;
+      const professionIds = getBenefitProfessionIds(name);
+      return professionIds.length === 0 || professionIds.some((id) => activeProfessionIds.has(id));
+    };
+    return {
+      ...normalizedSheet,
+      habilidades: normalizedSheet.habilidades.filter((entry) => isEnabled(entry.nombre)),
+      poderesMisticos: normalizedSheet.poderesMisticos.filter((entry) => isEnabled(entry.nombre)),
+      rituales: normalizedSheet.rituales.filter((entry) => isEnabled(entry.nombre)),
+      capabilitySelections: normalizedSheet.capabilitySelections.filter((entry) => isEnabled(entry.name))
+    };
+  }, [activeProfessionIds, enforceProfessionRestrictions, normalizedSheet]);
+  const derived = useMemo(() => computeDerivedStats(mechanicalSheet), [mechanicalSheet]);
+  const actions = useMemo(() => deriveCharacterActions(mechanicalSheet), [mechanicalSheet]);
   const defenseAlternativeActions = useMemo(
     () => actions.filter((action) => isDefenseModifierOnlyAction(action)),
     [actions]
@@ -3105,6 +3143,19 @@ export function UnifiedCharacterSheet({
           {stageActiveTab === "abilities" ? (
             <section className="unified-sheet-panel">
               <article className="campaign-sheet-card">
+                {professionMemberships.length > 0 ? (
+                  <section className="sheet-profession-summary">
+                    <h3>Profesiones avanzadas</h3>
+                    <div className="toolbar">
+                      {professionMemberships.map((membership) => (
+                        <span key={membership.id} className={`profession-state profession-state--${membership.effectiveState}`}>
+                          {membership.professionName}: {membership.effectiveState === "active" ? "Activa" : membership.effectiveState === "suspended" ? "Suspendida" : membership.effectiveState === "pending" ? "Pendiente" : membership.effectiveState === "rejected" ? "Rechazada" : "Objetivo"}
+                        </span>
+                      ))}
+                    </div>
+                    {professionMemberships.some((membership) => membership.effectiveState === "suspended") ? <p className="section-help">Los beneficios de profesiones suspendidas se conservan, pero sus acciones y modificadores quedan inactivos.</p> : null}
+                  </section>
+                ) : null}
                 {activeCapabilityTab === "traits" ? (
                   <SimpleStringList title="Rasgos" entries={normalizedSheet.rasgos} emptyText="Sin rasgos registrados." categoryKey="rasgo" />
                 ) : null}

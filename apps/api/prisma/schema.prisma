@@ -63,6 +63,13 @@ enum CampaignChatMessageType {
   action
 }
 
+enum CharacterProfessionState {
+  aspiration
+  pending
+  active
+  rejected
+}
+
 enum CampaignReferenceVisibility {
   gm_only
   campaign
@@ -131,6 +138,10 @@ model User {
   adminEventsAsActor   AdminAccountEvent[] @relation("AdminEventActor")
   adminEventsAsTarget  AdminAccountEvent[] @relation("AdminEventTarget")
   compendiumEntries    CompendiumUserEntry[]
+  characterChangesAsActor CharacterChangeEvent[] @relation("CharacterChangeActor")
+  characterChangeReceipts CharacterChangeReceipt[]
+  professionRequests CharacterProfessionMembership[] @relation("ProfessionRequestUser")
+  professionReviews CharacterProfessionMembership[] @relation("ProfessionReviewUser")
 
   @@index([status])
   @@map("users")
@@ -190,8 +201,73 @@ model Character {
   campaignLinks     CampaignCharacter[]
   campaignXpEntries CampaignXpLog[]
   campaignChatEntries CampaignChatMessage[]
+  changeEvents       CharacterChangeEvent[]
+  changeReceipts     CharacterChangeReceipt[]
+  professionMemberships CharacterProfessionMembership[]
 
   @@map("characters")
+}
+
+model CharacterProfessionMembership {
+  id             String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  characterId    String                   @map("character_id") @db.Uuid
+  professionId   String                   @map("profession_id") @db.VarChar(120)
+  state          CharacterProfessionState @default(aspiration)
+  campaignId     String?                  @map("campaign_id") @db.Uuid
+  campaignName   String?                  @map("campaign_name") @db.VarChar(160)
+  requestedById  String?                  @map("requested_by_id") @db.Uuid
+  reviewedById   String?                  @map("reviewed_by_id") @db.Uuid
+  requestedAt    DateTime?                @map("requested_at") @db.Timestamptz(6)
+  reviewedAt     DateTime?                @map("reviewed_at") @db.Timestamptz(6)
+  decisionNote   String                   @default("") @map("decision_note") @db.VarChar(500)
+  createdAt      DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  character      Character                @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  campaign       Campaign?                @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  requestedBy    User?                    @relation("ProfessionRequestUser", fields: [requestedById], references: [id], onDelete: SetNull)
+  reviewedBy     User?                    @relation("ProfessionReviewUser", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([characterId, professionId])
+  @@index([campaignId, state, requestedAt])
+  @@index([characterId, state])
+  @@map("character_profession_memberships")
+}
+
+model CharacterChangeEvent {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  characterId    String   @map("character_id") @db.Uuid
+  actorId        String   @map("actor_id") @db.Uuid
+  actorEmail     String   @map("actor_email")
+  actorRole      UserRole @map("actor_role")
+  campaignId     String?  @map("campaign_id") @db.Uuid
+  campaignName   String?  @map("campaign_name")
+  source         String   @db.VarChar(80)
+  summary        String   @db.VarChar(300)
+  changes        Json     @default("[]")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  character      Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  actor          User      @relation("CharacterChangeActor", fields: [actorId], references: [id], onDelete: Restrict)
+  campaign       Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  receipts       CharacterChangeReceipt[]
+
+  @@index([characterId, createdAt])
+  @@index([campaignId, characterId, createdAt])
+  @@index([actorId])
+  @@map("character_change_events")
+}
+
+model CharacterChangeReceipt {
+  eventId     String    @map("event_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  characterId String    @map("character_id") @db.Uuid
+  readAt      DateTime? @map("read_at") @db.Timestamptz(6)
+  event       CharacterChangeEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, userId])
+  @@index([userId, characterId, readAt])
+  @@map("character_change_receipts")
 }
 
 model Monster {
@@ -280,6 +356,8 @@ model Campaign {
   references   CampaignReference[]
   chatMessages CampaignChatMessage[]
   mysticArtifacts MysticArtifact[]
+  characterChangeEvents CharacterChangeEvent[]
+  professionMemberships CharacterProfessionMembership[]
 
   @@index([gmId])
   @@map("campaigns")
@@ -327,7 +405,7 @@ model CampaignCharacter {
   mysticArtifactBindings MysticArtifactBinding[] @relation("MysticArtifactBindingCharacter")
 
   @@unique([campaignId, characterId])
-  @@index([characterId])
+  @@unique([characterId])
   @@map("campaign_characters")
 }
 

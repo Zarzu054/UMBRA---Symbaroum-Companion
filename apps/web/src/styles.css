@@ -705,6 +705,182 @@ button.subtle-button {
   align-content: start;
 }
 
+.character-history-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.character-history-badge {
+  min-width: 1.45rem;
+  height: 1.45rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: var(--danger, #8b2f36);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.character-change-log-modal {
+  width: min(980px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.character-change-log-header h2,
+.character-change-log-header p {
+  margin: 0;
+}
+
+.character-change-log-body {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 10px 4px 4px;
+  overscroll-behavior: contain;
+}
+
+.character-change-session {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(139, 109, 77, 0.32);
+  border-radius: 14px;
+  background: var(--surface, #fffaf2);
+}
+
+.character-change-session.is-unread {
+  border-color: var(--accent, #8a3439);
+  box-shadow: inset 4px 0 0 var(--accent, #8a3439);
+  background: color-mix(in srgb, var(--surface, #fffaf2) 90%, var(--accent, #8a3439));
+}
+
+.character-change-session > header,
+.character-change-event-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.character-change-session > header div {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.character-change-session time,
+.character-change-section,
+.character-change-session > header span {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
+.character-change-unread-label {
+  position: absolute;
+  top: 9px;
+  right: 12px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--accent, #8a3439);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.character-change-session.is-unread > header {
+  padding-right: 58px;
+}
+
+.character-change-event {
+  display: grid;
+  gap: 7px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(139, 109, 77, 0.22);
+}
+
+.character-change-event-title > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.character-change-event ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.character-change-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.7fr) minmax(85px, auto) minmax(0, 2fr);
+  gap: 10px;
+  align-items: start;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: rgba(139, 109, 77, 0.08);
+}
+
+.character-change-values {
+  min-width: 0;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  overflow-wrap: anywhere;
+}
+
+.character-change-value-inline {
+  white-space: pre-wrap;
+}
+
+.character-change-value {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.character-change-value summary {
+  cursor: pointer;
+}
+
+.character-change-value pre {
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.character-change-load-more {
+  justify-self: center;
+}
+
+@media (max-width: 720px) {
+  .character-change-log-modal {
+    width: 100vw;
+    max-height: 100dvh;
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  .character-change-row {
+    grid-template-columns: 1fr;
+  }
+
+  .character-change-values {
+    flex-wrap: wrap;
+  }
+}
+
 .campaign-character-experience {
   display: grid;
   gap: 10px;

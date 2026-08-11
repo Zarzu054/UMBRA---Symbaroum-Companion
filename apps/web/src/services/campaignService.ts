@@ -4,12 +4,14 @@ import type {
   Campaign,
   CampaignChatMessage,
   CampaignInvitation,
+  CharacterProfessionMembership,
   CreateCampaignChatMessageInput,
   CreateCampaignInput,
   CreateCampaignNpcInput,
   CreateCampaignReferenceInput,
   CreateCampaignSessionInput,
   GrantCampaignExperienceInput,
+  ProfessionDecisionInput,
   UpdateCampaignCharacterSheetInput,
   UpdateCampaignInput,
   UpdateCampaignNpcInput,
@@ -67,3 +69,4 @@ export async function updateCampaignReference(referenceId: string, input: Update
 export async function deleteCampaignReference(referenceId: string, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-references/${referenceId}`, accessToken, { method: "DELETE" })).data; }
 export async function assignCampaignSessionExperience(sessionId: string, input: AssignCampaignSessionExperienceInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-sessions/${sessionId}/xp-awards`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
 export async function grantCampaignExperience(campaignId: string, input: GrantCampaignExperienceInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaigns/${campaignId}/xp-grants`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
+export async function decideProfessionRequest(campaignId: string, requestId: string, input: ProfessionDecisionInput, accessToken: string): Promise<CharacterProfessionMembership[]> { return (await request<{ data: CharacterProfessionMembership[] }>(`/api/campaigns/${campaignId}/profession-requests/${requestId}/decision`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }

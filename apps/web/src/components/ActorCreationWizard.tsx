@@ -17,6 +17,7 @@ import {
   getActorSpentXp,
   getMonsterCreationChallenge,
   getMonsterCreationXp,
+  isProfessionExclusiveBenefit,
   isExceptionalAttributeSelection,
   removeExceptionalAttributeBonuses,
   synchronizeExceptionalAttributes,
@@ -167,7 +168,7 @@ type CatalogChoice = { id: string; name: string; kind: ActorCapabilityKind; sour
 function getCharacterCatalog(race: string, selections: ActorCapabilitySelection[]): CatalogChoice[] {
   const hasDarkBlood = selections.some((entry) => normalize(entry.name) === "sangre oscura");
   const monsterAllowed = normalize(race) === "troll" || hasDarkBlood;
-  const normalCapabilities: CatalogChoice[] = [...SYMBAROUM_ABILITIES, ...SYMBAROUM_MYSTIC_POWERS, ...SYMBAROUM_RITUALS].map((entry) => ({
+  const normalCapabilities: CatalogChoice[] = [...SYMBAROUM_ABILITIES, ...SYMBAROUM_MYSTIC_POWERS, ...SYMBAROUM_RITUALS].filter((entry) => !isProfessionExclusiveBenefit(entry.nombre)).map((entry) => ({
     id: entry.id,
     name: entry.nombre,
     kind: RATED_TRAIT_NAMES.has(normalize(entry.nombre)) ? "rasgo_nivelado" : entry.tipo,
@@ -444,7 +445,7 @@ export function CharacterCreationWizard({ controller, onCancel }: { controller: 
         <label className="field"><span>Raza</span><select value={sheet.identidad.raza} onChange={(event) => controller.updateSheet("identidad.raza", event.target.value)}>{SYMBAROUM_RACES.map((entry) => <option key={entry}>{entry}</option>)}</select></label>
         <label className="field"><span>Cultura</span><select value={sheet.identidad.cultura} onChange={(event) => controller.updateSheet("identidad.cultura", event.target.value)}>{SYMBAROUM_CULTURES.map((entry) => <option key={entry}>{entry}</option>)}</select></label>
         <label className="field"><span>Arquetipo</span><select value={sheet.identidad.arquetipo} onChange={(event) => controller.updateSheet("identidad.arquetipo", event.target.value)}>{SYMBAROUM_ARCHETYPES.map((entry) => <option key={entry}>{entry}</option>)}</select></label>
-        <label className="field"><span>Profesión</span><input value={sheet.identidad.profesion} onChange={(event) => controller.updateSheet("identidad.profesion", event.target.value)} /></label>
+        <label className="field"><span>Ocupación descriptiva</span><input value={sheet.identidad.profesion} onChange={(event) => controller.updateSheet("identidad.profesion", event.target.value)} /></label>
         <label className="checkbox-row"><input type="checkbox" checked={sheet.identidad.esFamiliar} onChange={(event) => { const familiar = event.target.checked; controller.setForm((current) => ({ ...current, sheet: { ...current.sheet, identidad: { ...current.sheet.identidad, esFamiliar: familiar }, progreso: { ...current.sheet.progreso, experienciaTotal: familiar ? 20 : 50 } } })); }} /><span>Es familiar (20 PX iniciales)</span></label>
       </div><div className="info-box"><strong>Opciones raciales recomendadas:</strong> {racial.length ? racial.map((entry) => entry.name).join(", ") : "Sin concesiones automáticas. Revísalas en el compendio."} El usuario las confirma en Capacidades.</div></section> : null}
 

@@ -1,0 +1,119 @@
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { fetchCharacterChangeLog, markCharacterChangeLogRead } from "../services/characterService";
+const SESSION_WINDOW_MS = 5 * 60 * 1000;
+function groupEvents(events) {
+    const groups = [];
+    for (const event of events) {
+        const last = groups.at(-1);
+        const lastDate = last ? new Date(last.startedAt).getTime() : 0;
+        const eventDate = new Date(event.createdAt).getTime();
+        if (last && last.actorId === event.actorId && Math.abs(lastDate - eventDate) <= SESSION_WINDOW_MS) {
+            last.events.push(event);
+            last.startedAt = event.createdAt;
+            last.unread ||= event.isUnread;
+        }
+        else {
+            groups.push({
+                key: event.id,
+                actorId: event.actorId,
+                actorEmail: event.actorEmail,
+                actorRole: event.actorRole,
+                startedAt: event.createdAt,
+                endedAt: event.createdAt,
+                unread: event.isUnread,
+                events: [event]
+            });
+        }
+    }
+    return groups;
+}
+function roleLabel(role) {
+    if (role === "gm")
+        return "DJ";
+    if (role === "superadmin")
+        return "Superadmin";
+    return "Jugador";
+}
+function sourceLabel(source) {
+    const labels = {
+        sheet: "Hoja",
+        builder: "Constructor",
+        experience: "Experiencia",
+        artifact: "Artefacto",
+        profession: "Profesión",
+        campaign_link: "Campaña"
+    };
+    return labels[source] ?? "Ficha";
+}
+function formatValue(value) {
+    if (value === null)
+        return "Vacío";
+    if (typeof value === "string")
+        return value || "Vacío";
+    if (typeof value === "boolean")
+        return value ? "Sí" : "No";
+    if (typeof value === "number")
+        return String(value);
+    return JSON.stringify(value, null, 2);
+}
+function ChangeValue({ value }) {
+    const rendered = formatValue(value);
+    if (rendered.length > 180 || rendered.includes("\n")) {
+        return _jsxs("details", { className: "character-change-value", children: [_jsx("summary", { children: "Mostrar contenido" }), _jsx("pre", { children: rendered })] });
+    }
+    return _jsx("span", { className: "character-change-value-inline", children: rendered });
+}
+function ChangeRow({ change }) {
+    return (_jsxs("li", { className: `character-change-row is-${change.operation}`, children: [_jsx("strong", { children: change.label }), _jsx("span", { className: "character-change-section", children: change.section }), _jsxs("div", { className: "character-change-values", children: [change.operation !== "added" ? _jsxs(_Fragment, { children: [_jsx(ChangeValue, { value: change.before }), _jsx("span", { "aria-hidden": "true", children: "\u2192" })] }) : null, change.operation !== "removed" ? _jsx(ChangeValue, { value: change.after }) : _jsx("span", { children: "Eliminado" })] })] }));
+}
+export function CharacterChangeLogModal({ characterId, characterName, ensureAccessToken, onClose, onRead }) {
+    const [events, setEvents] = useState([]);
+    const [nextCursor, setNextCursor] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [error, setError] = useState(null);
+    const closeButtonRef = useRef(null);
+    const openerRef = useRef(null);
+    useBodyScrollLock(true);
+    async function load(cursor) {
+        cursor ? setLoadingMore(true) : setLoading(true);
+        setError(null);
+        try {
+            const token = await ensureAccessToken();
+            const page = await fetchCharacterChangeLog(characterId, token, cursor);
+            setEvents((current) => cursor
+                ? [...current, ...page.events.filter((event) => !current.some((entry) => entry.id === event.id))]
+                : page.events);
+            setNextCursor(page.nextCursor);
+            if (!cursor) {
+                await markCharacterChangeLogRead(characterId, token);
+                await onRead();
+            }
+        }
+        catch (reason) {
+            setError(reason instanceof Error ? reason.message : "No se pudo cargar el historial");
+        }
+        finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    }
+    useEffect(() => { void load(); }, [characterId]);
+    useEffect(() => {
+        openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        closeButtonRef.current?.focus();
+        const onKeyDown = (event) => {
+            if (event.key === "Escape")
+                onClose();
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => {
+            window.removeEventListener("keydown", onKeyDown);
+            openerRef.current?.focus();
+        };
+    }, [onClose]);
+    const sessions = useMemo(() => groupEvents(events), [events]);
+    return (_jsx("section", { className: "modal-backdrop", onClick: onClose, "aria-label": `Historial de cambios de ${characterName}`, children: _jsxs("div", { className: "panel modal-panel character-change-log-modal", role: "dialog", "aria-modal": "true", onClick: (event) => event.stopPropagation(), children: [_jsxs("header", { className: "row-actions character-change-log-header", children: [_jsxs("div", { children: [_jsxs("h2", { children: ["Historial de ", characterName] }), _jsx("p", { className: "section-help", children: "Cambios realizados por el jugador y el director de juego." })] }), _jsx("button", { ref: closeButtonRef, type: "button", onClick: onClose, children: "Cerrar" })] }), _jsxs("div", { className: "character-change-log-body", children: [loading ? _jsx("p", { className: "section-help", children: "Cargando historial..." }) : null, error ? _jsx("p", { className: "error-text", children: error }) : null, !loading && !error && sessions.length === 0 ? _jsx("p", { className: "section-help", children: "Todav\u00EDa no hay cambios registrados." }) : null, sessions.map((session) => (_jsxs("article", { className: `character-change-session${session.unread ? " is-unread" : ""}`, children: [_jsxs("header", { children: [_jsxs("div", { children: [_jsx("strong", { children: session.actorEmail }), _jsx("span", { children: roleLabel(session.actorRole) })] }), _jsxs("time", { children: [new Date(session.startedAt).toLocaleString(), " ", session.startedAt !== session.endedAt ? `– ${new Date(session.endedAt).toLocaleTimeString()}` : ""] })] }), session.unread ? _jsx("span", { className: "character-change-unread-label", children: "Nuevo" }) : null, session.events.map((event) => (_jsxs("section", { className: "character-change-event", children: [_jsxs("div", { className: "character-change-event-title", children: [_jsxs("div", { children: [_jsx("strong", { children: event.summary }), _jsx("span", { className: "compendium-chip", children: sourceLabel(event.source) }), event.campaignName ? _jsx("span", { className: "compendium-chip", children: event.campaignName }) : null] }), _jsx("time", { children: new Date(event.createdAt).toLocaleTimeString() })] }), _jsx("ul", { children: event.changes.map((change, index) => _jsx(ChangeRow, { change: change }, `${event.id}-${change.path}-${index}`)) })] }, event.id)))] }, session.key))), nextCursor ? _jsx("button", { type: "button", className: "subtle-button character-change-load-more", disabled: loadingMore, onClick: () => void load(nextCursor), children: loadingMore ? "Cargando..." : "Cargar cambios anteriores" }) : null] })] }) }));
+}

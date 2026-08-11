@@ -5047,3 +5047,74 @@ button[disabled] {
     grid-template-columns: 1fr;
   }
 }
+.profession-builder-list,
+.profession-request-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.profession-progress-card,
+.profession-request-card {
+  padding: 1rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 14px;
+  background: var(--ui-surface);
+  color: var(--ui-text);
+}
+
+.profession-progress-card h4,
+.profession-request-card strong {
+  margin: 0.2rem 0;
+}
+
+.profession-state {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--ui-border-strong, var(--ui-border));
+  border-radius: 999px;
+  background: var(--ui-surface-muted);
+  color: var(--ui-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.profession-state--active { background: color-mix(in srgb, var(--ui-success, #2f765b) 22%, var(--ui-surface)); }
+.profession-state--suspended,
+.profession-state--rejected { background: color-mix(in srgb, var(--ui-danger, #8a3138) 20%, var(--ui-surface)); }
+.profession-state--pending { background: color-mix(in srgb, var(--ui-accent, #9b6a36) 22%, var(--ui-surface)); }
+
+.profession-requirement-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0;
+}
+
+.profession-requirement-list > div,
+.profession-requirement-list > span {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.45rem 0.6rem;
+  border-radius: 9px;
+  background: var(--ui-surface-muted);
+  color: var(--ui-text);
+}
+
+.profession-requirement-list .is-met { border-left: 3px solid var(--ui-success, #2f765b); }
+.profession-requirement-list .is-pending { border-left: 3px solid var(--ui-danger, #8a3138); }
+.profession-benefit-list { display: grid; gap: 0.4rem; margin-top: 0.75rem; }
+.profession-actions { margin-top: 0.8rem; }
+.profession-lock-label { color: var(--ui-danger, #8a3138); font-weight: 700; }
+.sheet-profession-summary { margin-bottom: 1rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--ui-border); }
+.profession-request-modal { width: min(760px, calc(100vw - 2rem)); max-height: min(82vh, 760px); overflow: auto; }
+.profession-request-card > div:first-child { display: grid; gap: 0.2rem; }
+.profession-goal-picker { display: grid; gap: 0.65rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--ui-border); }
+.profession-goal-picker h4 { margin: 0; }
+
+@media (max-width: 720px) {
+  .profession-requirement-list > div { grid-template-columns: auto 1fr; }
+  .profession-requirement-list > div strong { grid-column: 2; }
+}

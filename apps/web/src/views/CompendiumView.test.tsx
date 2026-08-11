@@ -122,7 +122,8 @@ describe("compendium search", () => {
     expect(professions.find((candidate) => candidate.nombre === "Juramentado de hierro")?.facts).toEqual(expect.arrayContaining([
       { label: "Habilidad o don exclusivo", value: "Danza de batalla" }
     ]));
-    expect(professions.every((candidate) => candidate.detalle.includes("no incorpora mec\u00e1nicas de profesi\u00f3n"))).toBe(true);
+    expect(professions.every((candidate) => candidate.detalle.includes("al menos una de las capacidades requeridas a nivel maestro"))).toBe(true);
+    expect(professions.every((candidate) => candidate.facts?.some((fact) => fact.label === "Requisitos"))).toBe(true);
   });
 
   it("combines type and source filters", () => {

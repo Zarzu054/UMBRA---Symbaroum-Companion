@@ -1,11 +1,14 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useMemo, useState } from "react";
 import { createCampaignReferenceSchema, createCampaignSchema } from "@umbra/shared";
-import { acceptCampaignInvitation, createCampaign, createCampaignReference, deleteCampaignReference, fetchCampaigns, fetchCampaignInvitations, linkCampaignCharacter, removeCampaignMember, dismissCampaignInvitation, sendCampaignInvitation, unlinkCampaignCharacter, grantCampaignExperience, updateCampaign, updateCampaignReference } from "../services/campaignService";
+import { acceptCampaignInvitation, createCampaign, createCampaignReference, deleteCampaignReference, decideProfessionRequest, fetchCampaigns, fetchCampaignInvitations, linkCampaignCharacter, removeCampaignMember, dismissCampaignInvitation, sendCampaignInvitation, unlinkCampaignCharacter, grantCampaignExperience, updateCampaignCharacterSheet, updateCampaign, updateCampaignReference } from "../services/campaignService";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
+import { CharacterChangeLogModal } from "../components/CharacterChangeLogModal";
+import { leaveProfession } from "../services/characterService";
+import { CharacterBuilderView } from "./CharacterBuilderView";
 import { MysticArtifactEditorWizard } from "../components/MysticArtifactEditorWizard";
 import { MysticArtifactDetailsModal } from "../components/MysticArtifactDetailsModal";
-import { assignMysticArtifactOwner, bindNpcMysticArtifact, createCampaignMysticArtifact, deleteCampaignMysticArtifact, fetchMysticArtifactPresets, fetchMysticArtifactSource, unbindMysticArtifact, updateCampaignMysticArtifact, updateMysticArtifactResource, useMysticArtifactAbility } from "../services/mysticArtifactService";
+import { assignMysticArtifactOwner, bindMysticArtifact, bindNpcMysticArtifact, createCampaignMysticArtifact, deleteCampaignMysticArtifact, fetchMysticArtifactPresets, fetchMysticArtifactSource, unbindMysticArtifact, updateCampaignMysticArtifact, updateMysticArtifactResource, useMysticArtifactAbility } from "../services/mysticArtifactService";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { ALL_ENTRIES } from "../models/compendiumEntries";
 import { buildPdfViewerUrl } from "../services/pdfViewer";
@@ -388,6 +391,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
     const [focusedInvitationId, setFocusedInvitationId] = useState(initialHash.invitationId);
     const [selectedCampaignId, setSelectedCampaignId] = useState(initialHash.campaignId);
     const [selectedSheetId, setSelectedSheetId] = useState(initialHash.sheetId);
+    const [campaignCharacterView, setCampaignCharacterView] = useState("sheet");
+    const [changeLogCharacterId, setChangeLogCharacterId] = useState(null);
     const [activeSection, setActiveSection] = useState(initialHash.section && (isDirector || initialHash.section !== "dmNotes") ? initialHash.section : defaultSection);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -417,6 +422,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
     const [isCreateCampaignModalOpen, setIsCreateCampaignModalOpen] = useState(false);
     const [isCampaignDetailsModalOpen, setIsCampaignDetailsModalOpen] = useState(false);
     const [isBurdenSummaryModalOpen, setIsBurdenSummaryModalOpen] = useState(false);
+    const [isProfessionRequestsModalOpen, setIsProfessionRequestsModalOpen] = useState(false);
     const [pendingUnlinkCharacter, setPendingUnlinkCharacter] = useState(null);
     const [experienceGrantDraft, setExperienceGrantDraft] = useState(null);
     const [experienceGrantError, setExperienceGrantError] = useState(null);
@@ -489,6 +495,31 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         });
     }, [burdenEntries, isDirector, selectedCampaign]);
     const campaignSheetModalEntry = isDirector && selectedSheetEntry?.sheet ? selectedSheetEntry : null;
+    const campaignBuilderCharacter = useMemo(() => {
+        if (!campaignSheetModalEntry?.sheet)
+            return null;
+        const sheet = campaignSheetModalEntry.sheet;
+        return {
+            id: campaignSheetModalEntry.characterId,
+            name: campaignSheetModalEntry.name,
+            archetype: String(sheet.identidad.arquetipo),
+            race: String(sheet.identidad.raza),
+            culture: String(sheet.identidad.cultura),
+            profession: sheet.identidad.profesion,
+            level: 1,
+            sheet,
+            mysticArtifacts: (selectedCampaign?.mysticArtifacts ?? [])
+                .filter((artifact) => artifact.ownerType === "character" && artifact.ownerId === campaignSheetModalEntry.id)
+                .map((artifact) => ({ ...artifact, campaignName: selectedCampaign?.name ?? "Campaña" })),
+            artifactBindingXpSpent: (selectedCampaign?.mysticArtifacts ?? [])
+                .filter((artifact) => artifact.ownerType === "character" && artifact.ownerId === campaignSheetModalEntry.id && artifact.bindingPaymentType === "xp")
+                .reduce((total, artifact) => total + (artifact.bindingPaymentAmount ?? 0), 0),
+            unreadChangeCount: campaignSheetModalEntry.unreadChangeCount ?? 0,
+            professionMemberships: campaignSheetModalEntry.professionMemberships,
+            createdAt: campaignSheetModalEntry.updatedAt,
+            updatedAt: campaignSheetModalEntry.updatedAt
+        };
+    }, [campaignSheetModalEntry, selectedCampaign]);
     const isSheetModalOpen = Boolean(campaignSheetModalEntry);
     const isAnyModalOpen = isCreateCampaignModalOpen ||
         isCampaignDetailsModalOpen ||
@@ -499,11 +530,13 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         isReferenceCreateModalOpen ||
         isReferenceDetailModalOpen ||
         isBurdenSummaryModalOpen ||
+        isProfessionRequestsModalOpen ||
         Boolean(pendingUnlinkCharacter) ||
         Boolean(experienceGrantDraft) ||
         isArtifactAddModalOpen ||
         Boolean(artifactEditor) ||
         isSheetModalOpen ||
+        Boolean(changeLogCharacterId) ||
         Boolean(focusedInvitation);
     useBodyScrollLock(isAnyModalOpen);
     useEffect(() => {
@@ -970,6 +1003,23 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
             setIsSaving(false);
         }
     }
+    async function handleSaveCampaignCharacter(entry, sheet, editSource) {
+        if (!sheet)
+            return;
+        setFormError(null);
+        setIsSaving(true);
+        try {
+            const token = await ensureAccessToken();
+            upsertCampaign(await updateCampaignCharacterSheet(entry.id, { sheet, editSource }, token));
+        }
+        catch (err) {
+            setFormError(err instanceof Error ? err.message : "No se pudo guardar el personaje");
+            throw err;
+        }
+        finally {
+            setIsSaving(false);
+        }
+    }
     async function handleAcceptInvitation(invitationId) {
         setFormError(null);
         setIsSaving(true);
@@ -1037,6 +1087,24 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
         }
         catch (err) {
             setExperienceGrantError(err instanceof Error ? err.message : "No se pudo conceder la experiencia.");
+        }
+        finally {
+            setIsSaving(false);
+        }
+    }
+    async function handleProfessionDecision(requestId, decision) {
+        if (!selectedCampaign)
+            return;
+        const note = decision === "reject" ? window.prompt("Nota opcional para el jugador:", "") ?? "" : "";
+        setIsSaving(true);
+        setFormError(null);
+        try {
+            const token = await ensureAccessToken();
+            await decideProfessionRequest(selectedCampaign.id, requestId, { decision, note }, token);
+            await refresh();
+        }
+        catch (err) {
+            setFormError(err instanceof Error ? err.message : "No se pudo resolver la solicitud profesional.");
         }
         finally {
             setIsSaving(false);
@@ -1216,10 +1284,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                                                     setSelectedCampaignId(null);
                                                     setSelectedSheetId(null);
                                                     setActiveSection(isDirector ? "dmNotes" : "sharedNotes");
-                                                }, children: "Volver a campa\u00F1as" }), isDirector ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => {
-                                                    setFormError(null);
-                                                    setIsCampaignDetailsModalOpen(true);
-                                                }, children: "Detalles" })) : null] })] }), formError && !selectedDmNoteId && !dmNoteEditor && !selectedSharedNoteId && !sharedNoteEditor && !isCampaignDetailsModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen ? (_jsx("p", { className: "error-text", children: formError })) : null, _jsxs("div", { className: "toolbar campaign-section-nav", children: [isDirector ? (_jsx("button", { type: "button", className: activeSection === "dmNotes" ? "is-active" : "", onClick: () => setActiveSection("dmNotes"), children: "Notas DJ" })) : null, _jsx("button", { type: "button", className: activeSection === "sharedNotes" ? "is-active" : "", onClick: () => setActiveSection("sharedNotes"), children: "Notas compartidas" }), _jsx("button", { type: "button", className: activeSection === "wiki" ? "is-active" : "", onClick: () => setActiveSection("wiki"), children: "Wiki" }), _jsx("button", { type: "button", className: activeSection === "members" ? "is-active" : "", onClick: () => setActiveSection("members"), children: "Miembros" }), _jsx("button", { type: "button", className: activeSection === "characters" ? "is-active" : "", onClick: () => setActiveSection("characters"), children: "Personajes" }), isDirector ? (_jsx("button", { type: "button", className: activeSection === "artifacts" ? "is-active" : "", onClick: () => setActiveSection("artifacts"), children: "Artefactos" })) : null] })] }), isDirector && activeSection === "dmNotes" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Notas privadas del DJ" }), _jsx("p", { className: "section-help", children: "Entradas privadas en Markdown, visibles exclusivamente para el director de juego." })] }), _jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Buscar por titulo" }), _jsx("input", { value: dmNoteSearch, onChange: (event) => setDmNoteSearch(event.target.value), placeholder: "Nombre de la nota" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Ordenar" }), _jsxs("select", { value: dmNoteSort, onChange: (event) => setDmNoteSort(event.target.value), children: [_jsx("option", { value: "updated_desc", children: "Mas recientes" }), _jsx("option", { value: "updated_asc", children: "Mas antiguas" }), _jsx("option", { value: "title_asc", children: "Titulo A-Z" }), _jsx("option", { value: "title_desc", children: "Titulo Z-A" })] })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                }, children: "Volver a campa\u00F1as" }), isDirector ? (_jsxs(_Fragment, { children: [_jsxs("button", { type: "button", className: "subtle-button", onClick: () => setIsProfessionRequestsModalOpen(true), children: ["Solicitudes profesionales (", selectedCampaign.pendingProfessionRequests?.length ?? 0, ")"] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                            setFormError(null);
+                                                            setIsCampaignDetailsModalOpen(true);
+                                                        }, children: "Detalles" })] })) : null] })] }), formError && !selectedDmNoteId && !dmNoteEditor && !selectedSharedNoteId && !sharedNoteEditor && !isCampaignDetailsModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen ? (_jsx("p", { className: "error-text", children: formError })) : null, _jsxs("div", { className: "toolbar campaign-section-nav", children: [isDirector ? (_jsx("button", { type: "button", className: activeSection === "dmNotes" ? "is-active" : "", onClick: () => setActiveSection("dmNotes"), children: "Notas DJ" })) : null, _jsx("button", { type: "button", className: activeSection === "sharedNotes" ? "is-active" : "", onClick: () => setActiveSection("sharedNotes"), children: "Notas compartidas" }), _jsx("button", { type: "button", className: activeSection === "wiki" ? "is-active" : "", onClick: () => setActiveSection("wiki"), children: "Wiki" }), _jsx("button", { type: "button", className: activeSection === "members" ? "is-active" : "", onClick: () => setActiveSection("members"), children: "Miembros" }), _jsx("button", { type: "button", className: activeSection === "characters" ? "is-active" : "", onClick: () => setActiveSection("characters"), children: "Personajes" }), isDirector ? (_jsx("button", { type: "button", className: activeSection === "artifacts" ? "is-active" : "", onClick: () => setActiveSection("artifacts"), children: "Artefactos" })) : null] })] }), isDirector && activeSection === "dmNotes" ? (_jsxs("section", { className: "panel", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Notas privadas del DJ" }), _jsx("p", { className: "section-help", children: "Entradas privadas en Markdown, visibles exclusivamente para el director de juego." })] }), _jsxs("div", { className: "inline-row campaign-inline-form", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Buscar por titulo" }), _jsx("input", { value: dmNoteSearch, onChange: (event) => setDmNoteSearch(event.target.value), placeholder: "Nombre de la nota" })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Ordenar" }), _jsxs("select", { value: dmNoteSort, onChange: (event) => setDmNoteSort(event.target.value), children: [_jsx("option", { value: "updated_desc", children: "Mas recientes" }), _jsx("option", { value: "updated_asc", children: "Mas antiguas" }), _jsx("option", { value: "title_asc", children: "Titulo A-Z" }), _jsx("option", { value: "title_desc", children: "Titulo Z-A" })] })] }), _jsx("button", { type: "button", disabled: isSaving, onClick: () => {
                                                     setDmNoteError(null);
                                                     setDmNoteEditor({ mode: "create", note: buildDmNoteDraft() });
                                                 }, children: "Nueva nota" })] })] }), _jsxs("div", { className: "campaign-reference-list", children: [sortedDmNotes.map((note) => (_jsxs("button", { type: "button", className: "campaign-list-item", onClick: () => {
@@ -1240,7 +1308,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                                         const characterExperienceLog = experienceLogByCharacterId.get(entry.characterId) ?? [];
                                         return (_jsxs("article", { className: "card campaign-character-card", "aria-label": `Personaje ${entry.name}`, children: [_jsx("strong", { children: entry.name }), _jsx("span", { children: entry.ownerEmail }), _jsxs("span", { children: ["PX total: ", entry.experienceTotal, " | Gastada: ", entry.experienceSpent, " | Disponible: ", Math.max(0, entry.experienceTotal - entry.experienceSpent)] }), _jsxs("span", { children: ["Actualizado: ", formatDate(entry.updatedAt)] }), _jsxs("div", { className: "card-actions", children: [isDirector && entry.sheet ? (_jsx("button", { type: "button", onClick: () => {
                                                                 setSelectedSheetId(entry.id);
-                                                            }, children: "Abrir hoja" })) : null, isDirector ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => {
+                                                                setCampaignCharacterView("sheet");
+                                                            }, children: "Abrir hoja" })) : null, isDirector && entry.sheet ? (_jsx("button", { type: "button", onClick: () => { setSelectedSheetId(entry.id); setCampaignCharacterView("builder"); }, children: "Constructor" })) : null, _jsxs("button", { type: "button", className: "character-history-button", onClick: () => setChangeLogCharacterId(entry.characterId), children: ["Historial", (entry.unreadChangeCount ?? 0) > 0 ? _jsx("span", { className: "character-history-badge", "aria-label": `${entry.unreadChangeCount} cambios sin leer`, children: entry.unreadChangeCount }) : null] }), isDirector ? (_jsx("button", { type: "button", disabled: isSaving, onClick: () => {
                                                                 setExperienceGrantError(null);
                                                                 setExperienceGrantDraft({
                                                                     characterId: entry.characterId,
@@ -1343,11 +1412,22 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                                         setExperienceGrantError(null);
                                     }, children: "Cerrar" })] }), experienceGrantError ? _jsx("p", { className: "error-text", children: experienceGrantError }) : null, _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Cantidad de PX" }), _jsx("input", { type: "number", min: 1, max: 1000, step: 1, value: experienceGrantDraft.amount, onChange: (event) => setExperienceGrantDraft((current) => current ? { ...current, amount: event.target.value } : null), autoFocus: true })] }), _jsxs("label", { className: "field field-span-2", children: [_jsx("span", { children: "Motivo" }), _jsx("input", { maxLength: 300, value: experienceGrantDraft.reason, onChange: (event) => setExperienceGrantDraft((current) => current ? { ...current, reason: event.target.value } : null) })] })] }), _jsx("div", { className: "toolbar", children: _jsx("button", { type: "button", disabled: isSaving, onClick: () => void handleGrantExperience(), children: isSaving ? "Concediendo..." : "Confirmar concesion" }) })] }) })) : null, campaignSheetModalEntry ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
                     setSelectedSheetId(null);
-                }, children: _jsxs("div", { className: "panel modal-panel campaign-character-sheet-modal", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions campaign-character-sheet-modal-header", children: [_jsxs("div", { children: [_jsx("h3", { children: campaignSheetModalEntry.name }), _jsxs("p", { className: "section-help", children: [campaignSheetModalEntry.ownerEmail, " | Hoja vinculada a campa\u00F1a"] })] }), _jsx("button", { type: "button", onClick: () => setSelectedSheetId(null), children: "Cerrar" })] }), _jsx("div", { className: "campaign-character-sheet-modal-body", children: _jsx(UnifiedCharacterSheet, { title: campaignSheetModalEntry.name, subtitle: `${campaignSheetModalEntry.ownerEmail} | Hoja vinculada a campaña`, sheet: campaignSheetModalEntry.sheet, editable: false, busy: isSaving, onUseArtifactAbility: async (artifactId, abilityId) => {
+                }, children: _jsxs("div", { className: "panel modal-panel campaign-character-sheet-modal", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions campaign-character-sheet-modal-header", children: [_jsxs("div", { children: [_jsx("h3", { children: campaignSheetModalEntry.name }), _jsxs("p", { className: "section-help", children: [campaignSheetModalEntry.ownerEmail, " | Hoja vinculada a campa\u00F1a"] })] }), _jsx("button", { type: "button", onClick: () => setSelectedSheetId(null), children: "Cerrar" })] }), _jsx("div", { className: "campaign-character-sheet-modal-body", children: campaignCharacterView === "builder" && campaignBuilderCharacter ? (_jsx(CharacterBuilderView, { character: campaignBuilderCharacter, busy: isSaving, backLabel: "Cerrar", sheetLabel: "Abrir hoja", saveLabel: "Guardar cambios", professionRemovalLabel: "Revocar profesi\u00F3n", onBackToCharacters: () => setSelectedSheetId(null), onOpenSheet: () => setCampaignCharacterView("sheet"), onSave: (sheet) => handleSaveCampaignCharacter(campaignSheetModalEntry, sheet, "builder"), onBindMysticArtifact: async (artifactId, paymentType) => {
+                                    const token = await ensureAccessToken();
+                                    await bindMysticArtifact(artifactId, { paymentType }, token);
+                                    await refresh();
+                                }, onLeaveProfession: async (professionId) => {
+                                    const token = await ensureAccessToken();
+                                    await leaveProfession(campaignSheetModalEntry.characterId, professionId, token);
+                                    await refresh();
+                                } })) : (_jsx(UnifiedCharacterSheet, { title: campaignSheetModalEntry.name, subtitle: `${campaignSheetModalEntry.ownerEmail} | Hoja vinculada a campaña`, sheet: campaignSheetModalEntry.sheet, professionMemberships: campaignSheetModalEntry.professionMemberships, enforceProfessionRestrictions: true, editable: true, busy: isSaving, onOpenBuilder: () => setCampaignCharacterView("builder"), onSave: (sheet) => handleSaveCampaignCharacter(campaignSheetModalEntry, sheet, "sheet"), onUseArtifactAbility: async (artifactId, abilityId) => {
                                     const token = await ensureAccessToken();
                                     await useMysticArtifactAbility(artifactId, abilityId, token);
                                     await refresh();
-                                } }) })] }) })) : null, isDirector && isBurdenSummaryModalOpen ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
+                                } })) })] }) })) : null, changeLogCharacterId ? (() => {
+                const entry = selectedCampaign?.characters.find((character) => character.characterId === changeLogCharacterId);
+                return entry ? (_jsx(CharacterChangeLogModal, { characterId: entry.characterId, characterName: entry.name, ensureAccessToken: ensureAccessToken, onClose: () => setChangeLogCharacterId(null), onRead: refresh })) : null;
+            })() : null, isDirector && isProfessionRequestsModalOpen ? (_jsx("section", { className: "modal-backdrop", onClick: () => setIsProfessionRequestsModalOpen(false), children: _jsxs("div", { className: "panel modal-panel profession-request-modal", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Solicitudes de profesiones" }), _jsx("p", { className: "section-help", children: "Los requisitos se comprobar\u00E1n de nuevo al aprobar." })] }), _jsx("button", { type: "button", className: "subtle-button", onClick: () => setIsProfessionRequestsModalOpen(false), children: "Cerrar" })] }), formError ? _jsx("p", { className: "error-text", children: formError }) : null, _jsxs("div", { className: "profession-request-list", children: [(selectedCampaign?.pendingProfessionRequests ?? []).map((request) => (_jsxs("article", { className: "profession-request-card", children: [_jsxs("div", { children: [_jsx("strong", { children: request.professionName }), _jsxs("span", { children: [request.characterName, " \u00B7 ", request.ownerEmail] }), _jsxs("small", { children: ["Solicitada: ", request.requestedAt ? formatDate(request.requestedAt) : "Sin fecha"] })] }), _jsx("div", { className: "profession-requirement-list", children: request.eligibility.requirementResults.map((requirement) => (_jsxs("span", { className: requirement.met ? "is-met" : "is-pending", children: [requirement.met ? "✓" : "○", " ", requirement.label, requirement.hasMaster ? " · Maestro" : ""] }, requirement.id))) }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", className: "subtle-button", disabled: isSaving, onClick: () => void handleProfessionDecision(request.id, "reject"), children: "Rechazar" }), _jsx("button", { type: "button", disabled: isSaving || !request.eligibility.eligible, onClick: () => void handleProfessionDecision(request.id, "approve"), children: "Aprobar" })] })] }, request.id))), (selectedCampaign?.pendingProfessionRequests?.length ?? 0) === 0 ? _jsx("p", { className: "section-help", children: "No hay solicitudes pendientes." }) : null] })] }) })) : null, isDirector && isBurdenSummaryModalOpen ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
                     setIsBurdenSummaryModalOpen(false);
                 }, children: _jsxs("div", { className: "panel modal-panel campaign-character-sheet-modal", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions campaign-character-sheet-modal-header", children: [_jsxs("div", { children: [_jsx("h3", { children: "Resumen de cargas" }), _jsx("p", { className: "section-help", children: "Vista rapida para el DJ con las cargas activas de los personajes vinculados y su explicacion." })] }), _jsxs("div", { className: "toolbar", children: [_jsxs("span", { className: "meta-text", children: [campaignBurdenDigest.length, " registradas"] }), _jsx("button", { type: "button", onClick: () => setIsBurdenSummaryModalOpen(false), children: "Cerrar" })] })] }), _jsx("div", { className: "campaign-character-sheet-modal-body", children: _jsxs("div", { className: "cards", children: [campaignBurdenDigest.map((burden) => (_jsxs("article", { className: "campaign-structured-card app-card-accent app-card-accent--carga", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("strong", { children: burden.burdenName }), _jsxs("p", { className: "section-help", children: [burden.characterName, " \u00B7 ", burden.ownerEmail] })] }), _jsx("span", { className: "compendium-chip", children: "Carga" })] }), _jsx("p", { children: burden.summary }), _jsx("p", { className: "section-help", children: burden.detail }), _jsx("span", { className: "meta-text", children: burden.source })] }, burden.id))), campaignBurdenDigest.length === 0 ? (_jsx("p", { className: "section-help", children: "No hay cargas registradas en los personajes vinculados." })) : null] }) })] }) })) : null, isCreateCampaignModalOpen ? (_jsx("section", { className: "modal-backdrop", onClick: () => {
                     if (!isSaving) {

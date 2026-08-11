@@ -13,6 +13,7 @@ const serviceMocks = vi.hoisted(() => ({
   createCampaign: vi.fn(),
   createCampaignReference: vi.fn(),
   deleteCampaignReference: vi.fn(),
+  decideProfessionRequest: vi.fn(),
   linkCampaignCharacter: vi.fn(),
   removeCampaignMember: vi.fn(),
   unlinkCampaignCharacter: vi.fn(),
@@ -135,6 +136,25 @@ describe("CampaignDashboardView experience grants", () => {
       "token-a"
     ));
     expect(await screen.findByText(/PX total: 15/)).toBeInTheDocument();
+  });
+
+  it("shows and approves pending profession requests", async () => {
+    const campaign = buildCampaign();
+    campaign.pendingProfessionRequests = [{
+      id: "request-a", characterId: campaign.characters[0].characterId, characterName: "Alda", ownerEmail: "player@example.com",
+      professionId: "juramentado-de-hierro", professionName: "Juramentado de hierro", state: "pending", effectiveState: "pending",
+      campaignId: campaign.id, campaignName: campaign.name, requestedAt: new Date(0).toISOString(), reviewedAt: null, decisionNote: "",
+      eligibility: { professionId: "juramentado-de-hierro", eligible: true, requirementsMet: true, masterRequirementMet: true, otherRequirementMet: true, unmetRequirements: [], requirementResults: [{ id: "estudioso", label: "Estudioso", met: true, matchedNames: ["Estudioso"], hasMaster: true }] },
+      createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+    }];
+    serviceMocks.fetchCampaigns.mockResolvedValue([campaign]);
+    serviceMocks.decideProfessionRequest.mockResolvedValue([]);
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Solicitudes profesionales (1)" }));
+    expect(screen.getByRole("heading", { name: "Solicitudes de profesiones" })).toBeInTheDocument();
+    expect(screen.getByText("Juramentado de hierro")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Aprobar" }));
+    await waitFor(() => expect(serviceMocks.decideProfessionRequest).toHaveBeenCalledWith("campaign-a", "request-a", { decision: "approve", note: "" }, "token-a"));
   });
 
   it("sends an invitation instead of adding a campaign member directly", async () => {

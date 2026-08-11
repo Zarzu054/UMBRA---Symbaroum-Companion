@@ -3,6 +3,12 @@ import {
   SYMBAROUM_ABILITIES,
   SYMBAROUM_MYSTIC_POWERS,
   SYMBAROUM_RITUALS,
+  SYMBAROUM_PROFESSIONS,
+  evaluateProfession,
+  getBenefitProfessionIds,
+  getHigherRitualBase,
+  normalizeProfessionText,
+  normalizeProfessionCapabilities,
   parseCharacterSheet,
   synchronizeCharacterSheet,
   type Character,
@@ -17,7 +23,7 @@ import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS, type CompendiumEnt
 type RatedSection = "habilidades" | "rasgosMonstruosos" | "poderesMisticos" | "rituales";
 type StoredRatedSection = "habilidades" | "poderesMisticos" | "rituales";
 type SimpleSection = "bendiciones" | "cargas" | "rasgos";
-type BuilderTabId = "resumen" | "identidad" | "compras" | "artefactos" | "rasgos";
+type BuilderTabId = "resumen" | "identidad" | "profesiones" | "compras" | "artefactos" | "rasgos";
 type BuilderAcquisitionModal = {
   section: RatedSection;
   query: string;
@@ -46,6 +52,12 @@ type Props = {
   sheetLabel?: string;
   saveLabel?: string;
   onBindMysticArtifact?: (artifactId: string, paymentType: MysticArtifactPaymentType) => Promise<void>;
+  onAspireProfession?: (professionId: string) => Promise<void>;
+  onRemoveProfessionAspiration?: (professionId: string) => Promise<void>;
+  onRequestProfession?: (professionId: string) => Promise<void>;
+  onLeaveProfession?: (professionId: string) => Promise<void>;
+  onOpenCompendiumCapability?: (tipo: "habilidad" | "poder_mistico" | "ritual", nombre: string) => void;
+  professionRemovalLabel?: string;
 };
 
 type CatalogSelections = {
@@ -107,6 +119,7 @@ const SIMPLE_SECTION_LABELS: Record<SimpleSection, string> = {
 const BUILDER_TABS: Array<{ id: BuilderTabId; label: string }> = [
   { id: "resumen", label: "Resumen" },
   { id: "identidad", label: "Identidad" },
+  { id: "profesiones", label: "Profesiones" },
   { id: "compras", label: "Compras PX" },
   { id: "artefactos", label: "Artefactos" },
   { id: "rasgos", label: "Rasgos y cargas" }
@@ -144,6 +157,38 @@ function isMonsterTraitCapability(name: string): boolean {
 
 function getStoredRatedSection(section: RatedSection): StoredRatedSection {
   return section === "rasgosMonstruosos" ? "habilidades" : section;
+}
+
+function getCapabilityKind(section: RatedSection): "habilidad" | "poder_mistico" | "ritual" | "rasgo_monstruoso" {
+  if (section === "poderesMisticos") return "poder_mistico";
+  if (section === "rituales") return "ritual";
+  if (section === "rasgosMonstruosos") return "rasgo_monstruoso";
+  return "habilidad";
+}
+
+function upsertCapabilitySelection(
+  sheet: CharacterSheet,
+  section: RatedSection,
+  entry: SymbaroumCapability,
+  level: SkillLevel,
+  activeProfessionIds: Set<string>
+): CharacterSheet["capabilitySelections"] {
+  const key = normalizeName(entry.nombre);
+  const current = sheet.capabilitySelections.find((selection) => normalizeName(selection.name) === key);
+  const unlockingProfessionId = getBenefitProfessionIds(entry.nombre).find((id) => activeProfessionIds.has(id));
+  const next = {
+    catalogId: entry.id,
+    name: entry.nombre,
+    kind: getCapabilityKind(section),
+    level,
+    origin: unlockingProfessionId ? "profesion" as const : current?.origin ?? "comprada" as const,
+    source: entry.libro,
+    page: entry.pagina || undefined,
+    unlockProfessionId: unlockingProfessionId ?? current?.unlockProfessionId
+  };
+  return current
+    ? sheet.capabilitySelections.map((selection) => normalizeName(selection.name) === key ? { ...selection, ...next } : selection)
+    : [...sheet.capabilitySelections, next];
 }
 
 function getRatedEntriesForSection(sheet: CharacterSheet, section: RatedSection): CharacterSheet["habilidades"] {
@@ -283,7 +328,13 @@ export function CharacterBuilderView({
   backLabel = "Volver a personajes",
   sheetLabel = "Abrir hoja",
   saveLabel = "Guardar constructor",
-  onBindMysticArtifact
+  onBindMysticArtifact,
+  onAspireProfession,
+  onRemoveProfessionAspiration,
+  onRequestProfession,
+  onLeaveProfession,
+  onOpenCompendiumCapability,
+  professionRemovalLabel = "Abandonar profesión"
 }: Props) {
   const [draft, setDraft] = useState<CharacterSheet>(() => parseCharacterSheet(character.sheet));
   const [catalogSelections, setCatalogSelections] = useState<CatalogSelections>(INITIAL_CATALOG_SELECTIONS);
@@ -299,6 +350,8 @@ export function CharacterBuilderView({
   const [acquisitionModal, setAcquisitionModal] = useState<BuilderAcquisitionModal | null>(null);
   const [capabilityConfirmationModal, setCapabilityConfirmationModal] = useState<BuilderCapabilityConfirmationModal | null>(null);
   const [bindingArtifactId, setBindingArtifactId] = useState<string | null>(null);
+  const [professionBusyId, setProfessionBusyId] = useState<string | null>(null);
+  const [selectedProfessionGoalId, setSelectedProfessionGoalId] = useState(SYMBAROUM_PROFESSIONS[0]?.id ?? "");
   const artifactBindingXpSpent = character.artifactBindingXpSpent ?? 0;
 
   useEffect(() => {
@@ -316,6 +369,7 @@ export function CharacterBuilderView({
     setActiveTab("resumen");
     setAcquisitionModal(null);
     setCapabilityConfirmationModal(null);
+    setSelectedProfessionGoalId(SYMBAROUM_PROFESSIONS.find((profession) => !(character.professionMemberships ?? []).some((membership) => membership.professionId === profession.id))?.id ?? "");
   }, [character]);
 
   const experience = useMemo(() => getCharacterExperienceSummary(draft), [draft]);
@@ -331,6 +385,26 @@ export function CharacterBuilderView({
     () => Math.max(0, experience.effectiveTotal - effectiveSpent),
     [experience.effectiveTotal, effectiveSpent]
   );
+  const professionContext = useMemo(() => ({
+    race: draft.identidad.raza,
+    culture: draft.identidad.cultura,
+    permanentCorruption: draft.corrupcion.permanente,
+    blessings: draft.bendiciones,
+    capabilities: normalizeProfessionCapabilities([
+      ...draft.capabilitySelections,
+      ...draft.habilidades.map((entry) => ({ name: entry.nombre, kind: "habilidad" as const, level: entry.nivel })),
+      ...draft.poderesMisticos.map((entry) => ({ name: entry.nombre, kind: "poder_mistico" as const, level: entry.nivel })),
+      ...draft.rituales.map((entry) => ({ name: entry.nombre, kind: "ritual" as const, level: entry.nivel }))
+    ])
+  }), [draft]);
+  const professionProgress = useMemo(() => new Map(
+    SYMBAROUM_PROFESSIONS.map((profession) => [profession.id, evaluateProfession(profession, professionContext)])
+  ), [professionContext]);
+  const activeProfessionIds = useMemo(() => new Set(
+    (character.professionMemberships ?? [])
+      .filter((membership) => membership.state === "active" && evaluateProfession(membership.professionId, professionContext, { includeAdmissionOnly: false }).eligible)
+      .map((membership) => membership.professionId)
+  ), [character.professionMemberships, professionContext]);
   const subtitle = `${draft.identidad.cultura || "Sin cultura"} · ${draft.identidad.arquetipo || "Sin arquetipo"} · ${draft.identidad.raza || "Sin raza"}`;
   const acquisitionCatalogEntries = useMemo(
     () => acquisitionModal ? getCatalogEntries(acquisitionModal.section) : [],
@@ -368,6 +442,23 @@ export function CharacterBuilderView({
     () => parseCapabilityTiers(selectedAcquisitionEntry?.efectoResumen ?? "", acquisitionModal?.section ?? "habilidades"),
     [acquisitionModal?.section, selectedAcquisitionEntry]
   );
+  const selectedBenefitProfessionIds = selectedAcquisitionEntry ? getBenefitProfessionIds(selectedAcquisitionEntry.nombre) : [];
+  const selectedBenefitUnlocked = selectedBenefitProfessionIds.length === 0 || selectedBenefitProfessionIds.some((id) => activeProfessionIds.has(id));
+  const selectedHigherRitualBase = selectedAcquisitionEntry ? getHigherRitualBase(selectedAcquisitionEntry.nombre) : undefined;
+  const selectedHigherRitualBaseMet = !selectedHigherRitualBase || draft.rituales.some((entry) => normalizeProfessionText(entry.nombre) === normalizeProfessionText(selectedHigherRitualBase));
+
+  async function runProfessionAction(professionId: string, action: (() => Promise<void>) | undefined): Promise<void> {
+    if (!action) return;
+    setProfessionBusyId(professionId);
+    setError(null);
+    try {
+      await action();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo actualizar la profesión.");
+    } finally {
+      setProfessionBusyId(null);
+    }
+  }
 
   function findCatalogEntryByName(section: RatedSection, name: string): SymbaroumCapability | null {
     return getCatalogEntries(section).find((entry) => normalizeName(entry.nombre) === normalizeName(name)) ?? null;
@@ -403,13 +494,11 @@ export function CharacterBuilderView({
       return;
     }
     setError(null);
-    setDraft((current) => replaceRatedEntriesForSection(
-      current,
-      section,
-      getRatedEntriesForSection(current, section).map((ratedEntry, entryIndex) =>
-        entryIndex === index ? { ...ratedEntry, nivel: nextLevel } : ratedEntry
-      )
-    ));
+    setDraft((current) => {
+      const next = replaceRatedEntriesForSection(current, section, getRatedEntriesForSection(current, section).map((ratedEntry, entryIndex) => entryIndex === index ? { ...ratedEntry, nivel: nextLevel } : ratedEntry));
+      const catalogEntry = findCatalogEntryByName(section, entry.nombre);
+      return catalogEntry ? { ...next, capabilitySelections: upsertCapabilitySelection(next, section, catalogEntry, nextLevel, activeProfessionIds) } : next;
+    });
   }
 
   function openUpgradeConfirmation(section: RatedSection, index: number): void {
@@ -461,13 +550,11 @@ export function CharacterBuilderView({
       return;
     }
     setError(null);
-    setDraft((current) => replaceRatedEntriesForSection(
-      current,
-      section,
-      getRatedEntriesForSection(current, section).map((ratedEntry, entryIndex) =>
-        entryIndex === index ? { ...ratedEntry, nivel: previousLevel } : ratedEntry
-      )
-    ));
+    setDraft((current) => {
+      const next = replaceRatedEntriesForSection(current, section, getRatedEntriesForSection(current, section).map((ratedEntry, entryIndex) => entryIndex === index ? { ...ratedEntry, nivel: previousLevel } : ratedEntry));
+      const catalogEntry = findCatalogEntryByName(section, entry.nombre);
+      return catalogEntry ? { ...next, capabilitySelections: upsertCapabilitySelection(next, section, catalogEntry, previousLevel, activeProfessionIds) } : next;
+    });
   }
 
   function openDowngradeConfirmation(section: RatedSection, index: number): void {
@@ -511,7 +598,7 @@ export function CharacterBuilderView({
     }
     setError(null);
     setDraft((current) => replaceRatedEntriesForSection(
-      current,
+      { ...current, capabilitySelections: current.capabilitySelections.filter((selection) => normalizeName(selection.name) !== normalizeName(entry.nombre)) },
       section,
       getRatedEntriesForSection(current, section).filter((_, entryIndex) => entryIndex !== index)
     ));
@@ -537,6 +624,14 @@ export function CharacterBuilderView({
       return;
     }
     const section = acquisitionModal.section;
+    if (!selectedBenefitUnlocked) {
+      setError(`${entry.nombre} requiere una profesión activa que lo desbloquee.`);
+      return;
+    }
+    if (!selectedHigherRitualBaseMet) {
+      setError(`${entry.nombre} requiere poseer antes ${selectedHigherRitualBase}.`);
+      return;
+    }
     const acquisitionCost = 10;
     if (acquisitionCost > effectiveAvailable) {
       setError(`No hay PX suficientes para obtener ${entry.nombre}.`);
@@ -547,11 +642,10 @@ export function CharacterBuilderView({
       return;
     }
     setError(null);
-    setDraft((current) => replaceRatedEntriesForSection(
-      current,
-      section,
-      [...getRatedEntriesForSection(current, section), buildRatedEntry(entry, section)]
-    ));
+    setDraft((current) => {
+      const next = replaceRatedEntriesForSection(current, section, [...getRatedEntriesForSection(current, section), buildRatedEntry(entry, section)]);
+      return { ...next, capabilitySelections: upsertCapabilitySelection(next, section, entry, "novato", activeProfessionIds) };
+    });
     setAcquisitionModal(null);
   }
 
@@ -560,6 +654,12 @@ export function CharacterBuilderView({
       return;
     }
     const cost = 10;
+    if (!selectedBenefitUnlocked || !selectedHigherRitualBaseMet) {
+      setError(!selectedBenefitUnlocked
+        ? `${selectedAcquisitionEntry.nombre} requiere una profesión activa que lo desbloquee.`
+        : `${selectedAcquisitionEntry.nombre} requiere poseer antes ${selectedHigherRitualBase}.`);
+      return;
+    }
     if (cost > effectiveAvailable) {
       setError(`No hay PX suficientes para obtener ${selectedAcquisitionEntry.nombre}.`);
       return;
@@ -793,7 +893,7 @@ export function CharacterBuilderView({
                     <input value={draft.identidad.arquetipo} onChange={(event) => updateIdentityField("arquetipo", event.target.value)} />
                   </label>
                   <label className="field">
-                    <span>Profesion</span>
+                    <span>Ocupación descriptiva</span>
                     <input value={draft.identidad.profesion} onChange={(event) => updateIdentityField("profesion", event.target.value)} />
                   </label>
                   <label className="field">
@@ -812,6 +912,108 @@ export function CharacterBuilderView({
                     <span>Trasfondo</span>
                     <textarea rows={6} value={draft.identidad.trasfondo} onChange={(event) => updateIdentityField("trasfondo", event.target.value)} />
                   </label>
+                </div>
+                <section className="profession-goal-picker">
+                  <div>
+                    <h4>Objetivos profesionales</h4>
+                    <p className="section-help">Puedes aspirar a varias profesiones. Consulta la pestaña Profesiones para ver el progreso de cada requisito.</p>
+                  </div>
+                  {(character.professionMemberships ?? []).length > 0 ? (
+                    <div className="toolbar">
+                      {(character.professionMemberships ?? []).map((membership) => <span key={membership.id} className={`profession-state profession-state--${membership.effectiveState}`}>{membership.professionName}</span>)}
+                    </div>
+                  ) : null}
+                  {onAspireProfession ? (
+                    <div className="inline-row">
+                      <label className="field">
+                        <span>Nueva aspiración</span>
+                        <select value={selectedProfessionGoalId} onChange={(event) => setSelectedProfessionGoalId(event.target.value)}>
+                          {SYMBAROUM_PROFESSIONS.filter((profession) => !(character.professionMemberships ?? []).some((membership) => membership.professionId === profession.id)).map((profession) => <option key={profession.id} value={profession.id}>{profession.name}</option>)}
+                        </select>
+                      </label>
+                      <button type="button" disabled={!selectedProfessionGoalId || professionBusyId === selectedProfessionGoalId} onClick={() => void runProfessionAction(selectedProfessionGoalId, () => onAspireProfession(selectedProfessionGoalId))}>Marcar objetivo</button>
+                    </div>
+                  ) : null}
+                </section>
+              </section>
+            ) : null}
+
+            {activeTab === "profesiones" ? (
+              <section className="character-builder-panel campaign-sheet-card profession-builder-panel">
+                <div className="row-actions">
+                  <div>
+                    <h3>Profesiones avanzadas</h3>
+                    <p className="section-help">Marca varios objetivos y completa todos sus requisitos. Para solicitar el ingreso, al menos una capacidad requerida debe estar en maestro.</p>
+                  </div>
+                </div>
+                <div className="profession-builder-list">
+                  {SYMBAROUM_PROFESSIONS.map((profession) => {
+                    const membership = (character.professionMemberships ?? []).find((entry) => entry.professionId === profession.id);
+                    const eligibility = professionProgress.get(profession.id)!;
+                    const state = membership?.effectiveState ?? membership?.state ?? null;
+                    const stateLabel = state === "active" ? "Activa" : state === "suspended" ? "Suspendida" : state === "pending" ? "Pendiente" : state === "rejected" ? "Rechazada" : membership ? "Objetivo" : "Disponible";
+                    return (
+                      <article key={profession.id} className={`profession-progress-card profession-progress-card--${state ?? "available"}`}>
+                        <div className="row-actions">
+                          <div>
+                            <span className="eyebrow">{profession.archetype} · Guía Avanzada p. {profession.page}</span>
+                            <h4>{profession.name}</h4>
+                          </div>
+                          <span className={`profession-state profession-state--${state ?? "available"}`}>{stateLabel}</span>
+                        </div>
+                        <p>{profession.summary}</p>
+                        <div className="profession-requirement-list">
+                          {eligibility.requirementResults.map((requirement) => (
+                            <div key={requirement.id} className={requirement.met ? "is-met" : "is-pending"}>
+                              <span aria-hidden="true">{requirement.met ? "✓" : "○"}</span>
+                              <span>{requirement.label}</span>
+                              <strong>{requirement.matchedNames.length > 0 ? requirement.matchedNames.join(" / ") : "Pendiente"}{requirement.hasMaster ? " · Maestro" : ""}</strong>
+                            </div>
+                          ))}
+                          <div className={eligibility.masterRequirementMet ? "is-met" : "is-pending"}>
+                            <span aria-hidden="true">{eligibility.masterRequirementMet ? "✓" : "○"}</span>
+                            <span>Una capacidad requerida en maestro</span>
+                          </div>
+                          {profession.otherRequirement ? (
+                            <div className={eligibility.otherRequirementMet ? "is-met" : "is-pending"}>
+                              <span aria-hidden="true">{eligibility.otherRequirementMet ? "✓" : "○"}</span>
+                              <span>{profession.otherRequirement.label}</span>
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="profession-benefit-list">
+                          <strong>Beneficios desbloqueables</strong>
+                          <div className="toolbar">
+                            {profession.benefits.map((benefit) => onOpenCompendiumCapability && benefit.kind !== "rasgo_monstruoso" ? (
+                              <button key={benefit.name} type="button" className="link-button" onClick={() => onOpenCompendiumCapability(benefit.kind as "habilidad" | "poder_mistico" | "ritual", benefit.name)}>{benefit.name}</button>
+                            ) : <span key={benefit.name}>{benefit.name}</span>)}
+                          </div>
+                        </div>
+                        <div className="toolbar profession-actions">
+                          {!membership && onAspireProfession ? (
+                            <button type="button" disabled={professionBusyId === profession.id} onClick={() => void runProfessionAction(profession.id, () => onAspireProfession(profession.id))}>Marcar como objetivo</button>
+                          ) : null}
+                          {membership && ["aspiration", "rejected"].includes(membership.state) && onRemoveProfessionAspiration ? (
+                            <button type="button" className="subtle-button" disabled={professionBusyId === profession.id} onClick={() => void runProfessionAction(profession.id, () => onRemoveProfessionAspiration(profession.id))}>Retirar objetivo</button>
+                          ) : null}
+                          {membership && ["aspiration", "rejected"].includes(membership.state) && eligibility.eligible && onRequestProfession ? (
+                            <button type="button" disabled={professionBusyId === profession.id} onClick={() => {
+                              if (window.confirm("Se comprobarán de nuevo todos los requisitos. Si el personaje está en campaña, la solicitud quedará pendiente de aprobación del DJ; si no lo está, el ingreso se activará directamente. ¿Continuar?")) {
+                                void runProfessionAction(profession.id, () => onRequestProfession(profession.id));
+                              }
+                            }}>Solicitar ingreso</button>
+                          ) : null}
+                          {membership?.state === "active" && onLeaveProfession ? (
+                            <button type="button" className="destructive-button" disabled={professionBusyId === profession.id} onClick={() => {
+                              if (window.confirm(`¿Abandonar ${profession.name}? Las capacidades compradas no se borrarán ni reembolsarán.`)) {
+                                void runProfessionAction(profession.id, () => onLeaveProfession(profession.id));
+                              }
+                            }}>{professionRemovalLabel}</button>
+                          ) : null}
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               </section>
             ) : null}
@@ -1054,6 +1256,9 @@ export function CharacterBuilderView({
                     >
                       <strong>{entry.nombre}</strong>
                       <span>{entry.libro}{entry.pagina ? ` p. ${entry.pagina}` : ""}</span>
+                      {getBenefitProfessionIds(entry.nombre).length > 0 && !getBenefitProfessionIds(entry.nombre).some((id) => activeProfessionIds.has(id)) ? (
+                        <span className="profession-lock-label">Requiere profesión activa</span>
+                      ) : null}
                     </button>
                   ))}
                   {filteredAcquisitionEntries.length === 0 ? <p className="section-help">No hay resultados disponibles.</p> : null}
@@ -1080,6 +1285,8 @@ export function CharacterBuilderView({
                     ) : (
                       <p className="section-help">{selectedAcquisitionEntry.efectoResumen}</p>
                     )}
+                    {!selectedBenefitUnlocked ? <p className="error-text">Bloqueada: requiere una de sus profesiones asociadas activa y no suspendida.</p> : null}
+                    {!selectedHigherRitualBaseMet ? <p className="error-text">Requiere poseer antes el ritual {selectedHigherRitualBase}.</p> : null}
                   </>
                 ) : (
                   <p className="section-help">Selecciona una entrada para ver su detalle.</p>
@@ -1091,7 +1298,7 @@ export function CharacterBuilderView({
               <button
                 type="button"
                 onClick={openAcquisitionConfirmation}
-                disabled={!selectedAcquisitionEntry || effectiveAvailable < 10}
+                disabled={!selectedAcquisitionEntry || effectiveAvailable < 10 || !selectedBenefitUnlocked || !selectedHigherRitualBaseMet}
               >
                 Revisar compra
               </button>

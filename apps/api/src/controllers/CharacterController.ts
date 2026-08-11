@@ -28,8 +28,27 @@ export class CharacterController {
     reply: FastifyReply
   ): Promise<void> {
     const ownerId = request.authUser!.id;
-    const updated = await this.service.updateCharacter(ownerId, request.params.characterId, request.body);
+    const updated = await this.service.updateCharacter(ownerId, request.params.characterId, request.body, request.authUser!);
     reply.send({ data: updated });
+  }
+
+  async changeLog(
+    request: FastifyRequest<{ Params: { characterId: string }; Querystring: { cursor?: string; limit?: string } }>,
+    reply: FastifyReply
+  ): Promise<void> {
+    const user = request.authUser!;
+    const limit = request.query.limit ? Number.parseInt(request.query.limit, 10) : undefined;
+    const page = await this.service.getChangeLog(user.id, user.role, request.params.characterId, request.query.cursor, limit);
+    reply.send({ data: page });
+  }
+
+  async markChangeLogRead(
+    request: FastifyRequest<{ Params: { characterId: string } }>,
+    reply: FastifyReply
+  ): Promise<void> {
+    const user = request.authUser!;
+    await this.service.markChangeLogRead(user.id, user.role, request.params.characterId);
+    reply.code(204).send();
   }
 
   async duplicate(request: FastifyRequest<{ Params: { characterId: string } }>, reply: FastifyReply): Promise<void> {

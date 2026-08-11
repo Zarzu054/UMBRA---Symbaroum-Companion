@@ -20,11 +20,13 @@ import { requireAuth } from "../middleware/requireAuth.js";
 import { requirePasswordChangeComplete } from "../middleware/requirePasswordChangeComplete.js";
 import { CampaignModel } from "../models/CampaignModel.js";
 import { CampaignService } from "../services/CampaignService.js";
+import { ProfessionController } from "../controllers/ProfessionController.js";
 
 export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   const model = new CampaignModel();
   const service = new CampaignService(model);
   const controller = new CampaignController(service);
+  const professionController = new ProfessionController();
 
   app.get("/campaigns", { preHandler: [requireAuth, requirePasswordChangeComplete] }, controller.list.bind(controller));
   app.get<{ Params: { campaignId: string } }>("/campaigns/:campaignId", { preHandler: [requireAuth, requirePasswordChangeComplete] }, async (request, reply) =>
@@ -159,4 +161,5 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.grantExperience(request, reply)
   );
+  app.post<{ Params: { campaignId: string; requestId: string }; Body: import("@umbra/shared").ProfessionDecisionInput }>("/campaigns/:campaignId/profession-requests/:requestId/decision", { preHandler: [requireAuth, requirePasswordChangeComplete] }, async (request, reply) => professionController.decide(request, reply));
 }

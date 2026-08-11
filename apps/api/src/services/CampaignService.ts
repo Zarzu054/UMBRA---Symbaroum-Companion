@@ -45,6 +45,8 @@ import { CampaignModel } from "../models/CampaignModel.js";
 import { campaignLiveHub } from "./CampaignLiveHub.js";
 import { AppError } from "../utils/AppError.js";
 import { protectGrantedCharacterExperience } from "./characterExperiencePolicy.js";
+import { translateProfessionError } from "./ProfessionService.js";
+import { ProfessionModel } from "../models/ProfessionModel.js";
 
 const NPC_THREATS = ["Bajo", "Medio", "Alto", "Elite"] as const;
 const NPC_OCCUPATIONS = ["Guardia", "Explorador", "Mercader", "Cultista", "Cazador", "Bruja", "Erudito", "Bandido"] as const;
@@ -102,7 +104,8 @@ export class CampaignService {
         gmEmail: string,
         invitationId: string
       ): Promise<void>;
-    }
+    },
+    private readonly professionModel = new ProfessionModel()
   ) {}
 
   private normalizeReferencePayload(
@@ -182,7 +185,7 @@ export class CampaignService {
         throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes ejecutar acciones con tus propios personajes", 403);
       }
 
-      const sheet = parseCharacterSheet(linkedCharacter.sheet);
+      const sheet = await this.professionModel.projectActiveBenefits(payload.actionExecution.characterId, parseCharacterSheet(linkedCharacter.sheet));
       const executed = executeCharacterAction(sheet, payload.actionExecution.actionId, payload.actionExecution.phase);
       const message = await this.model.createChatMessage(campaignId, {
         userId,
@@ -358,7 +361,11 @@ export class CampaignService {
       throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes vincular tus propios personajes", 403);
     }
 
-    await this.model.linkCharacter(campaignId, payload.characterId);
+    const existingLink = await this.model.findCharacterLinkByCharacterId(payload.characterId);
+    if (existingLink && existingLink.campaignId !== campaignId) {
+      throw new AppError("CAMPAIGN_CHARACTER_ALREADY_LINKED", "El personaje ya está vinculado a otra campaña", 409);
+    }
+    if (!existingLink) await this.model.linkCharacter(campaignId, payload.characterId, userId);
     return this.getCampaign(userId, userRole, campaignId);
   }
 
@@ -377,7 +384,7 @@ export class CampaignService {
     if (await this.model.characterLinkOwnsMysticArtifacts(linkId)) {
       throw new AppError("ARTIFACT_OWNER_IN_USE", "El personaje posee artefactos; el DJ debe desvincularlos y retirarlos antes", 409);
     }
-    await this.model.unlinkCharacter(linkId);
+    await this.model.unlinkCharacter(linkId, userId);
     return this.getCampaign(userId, userRole, link.campaignId);
   }
 
@@ -463,7 +470,11 @@ export class CampaignService {
       currentSheet,
       playerSafeSheet
     );
-    await this.model.updateLinkedCharacterSheet(link.characterId, protectedSheet);
+    try {
+      await this.model.updateLinkedCharacterSheet(link.characterId, protectedSheet, userId, link.campaignId, input.editSource ?? "sheet");
+    } catch (error) {
+      translateProfessionError(error);
+    }
     return this.getCampaign(userId, userRole, link.campaignId);
   }
 
