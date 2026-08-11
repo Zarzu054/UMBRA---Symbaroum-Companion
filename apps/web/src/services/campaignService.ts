@@ -1,14 +1,17 @@
 import type {
-  AddCampaignMemberInput,
+  CreateCampaignInvitationInput,
   AssignCampaignSessionExperienceInput,
   Campaign,
   CampaignChatMessage,
+  CampaignInvitation,
+  CharacterProfessionMembership,
   CreateCampaignChatMessageInput,
   CreateCampaignInput,
   CreateCampaignNpcInput,
   CreateCampaignReferenceInput,
   CreateCampaignSessionInput,
   GrantCampaignExperienceInput,
+  ProfessionDecisionInput,
   UpdateCampaignCharacterSheetInput,
   UpdateCampaignInput,
   UpdateCampaignNpcInput,
@@ -21,6 +24,7 @@ import { readFriendlyApiError } from "./apiError";
 type CampaignListResponse = { data: Campaign[] };
 type CampaignSingleResponse = { data: Campaign };
 type CampaignChatListResponse = { data: CampaignChatMessage[] };
+type CampaignInvitationListResponse = { data: CampaignInvitation[] };
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
 async function request<T>(url: string, accessToken: string, init?: RequestInit): Promise<T> {
@@ -37,7 +41,16 @@ export async function fetchCampaignChatMessages(campaignId: string, accessToken:
 export async function createCampaign(input: CreateCampaignInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>("/api/campaigns", accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
 export async function createCampaignChatMessage(campaignId: string, input: CreateCampaignChatMessageInput, accessToken: string): Promise<CampaignChatMessage> { return (await request<{ data: CampaignChatMessage }>(`/api/campaigns/${campaignId}/chat-messages`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
 export async function updateCampaign(campaignId: string, input: UpdateCampaignInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaigns/${campaignId}`, accessToken, { method: "PUT", body: JSON.stringify(input) })).data; }
-export async function addCampaignMember(campaignId: string, input: AddCampaignMemberInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaigns/${campaignId}/members`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
+export async function sendCampaignInvitation(campaignId: string, input: CreateCampaignInvitationInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaigns/${campaignId}/invitations`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
+export async function fetchCampaignInvitations(accessToken: string): Promise<CampaignInvitation[]> { return (await request<CampaignInvitationListResponse>("/api/campaign-invitations", accessToken)).data; }
+export async function acceptCampaignInvitation(invitationId: string, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-invitations/${invitationId}/accept`, accessToken, { method: "POST" })).data; }
+export async function dismissCampaignInvitation(invitationId: string, accessToken: string): Promise<void> {
+  const response = await fetch(`/api/campaign-invitations/${invitationId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!response.ok) throw new Error(await readFriendlyApiError(response));
+}
 export async function removeCampaignMember(memberId: string, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-members/${memberId}`, accessToken, { method: "DELETE" })).data; }
 export async function linkCampaignCharacter(campaignId: string, characterId: string, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaigns/${campaignId}/characters`, accessToken, { method: "POST", body: JSON.stringify({ characterId }) })).data; }
 export async function unlinkCampaignCharacter(linkId: string, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-characters/${linkId}`, accessToken, { method: "DELETE" })).data; }
@@ -56,3 +69,4 @@ export async function updateCampaignReference(referenceId: string, input: Update
 export async function deleteCampaignReference(referenceId: string, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-references/${referenceId}`, accessToken, { method: "DELETE" })).data; }
 export async function assignCampaignSessionExperience(sessionId: string, input: AssignCampaignSessionExperienceInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-sessions/${sessionId}/xp-awards`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
 export async function grantCampaignExperience(campaignId: string, input: GrantCampaignExperienceInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaigns/${campaignId}/xp-grants`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
+export async function decideProfessionRequest(campaignId: string, requestId: string, input: ProfessionDecisionInput, accessToken: string): Promise<CharacterProfessionMembership[]> { return (await request<{ data: CharacterProfessionMembership[] }>(`/api/campaigns/${campaignId}/profession-requests/${requestId}/decision`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }

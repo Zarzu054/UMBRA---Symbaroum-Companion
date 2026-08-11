@@ -59,7 +59,7 @@ describe("MonsterReferenceSheet", () => {
     fireEvent.click(screen.getByRole("button", { name: /Tirador.*Adepto/i }));
 
     const dialog = screen.getByRole("dialog", { name: "Tirador" });
-    expect(within(dialog).getByRole("heading", { name: "Novato" })).toBeTruthy();
+    expect(within(dialog).getByRole("heading", { name: "Principiante" })).toBeTruthy();
     expect(within(dialog).getByRole("heading", { name: "Adepto" })).toBeTruthy();
     expect(within(dialog).getByRole("heading", { name: "Maestro" })).toBeTruthy();
     const currentTier = within(dialog).getByRole("heading", { name: "Adepto" }).closest("section");
@@ -79,7 +79,7 @@ describe("MonsterReferenceSheet", () => {
 
     const dialog = screen.getByRole("dialog", { name: "Combate con látigo" });
     expect(within(dialog).getByText(/el látigo obstaculiza al enemigo/i)).toBeTruthy();
-    expect(within(dialog).getByRole("heading", { name: "Novato" })).toBeTruthy();
+    expect(within(dialog).getByRole("heading", { name: "Principiante" })).toBeTruthy();
     expect(within(dialog).getByRole("heading", { name: "Maestro" })).toBeTruthy();
     expect(within(dialog).getByRole("heading", { name: "Adepto" }).closest("section")?.classList.contains("is-current")).toBe(true);
   });
@@ -116,20 +116,99 @@ describe("MonsterReferenceSheet", () => {
     expect(screen.getByRole("button", { name: /Poco longevo.*Ver reglas/i })).toBeTruthy();
   });
 
-  it("explica el daño y los valores derivados desde sus botones de información", () => {
+  it("desglosa el ataque sin repetir el resultado final", () => {
     const monster = STARTER_MONSTER_CODEX.find((entry) => entry.id === "libro-basico-elfo-vernal")!;
     render(<MonsterReferenceSheet monster={monster} official backgroundPreferenceScope="gm:monsters" onClose={() => undefined} onDuplicate={() => undefined} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Ver cálculo de daño de Daga" }));
-    let dialog = screen.getByRole("dialog", { name: "Cálculo de daño: Daga" });
-    expect(within(dialog).getByText("Valor final publicado: 3")).toBeTruthy();
-    expect(within(dialog).getByText("Daño final mostrado").parentElement?.textContent).toContain("3");
+    fireEvent.click(screen.getByRole("button", { name: "Ver cálculo de ataque de Daga" }));
+    let dialog = screen.getByRole("dialog", { name: "Desglose de ataque: Daga" });
+    expect(within(dialog).getByText("Atributo de ataque").closest("div")?.textContent).toContain("Diestro 10 (0)");
+    expect(within(dialog).getByText("Dado base del arma").closest("div")?.textContent).toContain("1D6 → 3");
+    expect(within(dialog).queryByText("Daño final mostrado")).toBeNull();
+    expect(within(dialog).queryByText(/Valor final publicado/)).toBeNull();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cerrar" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver cálculo de ataque de Arco" }));
+    dialog = screen.getByRole("dialog", { name: "Desglose de ataque: Arco" });
+    expect(within(dialog).getByText("Atributo de ataque").closest("div")?.textContent).toContain("Diestro 10 (0)");
     fireEvent.click(within(dialog).getByRole("button", { name: "Cerrar" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Ver cálculo de Defensa" }));
     dialog = screen.getByRole("dialog", { name: "Cálculo de Defensa" });
-    expect(within(dialog).getByText("Base").parentElement?.textContent).toContain("-3");
-    expect(within(dialog).getByText("Defensa final").parentElement?.textContent).toContain("-3");
+    expect(within(dialog).getByText("Atributo para Defensa").closest("div")?.textContent).toContain("Ágil 13");
+    expect(within(dialog).getByText("Defensa base").closest("div")?.textContent).toContain("10 − 13 = -3");
+    expect(within(dialog).queryByText("Defensa final")).toBeNull();
+  });
+
+  it("explica Sexto sentido adepto en ataque a distancia y Defensa", () => {
+    const monster = STARTER_MONSTER_CODEX.find((entry) => entry.id === "codice-manto-negro-veterano")!;
+    render(<MonsterReferenceSheet monster={monster} official backgroundPreferenceScope="gm:monsters" onClose={() => undefined} onDuplicate={() => undefined} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver cálculo de ataque de Ballesta" }));
+    let dialog = screen.getByRole("dialog", { name: "Desglose de ataque: Ballesta" });
+    expect(within(dialog).getByText("Atributo de ataque").closest("div")?.textContent).toContain("Atento 13 (-3)");
+    expect(within(dialog).getByText("Sexto sentido (Adepto)")).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cerrar" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver cálculo de Defensa" }));
+    dialog = screen.getByRole("dialog", { name: "Cálculo de Defensa" });
+    expect(within(dialog).getByText("Atributo para Defensa").closest("div")?.textContent).toContain("Atento 13");
+    expect(within(dialog).getByText("Sexto sentido (Adepto)")).toBeTruthy();
+  });
+
+  it("muestra la mejora de dado de Tirador con ambos promedios", () => {
+    const monster = STARTER_MONSTER_CODEX.find((entry) => entry.id === "libro-basico-elfo-estival-verde")!;
+    render(<MonsterReferenceSheet monster={monster} official backgroundPreferenceScope="gm:monsters" onClose={() => undefined} onDuplicate={() => undefined} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver cálculo de ataque de Arco" }));
+    const dialog = screen.getByRole("dialog", { name: "Desglose de ataque: Arco" });
+    expect(within(dialog).getByText("Mejora del dado").closest("div")?.textContent).toContain("1D8 (4) → 1D10 (5)");
+    expect(within(dialog).getAllByText("Tirador (Adepto)").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("separa los promedios de Arma natural, Robusto y Berserker", () => {
+    const monster = STARTER_MONSTER_CODEX.find((entry) => entry.id === "libro-basico-troll-saqueador-hambriento")!;
+    render(<MonsterReferenceSheet monster={monster} official backgroundPreferenceScope="gm:monsters" onClose={() => undefined} onDuplicate={() => undefined} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver cálculo de ataque de Zarpas" }));
+    const dialog = screen.getByRole("dialog", { name: "Desglose de ataque: Zarpas" });
+    expect(within(dialog).getByText("Daño del arma natural").closest("div")?.textContent).toContain("1D6 → 3");
+    expect(within(dialog).getByText("Arma natural (I)")).toBeTruthy();
+    expect(within(dialog).getByText("Robusto (I)").parentElement?.parentElement?.textContent).toContain("+1D4 → +2");
+    expect(within(dialog).getByText("Berserker (Adepto)").parentElement?.parentElement?.textContent).toContain("+1D6 → +3");
+    expect(within(dialog).queryByText("Diferencia no atribuida")).toBeNull();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cerrar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver cálculo de Armadura" }));
+    const armorDialog = screen.getByRole("dialog", { name: "Cálculo de Armadura" });
+    expect(within(armorDialog).getByText("Protección por tamaño").closest("div")?.textContent).toContain("1D4 → 2");
+    expect(within(armorDialog).getByText("Protección durante el frenesí").closest("div")?.textContent).toContain("+1D4 → +2");
+    expect(within(armorDialog).queryByText("Diferencia no atribuida")).toBeNull();
+  });
+
+  it("aplica los niveles Maestro publicados del cacique troll al daño", () => {
+    const monster = STARTER_MONSTER_CODEX.find((entry) => entry.id === "libro-basico-cacique-troll")!;
+    render(<MonsterReferenceSheet monster={monster} official backgroundPreferenceScope="gm:monsters" onClose={() => undefined} onDuplicate={() => undefined} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver cálculo de ataque de Zarpas" }));
+    const dialog = screen.getByRole("dialog", { name: "Desglose de ataque: Zarpas" });
+    expect(within(dialog).getAllByText("Combate sin armas (Maestro)").length).toBeGreaterThanOrEqual(1);
+    expect(within(dialog).getByText("Berserker (Maestro)")).toBeTruthy();
+    expect(within(dialog).getByText("Robusto (II)")).toBeTruthy();
+    expect(within(dialog).queryByText("Diferencia no atribuida")).toBeNull();
+    expect(within(dialog).getByText(/Resultado final/i).parentElement?.textContent).toContain("13");
+  });
+
+  it("reconstruye ataques naturales sin Arma natural cuando los define Combate sin armas", () => {
+    const monster = STARTER_MONSTER_CODEX.find((entry) => entry.id === "libro-basico-lindorma")!;
+    render(<MonsterReferenceSheet monster={monster} official backgroundPreferenceScope="gm:monsters" onClose={() => undefined} onDuplicate={() => undefined} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver cálculo de ataque de Mordisco" }));
+    const dialog = screen.getByRole("dialog", { name: "Desglose de ataque: Mordisco" });
+    expect(within(dialog).getAllByText("Combate sin armas (Maestro)").length).toBeGreaterThanOrEqual(1);
+    expect(within(dialog).getAllByText("Golpe de hierro (Maestro)").length).toBeGreaterThanOrEqual(1);
+    expect(within(dialog).getByText("Robusto (III)")).toBeTruthy();
+    expect(within(dialog).queryByText("Diferencia no atribuida")).toBeNull();
   });
 
   it("avisa cuando los componentes publicados no coinciden con la armadura mostrada", () => {
@@ -138,6 +217,6 @@ describe("MonsterReferenceSheet", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Ver cálculo de Armadura" }));
     const dialog = screen.getByRole("dialog", { name: "Cálculo de Armadura" });
-    expect(within(dialog).getByText(/los componentes publicados suman 4, pero la ficha muestra 2/i)).toBeTruthy();
+    expect(within(dialog).getByText(/los componentes escritos en el perfil suman 4, pero la ficha muestra 2/i)).toBeTruthy();
   });
 });

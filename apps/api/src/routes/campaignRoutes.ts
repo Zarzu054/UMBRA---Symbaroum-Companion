@@ -1,6 +1,6 @@
 ﻿import type { FastifyInstance } from "fastify";
 import type {
-  AddCampaignMemberInput,
+  CreateCampaignInvitationInput,
   AssignCampaignSessionExperienceInput,
   CreateCampaignChatMessageInput,
   CreateCampaignInput,
@@ -20,11 +20,13 @@ import { requireAuth } from "../middleware/requireAuth.js";
 import { requirePasswordChangeComplete } from "../middleware/requirePasswordChangeComplete.js";
 import { CampaignModel } from "../models/CampaignModel.js";
 import { CampaignService } from "../services/CampaignService.js";
+import { ProfessionController } from "../controllers/ProfessionController.js";
 
 export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   const model = new CampaignModel();
   const service = new CampaignService(model);
   const controller = new CampaignController(service);
+  const professionController = new ProfessionController();
 
   app.get("/campaigns", { preHandler: [requireAuth, requirePasswordChangeComplete] }, controller.list.bind(controller));
   app.get<{ Params: { campaignId: string } }>("/campaigns/:campaignId", { preHandler: [requireAuth, requirePasswordChangeComplete] }, async (request, reply) =>
@@ -53,10 +55,25 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.update(request, reply)
   );
-  app.post<{ Params: { campaignId: string }; Body: AddCampaignMemberInput }>(
-    "/campaigns/:campaignId/members",
+  app.post<{ Params: { campaignId: string }; Body: CreateCampaignInvitationInput }>(
+    "/campaigns/:campaignId/invitations",
     { preHandler: [requireAuth, requirePasswordChangeComplete] },
-    async (request, reply) => controller.addMember(request, reply)
+    async (request, reply) => controller.inviteMember(request, reply)
+  );
+  app.get(
+    "/campaign-invitations",
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
+    async (request, reply) => controller.listInvitations(request, reply)
+  );
+  app.post<{ Params: { invitationId: string } }>(
+    "/campaign-invitations/:invitationId/accept",
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
+    async (request, reply) => controller.acceptInvitation(request, reply)
+  );
+  app.delete<{ Params: { invitationId: string } }>(
+    "/campaign-invitations/:invitationId",
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
+    async (request, reply) => controller.dismissInvitation(request, reply)
   );
   app.delete<{ Params: { memberId: string } }>("/campaign-members/:memberId", { preHandler: [requireAuth, requirePasswordChangeComplete] }, async (request, reply) =>
     controller.removeMember(request, reply)
@@ -144,4 +161,5 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [requireAuth, requirePasswordChangeComplete] },
     async (request, reply) => controller.grantExperience(request, reply)
   );
+  app.post<{ Params: { campaignId: string; requestId: string }; Body: import("@umbra/shared").ProfessionDecisionInput }>("/campaigns/:campaignId/profession-requests/:requestId/decision", { preHandler: [requireAuth, requirePasswordChangeComplete] }, async (request, reply) => professionController.decide(request, reply));
 }

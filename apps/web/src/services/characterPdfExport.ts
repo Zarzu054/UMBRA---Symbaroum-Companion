@@ -330,14 +330,17 @@ function selectCapabilityLevelEffect(effect: string, level: SkillLevel): string 
   const text = String(effect ?? "").trim();
   if (!text) return "";
 
-  const levelHeading = /\b(Novato|Adepto|Maestro)\s*:/giu;
+  const levelHeading = /\b(Principiante|Novato|Adepto|Maestro)\s*:/giu;
   const matches = [...text.matchAll(levelHeading)];
   if (matches.length === 0) {
     return text;
   }
 
-  const targetLevel = level.toLocaleLowerCase("es");
-  const targetIndex = matches.findIndex((match) => match[1]?.toLocaleLowerCase("es") === targetLevel);
+  const targetLevel = level === "novato" ? "principiante" : level.toLocaleLowerCase("es");
+  const targetIndex = matches.findIndex((match) => {
+    const parsedLevel = match[1]?.toLocaleLowerCase("es");
+    return (parsedLevel === "novato" ? "principiante" : parsedLevel) === targetLevel;
+  });
   if (targetIndex < 0) {
     return text;
   }

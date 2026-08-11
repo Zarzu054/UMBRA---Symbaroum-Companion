@@ -1,4 +1,5 @@
 import type { MysticArtifact } from "@umbra/shared";
+import { SourceReferenceButton } from "./SourceReferenceLink";
 
 type Props = {
   artifact: MysticArtifact;
@@ -70,7 +71,13 @@ export function MysticArtifactDetailsModal({ artifact, busy = false, onClose, on
         {artifact.sourceTitle && artifact.sourcePage ? (
           <footer className="mystic-artifact-details__footer">
             <div><strong>Referencia para el DJ</strong><span>El libro se abre directamente en la página donde se explica el artefacto.</span></div>
-            <button type="button" disabled={busy} onClick={() => void onOpenSource(artifact)}>Abrir fuente · {artifact.sourceTitle} p.{artifact.sourcePage}</button>
+            <SourceReferenceButton
+              source={artifact.sourceTitle}
+              page={artifact.sourcePage}
+              ariaLabel={`Abrir fuente · ${artifact.sourceTitle} p.${artifact.sourcePage}`}
+              disabled={busy}
+              onClick={() => void onOpenSource(artifact)}
+            />
           </footer>
         ) : null}
       </article>

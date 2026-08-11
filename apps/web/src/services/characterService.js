@@ -42,6 +42,23 @@ export async function updateCharacter(characterId, input, accessToken) {
     const payload = (await response.json());
     return payload.data;
 }
+export async function fetchCharacterChangeLog(characterId, accessToken, cursor) {
+    const query = cursor ? `?cursor=${encodeURIComponent(cursor)}&limit=50` : "?limit=50";
+    const response = await fetch(`/api/characters/${characterId}/change-log${query}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!response.ok)
+        throw new Error(await readFriendlyApiError(response));
+    return (await response.json()).data;
+}
+export async function markCharacterChangeLogRead(characterId, accessToken) {
+    const response = await fetch(`/api/characters/${characterId}/change-log/read`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!response.ok)
+        throw new Error(await readFriendlyApiError(response));
+}
 export async function duplicateCharacter(characterId, accessToken) {
     const response = await fetch(`/api/characters/${characterId}/duplicate`, {
         method: "POST",
@@ -59,4 +76,27 @@ export async function deleteCharacter(characterId, accessToken) {
     });
     if (!response.ok)
         throw new Error(await readFriendlyApiError(response));
+}
+export async function aspireProfession(characterId, professionId, accessToken) {
+    const response = await fetch(`/api/characters/${characterId}/professions/${professionId}/aspiration`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!response.ok)
+        throw new Error(await readFriendlyApiError(response));
+    return (await response.json()).data;
+}
+export async function removeProfessionAspiration(characterId, professionId, accessToken) {
+    const response = await fetch(`/api/characters/${characterId}/professions/${professionId}/aspiration`, { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!response.ok)
+        throw new Error(await readFriendlyApiError(response));
+}
+export async function requestProfessionMembership(characterId, professionId, accessToken) {
+    const response = await fetch(`/api/characters/${characterId}/professions/${professionId}/request`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!response.ok)
+        throw new Error(await readFriendlyApiError(response));
+    return (await response.json()).data;
+}
+export async function leaveProfession(characterId, professionId, accessToken) {
+    const response = await fetch(`/api/characters/${characterId}/professions/${professionId}`, { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!response.ok)
+        throw new Error(await readFriendlyApiError(response));
+    return (await response.json()).data;
 }

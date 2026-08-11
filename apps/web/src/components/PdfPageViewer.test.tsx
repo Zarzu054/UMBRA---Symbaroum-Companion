@@ -3,10 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PdfPageViewer } from "./PdfPageViewer";
 
 const renderPromise = Promise.resolve();
+const pdfJsMocks = vi.hoisted(() => ({
+  getDocument: vi.fn()
+}));
 
 vi.mock("pdfjs-dist", () => ({
   GlobalWorkerOptions: { workerSrc: "" },
-  getDocument: () => ({
+  getDocument: pdfJsMocks.getDocument
+}));
+
+function createLoadingTask() {
+  return {
     promise: Promise.resolve({
       numPages: 4,
       destroy: vi.fn().mockResolvedValue(undefined),
@@ -15,8 +22,8 @@ vi.mock("pdfjs-dist", () => ({
         render: () => ({ promise: renderPromise, cancel: vi.fn() })
       })
     })
-  })
-}));
+  };
+}
 
 class ResizeObserverMock {
   constructor(private readonly callback: ResizeObserverCallback) {}
@@ -29,6 +36,8 @@ class ResizeObserverMock {
 }
 
 beforeEach(() => {
+  pdfJsMocks.getDocument.mockReset();
+  pdfJsMocks.getDocument.mockReturnValue(createLoadingTask());
   vi.stubGlobal("ResizeObserver", ResizeObserverMock);
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({} as CanvasRenderingContext2D);
   vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -44,6 +53,16 @@ afterEach(() => {
 });
 
 describe("PdfPageViewer", () => {
+  it("configura los decodificadores WASM necesarios para las imágenes JPEG2000", async () => {
+    render(<PdfPageViewer source="/books/libro-basico.pdf" initialPage={254} onClose={() => undefined} />);
+
+    await screen.findByText("Página 4 de 4");
+    expect(pdfJsMocks.getDocument).toHaveBeenCalledWith({
+      url: "/books/libro-basico.pdf",
+      wasmUrl: expect.stringMatching(/\/pdfjs\/wasm\/$/)
+    });
+  });
+
   it("usa la rueda con scroll natural y cambia de página solamente al alcanzar un borde", async () => {
     render(<PdfPageViewer source="/books/libro-basico.pdf" initialPage={2} onClose={() => undefined} />);
     await screen.findByText("Página 2 de 4");

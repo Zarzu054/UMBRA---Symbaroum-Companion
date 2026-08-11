@@ -11,6 +11,7 @@ import {
 } from "@umbra/shared";
 import { prisma } from "../config/prisma.js";
 import { AppError } from "../utils/AppError.js";
+import { buildCharacterChanges, getCharacterAuditActor, recordCharacterChange } from "./CharacterAuditModel.js";
 
 export const mysticArtifactInclude = {
   bindingCosts: true,
@@ -317,8 +318,9 @@ export class MysticArtifactModel {
     return (await this.findById(id))!;
   }
 
-  async update(artifactId: string, input: MysticArtifactDefinitionInput): Promise<MysticArtifactRow> {
+  async update(artifactId: string, input: MysticArtifactDefinitionInput, actorId?: string): Promise<MysticArtifactRow> {
     await prisma.$transaction(async (tx) => {
+      const current = await tx.mysticArtifact.findUnique({ where: { id: artifactId }, include: mysticArtifactInclude });
       await tx.mysticArtifactAbility.deleteMany({ where: { artifactId } });
       await tx.mysticArtifactResource.deleteMany({ where: { artifactId } });
       await tx.mysticArtifactBindingCost.deleteMany({ where: { artifactId } });
@@ -351,6 +353,18 @@ export class MysticArtifactModel {
           if (resourceId) await tx.mysticArtifactAbilityResourceCost.create({ data: { abilityId: created.id, resourceId, amount: cost.amount } });
         }
       }
+      const actor = actorId ? await getCharacterAuditActor(tx, actorId) : null;
+      if (actor && current?.ownerCharacter) await recordCharacterChange(tx, {
+        characterId: current.ownerCharacter.characterId,
+        actor,
+        campaignId: current.ownerCharacter.campaignId,
+        source: "artifact",
+        summary: `Editó el artefacto ${input.name}`,
+        changes: buildCharacterChanges(
+          { artefactos: { [current.name]: artifactRowToInput(current) } },
+          { artefactos: { [input.name]: input } }
+        )
+      });
     });
     return (await this.findById(artifactId))!;
   }
@@ -359,14 +373,36 @@ export class MysticArtifactModel {
     await prisma.mysticArtifact.delete({ where: { id: artifactId } });
   }
 
-  async assign(artifactId: string, owner: { characterId?: string; npcId?: string }): Promise<void> {
-    await prisma.mysticArtifact.update({
-      where: { id: artifactId },
-      data: { ownerCharacterId: owner.characterId ?? null, ownerNpcId: owner.npcId ?? null }
+  async assign(artifactId: string, owner: { characterId?: string; npcId?: string }, actorId?: string): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      const current = await tx.mysticArtifact.findUnique({ where: { id: artifactId }, select: { name: true, ownerCharacterId: true } });
+      if (!current) return;
+      await tx.mysticArtifact.update({
+        where: { id: artifactId },
+        data: { ownerCharacterId: owner.characterId ?? null, ownerNpcId: owner.npcId ?? null }
+      });
+      const actor = actorId ? await getCharacterAuditActor(tx, actorId) : null;
+      if (!actor) return;
+      if (current.ownerCharacterId && current.ownerCharacterId !== owner.characterId) {
+        const oldLink = await tx.campaignCharacter.findUnique({ where: { id: current.ownerCharacterId }, select: { characterId: true, campaignId: true } });
+        if (oldLink) await recordCharacterChange(tx, {
+          characterId: oldLink.characterId, actor, campaignId: oldLink.campaignId, source: "artifact",
+          summary: `Retiró el artefacto ${current.name}`,
+          changes: [{ path: `artefactos[${current.name}]`, section: "Artefactos", label: current.name, operation: "removed", before: "Asignado" }]
+        });
+      }
+      if (owner.characterId && current.ownerCharacterId !== owner.characterId) {
+        const nextLink = await tx.campaignCharacter.findUnique({ where: { id: owner.characterId }, select: { characterId: true, campaignId: true } });
+        if (nextLink) await recordCharacterChange(tx, {
+          characterId: nextLink.characterId, actor, campaignId: nextLink.campaignId, source: "artifact",
+          summary: `Asignó el artefacto ${current.name}`,
+          changes: [{ path: `artefactos[${current.name}]`, section: "Artefactos", label: current.name, operation: "added", after: "Asignado" }]
+        });
+      }
     });
   }
 
-  async bindCharacter(artifactId: string, characterLinkId: string, paymentType: MysticArtifactPaymentType): Promise<void> {
+  async bindCharacter(artifactId: string, characterLinkId: string, paymentType: MysticArtifactPaymentType, actorId?: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
       const artifact = await tx.mysticArtifact.findUnique({
         where: { id: artifactId },
@@ -376,7 +412,8 @@ export class MysticArtifactModel {
       if (artifact.bindings.length > 0) throw new AppError("ARTIFACT_ALREADY_BOUND", "El artefacto ya esta vinculado", 409);
       const cost = artifact.bindingCosts.find((entry) => entry.paymentType === paymentType);
       if (!cost) throw new AppError("ARTIFACT_PAYMENT_NOT_ALLOWED", "Ese pago no esta permitido para el artefacto", 400);
-      const sheet = parseCharacterSheet(artifact.ownerCharacter.character.sheet);
+      const beforeSheet = parseCharacterSheet(artifact.ownerCharacter.character.sheet);
+      const sheet = structuredClone(beforeSheet);
       if (paymentType === "xp") {
         const spent = effectiveExperienceSpent(sheet);
         if (sheet.progreso.experienciaTotal - spent < cost.amount) throw new AppError("CHARACTER_EXPERIENCE_EXCEEDED", "No hay PX suficientes para completar el vinculo", 400);
@@ -386,6 +423,18 @@ export class MysticArtifactModel {
       }
       await tx.character.update({ where: { id: artifact.ownerCharacter.characterId }, data: { sheet } });
       await tx.mysticArtifactBinding.create({ data: { artifactId, characterOwnerId: characterLinkId, paymentType, amount: cost.amount } });
+      const actor = actorId ? await getCharacterAuditActor(tx, actorId) : null;
+      if (actor) await recordCharacterChange(tx, {
+        characterId: artifact.ownerCharacter.characterId,
+        actor,
+        campaignId: artifact.ownerCharacter.campaignId,
+        source: "artifact",
+        summary: `Vinculó el artefacto ${artifact.name}`,
+        changes: [
+          { path: `artefactos[${artifact.name}].vinculo`, section: "Artefactos", label: artifact.name, operation: "added", after: `Vinculado mediante ${paymentType}` },
+          ...buildCharacterChanges({ sheet: beforeSheet }, { sheet })
+        ]
+      });
     }, { isolationLevel: "Serializable" });
   }
 
@@ -398,19 +447,47 @@ export class MysticArtifactModel {
     }, { isolationLevel: "Serializable" });
   }
 
-  async unbind(artifactId: string): Promise<void> {
-    await prisma.mysticArtifactBinding.updateMany({ where: { artifactId, endedAt: null }, data: { endedAt: new Date() } });
+  async unbind(artifactId: string, actorId?: string): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      const artifact = await tx.mysticArtifact.findUnique({
+        where: { id: artifactId },
+        select: { name: true, ownerCharacter: { select: { characterId: true, campaignId: true } } }
+      });
+      await tx.mysticArtifactBinding.updateMany({ where: { artifactId, endedAt: null }, data: { endedAt: new Date() } });
+      const actor = actorId ? await getCharacterAuditActor(tx, actorId) : null;
+      if (actor && artifact?.ownerCharacter) await recordCharacterChange(tx, {
+        characterId: artifact.ownerCharacter.characterId, actor, campaignId: artifact.ownerCharacter.campaignId, source: "artifact",
+        summary: `Rompió el vínculo con ${artifact.name}`,
+        changes: [{ path: `artefactos[${artifact.name}].vinculo`, section: "Artefactos", label: artifact.name, operation: "removed", before: "Vinculado" }]
+      });
+    });
   }
 
-  async updateResource(resourceId: string, input: UpdateMysticArtifactResourceInput): Promise<void> {
-    await prisma.mysticArtifactResource.update({ where: { id: resourceId }, data: input });
+  async updateResource(resourceId: string, input: UpdateMysticArtifactResourceInput, actorId?: string): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      const current = await tx.mysticArtifactResource.findUnique({
+        where: { id: resourceId },
+        include: { artifact: { select: { name: true, ownerCharacter: { select: { characterId: true, campaignId: true } } } } }
+      });
+      if (!current) return;
+      const updated = await tx.mysticArtifactResource.update({ where: { id: resourceId }, data: input });
+      const actor = actorId ? await getCharacterAuditActor(tx, actorId) : null;
+      if (actor && current.artifact.ownerCharacter) await recordCharacterChange(tx, {
+        characterId: current.artifact.ownerCharacter.characterId, actor, campaignId: current.artifact.ownerCharacter.campaignId, source: "artifact",
+        summary: `Ajustó ${current.name} de ${current.artifact.name}`,
+        changes: buildCharacterChanges(
+          { artefactos: { [current.artifact.name]: { recursos: { [current.name]: { current: current.current, maximum: current.maximum } } } } },
+          { artefactos: { [current.artifact.name]: { recursos: { [current.name]: { current: updated.current, maximum: updated.maximum } } } } }
+        )
+      });
+    });
   }
 
-  async consumeAbility(artifactId: string, abilityId: string): Promise<void> {
+  async consumeAbility(artifactId: string, abilityId: string, actorId?: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
       const ability = await tx.mysticArtifactAbility.findFirst({
         where: { id: abilityId, artifactId },
-        include: { resourceCosts: true }
+        include: { resourceCosts: { include: { resource: true } }, artifact: { select: { name: true, ownerCharacter: { select: { characterId: true, campaignId: true } } } } }
       });
       if (!ability) throw new AppError("ARTIFACT_ABILITY_NOT_FOUND", "Capacidad de artefacto no encontrada", 404);
       for (const cost of ability.resourceCosts) {
@@ -420,6 +497,15 @@ export class MysticArtifactModel {
         });
         if (updated.count !== 1) throw new AppError("ARTIFACT_RESOURCE_EXHAUSTED", "El artefacto no tiene recursos suficientes", 409);
       }
+      const actor = actorId ? await getCharacterAuditActor(tx, actorId) : null;
+      if (actor && ability.artifact.ownerCharacter && ability.resourceCosts.length > 0) await recordCharacterChange(tx, {
+        characterId: ability.artifact.ownerCharacter.characterId, actor, campaignId: ability.artifact.ownerCharacter.campaignId, source: "artifact",
+        summary: `Usó ${ability.name} de ${ability.artifact.name}`,
+        changes: ability.resourceCosts.map((cost) => ({
+          path: `artefactos[${ability.artifact.name}].recursos[${cost.resource.name}]`, section: "Artefactos", label: cost.resource.name, operation: "changed" as const,
+          before: cost.resource.current, after: Math.max(0, (cost.resource.current ?? 0) - cost.amount)
+        }))
+      });
     }, { isolationLevel: "Serializable" });
   }
 }

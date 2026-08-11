@@ -10,6 +10,7 @@ import {
   type EntryType
 } from "../models/compendiumEntries";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { SourceReferenceLink } from "../components/SourceReferenceLink";
 import {
   fetchCompendiumLibrary,
   recordCompendiumView,
@@ -219,7 +220,7 @@ export function renderHighlightedText(text: string, query: string): React.ReactN
 }
 
 function parseCapabilityTiers(text: string): { tiers: CapabilityTier[]; reference: string | null; remainder: string | null } {
-  const tierRegex = /(Novato:|Adepto:|Maestro:)/g;
+  const tierRegex = /(Principiante:|Novato:|Adepto:|Maestro:)/g;
   const matches = [...text.matchAll(tierRegex)];
   if (matches.length === 0) return { tiers: [], reference: null, remainder: text.trim() || null };
 
@@ -231,8 +232,9 @@ function parseCapabilityTiers(text: string): { tiers: CapabilityTier[]; referenc
     const rawContent = text.slice((match.index ?? 0) + marker.length, nextStart).trim();
     const referenceIndex = rawContent.indexOf("Ref:");
     if (referenceIndex >= 0) reference = rawContent.slice(referenceIndex).trim();
+    const parsedLabel = marker.slice(0, -1);
     tiers.push({
-      label: marker.slice(0, -1),
+      label: parsedLabel === "Novato" ? "Principiante" : parsedLabel,
       content: referenceIndex >= 0 ? rawContent.slice(0, referenceIndex).trim() : rawContent
     });
   });
@@ -995,12 +997,18 @@ export function CompendiumView({
                   {selectedReferences.map((reference) => {
                     const url = getCompendiumSourcePdfUrl(reference.source, reference.page, selectedEntry.nombre);
                     return url ? (
-                      <a key={`${reference.source}-${reference.page ?? ""}`} className="subtle-button" href={url} target="_blank" rel="noreferrer">
-                        {reference.page ? `${canonicalizeCompendiumSourceName(reference.source)} p.${reference.page}` : canonicalizeCompendiumSourceName(reference.source)}
-                      </a>
+                      <SourceReferenceLink
+                        key={`${reference.source}-${reference.page ?? ""}`}
+                        href={url}
+                        source={canonicalizeCompendiumSourceName(reference.source)}
+                        page={reference.page}
+                        ariaLabel={reference.page
+                          ? `${canonicalizeCompendiumSourceName(reference.source)} p.${reference.page}`
+                          : canonicalizeCompendiumSourceName(reference.source)}
+                      />
                     ) : null;
                   })}
-                  {summaryLink ? <a className="subtle-button" href={summaryLink.url} target="_blank" rel="noreferrer">{summaryLink.documentLabel}</a> : null}
+                  {summaryLink ? <SourceReferenceLink href={summaryLink.url} source={summaryLink.documentLabel} eyebrow="Resumen" /> : null}
                   <button type="button" className="subtle-button" onClick={() => void copyDeepLink()}>{linkCopied ? "Enlace copiado" : "Copiar enlace"}</button>
                 </footer>
               </>

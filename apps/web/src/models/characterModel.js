@@ -10,6 +10,7 @@ export function toCharacterCardViewModel(character) {
         title: character.name,
         subtitle: `${character.archetype} - ${character.race}`,
         meta: `Hab: ${totalHabilidades} - Poderes: ${totalPoderes} - Rituales: ${totalRituales} - PX: ${totalXpGastada} - Corr: ${character.sheet.corrupcion.temporal}/${character.sheet.corrupcion.permanente}`,
-        createdLabel: new Date(character.updatedAt).toLocaleString()
+        createdLabel: new Date(character.updatedAt).toLocaleString(),
+        unreadChangeCount: character.unreadChangeCount ?? 0
     };
 }

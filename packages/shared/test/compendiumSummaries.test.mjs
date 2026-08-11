@@ -2,6 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { SYMBAROUM_ABILITIES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS } from "../dist/symbaroumCompendium.js";
 
+test("el catálogo muestra Principiante y no Novato como nivel inicial", () => {
+  const entries = [...SYMBAROUM_ABILITIES, ...SYMBAROUM_MYSTIC_POWERS, ...SYMBAROUM_RITUALS];
+  const visibleText = entries
+    .flatMap((entry) => [entry.efectoResumen, ...entry.acciones.flatMap((action) => [action.label, action.effectSummary])])
+    .join("\n");
+
+  assert.match(visibleText, /\bPrincipiante\b/);
+  assert.doesNotMatch(visibleText, /\bNovato\b/);
+});
+
 test("las habilidades usan resumen mecanico generado con referencia", () => {
   const ability = SYMBAROUM_ABILITIES.find((entry) => entry.nombre.startsWith("Ataque tra"));
 

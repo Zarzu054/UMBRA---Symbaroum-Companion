@@ -9,14 +9,17 @@ import {
   type Character,
   type CreateCharacterInput,
   type ImportCharacterInput,
-  type UpdateCharacterInput
+  type UpdateCharacterInput,
+  type UserRole
 } from "@umbra/shared";
 import { AppError } from "../utils/AppError.js";
 import { CharacterModel } from "../models/CharacterModel.js";
 import { protectGrantedCharacterExperience } from "./characterExperiencePolicy.js";
+import { CharacterAuditModel, type CharacterAuditActor } from "../models/CharacterAuditModel.js";
+import { translateProfessionError } from "./ProfessionService.js";
 
 export class CharacterService {
-  constructor(private readonly model: CharacterModel) {}
+  constructor(private readonly model: CharacterModel, private readonly auditModel = new CharacterAuditModel()) {}
 
   async listCharacters(ownerId: string): Promise<Character[]> {
     return this.model.listByOwner(ownerId);
@@ -89,7 +92,7 @@ export class CharacterService {
     });
   }
 
-  async updateCharacter(ownerId: string, characterId: string, input: UpdateCharacterInput): Promise<Character> {
+  async updateCharacter(ownerId: string, characterId: string, input: UpdateCharacterInput, actor?: CharacterAuditActor): Promise<Character> {
     const current = await this.model.findById(ownerId, characterId);
     if (!current) {
       throw new AppError("CHARACTER_NOT_FOUND", "Personaje no encontrado", 404);
@@ -120,16 +123,37 @@ export class CharacterService {
       currentSheet,
       stripManagedMysticArtifactsFromSheet(parseCharacterSheet(payload.sheet ?? currentSheet))
     );
-    const updated = await this.model.update(ownerId, characterId, {
-      ...payload,
-      sheet: protectGrantedCharacterExperience(currentSheet, requestedSheet)
-    });
+    let updated: Character | null;
+    try {
+      updated = await this.model.update(ownerId, characterId, {
+        ...payload,
+        sheet: protectGrantedCharacterExperience(currentSheet, requestedSheet)
+      }, actor, payload.editSource ?? "sheet");
+    } catch (error) {
+      translateProfessionError(error);
+    }
 
     if (!updated) {
       throw new AppError("CHARACTER_NOT_FOUND", "Personaje no encontrado", 404);
     }
 
     return updated;
+  }
+
+  async getChangeLog(userId: string, userRole: UserRole, characterId: string, cursor?: string, limit?: number) {
+    if (cursor && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(cursor)) {
+      throw new AppError("CHARACTER_CHANGE_LOG_CURSOR_INVALID", "El cursor del historial no es válido", 400);
+    }
+    const safeLimit = limit !== undefined && Number.isFinite(limit) ? limit : undefined;
+    const page = await this.auditModel.list(userId, userRole, characterId, cursor, safeLimit);
+    if (!page) throw new AppError("CHARACTER_CHANGE_LOG_FORBIDDEN", "No puedes consultar el historial de este personaje", 403);
+    return page;
+  }
+
+  async markChangeLogRead(userId: string, userRole: UserRole, characterId: string): Promise<void> {
+    if (!(await this.auditModel.markRead(userId, userRole, characterId))) {
+      throw new AppError("CHARACTER_CHANGE_LOG_FORBIDDEN", "No puedes consultar el historial de este personaje", 403);
+    }
   }
 
   async duplicateCharacter(ownerId: string, characterId: string): Promise<Character> {

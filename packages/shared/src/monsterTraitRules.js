@@ -12,7 +12,7 @@ function extractTraitLevel(value) {
         return 3;
     if (/\badepto\b/.test(normalizedValue))
         return 2;
-    if (/\bnovato\b/.test(normalizedValue))
+    if (/\b(?:principiante|novato)\b/.test(normalizedValue))
         return 1;
     const match = String(value ?? "").match(TRAIT_LEVEL_REGEX);
     const raw = normalizeTraitName(match?.[1] ?? "");

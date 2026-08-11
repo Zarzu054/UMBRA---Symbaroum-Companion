@@ -1,6 +1,6 @@
 ﻿import type { FastifyReply, FastifyRequest } from "fastify";
 import type {
-  AddCampaignMemberInput,
+  CreateCampaignInvitationInput,
   AssignCampaignSessionExperienceInput,
   CreateCampaignChatMessageInput,
   CreateCampaignInput,
@@ -93,13 +93,35 @@ export class CampaignController {
     reply.send({ data: campaign });
   }
 
-  async addMember(
-    request: FastifyRequest<{ Params: { campaignId: string }; Body: AddCampaignMemberInput }>,
+  async inviteMember(
+    request: FastifyRequest<{ Params: { campaignId: string }; Body: CreateCampaignInvitationInput }>,
     reply: FastifyReply
   ): Promise<void> {
     const user = request.authUser!;
-    const campaign = await this.service.addMember(user.id, user.role, request.params.campaignId, request.body);
-    reply.send({ data: campaign });
+    const campaign = await this.service.inviteMember(user.id, user.role, request.params.campaignId, request.body);
+    reply.code(201).send({ data: campaign });
+  }
+
+  async listInvitations(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const user = request.authUser!;
+    reply.send({ data: await this.service.listInvitations(user.id) });
+  }
+
+  async acceptInvitation(
+    request: FastifyRequest<{ Params: { invitationId: string } }>,
+    reply: FastifyReply
+  ): Promise<void> {
+    const user = request.authUser!;
+    reply.send({ data: await this.service.acceptInvitation(user.id, user.role, request.params.invitationId) });
+  }
+
+  async dismissInvitation(
+    request: FastifyRequest<{ Params: { invitationId: string } }>,
+    reply: FastifyReply
+  ): Promise<void> {
+    const user = request.authUser!;
+    await this.service.dismissInvitation(user.id, user.role, request.params.invitationId);
+    reply.code(204).send();
   }
 
   async removeMember(request: FastifyRequest<{ Params: { memberId: string } }>, reply: FastifyReply): Promise<void> {

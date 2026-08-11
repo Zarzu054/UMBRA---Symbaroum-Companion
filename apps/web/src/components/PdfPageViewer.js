@@ -1,6 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useRef, useState } from "react";
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+const pdfJsWasmUrl = new URL(`${import.meta.env.BASE_URL}pdfjs/wasm/`, window.location.origin).href;
 export function PdfPageViewer({ source, initialPage, onClose }) {
     const canvasRef = useRef(null);
     const stageRef = useRef(null);
@@ -36,7 +37,10 @@ export function PdfPageViewer({ source, initialPage, onClose }) {
         setZoom(1);
         void import("pdfjs-dist").then(async ({ getDocument, GlobalWorkerOptions }) => {
             GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-            const loadingTask = getDocument(source);
+            const loadingTask = getDocument({
+                url: source,
+                wasmUrl: pdfJsWasmUrl
+            });
             try {
                 const document = await loadingTask.promise;
                 if (disposed) {

@@ -85,7 +85,7 @@ export class MysticArtifactService {
   async update(userId: string, userRole: UserRole, artifactId: string, input: UpdateCampaignMysticArtifactInput): Promise<MysticArtifact> {
     await this.getManagedArtifact(userId, userRole, artifactId);
     const payload = mysticArtifactDefinitionInputSchema.parse(input);
-    return mapMysticArtifact(await this.model.update(artifactId, payload)) as MysticArtifact;
+    return mapMysticArtifact(await this.model.update(artifactId, payload, userId)) as MysticArtifact;
   }
 
   async remove(userId: string, userRole: UserRole, artifactId: string): Promise<void> {
@@ -110,7 +110,7 @@ export class MysticArtifactService {
       const target = await this.model.findNpc(nextNpcId);
       if (!target || target.campaignId !== row.campaignId) throw new AppError("ARTIFACT_OWNER_INVALID", "El PNJ no pertenece a esta campaña", 400);
     }
-    await this.model.assign(artifactId, { characterId: nextCharacterId, npcId: nextNpcId });
+    await this.model.assign(artifactId, { characterId: nextCharacterId, npcId: nextNpcId }, userId);
     return mapMysticArtifact((await this.model.findById(artifactId))!) as MysticArtifact;
   }
 
@@ -118,8 +118,9 @@ export class MysticArtifactService {
     const payload = bindMysticArtifactSchema.parse(input);
     const row = await this.model.findById(artifactId);
     if (!row || row.scope !== "campaign" || !row.ownerCharacter) throw new AppError("ARTIFACT_NOT_FOUND", "Artefacto poseído no encontrado", 404);
-    if (row.ownerCharacter.character.ownerId !== userId && userRole !== "superadmin") throw new AppError("ARTIFACT_NOT_OWNED", "Solo el propietario del personaje puede vincularlo", 403);
-    await this.model.bindCharacter(artifactId, row.ownerCharacter.id, payload.paymentType);
+    const isCampaignDirector = userRole === "superadmin" || row.campaign?.gmId === userId;
+    if (row.ownerCharacter.character.ownerId !== userId && !isCampaignDirector) throw new AppError("ARTIFACT_NOT_OWNED", "Solo el propietario o el DJ de la campaña puede vincularlo", 403);
+    await this.model.bindCharacter(artifactId, row.ownerCharacter.id, payload.paymentType, userId);
     return mapMysticArtifact((await this.model.findById(artifactId))!, { concealForOwner: true }) as MysticArtifact;
   }
 
@@ -132,7 +133,7 @@ export class MysticArtifactService {
 
   async unbind(userId: string, userRole: UserRole, artifactId: string): Promise<MysticArtifact> {
     await this.getManagedArtifact(userId, userRole, artifactId);
-    await this.model.unbind(artifactId);
+    await this.model.unbind(artifactId, userId);
     return mapMysticArtifact((await this.model.findById(artifactId))!) as MysticArtifact;
   }
 
@@ -145,7 +146,7 @@ export class MysticArtifactService {
   ): Promise<MysticArtifact> {
     const row = await this.getManagedArtifact(userId, userRole, artifactId);
     if (!row.resources.some((resource) => resource.id === resourceId)) throw new AppError("ARTIFACT_RESOURCE_NOT_FOUND", "Recurso no encontrado", 404);
-    await this.model.updateResource(resourceId, updateMysticArtifactResourceSchema.parse(input));
+    await this.model.updateResource(resourceId, updateMysticArtifactResourceSchema.parse(input), userId);
     return mapMysticArtifact((await this.model.findById(artifactId))!) as MysticArtifact;
   }
 
@@ -160,7 +161,7 @@ export class MysticArtifactService {
     if (!ability) throw new AppError("ARTIFACT_ABILITY_NOT_AVAILABLE", "La capacidad no está disponible sin vínculo", 403);
     if (ability.activation !== "active") throw new AppError("ARTIFACT_ABILITY_NOT_ACTIVE", "Esta capacidad no se activa manualmente", 400);
     if (ability.locked) throw new AppError("ARTIFACT_REQUIREMENT_MISSING", ability.lockReason, 403);
-    await this.model.consumeAbility(artifactId, abilityId);
+    await this.model.consumeAbility(artifactId, abilityId, userId);
     const refreshed = mapMysticArtifact((await this.model.findById(artifactId))!, { concealForOwner: true }) as MysticArtifact;
     return { artifactId, abilityId, resources: refreshed.resources };
   }

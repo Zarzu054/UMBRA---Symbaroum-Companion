@@ -10,11 +10,13 @@ import {
 } from "./actorCreation.js";
 import { STARTER_MONSTER_CODEX, createDefaultMonsterSheet, monsterSheetSchema, type MonsterSheet } from "./monsterCodex.js";
 import type { MysticArtifact, OwnedMysticArtifact } from "./mysticArtifacts.js";
+import type { ProfessionEligibility } from "./professionCatalog.js";
 export * from "./symbaroumCompendium.js";
 export * from "./campaignActionEngine.js";
 export * from "./monsterCodex.js";
 export * from "./monsterTraitRules.js";
 export * from "./actorCreation.js";
+export * from "./professionCatalog.js";
 export * from "./weaponCatalog.js";
 export * from "./mysticArtifacts.js";
 export * from "./mysticArtifactProjection.js";
@@ -1201,7 +1203,7 @@ function getTraitLevelForCanonicalActions(sheet: z.infer<typeof characterSheetOb
 
     if (/\bmaestro\b/.test(normalized)) return 3;
     if (/\badepto\b/.test(normalized)) return 2;
-    if (/\bnovato\b/.test(normalized)) return 1;
+    if (/\b(?:principiante|novato)\b/.test(normalized)) return 1;
     if (/\biii\b|\b3\b/.test(normalized)) return 3;
     if (/\bii\b|\b2\b/.test(normalized)) return 2;
     return 1;
@@ -1303,7 +1305,7 @@ function inferRatedActionLevel(...values: string[]): z.infer<typeof skillLevelSc
   const joined = values.join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (joined.includes("maestro")) return "maestro";
   if (joined.includes("adepto")) return "adepto";
-  if (joined.includes("novato")) return "novato";
+  if (joined.includes("principiante") || joined.includes("novato")) return "novato";
   return undefined;
 }
 
@@ -1332,7 +1334,11 @@ function sanitizeImportedRatedEntry(entry: unknown): z.infer<typeof ratedEntrySc
   const candidate = entry as Record<string, unknown>;
   const nombre = String(candidate.nombre ?? "").trim();
   const nivelRaw = String(candidate.nivel ?? "").trim().toLowerCase();
-  const nivel = nivelRaw === "novato" || nivelRaw === "adepto" || nivelRaw === "maestro" ? nivelRaw : "novato";
+  const nivel = nivelRaw === "principiante"
+    ? "novato"
+    : nivelRaw === "novato" || nivelRaw === "adepto" || nivelRaw === "maestro"
+      ? nivelRaw
+      : "novato";
 
   const acciones = Array.isArray(candidate.acciones) ? candidate.acciones.filter((action) => action && typeof action === "object") : [];
 
@@ -1851,7 +1857,8 @@ export const importCharacterSchema = z.object({
 });
 
 export const updateCharacterSchema = createCharacterSchema.partial().extend({
-  sheet: importedCharacterSheetSchema
+  sheet: importedCharacterSheetSchema,
+  editSource: z.enum(["sheet", "builder"]).optional()
 });
 
 export type CreateCharacterInput = z.infer<typeof createCharacterSchema>;
@@ -1869,6 +1876,8 @@ export type Character = {
   sheet: CharacterSheet;
   mysticArtifacts?: OwnedMysticArtifact[];
   artifactBindingXpSpent?: number;
+  unreadChangeCount?: number;
+  professionMemberships?: CharacterProfessionMembership[];
   createdAt: string;
   updatedAt: string;
 };
@@ -1940,9 +1949,11 @@ export const createCampaignSchema = z.object({
 
 export const updateCampaignSchema = createCampaignSchema.partial();
 
-export const addCampaignMemberSchema = z.object({
+export const createCampaignInvitationSchema = z.object({
   email: z.string().email()
 });
+
+export const campaignInvitationIdSchema = z.string().uuid();
 
 export const linkCampaignCharacterSchema = z.object({
   characterId: z.string().uuid()
@@ -1962,7 +1973,8 @@ export const createCampaignNpcSchema = z.object({
 
 export const updateCampaignNpcSchema = createCampaignNpcSchema.partial();
 export const updateCampaignCharacterSheetSchema = z.object({
-  sheet: importedCharacterSheetSchema
+  sheet: importedCharacterSheetSchema,
+  editSource: z.enum(["sheet", "builder"]).optional()
 });
 export const updateCampaignNpcSheetSchema = z.object({
   sheet: characterSheetSchema.nullable()
@@ -2045,6 +2057,37 @@ export type CompendiumLibraryState = {
   recentEntryIds: string[];
 };
 
+export type CharacterProfessionState = "aspiration" | "pending" | "active" | "rejected";
+
+export type CharacterProfessionMembership = {
+  id: string;
+  characterId: string;
+  professionId: string;
+  professionName: string;
+  state: CharacterProfessionState;
+  effectiveState: CharacterProfessionState | "suspended";
+  campaignId: string | null;
+  campaignName: string | null;
+  requestedAt: string | null;
+  reviewedAt: string | null;
+  decisionNote: string;
+  eligibility: ProfessionEligibility;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CampaignProfessionRequest = CharacterProfessionMembership & {
+  characterName: string;
+  ownerEmail: string;
+};
+
+export const professionIdSchema = z.string().trim().min(1).max(120);
+export const professionDecisionSchema = z.object({
+  decision: z.enum(["approve", "reject"]),
+  note: z.string().trim().max(500).default("")
+});
+export type ProfessionDecisionInput = z.infer<typeof professionDecisionSchema>;
+
 export type SetCompendiumFavoriteInput = z.infer<typeof setCompendiumFavoriteSchema>;
 
 export const updateCampaignReferenceSchema = createCampaignReferenceSchema.partial();
@@ -2062,7 +2105,7 @@ export type CampaignSessionStatus = z.infer<typeof campaignSessionStatusSchema>;
 export type CampaignReferenceVisibility = z.infer<typeof campaignReferenceVisibilitySchema>;
 export type CreateCampaignInput = z.infer<typeof createCampaignSchema>;
 export type UpdateCampaignInput = z.infer<typeof updateCampaignSchema>;
-export type AddCampaignMemberInput = z.infer<typeof addCampaignMemberSchema>;
+export type CreateCampaignInvitationInput = z.infer<typeof createCampaignInvitationSchema>;
 export type LinkCampaignCharacterInput = z.infer<typeof linkCampaignCharacterSchema>;
 export type CreateCampaignNpcInput = z.infer<typeof createCampaignNpcSchema>;
 export type UpdateCampaignNpcInput = z.infer<typeof updateCampaignNpcSchema>;
@@ -2159,7 +2202,40 @@ export type CampaignCharacter = {
   experienceTotal: number;
   experienceSpent: number;
   sheet: CharacterSheet | null;
+  unreadChangeCount?: number;
+  professionMemberships?: CharacterProfessionMembership[];
   updatedAt: string;
+};
+
+export type CharacterChangeOperation = "added" | "removed" | "changed";
+
+export type CharacterChangeDiff = {
+  path: string;
+  section: string;
+  label: string;
+  operation: CharacterChangeOperation;
+  before?: unknown;
+  after?: unknown;
+};
+
+export type CharacterChangeEvent = {
+  id: string;
+  characterId: string;
+  campaignId: string | null;
+  campaignName: string | null;
+  actorId: string;
+  actorEmail: string;
+  actorRole: UserRole;
+  source: string;
+  summary: string;
+  changes: CharacterChangeDiff[];
+  isUnread: boolean;
+  createdAt: string;
+};
+
+export type CharacterChangeLogPage = {
+  events: CharacterChangeEvent[];
+  nextCursor: string | null;
 };
 
 export type CampaignAvailableCharacter = {
@@ -2227,6 +2303,15 @@ export type CampaignReference = {
   sharedWithEmails: string[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type CampaignInvitation = {
+  id: string;
+  campaignId: string;
+  campaignName: string;
+  gmEmail: string;
+  invitedEmail: string;
+  createdAt: string;
 };
 
 export type CharacterActionDefinition = {
@@ -2334,6 +2419,8 @@ export type Campaign = {
   createdAt: string;
   updatedAt: string;
   members: CampaignMember[];
+  pendingInvitations?: CampaignInvitation[];
+  pendingProfessionRequests?: CampaignProfessionRequest[];
   characters: CampaignCharacter[];
   availableCharacters: CampaignAvailableCharacter[];
   npcs: CampaignNpc[];

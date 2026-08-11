@@ -294,9 +294,9 @@ function splitPublishedEntries(value) {
 }
 function publishedLevel(value) {
     const normalized = normalizePublishedName(value);
-    if (/\b(?:maestro|iii)\b/.test(normalized))
+    if (/\b(?:maestr[oa]|iii)\b/.test(normalized))
         return "maestro";
-    if (/\b(?:adepto|ii)\b/.test(normalized))
+    if (/\b(?:adept[oa]|ii)\b/.test(normalized))
         return "adepto";
     return "novato";
 }
@@ -304,7 +304,7 @@ function publishedEntryName(value) {
     if (/^Atributo excepcional\s*\(/i.test(value))
         return "Atributo excepcional";
     return value
-        .replace(/\s*\((?:principiante|adepto|maestro|i{1,3})(?::[^)]*)?\)\s*$/i, "")
+        .replace(/\s*\((?:principiante|adept[oa]|maestr[oa]|i{1,3})(?::[^)]*)?\)\s*$/i, "")
         .trim();
 }
 function createPublishedCapabilities(value, kind, source, page) {
@@ -428,7 +428,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "4",
         attributes: { accurate: 10, cunning: 10, discreet: 11, persuasive: 5, quick: 13, resolute: 9, strong: 7, vigilant: 15 },
         traits: ["Longevo"],
-        actions: ["Armas: Arco 5, Lanza 4 (Larga)", "Habilidades: Acróbata, Sexto sentido, Tirador (adepto)"],
+        actions: ["Armas: Arco 5, Lanza 4 (Larga)", "Habilidades: Acróbata (principiante), Sexto sentido (principiante), Tirador (adepto)"],
         tactics: "Confía en el arco y solo recurre a la lanza cuando el enemigo consigue cerrar distancias.",
         loot: "Hierbas curativas y una docena de flechas."
     }),
@@ -444,7 +444,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "4",
         attributes: { accurate: 15, cunning: 10, discreet: 11, persuasive: 9, quick: 10, resolute: 13, strong: 7, vigilant: 5 },
         traits: ["Longevo"],
-        actions: ["Armas: Arco 5, Lanza 5 (Larga)", "Habilidades: Armas de asta, Combate con armadura, Tirador"],
+        actions: ["Armas: Arco 5, Lanza 5 (Larga)", "Habilidades: Armas de asta (maestro), Combate con armadura (adepto), Tirador (maestro)"],
         tactics: "Prefiere mantener la línea y castigar con disciplina antes de rematar con lanza.",
         loot: "Hierbas curativas."
     }),
@@ -460,7 +460,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "4",
         attributes: { accurate: 9, cunning: 13, discreet: 10, persuasive: 11, quick: 5, resolute: 15, strong: 7, vigilant: 10 },
         traits: ["Longevo"],
-        actions: ["Armas: Espada 4", "Habilidades: Estudioso, Medicus, Poder místico (Erupción de larvas, Someter voluntad), Rituales"],
+        actions: ["Armas: Espada 4", "Habilidades: Estudioso (maestro), Medicus (maestro), Poder místico (Erupción de larvas, maestro), Poder místico (Someter voluntad, maestro), Rituales (maestro)"],
         tactics: "Abre con control mental o magia y evita el choque directo mientras aliados rematan.",
         loot: "10 hierbas curativas."
     }),
@@ -492,7 +492,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "8",
         attributes: { accurate: 13, cunning: 10, discreet: 5, persuasive: 7, quick: 10, resolute: 11, strong: 15, vigilant: 9 },
         traits: ["Arma natural (I)", "Longevo", "Regeneración (III)", "Robusto (I)"],
-        actions: ["Armas: Zarpas 9 (Corta)", "Habilidades: Berserker (adepto), Combate sin armas"],
+        actions: ["Armas: Zarpas 9 (Corta)", "Habilidades: Berserker (adepto), Combate sin armas (principiante)"],
         tactics: "Se apoya en la regeneración para aguantar combate prolongado y seguir avanzando.",
         weakness: "Fuego y ácido.",
         loot: "Amuleto de la suerte."
@@ -509,7 +509,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "8",
         attributes: { accurate: 13, cunning: 10, discreet: 5, persuasive: 11, quick: 9, resolute: 10, strong: 18, vigilant: 7 },
         traits: ["Arma natural (I)", "Duro (I)", "Longevo", "Regeneración (III)", "Robusto (II)"],
-        actions: ["Armas: Zarpas 13 (Corta), segundo ataque 10", "Habilidades: Alquimista, Atributo excepcional (Fuerte), Berserker, Combate sin armas"],
+        actions: ["Armas: Zarpas 13 (Corta), segundo ataque 10", "Habilidades: Alquimista (principiante), Atributo excepcional (Fuerte, maestro), Berserker (maestro), Combate sin armas (maestro)"],
         tactics: "Rompe líneas con pura fuerza y castiga al mismo objetivo con un segundo zarpazo.",
         weakness: "Fuego y ácido.",
         loot: "Equipo tribal del cacique."
@@ -526,7 +526,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "9",
         attributes: { accurate: 11, cunning: 10, discreet: 5, persuasive: 9, quick: 7, resolute: 16, strong: 18, vigilant: 10 },
         traits: ["Arma natural (III)", "Duro (III)", "Hipnótico (III)", "Longevo", "Regeneración (III)", "Robusto (III)"],
-        actions: ["Armas: Zarpas 16 (Largas)", "Habilidades: Alquimista, Atributo excepcional (Fuerte y Tenaz), Berserker, Golpe de hierro"],
+        actions: ["Armas: Zarpas 16 (Largas)", "Habilidades: Alquimista (maestro), Atributo excepcional (Fuerte, maestro), Atributo excepcional (Tenaz, maestro), Berserker (maestro), Golpe de hierro (maestro)"],
         tactics: "Domina la escena como jefe frontal: hipnotiza, soporta castigo y despieza a quien no pueda retirarse.",
         weakness: "Fuego y ácido.",
         loot: "Restos valiosos de un coloso antiguo."
@@ -751,7 +751,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "5",
         attributes: { accurate: 13, cunning: 10, discreet: 11, persuasive: 5, quick: 15, resolute: 7, strong: 9, vigilant: 10 },
         traits: ["Arma natural (I)", "Telaraña (I)", "Venenosa (I)"],
-        actions: ["Armas: Picadura 3, veneno 2 durante 2 turnos", "Habilidades: Acróbata"],
+        actions: ["Armas: Picadura 3, veneno 2 durante 2 turnos", "Habilidades: Acróbata (principiante)"],
         tactics: "Atrapa a la presa en sus redes y la desgasta sin exponerse demasiado.",
         loot: "Redes con objetos de víctimas anteriores."
     }),
@@ -783,7 +783,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "4",
         attributes: { accurate: 11, cunning: 9, discreet: 15, persuasive: 5, quick: 13, resolute: 10, strong: 7, vigilant: 10 },
         traits: ["Arma natural (II)", "Venenoso (I)"],
-        actions: ["Armas: Mordisco 4 (Corta), veneno 2 durante 2 turnos", "Habilidades: Acróbata"],
+        actions: ["Armas: Mordisco 4 (Corta), veneno 2 durante 2 turnos", "Habilidades: Acróbata (principiante)"],
         tactics: "Se aproxima sigilosamente para sorprender y retirarse si la presa resiste demasiado.",
         loot: "Ninguno."
     }),
@@ -815,7 +815,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "5",
         attributes: { accurate: 5, cunning: 16, discreet: 11, persuasive: 7, quick: 14, resolute: 9, strong: 10, vigilant: 10 },
         traits: ["Duro (III)"],
-        actions: ["Armas: Estrangulación y presa", "Habilidades: Acróbata, Atributo excepcional (Ágil, Inteligente), Estrangulador"],
+        actions: ["Armas: Estrangulación y presa", "Habilidades: Acróbata (maestro), Atributo excepcional (Ágil, principiante), Atributo excepcional (Inteligente, principiante), Estrangulador (principiante)"],
         tactics: "Espera el momento justo para inmovilizar a una víctima y asfixiarla fuera del foco principal.",
         loot: "Ninguno."
     }),
@@ -831,7 +831,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "7",
         attributes: { accurate: 7, cunning: 9, discreet: 5, persuasive: 11, quick: 10, resolute: 15, strong: 13, vigilant: 10 },
         traits: ["Duro (III)", "Hipnótico (III)", "Longeva", "Robusta (III)"],
-        actions: ["Armas: Mordisco 14 (Corta) o dos ataques 12 y 8", "Habilidades: Combate sin armas, Golpe de hierro"],
+        actions: ["Armas: Mordisco 14 (Corta) o dos ataques 12 y 8", "Habilidades: Combate sin armas (maestro), Golpe de hierro (maestro)"],
         tactics: "Intenta hipnotizar al grupo antes de empezar a alimentarse sobre una presa inmovilizada.",
         loot: "Ninguno."
     }),
@@ -879,7 +879,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "6",
         attributes: { accurate: 15, cunning: 9, discreet: 10, persuasive: 5, quick: 7, resolute: 13, strong: 11, vigilant: 10 },
         traits: ["Arma natural (I)", "Robusto (I)", "Sangre ácida (I)"],
-        actions: ["Armas: Garras 9 (Cortas)", "Habilidades: Berserker, Combate sin armas"],
+        actions: ["Armas: Garras 9 (Cortas)", "Habilidades: Berserker (principiante), Combate sin armas (principiante)"],
         tactics: "Se aproxima a su víctima con hambre despiadada y acepta recibir golpes para devolverlos.",
         loot: "Objetos y herramientas de su antigua ocupación."
     }),
@@ -895,7 +895,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "8",
         attributes: { accurate: 11, cunning: 7, discreet: 10, persuasive: 5, quick: 13, resolute: 9, strong: 15, vigilant: 10 },
         traits: ["Arma natural (II)", "Ataque de corrupción (I)", "Robusto (II)"],
-        actions: ["Armas: Cuernos 10, +1D4 de Corrupción temporal", "Habilidades: Combate sin armas, Golpe de hierro"],
+        actions: ["Armas: Cuernos 10, +1D4 de Corrupción temporal", "Habilidades: Combate sin armas (principiante), Golpe de hierro (adepto)"],
         tactics: "Ataca en cuanto huele criaturas vivientes, impulsado por espuma y corrupción.",
         loot: "Ninguno."
     }),
@@ -927,7 +927,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "9",
         attributes: { accurate: 13, cunning: 9, discreet: 5, persuasive: 7, quick: 11, resolute: 10, strong: 18, vigilant: 10 },
         traits: ["Arma natural (III)", "Ataque de Corrupción (III)", "Duro (III)", "Regeneración (III)", "Robusto (III)", "Sangre ácida (III)"],
-        actions: ["Armas: Garras 20 (Largas) o dos ataques 18 y 14, +1D8 de Corrupción temporal", "Habilidades: Atributo excepcional (Fuerte), Berserker, Combate sin armas, Golpe de hierro"],
+        actions: ["Armas: Garras 20 (Largas) o dos ataques 18 y 14, +1D8 de Corrupción temporal", "Habilidades: Atributo excepcional (Fuerte, maestro), Berserker (maestro), Combate sin armas (maestro), Golpe de hierro (maestro)"],
         tactics: "No usa sutileza; solo persigue destrucción total y presión constante sobre todo lo vivo.",
         loot: "Restos corruptos de enorme valor alquímico."
     }),
@@ -943,7 +943,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "—",
         attributes: { accurate: 9, cunning: 7, discreet: 10, persuasive: 5, quick: 10, resolute: 13, strong: 15, vigilant: 11 },
         traits: ["Muerto viviente (I)"],
-        actions: ["Armas: Espada oxidada 7", "Habilidades: Combate con escudo, Golpe de hierro"],
+        actions: ["Armas: Espada oxidada 7", "Habilidades: Combate con escudo (principiante), Golpe de hierro (adepto)"],
         tactics: "Sigue la voluntad de su creador o el hambre de sangre fresca y carne caliente.",
         loot: "1D10 ortegs."
     }),
@@ -991,7 +991,7 @@ const BASIC_BOOK_MONSTERS = [
         painThreshold: "—",
         attributes: { accurate: 5, cunning: 10, discreet: 7, persuasive: 10, quick: 11, resolute: 13, strong: 15, vigilant: 9 },
         traits: ["Forma corpórea (III)", "Forma espiritual (III)", "Frío de ultratumba (III)"],
-        actions: ["Armas: Dos espadas 7/6 (Equilibradas), dos ataques al mismo objetivo", "Habilidades: Ataque con dos armas, Golpe de hierro"],
+        actions: ["Armas: Dos espadas 7/6 (Equilibradas), dos ataques al mismo objetivo", "Habilidades: Ataque con dos armas (maestro), Golpe de hierro (maestro)"],
         tactics: "Empieza con su ataque paralizante y luego usa sus espadas para rematar a la víctima inmóvil.",
         loot: "Dos espadas espectrales."
     })

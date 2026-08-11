@@ -8,9 +8,10 @@ type Props = {
   onExportPdf: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onOpenHistory: () => void;
 };
 
-export function CharacterCard({ item, selected, onOpenSheet, onOpenBuilder, onExportPdf, onDuplicate, onDelete }: Props) {
+export function CharacterCard({ item, selected, onOpenSheet, onOpenBuilder, onExportPdf, onDuplicate, onDelete, onOpenHistory }: Props) {
   const initials = item.title
     .split(/\s+/)
     .filter(Boolean)
@@ -32,6 +33,9 @@ export function CharacterCard({ item, selected, onOpenSheet, onOpenBuilder, onEx
       <small className="character-record-card-updated">Actualizada {item.createdLabel}</small>
       <div className="card-actions">
         <button className="character-record-primary-action" onClick={onOpenSheet}>{selected ? "Hoja abierta" : "Abrir hoja"}</button>
+        <button className="character-history-button" onClick={onOpenHistory}>
+          Historial{item.unreadChangeCount > 0 ? <span className="character-history-badge" aria-label={`${item.unreadChangeCount} cambios sin leer`}>{item.unreadChangeCount}</span> : null}
+        </button>
         <details className="character-record-actions-menu">
           <summary>Más acciones</summary>
           <div className="character-record-secondary-actions">

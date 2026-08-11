@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   buildRollRequest,
   deriveCharacterActions,
@@ -16,6 +16,7 @@ import {
 } from "@umbra/shared";
 import { useLayoutEffect, useRef } from "react";
 import { CharacterCard } from "../components/CharacterCard";
+import { CharacterChangeLogModal } from "../components/CharacterChangeLogModal";
 import { AppTopNavigation, type AppNavigationItem } from "../components/AppTopNavigation";
 import { AppIcon } from "../components/AppIcon";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
@@ -30,7 +31,7 @@ import {
 import { toCharacterCardViewModel } from "../models/characterModel";
 import { computeDerivedStats } from "../models/rulesEngine";
 import { exportCharacterSheetPdf } from "../services/characterPdfExport";
-import { updateCharacter } from "../services/characterService";
+import { aspireProfession, leaveProfession, removeProfessionAspiration, requestProfessionMembership, updateCharacter } from "../services/characterService";
 import { bindMysticArtifact, useMysticArtifactAbility } from "../services/mysticArtifactService";
 import {
   dispatchRoll20Request,
@@ -150,6 +151,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
   });
   const [selectedCharacterSheetId, setSelectedCharacterSheetId] = useState<string | null>(() => parseHash().sheetId ?? null);
   const [selectedCharacterPageMode, setSelectedCharacterPageMode] = useState<CharacterPageMode>(() => parseHash().characterPageMode ?? "sheet");
+  const [changeLogCharacterId, setChangeLogCharacterId] = useState<string | null>(null);
   const selectedCharacterSheet = useMemo(
     () => controller.characters.find((entry) => entry.id === selectedCharacterSheetId) ?? null,
     [controller.characters, selectedCharacterSheetId]
@@ -356,6 +358,27 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                     await bindMysticArtifact(artifactId, { paymentType }, token);
                     await controller.refresh();
                   }}
+                  onAspireProfession={async (professionId) => {
+                    const token = await ensureAccessToken();
+                    await aspireProfession(selectedCharacterSheet.id, professionId, token);
+                    await controller.refresh();
+                  }}
+                  onRemoveProfessionAspiration={async (professionId) => {
+                    const token = await ensureAccessToken();
+                    await removeProfessionAspiration(selectedCharacterSheet.id, professionId, token);
+                    await controller.refresh();
+                  }}
+                  onRequestProfession={async (professionId) => {
+                    const token = await ensureAccessToken();
+                    await requestProfessionMembership(selectedCharacterSheet.id, professionId, token);
+                    await controller.refresh();
+                  }}
+                  onLeaveProfession={async (professionId) => {
+                    const token = await ensureAccessToken();
+                    await leaveProfession(selectedCharacterSheet.id, professionId, token);
+                    await controller.refresh();
+                  }}
+                  onOpenCompendiumCapability={openCompendiumCapability}
                   onSave={async (nextSheet) => {
                     const token = await ensureAccessToken();
                     const updated = await updateCharacter(
@@ -380,6 +403,8 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   title={selectedCharacterSheet.name}
                   subtitle={`${selectedCharacterSheet.culture || "Sin cultura"} · ${selectedCharacterSheet.archetype || "Sin arquetipo"} · ${selectedCharacterSheet.race || "Sin raza"}`}
                   sheet={parseCharacterSheet(selectedCharacterSheet.sheet)}
+                  professionMemberships={selectedCharacterSheet.professionMemberships}
+                  enforceProfessionRestrictions
                   editable
                   backgroundPreferenceScope={user.id}
                   onBack={closeCharacterSheet}
@@ -985,7 +1010,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   value={item.nivel}
                   onChange={(event) => controller.updateRatedItem("habilidades", index, "nivel", event.target.value)}
                 >
-                  <option value="novato">Novato</option>
+                  <option value="novato">Principiante</option>
                   <option value="adepto">Adepto</option>
                   <option value="maestro">Maestro</option>
                 </select>
@@ -1077,7 +1102,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   value={item.nivel}
                   onChange={(event) => controller.updateRatedItem("poderesMisticos", index, "nivel", event.target.value)}
                 >
-                  <option value="novato">Novato</option>
+                  <option value="novato">Principiante</option>
                   <option value="adepto">Adepto</option>
                   <option value="maestro">Maestro</option>
                 </select>
@@ -1167,7 +1192,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   value={item.nivel}
                   onChange={(event) => controller.updateRatedItem("rituales", index, "nivel", event.target.value)}
                 >
-                  <option value="novato">Novato</option>
+                  <option value="novato">Principiante</option>
                   <option value="adepto">Adepto</option>
                   <option value="maestro">Maestro</option>
                 </select>
@@ -1453,6 +1478,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                           onOpenBuilder={() => openCharacterBuilder(character.id)}
                           onExportPdf={() => void exportCharacterSheetPdf(character)}
                           onDuplicate={() => void controller.duplicateSelected(character.id)}
+                          onOpenHistory={() => setChangeLogCharacterId(character.id)}
                           onDelete={() => {
                             if (window.confirm("Esta acción eliminará el personaje. ¿Deseas continuar?")) {
                               void controller.deleteSelected(character.id);
@@ -1462,6 +1488,18 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                       ))}
                     </div>
                   </section>
+                  {changeLogCharacterId ? (() => {
+                    const character = controller.characters.find((entry) => entry.id === changeLogCharacterId);
+                    return character ? (
+                      <CharacterChangeLogModal
+                        characterId={character.id}
+                        characterName={character.name}
+                        ensureAccessToken={ensureAccessToken}
+                        onClose={() => setChangeLogCharacterId(null)}
+                        onRead={controller.refresh}
+                      />
+                    ) : null;
+                  })() : null}
                 </section>
               </section>
             </section>

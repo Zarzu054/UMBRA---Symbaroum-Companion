@@ -11,7 +11,7 @@ export const actorCapabilityKindSchema = z.enum([
   "carga"
 ]);
 
-export const actorCapabilityOriginSchema = z.enum(["comprada", "racial", "trasfondo", "legado"]);
+export const actorCapabilityOriginSchema = z.enum(["comprada", "racial", "trasfondo", "legado", "profesion"]);
 
 export const actorCapabilitySelectionSchema = z.object({
   catalogId: z.string().max(180).default(""),
@@ -33,6 +33,7 @@ export const actorCapabilitySelectionSchema = z.object({
   repeatable: z.boolean().optional(),
   attributeKey: z.string().min(1).max(80).optional(),
   grantedEquipment: z.array(z.string().min(1).max(180)).max(20).optional(),
+  unlockProfessionId: z.string().min(1).max(120).optional(),
   legacyData: z.string().max(2000).optional()
 });
 

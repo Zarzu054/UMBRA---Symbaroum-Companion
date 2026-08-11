@@ -2395,12 +2395,26 @@ button[disabled] {
   border: 0;
   border-bottom: 3px solid transparent;
   border-radius: 0;
+  color: var(--ui-text-muted);
   background: transparent;
   box-shadow: none;
 }
 
 .monster-catalog-tabs button + button {
   border-left: 1px solid var(--ui-border);
+}
+
+.monster-catalog-tabs button:hover {
+  color: var(--ui-text);
+  border-bottom-color: color-mix(in srgb, var(--ui-brand) 45%, transparent);
+  background: var(--ui-surface-hover);
+}
+
+.monster-catalog-tabs button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid var(--ui-focus);
+  outline-offset: -4px;
 }
 
 .monster-catalog-tabs button.is-active {
@@ -2941,7 +2955,8 @@ button[disabled] {
   .unified-sheet-action-subtabs,
   .unified-sheet-mobile-tabs,
   .campaign-section-nav,
-  .compendium-mode-switch
+  .compendium-mode-switch,
+  .monster-catalog-tabs
 ) button {
   color: var(--ui-text-muted);
   border-color: transparent;
@@ -2955,7 +2970,8 @@ button[disabled] {
   .unified-sheet-action-subtabs,
   .unified-sheet-mobile-tabs,
   .campaign-section-nav,
-  .compendium-mode-switch
+  .compendium-mode-switch,
+  .monster-catalog-tabs
 ) button:hover {
   color: var(--ui-text);
   background: var(--ui-surface-hover);
@@ -2968,7 +2984,8 @@ button[disabled] {
   .unified-sheet-action-subtabs,
   .unified-sheet-mobile-tabs,
   .campaign-section-nav,
-  .compendium-mode-switch
+  .compendium-mode-switch,
+  .monster-catalog-tabs
 ) button.is-active {
   color: var(--ui-brand-strong);
   border-color: var(--ui-brand);
@@ -3080,13 +3097,13 @@ button[disabled] {
   background: var(--ui-surface-hover);
 }
 
-:root[data-theme][data-palette] :is(.unified-sheet-weapon-quality-info, .unified-sheet-action-detail-body .unified-sheet-capability-meta a) {
+:root[data-theme][data-palette] :is(.unified-sheet-weapon-quality-info, .unified-sheet-action-detail-body .unified-sheet-capability-meta a:not(.source-reference-link)) {
   color: var(--ui-info);
   border-color: var(--ui-info);
   background: var(--ui-info-soft);
 }
 
-:root[data-theme][data-palette] :is(.unified-sheet-weapon-quality-info, .unified-sheet-action-detail-body .unified-sheet-capability-meta a):hover,
+:root[data-theme][data-palette] :is(.unified-sheet-weapon-quality-info, .unified-sheet-action-detail-body .unified-sheet-capability-meta a:not(.source-reference-link)):hover,
 :root[data-theme][data-palette] .unified-sheet-weapon-quality-info.is-active {
   color: var(--ui-text);
   border-color: var(--ui-brand);
@@ -3269,6 +3286,35 @@ button[disabled] {
   .unified-sheet-xp-row > span
 ) {
   color: var(--ui-text-muted);
+}
+
+:root[data-theme][data-palette] .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card h3 {
+  color: var(--ui-text);
+}
+
+:root[data-theme="dark"][data-palette] .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card.app-card-accent {
+  --app-card-bg-top: color-mix(in srgb, var(--ui-surface) 90%, var(--app-card-accent-color));
+  --app-card-bg-bottom: color-mix(in srgb, var(--ui-surface-muted) 92%, var(--app-card-accent-color));
+  color: var(--ui-text);
+  border-color: color-mix(in srgb, var(--app-card-accent-color) 52%, var(--ui-border));
+  background: linear-gradient(180deg, var(--app-card-bg-top), var(--app-card-bg-bottom));
+  box-shadow:
+    inset 4px 0 0 var(--app-card-accent-color),
+    inset 0 0 0 1px color-mix(in srgb, var(--ui-border) 74%, transparent);
+}
+
+:root[data-theme="dark"][data-palette] .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card.app-card-accent.is-clickable:hover,
+:root[data-theme="dark"][data-palette] .unified-sheet-stage.unified-sheet-dynamic-column .unified-sheet-capability-card.app-card-accent.is-clickable:focus-visible {
+  border-color: color-mix(in srgb, var(--app-card-accent-color) 78%, var(--ui-border-strong));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ui-surface-hover) 86%, var(--app-card-accent-color)),
+    color-mix(in srgb, var(--ui-surface-muted) 86%, var(--app-card-accent-color))
+  );
+  box-shadow:
+    inset 4px 0 0 var(--app-card-accent-color),
+    inset 0 0 0 1px color-mix(in srgb, var(--ui-border-strong) 72%, transparent),
+    0 8px 20px color-mix(in srgb, #000 24%, transparent);
 }
 
 :root[data-theme][data-palette] :is(
@@ -4700,6 +4746,194 @@ button[disabled] {
   }
 }
 
+/* Shared links to books, summaries and other source documents. */
+.source-reference-link.source-reference-link {
+  min-width: 0;
+  width: auto;
+  min-height: 46px;
+  display: inline-grid;
+  grid-template-columns: 32px minmax(0, max-content) auto 16px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 7px;
+  border: 1px solid color-mix(in srgb, var(--ui-brand) 54%, var(--ui-border));
+  border-radius: 999px 14px 14px 999px;
+  color: var(--ui-text);
+  background:
+    linear-gradient(110deg, color-mix(in srgb, var(--ui-brand-soft) 82%, var(--ui-surface)), var(--ui-surface) 72%);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--ui-brand) 12%, transparent);
+  font: inherit;
+  line-height: 1.1;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+
+.source-reference-link.source-reference-link:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--ui-brand-strong);
+  color: var(--ui-text);
+  background: linear-gradient(110deg, var(--ui-brand-soft), var(--ui-surface-hover));
+  box-shadow: 0 6px 15px color-mix(in srgb, var(--ui-brand) 18%, transparent);
+}
+
+.source-reference-link.source-reference-link:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--ui-focus) 38%, transparent);
+  outline-offset: 2px;
+}
+
+.source-reference-link.source-reference-link:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
+.source-reference-link__icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--ui-brand) 44%, transparent);
+  border-radius: 50%;
+  color: var(--ui-brand-strong);
+  background: color-mix(in srgb, var(--ui-brand-soft) 82%, var(--ui-surface));
+}
+
+.source-reference-link__icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.source-reference-link__copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  color: inherit;
+  background: none;
+}
+
+.source-reference-link__copy small {
+  color: var(--ui-text-muted);
+  font-size: 0.58rem;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.source-reference-link__copy strong {
+  overflow: hidden;
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-reference-link__page {
+  padding: 4px 7px;
+  border: 1px solid color-mix(in srgb, var(--ui-brand) 30%, var(--ui-border));
+  border-radius: 999px;
+  color: var(--ui-brand-strong);
+  background: var(--ui-surface);
+  font-size: 0.69rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.source-reference-link__arrow {
+  padding: 0;
+  color: var(--ui-brand-strong);
+  background: none;
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .source-reference-link.source-reference-link {
+    grid-template-columns: 32px minmax(0, 1fr) auto 16px;
+  }
+
+  .source-reference-link__copy strong {
+    white-space: normal;
+  }
+}
+
+/* Campaign membership invitations. */
+.campaign-invitations-section,
+.campaign-pending-invitations {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--ui-border);
+}
+
+.campaign-invitations-section h2,
+.campaign-pending-invitations h4 {
+  margin: 0;
+}
+
+.campaign-invite-item {
+  min-width: 0;
+  justify-content: space-between;
+  border-color: var(--ui-border);
+  background: var(--ui-surface-muted);
+  color: var(--ui-text);
+}
+
+.campaign-invite-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.campaign-invite-copy span {
+  color: var(--ui-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.campaign-invitation-modal {
+  width: min(560px, 100%);
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+  border-radius: 22px;
+}
+
+.campaign-invitation-modal :is(h2, p) {
+  margin: 0;
+}
+
+.campaign-invitation-actions {
+  margin-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .campaign-invite-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .campaign-invite-item .toolbar,
+  .campaign-invitation-actions {
+    width: 100%;
+  }
+
+  .campaign-invite-item .toolbar button,
+  .campaign-invitation-actions button {
+    flex: 1 1 auto;
+  }
+}
+
 /* Personal compendium library shortcuts and dialogs. */
 .compendium-library-shortcuts {
   display: grid;
@@ -4796,7 +5030,7 @@ button[disabled] {
   padding-bottom: 0;
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .compendium-library-shortcuts {
     width: min(100%, 320px);
     align-self: flex-end;
@@ -4829,4 +5063,75 @@ button[disabled] {
   .compendium-library-modal-content .compendium-shelf-list {
     grid-template-columns: 1fr;
   }
+}
+.profession-builder-list,
+.profession-request-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.profession-progress-card,
+.profession-request-card {
+  padding: 1rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 14px;
+  background: var(--ui-surface);
+  color: var(--ui-text);
+}
+
+.profession-progress-card h4,
+.profession-request-card strong {
+  margin: 0.2rem 0;
+}
+
+.profession-state {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid var(--ui-border-strong, var(--ui-border));
+  border-radius: 999px;
+  background: var(--ui-surface-muted);
+  color: var(--ui-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.profession-state--active { background: color-mix(in srgb, var(--ui-success, #2f765b) 22%, var(--ui-surface)); }
+.profession-state--suspended,
+.profession-state--rejected { background: color-mix(in srgb, var(--ui-danger, #8a3138) 20%, var(--ui-surface)); }
+.profession-state--pending { background: color-mix(in srgb, var(--ui-accent, #9b6a36) 22%, var(--ui-surface)); }
+
+.profession-requirement-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0;
+}
+
+.profession-requirement-list > div,
+.profession-requirement-list > span {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.45rem 0.6rem;
+  border-radius: 9px;
+  background: var(--ui-surface-muted);
+  color: var(--ui-text);
+}
+
+.profession-requirement-list .is-met { border-left: 3px solid var(--ui-success, #2f765b); }
+.profession-requirement-list .is-pending { border-left: 3px solid var(--ui-danger, #8a3138); }
+.profession-benefit-list { display: grid; gap: 0.4rem; margin-top: 0.75rem; }
+.profession-actions { margin-top: 0.8rem; }
+.profession-lock-label { color: var(--ui-danger, #8a3138); font-weight: 700; }
+.sheet-profession-summary { margin-bottom: 1rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--ui-border); }
+.profession-request-modal { width: min(760px, calc(100vw - 2rem)); max-height: min(82vh, 760px); overflow: auto; }
+.profession-request-card > div:first-child { display: grid; gap: 0.2rem; }
+.profession-goal-picker { display: grid; gap: 0.65rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--ui-border); }
+.profession-goal-picker h4 { margin: 0; }
+
+@media (max-width: 720px) {
+  .profession-requirement-list > div { grid-template-columns: auto 1fr; }
+  .profession-requirement-list > div strong { grid-column: 2; }
 }

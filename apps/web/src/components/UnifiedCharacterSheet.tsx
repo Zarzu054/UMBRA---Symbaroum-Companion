@@ -14,9 +14,13 @@ import {
   synchronizeCharacterSheet,
   SYMBAROUM_MYSTIC_POWERS,
   SYMBAROUM_RITUALS,
+  evaluateProfession,
+  getBenefitProfessionIds,
+  normalizeProfessionCapabilities,
   type ActionRollResult,
   type CharacterActionDefinition,
   type CharacterActionPhase,
+  type CharacterProfessionMembership,
   type CharacterSheet,
   type RollDestination,
   type RollRequest
@@ -29,6 +33,7 @@ import { ALL_ENTRIES, findCompendiumEntryByTypeAndName, getCompendiumSourcePdfUr
 import { useUnifiedCharacterSheet } from "../hooks/useUnifiedCharacterSheet";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { CharacterSheetBackgroundPicker } from "./CharacterSheetBackgroundPicker";
+import { SourceReferenceLink } from "./SourceReferenceLink";
 import {
   dispatchRoll20Request,
   setRollDestination as persistRollDestination,
@@ -68,6 +73,8 @@ type Props = {
   collapsibleHistory?: boolean;
   onOpenCompendiumCapability?: (tipo: "habilidad" | "poder_mistico" | "ritual" | "bendicion" | "carga", nombre: string) => void;
   onUseArtifactAbility?: (artifactId: string, abilityId: string) => Promise<void>;
+  professionMemberships?: CharacterProfessionMembership[];
+  enforceProfessionRestrictions?: boolean;
 };
 
 type PendingRollConfirmation = {
@@ -114,7 +121,7 @@ type ActionDetailModal = {
 type InventoryCatalogModalTab = "weapons" | "armors" | "items";
 
 type CapabilityTier = {
-  label: "Novato" | "Adepto" | "Maestro";
+  label: "Principiante" | "Adepto" | "Maestro";
   content: string;
 };
 
@@ -619,7 +626,7 @@ function formatMoneyCounters(counters: MoneyCounters): string {
 function formatActionDisplayLabel(label: string): string {
   return String(label ?? "")
     .replace(/^(Usar|Lanzar)\s+/i, "")
-    .replace(/\s+\((Novato|Adepto|Maestro)\)\s*$/i, "")
+    .replace(/\s+\((Principiante|Novato|Adepto|Maestro)\)\s*$/i, "")
     .trim();
 }
 
@@ -821,7 +828,7 @@ function parseCapabilityTiers(text: string): { tiers: CapabilityTier[]; referenc
     return { tiers: [], reference: null, remainder: null };
   }
 
-  const tierRegex = /(Novato:|Adepto:|Maestro:)/g;
+  const tierRegex = /(Principiante:|Novato:|Adepto:|Maestro:)/g;
   const matches = [...source.matchAll(tierRegex)];
   if (matches.length === 0) {
     const referenceIndex = source.indexOf("Ref:");
@@ -839,7 +846,8 @@ function parseCapabilityTiers(text: string): { tiers: CapabilityTier[]; referenc
     const match = matches[index];
     const start = match.index ?? 0;
     const end = index + 1 < matches.length ? (matches[index + 1].index ?? source.length) : source.length;
-    const rawLabel = (match[0] ?? "").replace(":", "").trim();
+    const parsedLabel = (match[0] ?? "").replace(":", "").trim();
+    const rawLabel = parsedLabel === "Novato" ? "Principiante" : parsedLabel;
     const rawContent = source.slice(start + match[0].length, end).trim();
     const referenceIndex = rawContent.indexOf("Ref:");
     const content = (referenceIndex >= 0 ? rawContent.slice(0, referenceIndex) : rawContent).trim();
@@ -849,7 +857,7 @@ function parseCapabilityTiers(text: string): { tiers: CapabilityTier[]; referenc
     if (!content) {
       continue;
     }
-    if (rawLabel === "Novato" || rawLabel === "Adepto" || rawLabel === "Maestro") {
+    if (rawLabel === "Principiante" || rawLabel === "Adepto" || rawLabel === "Maestro") {
       tiers.push({ label: rawLabel, content });
     }
   }
@@ -895,7 +903,7 @@ function getSheetTraitLevel(sheet: CharacterSheet, traitName: string): number {
     }
     if (/\bmaestro\b/.test(normalized)) return 3;
     if (/\badepto\b/.test(normalized)) return 2;
-    if (/\bnovato\b/.test(normalized)) return 1;
+    if (/\b(?:principiante|novato)\b/.test(normalized)) return 1;
     if (/\biii\b|\b3\b/.test(normalized)) return 3;
     if (/\bii\b|\b2\b/.test(normalized)) return 2;
     return 1;
@@ -1017,10 +1025,11 @@ function getCustomItemQualities(item: CharacterSheet["inventoryItems"][number]):
     .filter((quality) => !knownIds.has(normalizeWeaponQualityKey(quality)));
 }
 
-function capitalizeActionLevel(level: string): "Novato" | "Adepto" | "Maestro" | null {
+function capitalizeActionLevel(level: string): "Principiante" | "Adepto" | "Maestro" | null {
   switch (String(level ?? "").toLowerCase()) {
+    case "principiante":
     case "novato":
-      return "Novato";
+      return "Principiante";
     case "adepto":
       return "Adepto";
     case "maestro":
@@ -1044,7 +1053,7 @@ function formatCapabilitySource(entry: RatedEntry): string {
 }
 
 function normalizeCapabilityTiers(tiers: CapabilityTier[]): CapabilityTier[] {
-  const order: CapabilityTier["label"][] = ["Novato", "Adepto", "Maestro"];
+  const order: CapabilityTier["label"][] = ["Principiante", "Adepto", "Maestro"];
   const unique = new Map<CapabilityTier["label"], CapabilityTier>();
   for (const tier of tiers) {
     if (!unique.has(tier.label) && tier.content.trim()) {
@@ -1068,7 +1077,7 @@ function shouldKeepCapabilityNote(note: string, tiers: CapabilityTier[], referen
     return true;
   }
 
-  if (/(novato:|adepto:|maestro:)/i.test(note)) {
+  if (/(principiante:|novato:|adepto:|maestro:)/i.test(note)) {
     return false;
   }
 
@@ -1092,7 +1101,9 @@ export function UnifiedCharacterSheet({
   onUseArtifactAbility,
   backgroundPreferenceScope,
   collapsibleHistory = false,
-  onOpenCompendiumCapability
+  onOpenCompendiumCapability,
+  professionMemberships = [],
+  enforceProfessionRestrictions = false
 }: Props) {
   const { draft, isSavingLocal, setDraft, updateField, save } = useUnifiedCharacterSheet({
     sheet,
@@ -1142,8 +1153,38 @@ export function UnifiedCharacterSheet({
 
   const normalizedSheet = useMemo(() => synchronizeCharacterSheet(draft), [draft]);
   const usesFixedAverages = normalizedSheet.resolutionMode === "fixed_average";
-  const derived = useMemo(() => computeDerivedStats(normalizedSheet), [normalizedSheet]);
-  const actions = useMemo(() => deriveCharacterActions(normalizedSheet), [normalizedSheet]);
+  const activeProfessionIds = useMemo(() => new Set(
+    professionMemberships
+      .filter((membership) => membership.state === "active" && evaluateProfession(membership.professionId, {
+        race: normalizedSheet.identidad.raza,
+        culture: normalizedSheet.identidad.cultura,
+        permanentCorruption: normalizedSheet.corrupcion.permanente,
+        blessings: normalizedSheet.bendiciones,
+        capabilities: normalizeProfessionCapabilities([
+          ...normalizedSheet.capabilitySelections,
+          ...normalizedSheet.habilidades.map((entry) => ({ name: entry.nombre, kind: "habilidad" as const, level: entry.nivel })),
+          ...normalizedSheet.poderesMisticos.map((entry) => ({ name: entry.nombre, kind: "poder_mistico" as const, level: entry.nivel })),
+          ...normalizedSheet.rituales.map((entry) => ({ name: entry.nombre, kind: "ritual" as const, level: entry.nivel }))
+        ])
+      }, { includeAdmissionOnly: false }).eligible)
+      .map((membership) => membership.professionId)
+  ), [normalizedSheet, professionMemberships]);
+  const mechanicalSheet = useMemo(() => {
+    const isEnabled = (name: string) => {
+      if (!enforceProfessionRestrictions) return true;
+      const professionIds = getBenefitProfessionIds(name);
+      return professionIds.length === 0 || professionIds.some((id) => activeProfessionIds.has(id));
+    };
+    return {
+      ...normalizedSheet,
+      habilidades: normalizedSheet.habilidades.filter((entry) => isEnabled(entry.nombre)),
+      poderesMisticos: normalizedSheet.poderesMisticos.filter((entry) => isEnabled(entry.nombre)),
+      rituales: normalizedSheet.rituales.filter((entry) => isEnabled(entry.nombre)),
+      capabilitySelections: normalizedSheet.capabilitySelections.filter((entry) => isEnabled(entry.name))
+    };
+  }, [activeProfessionIds, enforceProfessionRestrictions, normalizedSheet]);
+  const derived = useMemo(() => computeDerivedStats(mechanicalSheet), [mechanicalSheet]);
+  const actions = useMemo(() => deriveCharacterActions(mechanicalSheet), [mechanicalSheet]);
   const defenseAlternativeActions = useMemo(
     () => actions.filter((action) => isDefenseModifierOnlyAction(action)),
     [actions]
@@ -3104,6 +3145,19 @@ export function UnifiedCharacterSheet({
           {stageActiveTab === "abilities" ? (
             <section className="unified-sheet-panel">
               <article className="campaign-sheet-card">
+                {professionMemberships.length > 0 ? (
+                  <section className="sheet-profession-summary">
+                    <h3>Profesiones avanzadas</h3>
+                    <div className="toolbar">
+                      {professionMemberships.map((membership) => (
+                        <span key={membership.id} className={`profession-state profession-state--${membership.effectiveState}`}>
+                          {membership.professionName}: {membership.effectiveState === "active" ? "Activa" : membership.effectiveState === "suspended" ? "Suspendida" : membership.effectiveState === "pending" ? "Pendiente" : membership.effectiveState === "rejected" ? "Rechazada" : "Objetivo"}
+                        </span>
+                      ))}
+                    </div>
+                    {professionMemberships.some((membership) => membership.effectiveState === "suspended") ? <p className="section-help">Los beneficios de profesiones suspendidas se conservan, pero sus acciones y modificadores quedan inactivos.</p> : null}
+                  </section>
+                ) : null}
                 {activeCapabilityTab === "traits" ? (
                   <SimpleStringList title="Rasgos" entries={normalizedSheet.rasgos} emptyText="Sin rasgos registrados." categoryKey="rasgo" />
                 ) : null}
@@ -3889,9 +3943,7 @@ export function UnifiedCharacterSheet({
               {actionDetailModal.references && actionDetailModal.references.length > 0 ? (
                 <div className="unified-sheet-capability-meta">
                   {actionDetailModal.references.map((reference) => (
-                    <a key={reference.url} href={reference.url} target="_blank" rel="noreferrer">
-                      {reference.label}
-                    </a>
+                    <SourceReferenceLink key={reference.url} href={reference.url} source={reference.label} />
                   ))}
                 </div>
               ) : null}
@@ -4634,7 +4686,7 @@ function CapabilityEditor({ title, entries, editable, onAdd, onRemove, onUpdate,
             <div className="form-grid">
               <Field label="Nombre"><input disabled={!editable} value={entry.nombre} onChange={(event) => onUpdate(index, "nombre", event.target.value)} /></Field>
               <Field label="Tipo"><input disabled={!editable} value={entry.tipo} onChange={(event) => onUpdate(index, "tipo", event.target.value)} /></Field>
-              <Field label="Nivel"><select disabled={!editable} value={entry.nivel} onChange={(event) => onUpdate(index, "nivel", event.target.value)}><option value="novato">Novato</option><option value="adepto">Adepto</option><option value="maestro">Maestro</option></select></Field>
+              <Field label="Nivel"><select disabled={!editable} value={entry.nivel} onChange={(event) => onUpdate(index, "nivel", event.target.value)}><option value="novato">Principiante</option><option value="adepto">Adepto</option><option value="maestro">Maestro</option></select></Field>
               <Field label="Fuente"><input disabled={!editable} value={entry.fuente} onChange={(event) => onUpdate(index, "fuente", event.target.value)} /></Field>
               <Field label="Pagina"><input disabled={!editable} type="number" min={0} value={entry.pagina ?? ""} onChange={(event) => onUpdate(index, "pagina", Number(event.target.value || 0))} /></Field>
             </div>

@@ -6,6 +6,7 @@ import {
   SYMBAROUM_MYSTIC_POWERS,
   SYMBAROUM_RACES,
   SYMBAROUM_RITUALS,
+  SYMBAROUM_PROFESSIONS,
   WEAPON_QUALITY_OPTIONS,
   WEAPON_TEMPLATES,
   type SymbaroumCapability
@@ -488,7 +489,8 @@ function buildProfessionEntries(): CompendiumEntry[] {
       tipo: "profesion",
       nombre: name,
       resumen: `${counts.powers} poderes m\u00edsticos, ${counts.rituals} rituales.`,
-      detalle: `Profesi\u00f3n m\u00edstica listada en el compendio central de UMBRA. Re\u00fane ${counts.powers} poderes m\u00edsticos y ${counts.rituals} rituales del cat\u00e1logo. Esta entrada es informativa y no incorpora mec\u00e1nicas de profesi\u00f3n a la creaci\u00f3n de personajes.`,
+      detalle: SYMBAROUM_PROFESSIONS.find((profession) => profession.name === name)?.description
+        ?? "Profesi\u00f3n avanzada de la Gu\u00eda Avanzada del Jugador.",
       fuente: "Gu\u00eda Avanzada del Jugador",
       facts: [
         { label: "Poderes", value: String(counts.powers) },
@@ -504,7 +506,7 @@ function buildProfessionEntries(): CompendiumEntry[] {
       tipo: "profesion",
       nombre: profession.name,
       resumen: profession.summary,
-      detalle: `${profession.detail}\n\nEsta entrada es informativa y no incorpora mec\u00e1nicas de profesi\u00f3n a la creaci\u00f3n de personajes.`,
+      detalle: profession.detail,
       fuente: "Gu\u00eda Avanzada del Jugador",
       pagina: profession.page,
       facts: [
@@ -530,8 +532,46 @@ function buildProfessionEntries(): CompendiumEntry[] {
     };
   });
 
-  return [...linkedEntries, ...detailedEntries]
-    .sort((left, right) => left.nombre.localeCompare(right.nombre, "es"));
+  void linkedEntries;
+  void detailedEntries;
+  return buildCanonicalProfessionEntries();
+}
+
+function buildCanonicalProfessionEntries(): CompendiumEntry[] {
+  const capabilityIdByName = new Map(
+    [...SYMBAROUM_ABILITIES, ...SYMBAROUM_MYSTIC_POWERS, ...SYMBAROUM_RITUALS]
+      .map((entry) => [slugify(entry.nombre), entry.id] as const)
+  );
+  return SYMBAROUM_PROFESSIONS.map((profession) => {
+    const requirementText = profession.requirements.map((requirement) => requirement.label).join("; ");
+    const benefitText = profession.benefits.map((benefit) => benefit.upgradesFrom ? `${benefit.name} (requiere ${benefit.upgradesFrom})` : benefit.name).join("; ");
+    const higherRituals = profession.benefits.filter((benefit) => benefit.upgradesFrom);
+    return {
+      id: `profesion-${profession.id}`,
+      tipo: "profesion" as const,
+      nombre: profession.name,
+      resumen: profession.summary,
+      detalle: `${profession.description}\n\nPara ingresar hay que poseer todos los requisitos, resolver cada alternativa con una opción válida y tener al menos una de las capacidades requeridas a nivel maestro. Los rituales y las opciones meramente opcionales no cuentan para cumplir la regla de maestro. Si el personaje está vinculado a una campaña, el DJ debe aprobar su solicitud. Los beneficios quedan desbloqueados, pero se compran con su coste normal de PX.`,
+      fuente: "Guía Avanzada del Jugador",
+      pagina: profession.page,
+      facts: [
+        { label: "Arquetipo", value: profession.archetype },
+        ...(profession.importantAttributes ? [{ label: "Atributos importantes", value: profession.importantAttributes }] : []),
+        { label: "Requisitos", value: requirementText },
+        { label: "Regla de maestro", value: "Al menos una capacidad requerida a nivel maestro" },
+        ...(profession.optionalCapabilities?.length ? [{ label: "Opcionales", value: profession.optionalCapabilities.join("; ") }] : []),
+        ...(profession.otherRequirement ? [{ label: "Condición especial", value: profession.otherRequirement.label }] : []),
+        { label: "Habilidad o don exclusivo", value: benefitText },
+        ...(higherRituals.length ? [{ label: "Rituales superiores", value: higherRituals.map((benefit) => `${benefit.upgradesFrom} → ${benefit.name}`).join("; ") }] : [])
+      ],
+      relations: profession.benefits.flatMap((benefit) => {
+        const entryId = capabilityIdByName.get(slugify(benefit.name));
+        return entryId ? [{ entryId, label: benefit.name }] : [];
+      }),
+      references: [{ source: "Guía Avanzada del Jugador", page: profession.page }],
+      tags: ["profesion", profession.archetype, requirementText, benefitText, ...(profession.optionalCapabilities ?? [])]
+    };
+  }).sort((left, right) => left.nombre.localeCompare(right.nombre, "es"));
 }
 
 function uniqueCompendiumReferences(references: CompendiumReference[]): CompendiumReference[] {
@@ -2066,7 +2106,7 @@ function buildMonsterRuleEntries(): CompendiumEntry[] {
       nombre: "Nivel de competencia",
       resumen: "El libro divide a los grupos en novatos, experimentados, veteranos y héroes según experiencia, equipo y alcance de sus aventuras.",
       detalle:
-        "Novatos rondan 50 XP y afrontan aventuras limitadas; experimentados, unas 100 XP y retos locales; veteranos, unas 200 XP y amenazas regionales; héroes, 300 XP o más, con artefactos abundantes y conflictos globales.",
+        "Los grupos novatos rondan 50 XP y afrontan aventuras limitadas; los experimentados, unas 100 XP y retos locales; los veteranos, unas 200 XP y amenazas regionales; y los héroes, 300 XP o más, con artefactos abundantes y conflictos globales.",
       fuente: "Códice de monstruos",
       pagina: 178,
       tags: ["monstruos", "campaña", "competencia"]
@@ -2120,11 +2160,11 @@ export const MANUAL_RULES: CompendiumEntry[] = [
     id: "regla-manual-3-patrones-iniciales-de-habilidades",
     tipo: "regla",
     nombre: "Patrones iniciales de habilidades",
-    resumen: "La creaci\u00f3n solo acepta 5 habilidades novato o 2 novato + 1 adepto; maestro no est\u00e1 permitido.",
-    detalle: "UMBRA valida los patrones iniciales de capacidades durante la creaci\u00f3n: o bien cinco habilidades a nivel novato, o bien dos a nivel novato y una a nivel adepto. No se permite nivel maestro en creaci\u00f3n.",
+    resumen: "La creaci\u00f3n solo acepta 5 habilidades de nivel principiante o 2 de nivel principiante + 1 de nivel adepto; maestro no est\u00e1 permitido.",
+    detalle: "UMBRA valida los patrones iniciales de capacidades durante la creaci\u00f3n: o bien cinco habilidades a nivel principiante, o bien dos a nivel principiante y una a nivel adepto. No se permite nivel maestro en creaci\u00f3n.",
     fuente: "Libro B\u00e1sico",
     pagina: 104,
-    tags: ["creacion", "habilidades", "novato", "adepto"]
+    tags: ["creacion", "habilidades", "principiante", "novato", "adepto"]
   },
   {
     id: "regla-manual-4-requisitos-de-poderes-y-rituales",
@@ -2593,7 +2633,7 @@ export const RULE_SUMMARY_ENTRIES: CompendiumEntry[] = [
     tipo: "regla",
     nombre: "Compra individual de rituales",
     resumen: "Cada ritual cuesta 10 puntos de experiencia y se adquiere de forma independiente.",
-    detalle: "Los rituales no se agrupan bajo una habilidad ni tienen un l\u00edmite determinado por niveles de novato, adepto o maestro. Cada ritual conocido ocupa una entrada propia y cuesta 10 puntos de experiencia, sin importar cu\u00e1ntos rituales conozca ya el personaje.",
+    detalle: "Los rituales no se agrupan bajo una habilidad ni tienen un l\u00edmite determinado por los niveles Principiante, Adepto o Maestro. Cada ritual conocido ocupa una entrada propia y cuesta 10 puntos de experiencia, sin importar cu\u00e1ntos rituales conozca ya el personaje.",
     fuente: "Reglas UMBRA",
     tags: ["rituales", "compra", "experiencia", "10-px"]
   },

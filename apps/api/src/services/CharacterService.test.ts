@@ -57,4 +57,17 @@ describe("CharacterService experience ownership", () => {
 
     expect(model.update.mock.calls[0][2].sheet.inventoryItems.filter((item: typeof legacy) => item.category === "artifact").map((item: typeof legacy) => item.id)).toEqual(["legacy-artifact"]);
   });
+
+  it("forwards the actor and builder source to the audited update", async () => {
+    const current = makeCharacter();
+    const model = {
+      findById: vi.fn().mockResolvedValue(current),
+      update: vi.fn().mockImplementation(async (_ownerId, _characterId, payload) => ({ ...current, ...payload }))
+    };
+    const actor = { id: "owner-a", email: "owner@example.com", role: "player" as const };
+
+    await new CharacterService(model as never).updateCharacter("owner-a", current.id, { sheet: current.sheet, editSource: "builder" }, actor);
+
+    expect(model.update).toHaveBeenCalledWith("owner-a", current.id, expect.any(Object), actor, "builder");
+  });
 });

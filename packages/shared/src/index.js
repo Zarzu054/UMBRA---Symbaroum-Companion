@@ -8,6 +8,7 @@ export * from "./campaignActionEngine.js";
 export * from "./monsterCodex.js";
 export * from "./monsterTraitRules.js";
 export * from "./actorCreation.js";
+export * from "./professionCatalog.js";
 export * from "./weaponCatalog.js";
 export * from "./mysticArtifacts.js";
 export * from "./mysticArtifactProjection.js";
@@ -1061,7 +1062,7 @@ function getTraitLevelForCanonicalActions(sheet, traitName) {
             return 3;
         if (/\badepto\b/.test(normalized))
             return 2;
-        if (/\bnovato\b/.test(normalized))
+        if (/\b(?:principiante|novato)\b/.test(normalized))
             return 1;
         if (/\biii\b|\b3\b/.test(normalized))
             return 3;
@@ -1149,7 +1150,7 @@ function inferRatedActionLevel(...values) {
         return "maestro";
     if (joined.includes("adepto"))
         return "adepto";
-    if (joined.includes("novato"))
+    if (joined.includes("principiante") || joined.includes("novato"))
         return "novato";
     return undefined;
 }
@@ -1175,7 +1176,11 @@ function sanitizeImportedRatedEntry(entry) {
     const candidate = entry;
     const nombre = String(candidate.nombre ?? "").trim();
     const nivelRaw = String(candidate.nivel ?? "").trim().toLowerCase();
-    const nivel = nivelRaw === "novato" || nivelRaw === "adepto" || nivelRaw === "maestro" ? nivelRaw : "novato";
+    const nivel = nivelRaw === "principiante"
+        ? "novato"
+        : nivelRaw === "novato" || nivelRaw === "adepto" || nivelRaw === "maestro"
+            ? nivelRaw
+            : "novato";
     const acciones = Array.isArray(candidate.acciones) ? candidate.acciones.filter((action) => action && typeof action === "object") : [];
     return {
         nombre: truncateImportedString(nombre, 120),
@@ -1628,7 +1633,8 @@ export const importCharacterSchema = z.object({
     sheet: importedCharacterSheetSchema
 });
 export const updateCharacterSchema = createCharacterSchema.partial().extend({
-    sheet: importedCharacterSheetSchema
+    sheet: importedCharacterSheetSchema,
+    editSource: z.enum(["sheet", "builder"]).optional()
 });
 export const loginSchema = z.object({
     email: z.string().email(),
@@ -1686,9 +1692,10 @@ export const createCampaignSchema = z.object({
     sharedNoteEntries: z.array(campaignSharedNoteEntrySchema).max(200).default([])
 });
 export const updateCampaignSchema = createCampaignSchema.partial();
-export const addCampaignMemberSchema = z.object({
+export const createCampaignInvitationSchema = z.object({
     email: z.string().email()
 });
+export const campaignInvitationIdSchema = z.string().uuid();
 export const linkCampaignCharacterSchema = z.object({
     characterId: z.string().uuid()
 });
@@ -1705,7 +1712,8 @@ export const createCampaignNpcSchema = z.object({
 });
 export const updateCampaignNpcSchema = createCampaignNpcSchema.partial();
 export const updateCampaignCharacterSheetSchema = z.object({
-    sheet: importedCharacterSheetSchema
+    sheet: importedCharacterSheetSchema,
+    editSource: z.enum(["sheet", "builder"]).optional()
 });
 export const updateCampaignNpcSheetSchema = z.object({
     sheet: characterSheetSchema.nullable()
@@ -1771,4 +1779,9 @@ export const compendiumEntryIdSchema = z.string().trim().min(1).max(200);
 export const setCompendiumFavoriteSchema = z.object({
     favorite: z.boolean()
 }).strict();
+export const professionIdSchema = z.string().trim().min(1).max(120);
+export const professionDecisionSchema = z.object({
+    decision: z.enum(["approve", "reject"]),
+    note: z.string().trim().max(500).default("")
+});
 export const updateCampaignReferenceSchema = createCampaignReferenceSchema.partial();

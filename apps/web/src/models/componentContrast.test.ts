@@ -50,6 +50,13 @@ describe("component contrast contracts", () => {
     expect(stylesheet).toMatch(/\.vital-action\.subtle[\s\S]*?color: var\(--ui-brand-strong\)/);
   });
 
+  it("keeps inactive monster tabs readable in every theme", () => {
+    expect(stylesheet).toMatch(/\.monster-catalog-tabs button\s*\{[\s\S]*?color: var\(--ui-text-muted\);[\s\S]*?background: transparent/);
+    expect(stylesheet).toMatch(/\.monster-catalog-tabs button:hover\s*\{[\s\S]*?color: var\(--ui-text\);[\s\S]*?background: var\(--ui-surface-hover\)/);
+    expect(stylesheet).toMatch(/\.monster-catalog-tabs button\.is-active\s*\{[\s\S]*?color: var\(--ui-brand-strong\);[\s\S]*?background: var\(--ui-brand-soft\)/);
+    expect(stylesheet).toMatch(/\.compendium-mode-switch,\s*\.monster-catalog-tabs\s*\) button \{/);
+  });
+
   it("uses theme-aware, readable colors for every character resource and its track", () => {
     expect(stylesheet).toMatch(/\.unified-sheet-resources-module \.unified-sheet-vital-card\.is-health \.unified-sheet-vital-header[\s\S]*?color: var\(--ui-success\)/);
     expect(stylesheet).toMatch(/\.unified-sheet-resources-module\s*\{[\s\S]*?--sheet-temporary-corruption: #6d3fa3;[\s\S]*?--sheet-permanent-corruption: #171411/);

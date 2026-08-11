@@ -1,9 +1,12 @@
 ﻿import type { Prisma } from "@prisma/client";
-import { createEmptyCharacterSheet, decodeCampaignDmNotes, decodeCampaignSharedNotes, encodeCampaignDmNotes, encodeCampaignSharedNotes, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CharacterSheet, type OwnedMysticArtifact, type UserRole } from "@umbra/shared";
+import { createEmptyCharacterSheet, decodeCampaignDmNotes, decodeCampaignSharedNotes, encodeCampaignDmNotes, encodeCampaignSharedNotes, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CampaignInvitation, type CharacterSheet, type OwnedMysticArtifact, type UserRole } from "@umbra/shared";
 import { Prisma as PrismaRuntime } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { getEffectiveCharacterExperienceSpent } from "../services/characterExperiencePolicy.js";
 import { mapMysticArtifact, mysticArtifactInclude } from "./MysticArtifactModel.js";
+import { buildCharacterChanges, getCharacterAuditActor, getUnreadCharacterChangeCounts, recordCharacterChange } from "./CharacterAuditModel.js";
+import { AppError } from "../utils/AppError.js";
+import { mapProfessionMembership, validateProfessionBenefitAcquisitionWithMemberships } from "./ProfessionModel.js";
 
 const campaignInclude = {
   gm: true,
@@ -19,7 +22,8 @@ const campaignInclude = {
     include: {
       character: {
         include: {
-          owner: true
+          owner: true,
+          professionMemberships: { orderBy: { createdAt: "asc" } }
         }
       }
     },
@@ -69,6 +73,15 @@ const campaignInclude = {
     },
     orderBy: {
       createdAt: "asc"
+    }
+  },
+  invitations: {
+    include: {
+      user: true,
+      invitedBy: true
+    },
+    orderBy: {
+      createdAt: "desc"
     }
   },
   mysticArtifacts: {
@@ -147,7 +160,8 @@ function mapCampaign(
   row: CampaignRow,
   viewerId: string,
   viewerRole: UserRole,
-  availableRows: CharacterAvailabilityRow[] = []
+  availableRows: CharacterAvailabilityRow[] = [],
+  unreadCounts: Map<string, number> = new Map()
 ): Campaign {
   const linkedIds = new Set(row.characters.map((entry) => entry.characterId));
   const isDirector = viewerRole === "superadmin" || row.gmId === viewerId;
@@ -183,6 +197,24 @@ function mapCampaign(
       role: member.role,
       joinedAt: member.joinedAt.toISOString()
     })),
+    pendingInvitations: isDirector ? row.invitations.map((invitation) => ({
+      id: invitation.id,
+      campaignId: invitation.campaignId,
+      campaignName: row.name,
+      gmEmail: invitation.invitedBy.email,
+      invitedEmail: invitation.user.email,
+      createdAt: invitation.createdAt.toISOString()
+    })) : [],
+    pendingProfessionRequests: isDirector ? row.characters.flatMap((entry) => {
+      const sheet = parseCharacterSheet(entry.character.sheet);
+      return entry.character.professionMemberships
+        .filter((membership) => membership.state === "pending" && membership.campaignId === row.id)
+        .map((membership) => ({
+          ...mapProfessionMembership(membership, sheet),
+          characterName: entry.character.name,
+          ownerEmail: entry.character.owner.email
+        }));
+    }) : [],
     characters: row.characters.map((entry) => {
       let experienceTotal = 0;
       let experienceSpent = 0;
@@ -208,6 +240,8 @@ function mapCampaign(
         experienceTotal,
         experienceSpent,
         sheet: isDirector || entry.character.ownerId === viewerId ? visibleSheet : null,
+        unreadChangeCount: unreadCounts.get(entry.characterId) ?? 0,
+        professionMemberships: entry.character.professionMemberships.map((membership) => mapProfessionMembership(membership, visibleSheet)),
         updatedAt: entry.character.updatedAt.toISOString()
       };
     }),
@@ -291,7 +325,9 @@ export class CampaignModel {
     });
 
     const availableByCampaign = await this.getAvailableCharactersForCampaignRows(rows);
-    return rows.map((row) => mapCampaign(row, userId, userRole, availableByCampaign.get(row.id) ?? []));
+    const campaignByCharacter = new Map(rows.flatMap((row) => row.characters.map((entry) => [entry.characterId, row.id] as const)));
+    const unreadCounts = await getUnreadCharacterChangeCounts(userId, [...campaignByCharacter.keys()], campaignByCharacter);
+    return rows.map((row) => mapCampaign(row, userId, userRole, availableByCampaign.get(row.id) ?? [], unreadCounts));
   }
 
   async findAccessibleById(userId: string, userRole: UserRole, campaignId: string): Promise<Campaign | null> {
@@ -308,7 +344,9 @@ export class CampaignModel {
 
     if (!row) return null;
     const availableRows = (await this.getAvailableCharactersForCampaignRows([row])).get(row.id) ?? [];
-    return mapCampaign(row, userId, userRole, availableRows);
+    const campaignByCharacter = new Map(row.characters.map((entry) => [entry.characterId, row.id] as const));
+    const unreadCounts = await getUnreadCharacterChangeCounts(userId, [...campaignByCharacter.keys()], campaignByCharacter);
+    return mapCampaign(row, userId, userRole, availableRows, unreadCounts);
   }
 
   async create(
@@ -358,24 +396,9 @@ export class CampaignModel {
     });
 
     const availableRows = (await this.getAvailableCharactersForCampaignRows([row])).get(row.id) ?? [];
-    return mapCampaign(row, viewerId, viewerRole, availableRows);
-  }
-
-  async addMember(campaignId: string, userId: string): Promise<void> {
-    await prisma.campaignMember.upsert({
-      where: {
-        campaignId_userId: {
-          campaignId,
-          userId
-        }
-      },
-      update: {},
-      create: {
-        campaignId,
-        userId,
-        role: "player"
-      }
-    });
+    const campaignByCharacter = new Map(row.characters.map((entry) => [entry.characterId, row.id] as const));
+    const unreadCounts = await getUnreadCharacterChangeCounts(viewerId, [...campaignByCharacter.keys()], campaignByCharacter);
+    return mapCampaign(row, viewerId, viewerRole, availableRows, unreadCounts);
   }
 
   async removeMember(memberId: string): Promise<void> {
@@ -384,25 +407,127 @@ export class CampaignModel {
     });
   }
 
-  async linkCharacter(campaignId: string, characterId: string): Promise<void> {
-    await prisma.campaignCharacter.upsert({
-      where: {
-        campaignId_characterId: {
-          campaignId,
-          characterId
+  async findCharacterLinkByCharacterId(characterId: string): Promise<{ id: string; campaignId: string } | null> {
+    return prisma.campaignCharacter.findUnique({ where: { characterId }, select: { id: true, campaignId: true } });
+  }
+
+  async linkCharacter(campaignId: string, characterId: string, actorId?: string): Promise<void> {
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.campaignCharacter.create({ data: { campaignId, characterId } });
+        const actor = actorId ? await getCharacterAuditActor(tx, actorId) : null;
+        if (actor) {
+          await recordCharacterChange(tx, {
+            characterId,
+            actor,
+            campaignId,
+            source: "campaign_link",
+            summary: "Vinculó el personaje a la campaña",
+            changes: [{ path: "campaign", section: "Campaña", label: "Vinculación", operation: "added", after: "Personaje vinculado" }]
+          });
         }
-      },
-      update: {},
-      create: {
-        campaignId,
-        characterId
+      });
+    } catch (error) {
+      if (error instanceof PrismaRuntime.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new AppError("CAMPAIGN_CHARACTER_ALREADY_LINKED", "El personaje ya está vinculado a una campaña", 409);
       }
+      throw error;
+    }
+  }
+
+  async unlinkCharacter(linkId: string, actorId?: string): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      const link = await tx.campaignCharacter.findUnique({ where: { id: linkId }, select: { characterId: true, campaignId: true } });
+      if (!link) return;
+      const actor = actorId ? await getCharacterAuditActor(tx, actorId) : null;
+      if (actor) {
+        await recordCharacterChange(tx, {
+          characterId: link.characterId,
+          actor,
+          campaignId: link.campaignId,
+          source: "campaign_link",
+          summary: "Desvinculó el personaje de la campaña",
+          changes: [{ path: "campaign", section: "Campaña", label: "Vinculación", operation: "removed", before: "Personaje vinculado" }]
+        });
+      }
+      await tx.characterProfessionMembership.updateMany({
+        where: { characterId: link.characterId, campaignId: link.campaignId, state: "pending" },
+        data: { state: "aspiration", requestedById: null, requestedAt: null, reviewedById: null, reviewedAt: null, decisionNote: "" }
+      });
+      await tx.campaignCharacter.delete({ where: { id: linkId } });
     });
   }
 
-  async unlinkCharacter(linkId: string): Promise<void> {
-    await prisma.campaignCharacter.delete({
-      where: { id: linkId }
+  async createInvitation(campaignId: string, userId: string, invitedById: string): Promise<CampaignInvitation> {
+    const row = await prisma.campaignInvitation.upsert({
+      where: { campaignId_userId: { campaignId, userId } },
+      update: { invitedById, createdAt: new Date() },
+      create: { campaignId, userId, invitedById },
+      include: {
+        campaign: { include: { gm: true } },
+        user: true,
+        invitedBy: true
+      }
+    });
+
+    return {
+      id: row.id,
+      campaignId: row.campaignId,
+      campaignName: row.campaign.name,
+      gmEmail: row.campaign.gm.email,
+      invitedEmail: row.user.email,
+      createdAt: row.createdAt.toISOString()
+    };
+  }
+
+  async deleteInvitation(invitationId: string): Promise<void> {
+    await prisma.campaignInvitation.deleteMany({ where: { id: invitationId } });
+  }
+
+  async findInvitationById(invitationId: string): Promise<{
+    id: string;
+    campaignId: string;
+    userId: string;
+    invitedById: string;
+  } | null> {
+    return prisma.campaignInvitation.findUnique({
+      where: { id: invitationId },
+      select: { id: true, campaignId: true, userId: true, invitedById: true }
+    });
+  }
+
+  async listInvitationsForUser(userId: string): Promise<CampaignInvitation[]> {
+    const rows = await prisma.campaignInvitation.findMany({
+      where: { userId },
+      include: { campaign: { include: { gm: true } }, user: true, invitedBy: true },
+      orderBy: { createdAt: "desc" }
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      campaignId: row.campaignId,
+      campaignName: row.campaign.name,
+      gmEmail: row.campaign.gm.email,
+      invitedEmail: row.user.email,
+      createdAt: row.createdAt.toISOString()
+    }));
+  }
+
+  async acceptInvitation(invitationId: string, userId: string): Promise<string | null> {
+    return prisma.$transaction(async (transaction) => {
+      const invitation = await transaction.campaignInvitation.findFirst({
+        where: { id: invitationId, userId },
+        select: { campaignId: true }
+      });
+      if (!invitation) return null;
+
+      await transaction.campaignMember.upsert({
+        where: { campaignId_userId: { campaignId: invitation.campaignId, userId } },
+        update: {},
+        create: { campaignId: invitation.campaignId, userId, role: "player" }
+      });
+      await transaction.campaignInvitation.delete({ where: { id: invitationId } });
+      return invitation.campaignId;
     });
   }
 
@@ -660,10 +785,10 @@ export class CampaignModel {
     return rows.map((row) => mapChatMessage(row));
   }
 
-  async findMemberByEmail(email: string): Promise<{ id: string; email: string; role: string } | null> {
+  async findMemberByEmail(email: string): Promise<{ id: string; email: string; role: string; status: string } | null> {
     return prisma.user.findUnique({
       where: { email },
-      select: { id: true, email: true, role: true }
+      select: { id: true, email: true, role: true, status: true }
     });
   }
 
@@ -775,16 +900,36 @@ export class CampaignModel {
     };
   }
 
-  async updateLinkedCharacterSheet(characterId: string, sheet: CharacterSheet): Promise<void> {
-    await prisma.character.update({
-      where: { id: characterId },
-      data: {
-        name: sheet.identidad.nombrePersonaje || undefined,
+  async updateLinkedCharacterSheet(characterId: string, sheet: CharacterSheet, actorId?: string, campaignId?: string, source = "sheet"): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(PrismaRuntime.sql`SELECT "id" FROM "characters" WHERE "id" = ${characterId}::uuid FOR UPDATE`);
+      const current = await tx.character.findUnique({ where: { id: characterId }, include: { professionMemberships: true } });
+      if (!current) return;
+      const beforeSheet = parseCharacterSheet(current.sheet);
+      const next = {
+        name: sheet.identidad.nombrePersonaje || current.name,
         race: String(sheet.identidad.raza),
         culture: String(sheet.identidad.cultura),
         archetype: String(sheet.identidad.arquetipo),
         profession: sheet.identidad.profesion,
+        level: current.level,
         sheet
+      };
+      validateProfessionBenefitAcquisitionWithMemberships(beforeSheet, sheet, current.professionMemberships);
+      await tx.character.update({ where: { id: characterId }, data: next });
+      const actor = actorId ? await getCharacterAuditActor(tx, actorId) : null;
+      if (actor) {
+        await recordCharacterChange(tx, {
+          characterId,
+          actor,
+          campaignId,
+          source,
+          summary: source === "builder" ? "Actualizó el personaje desde el constructor" : "Actualizó la hoja del personaje",
+          changes: buildCharacterChanges(
+            { name: current.name, race: current.race, culture: current.culture, archetype: current.archetype, profession: current.profession, level: current.level, sheet: beforeSheet, professionMemberships: current.professionMemberships.map((entry) => ({ id: entry.id, professionId: entry.professionId, state: mapProfessionMembership(entry, beforeSheet).effectiveState })) },
+            { ...next, professionMemberships: current.professionMemberships.map((entry) => ({ id: entry.id, professionId: entry.professionId, state: mapProfessionMembership(entry, sheet).effectiveState })) }
+          )
+        });
       }
     });
   }
@@ -868,6 +1013,15 @@ export class CampaignModel {
           reason
         }
       });
+      const actor = await getCharacterAuditActor(tx, grantedById);
+      if (actor) await recordCharacterChange(tx, {
+        characterId,
+        actor,
+        campaignId,
+        source: "experience",
+        summary: `Concedió ${amount} PX: ${reason}`,
+        changes: [{ path: "sheet.progreso.experienciaTotal", section: "Progreso", label: "PX total", operation: "changed", before: sheet.progreso.experienciaTotal, after: sheet.progreso.experienciaTotal + amount }]
+      });
     });
   }
 
@@ -914,6 +1068,15 @@ export class CampaignModel {
             reason: `Sesion: ${sessionTitle}`
           }
         });
+        const actor = await getCharacterAuditActor(tx, grantedById);
+        if (actor) await recordCharacterChange(tx, {
+          characterId: award.characterId,
+          actor,
+          campaignId,
+          source: "experience",
+          summary: `Concedió ${award.amount} PX por la sesión ${sessionTitle}`,
+          changes: [{ path: "sheet.progreso.experienciaTotal", section: "Progreso", label: "PX total", operation: "changed", before: sheet.progreso.experienciaTotal, after: sheet.progreso.experienciaTotal + award.amount }]
+        });
       }
     });
   }
@@ -931,7 +1094,11 @@ export class CampaignModel {
         where: {
           ownerId: {
             in: ownerIds
-          }
+          },
+          OR: [
+            { campaignLinks: { none: {} } },
+            { campaignLinks: { some: { campaignId: row.id } } }
+          ]
         },
         include: {
           owner: {

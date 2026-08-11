@@ -145,3 +145,53 @@ test("mantiene los identificadores publicados del Libro Básico y el orden edito
   assert.equal(STARTER_MONSTER_CODEX[37].id, "codice-arak-emponzonador");
   assert.deepEqual(STARTER_MONSTER_CODEX.map((monster) => monster.appearanceOrder), Array.from({ length: 168 }, (_, index) => index));
 });
+
+test("conserva los niveles publicados de todas las capacidades de los 168 perfiles", () => {
+  const ratedCapabilities = STARTER_MONSTER_CODEX
+    .flatMap((monster) => monster.sheet.capabilities
+      .filter((capability) => ["habilidad", "poder_mistico", "ritual"].includes(capability.kind))
+      .map((capability) => ({ monster: monster.name, capability })));
+
+  for (const { monster, capability } of ratedCapabilities) {
+    assert.match(
+      capability.legacyData ?? "",
+      /\b(?:principiante|novato|adept[oa]|maestr[oa]|i{1,3})\b/i,
+      `${monster}: ${capability.name} no conserva su nivel publicado`
+    );
+    assert.doesNotMatch(
+      capability.legacyData ?? "",
+      /\)\s+Armas\b|\bNinguna\s+(?:Armas|El Inframundo)\b/i,
+      `${monster}: ${capability.name} contiene texto ajeno al bloque de capacidades`
+    );
+  }
+
+  const cacique = STARTER_MONSTER_CODEX.find((monster) => monster.id === "libro-basico-cacique-troll");
+  assert.ok(cacique);
+  assert.deepEqual(
+    cacique.sheet.capabilities
+      .filter((capability) => capability.kind === "habilidad")
+      .map(({ name, level, attributeKey }) => [name, level, attributeKey]),
+    [
+      ["Alquimista", "novato", undefined],
+      ["Atributo excepcional", "maestro", "strong"],
+      ["Berserker", "maestro", undefined],
+      ["Combate sin armas", "maestro", undefined]
+    ]
+  );
+
+  const architroll = STARTER_MONSTER_CODEX.find((monster) => monster.id === "libro-basico-architroll");
+  assert.ok(architroll);
+  assert.deepEqual(
+    architroll.sheet.capabilities
+      .filter((capability) => capability.name === "Atributo excepcional")
+      .map(({ level, attributeKey }) => [level, attributeKey]),
+    [["maestro", "strong"], ["maestro", "resolute"]]
+  );
+
+  const gnomo = STARTER_MONSTER_CODEX.find((monster) => monster.id === "codice-gnomo-gloton");
+  assert.equal(
+    gnomo?.sheet.capabilities.find((capability) => capability.name === "Combate sin armas")?.level,
+    "adepto",
+    "los niveles publicados con concordancia femenina también deben conservarse"
+  );
+});

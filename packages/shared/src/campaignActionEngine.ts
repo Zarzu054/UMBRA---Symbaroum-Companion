@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   ActionRollResult,
   AttributeKey,
   CharacterActionDefinition,
@@ -444,7 +444,7 @@ function inferActionLevel(...values: string[]): SkillLevel | undefined {
   const joined = values.join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (joined.includes("maestro")) return "maestro";
   if (joined.includes("adepto")) return "adepto";
-  if (joined.includes("novato")) return "novato";
+  if (joined.includes("principiante") || joined.includes("novato")) return "novato";
   return undefined;
 }
 
@@ -691,7 +691,7 @@ function getTraitLevel(sheet: CharacterSheet, traitNames: string | string[]): nu
 
     if (/\bmaestro\b/.test(normalized)) return 3;
     if (/\badepto\b/.test(normalized)) return 2;
-    if (/\bnovato\b/.test(normalized)) return 1;
+    if (/\b(?:principiante|novato)\b/.test(normalized)) return 1;
     if (/\biii\b|\b3\b/.test(normalized)) return 3;
     if (/\bii\b|\b2\b/.test(normalized)) return 2;
     return 1;
@@ -915,7 +915,7 @@ function ensureBerserkerDefenseAction(sheet: CharacterSheet, actions: CharacterA
   });
 }
 
-function capitalizeSkillLevel(level: SkillLevel): "Novato" | "Adepto" | "Maestro" {
+function capitalizeSkillLevel(level: SkillLevel): "Principiante" | "Adepto" | "Maestro" {
   switch (level) {
     case "maestro":
       return "Maestro";
@@ -923,7 +923,7 @@ function capitalizeSkillLevel(level: SkillLevel): "Novato" | "Adepto" | "Maestro
       return "Adepto";
     case "novato":
     default:
-      return "Novato";
+      return "Principiante";
   }
 }
 
