@@ -389,7 +389,8 @@ function buildProfessionEntries() {
         tipo: "profesion",
         nombre: name,
         resumen: `${counts.powers} poderes m\u00edsticos, ${counts.rituals} rituales.`,
-        detalle: `Profesi\u00f3n m\u00edstica listada en el compendio central de UMBRA. Re\u00fane ${counts.powers} poderes m\u00edsticos y ${counts.rituals} rituales del cat\u00e1logo. Esta entrada es informativa y no incorpora mec\u00e1nicas de profesi\u00f3n a la creaci\u00f3n de personajes.`,
+        detalle: SYMBAROUM_PROFESSIONS.find((profession) => profession.name === name)?.description
+            ?? "Profesi\u00f3n avanzada de la Gu\u00eda Avanzada del Jugador.",
         fuente: "Gu\u00eda Avanzada del Jugador",
         facts: [
             { label: "Poderes", value: String(counts.powers) },
@@ -404,7 +405,7 @@ function buildProfessionEntries() {
             tipo: "profesion",
             nombre: profession.name,
             resumen: profession.summary,
-            detalle: `${profession.detail}\n\nEsta entrada es informativa y no incorpora mec\u00e1nicas de profesi\u00f3n a la creaci\u00f3n de personajes.`,
+            detalle: profession.detail,
             fuente: "Gu\u00eda Avanzada del Jugador",
             pagina: profession.page,
             facts: [
@@ -445,7 +446,7 @@ function buildCanonicalProfessionEntries() {
             tipo: "profesion",
             nombre: profession.name,
             resumen: profession.summary,
-            detalle: `${profession.summary}\n\nPara ingresar hay que poseer todos los requisitos, resolver cada alternativa con una opción válida y tener al menos una de las capacidades requeridas a nivel maestro. Los rituales y las opciones meramente opcionales no cuentan para cumplir la regla de maestro. Si el personaje está vinculado a una campaña, el DJ debe aprobar su solicitud. Los beneficios quedan desbloqueados, pero se compran con su coste normal de PX.`,
+            detalle: `${profession.description}\n\nPara ingresar hay que poseer todos los requisitos, resolver cada alternativa con una opción válida y tener al menos una de las capacidades requeridas a nivel maestro. Los rituales y las opciones meramente opcionales no cuentan para cumplir la regla de maestro. Si el personaje está vinculado a una campaña, el DJ debe aprobar su solicitud. Los beneficios quedan desbloqueados, pero se compran con su coste normal de PX.`,
             fuente: "Guía Avanzada del Jugador",
             pagina: profession.page,
             facts: [

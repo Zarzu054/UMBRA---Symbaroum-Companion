@@ -2395,12 +2395,26 @@ button[disabled] {
   border: 0;
   border-bottom: 3px solid transparent;
   border-radius: 0;
+  color: var(--ui-text-muted);
   background: transparent;
   box-shadow: none;
 }
 
 .monster-catalog-tabs button + button {
   border-left: 1px solid var(--ui-border);
+}
+
+.monster-catalog-tabs button:hover {
+  color: var(--ui-text);
+  border-bottom-color: color-mix(in srgb, var(--ui-brand) 45%, transparent);
+  background: var(--ui-surface-hover);
+}
+
+.monster-catalog-tabs button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid var(--ui-focus);
+  outline-offset: -4px;
 }
 
 .monster-catalog-tabs button.is-active {
@@ -2941,7 +2955,8 @@ button[disabled] {
   .unified-sheet-action-subtabs,
   .unified-sheet-mobile-tabs,
   .campaign-section-nav,
-  .compendium-mode-switch
+  .compendium-mode-switch,
+  .monster-catalog-tabs
 ) button {
   color: var(--ui-text-muted);
   border-color: transparent;
@@ -2955,7 +2970,8 @@ button[disabled] {
   .unified-sheet-action-subtabs,
   .unified-sheet-mobile-tabs,
   .campaign-section-nav,
-  .compendium-mode-switch
+  .compendium-mode-switch,
+  .monster-catalog-tabs
 ) button:hover {
   color: var(--ui-text);
   background: var(--ui-surface-hover);
@@ -2968,7 +2984,8 @@ button[disabled] {
   .unified-sheet-action-subtabs,
   .unified-sheet-mobile-tabs,
   .campaign-section-nav,
-  .compendium-mode-switch
+  .compendium-mode-switch,
+  .monster-catalog-tabs
 ) button.is-active {
   color: var(--ui-brand-strong);
   border-color: var(--ui-brand);

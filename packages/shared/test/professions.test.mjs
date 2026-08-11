@@ -24,6 +24,8 @@ test("cataloga exactamente las 17 profesiones con identificadores únicos", () =
     assert.ok(profession.requirements.length >= 3, profession.name);
     assert.ok(profession.benefits.length >= 1, profession.name);
     assert.ok(profession.page > 0, profession.name);
+    assert.ok(profession.description.length >= 250, `${profession.name} necesita una descripción completa`);
+    assert.doesNotMatch(profession.description, /entrada informativa|profesi[oó]n m[ií]stica listada/i);
   }
 });
 

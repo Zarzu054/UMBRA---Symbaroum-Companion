@@ -3953,10 +3953,43 @@ td {
   background: color-mix(in srgb, var(--ui-surface, #fffaf5) 90%, transparent);
 }
 
+.monster-calculation-breakdown > div.is-capability {
+  border-left: 4px solid var(--ui-brand, #8e353b);
+}
+
+.monster-calculation-breakdown > div.is-quality {
+  border-left: 4px solid var(--ui-accent, #b77742);
+}
+
+.monster-calculation-breakdown > div.is-conditional {
+  border-style: dashed;
+}
+
+.monster-calculation-breakdown > div.is-published {
+  background: color-mix(in srgb, var(--ui-brand-soft, #f2dddd) 32%, var(--ui-surface, #fffaf5));
+}
+
 .monster-calculation-breakdown dt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
   color: var(--ui-text-muted, #716660);
   font-size: 0.75rem;
   font-weight: 700;
+}
+
+.monster-calculation-source {
+  display: inline-flex;
+  max-width: 100%;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--ui-brand, #8e353b) 42%, transparent);
+  border-radius: 999px;
+  color: var(--ui-text, #231d1a);
+  background: color-mix(in srgb, var(--ui-brand-soft, #f2dddd) 72%, transparent);
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1.25;
 }
 
 .monster-calculation-breakdown dd {
