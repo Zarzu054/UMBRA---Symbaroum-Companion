@@ -54,7 +54,7 @@ function hasText(value: string | null | undefined): value is string {
 }
 
 type CapabilityLevel = NonNullable<ActorCapabilitySelection["level"]>;
-type CapabilityTierLabel = "Novato" | "Adepto" | "Maestro";
+type CapabilityTierLabel = "Principiante" | "Adepto" | "Maestro";
 type MonsterCapabilityItem = {
   id: string;
   name: string;
@@ -100,8 +100,8 @@ type CalculationAudit = {
 const CAPABILITY_LEVEL_ORDER: Record<CapabilityLevel, number> = { novato: 1, adepto: 2, maestro: 3 };
 const CAPABILITY_CATALOG = [...SYMBAROUM_ABILITIES, ...SYMBAROUM_MYSTIC_POWERS, ...SYMBAROUM_RITUALS];
 const PUBLISHED_CAPABILITY_DETAILS: Record<string, string> = {
-  "combate con latigo": "Esta técnica combina un látigo en una mano con un arma a una mano en la otra. Novato: Activa. Si el ataque con látigo impacta, el personaje obtiene un ataque gratuito con el arma a una mano, aunque el látigo no cause daño. Adepto: Activa. Como en novato, pero el látigo obstaculiza al enemigo y el ataque gratuito impacta automáticamente. Maestro: Activa. Como en adepto, pero el combatiente acerca al enemigo para que el ataque gratuito inflija +1D6 de daño. Ref: Códice de monstruos, p.123.",
-  "sutileza a dos manos": "El personaje maneja grandes espadas a dos manos con precisión y aprovecha la longitud del arma contra toda clase de oponentes. Novato: Pasiva. Las espadas a dos manos adquieren la cualidad Larga y pueden utilizarse con Armas de asta. Adepto: Reacción. Tras una Defensa con éxito por turno, una tirada de [Fuerte←Fuerte] permite sacar al enemigo del cuerpo a cuerpo: recibe 1D6 de daño, es empujado unos metros y debe enfrentarse otra vez a la cualidad Larga. Maestro: Activa. Los golpes se convierten en una serie de ataques contra enemigos a distancia de cuerpo a cuerpo; tras cada impacto se ataca al siguiente objetivo hasta que un ataque falle. Ref: Códice de monstruos, p.136."
+  "combate con latigo": "Esta técnica combina un látigo en una mano con un arma a una mano en la otra. Principiante: Activa. Si el ataque con látigo impacta, el personaje obtiene un ataque gratuito con el arma a una mano, aunque el látigo no cause daño. Adepto: Activa. Como en Principiante, pero el látigo obstaculiza al enemigo y el ataque gratuito impacta automáticamente. Maestro: Activa. Como en Adepto, pero el combatiente acerca al enemigo para que el ataque gratuito inflija +1D6 de daño. Ref: Códice de monstruos, p.123.",
+  "sutileza a dos manos": "El personaje maneja grandes espadas a dos manos con precisión y aprovecha la longitud del arma contra toda clase de oponentes. Principiante: Pasiva. Las espadas a dos manos adquieren la cualidad Larga y pueden utilizarse con Armas de asta. Adepto: Reacción. Tras una Defensa con éxito por turno, una tirada de [Fuerte←Fuerte] permite sacar al enemigo del cuerpo a cuerpo: recibe 1D6 de daño, es empujado unos metros y debe enfrentarse otra vez a la cualidad Larga. Maestro: Activa. Los golpes se convierten en una serie de ataques contra enemigos a distancia de cuerpo a cuerpo; tras cada impacto se ataca al siguiente objetivo hasta que un ataque falle. Ref: Códice de monstruos, p.136."
 };
 const CAPABILITY_ALIASES: Record<string, { canonicalName: string; displayName: string; note?: string }> = {
   "trampa de raices": {
@@ -112,7 +112,7 @@ const CAPABILITY_ALIASES: Record<string, { canonicalName: string; displayName: s
   "ola ahogadora": {
     canonicalName: "Estrangulador",
     displayName: "Ola ahogadora",
-    note: "Adaptación publicada: funciona como Estrangulador en nivel novato, pero requiere ventaja."
+    note: "Adaptación publicada: funciona como Estrangulador a nivel principiante, pero requiere ventaja."
   },
   "espejismo": { canonicalName: "Imagen especular", displayName: "Espejismo" },
   "paseo espiritual": { canonicalName: "Forma espiritual", displayName: "Paseo espiritual" },
@@ -169,7 +169,7 @@ const PUBLISHED_TRAIT_DETAILS: Record<string, { source: string; page: number; su
     source: "Códice de monstruos",
     page: 37,
     summary: "La criatura accede mediante meditación a la sabiduría colectiva de generaciones anteriores.",
-    detail: "Usar Sabiduría de los tiempos genera corrupción temporal como un poder místico. I: Turno completo. Tras un trance y una tirada con éxito de Tenaz, obtiene hasta el final de la escena el nivel novato de una habilidad opcional, excepto Tradiciones místicas, Rituales y Poderes místicos; solo puede mantener una de estas habilidades cada vez. II: Activa. Funciona como el nivel I, pero el trance requiere menos tiempo. III: Activa. Funciona como el nivel II, pero puede obtener el nivel adepto de la habilidad elegida."
+    detail: "Usar Sabiduría de los tiempos genera corrupción temporal como un poder místico. I: Turno completo. Tras un trance y una tirada con éxito de Tenaz, obtiene hasta el final de la escena el nivel principiante de una habilidad opcional, excepto Tradiciones místicas, Rituales y Poderes místicos; solo puede mantener una de estas habilidades cada vez. II: Activa. Funciona como el nivel I, pero el trance requiere menos tiempo. III: Activa. Funciona como el nivel II, pero puede obtener el nivel adepto de la habilidad elegida."
   },
   "vinculo de sangre nefarani": {
     source: "Códice de monstruos",
@@ -191,14 +191,14 @@ function normalizeCapability(value: string): string {
 function capabilityLevelLabel(level: CapabilityLevel | null): string {
   if (level === "maestro") return "Maestro";
   if (level === "adepto") return "Adepto";
-  if (level === "novato") return "Novato";
+  if (level === "novato") return "Principiante";
   return "Sin nivel";
 }
 
 function inferCapabilityLevel(raw: string, fallback?: CapabilityLevel): CapabilityLevel {
   const normalized = normalizeCapability(raw);
-  if (/\bmaestro\b/.test(normalized)) return "maestro";
-  if (/\badepto\b/.test(normalized)) return "adepto";
+  if (/\bmaestr[oa]\b/.test(normalized)) return "maestro";
+  if (/\badept[oa]\b/.test(normalized)) return "adepto";
   if (/\b(?:principiante|novato)\b/.test(normalized)) return "novato";
   return fallback ?? "novato";
 }
@@ -281,7 +281,7 @@ function parseCapabilityDescription(text: string): {
   reference: string;
 } {
   const source = text.trim();
-  const matches = [...source.matchAll(/(Novato|Adepto|Maestro):/g)];
+  const matches = [...source.matchAll(/(Principiante|Novato|Adepto|Maestro):/g)];
   if (!matches.length) {
     const referenceIndex = source.indexOf("Ref:");
     return {
@@ -297,7 +297,8 @@ function parseCapabilityDescription(text: string): {
     let content = source.slice(start, end).trim();
     const referenceIndex = content.indexOf("Ref:");
     if (referenceIndex >= 0) content = content.slice(0, referenceIndex).trim();
-    return { label: match[1] as CapabilityTierLabel, content };
+    const parsedLabel = match[1] ?? "Principiante";
+    return { label: (parsedLabel === "Novato" ? "Principiante" : parsedLabel) as CapabilityTierLabel, content };
   });
   const firstTierIndex = matches[0]?.index ?? 0;
   const referenceIndex = source.lastIndexOf("Ref:");
@@ -388,7 +389,7 @@ function traitLevelLabel(level: number): string {
 }
 
 function mechanicalLevelLabel(level: number): string {
-  return level >= 3 ? "Maestro" : level === 2 ? "Adepto" : "Novato";
+  return level >= 3 ? "Maestro" : level === 2 ? "Adepto" : "Principiante";
 }
 
 function capabilityLevel(sheet: MonsterSheet, aliases: string[]): number {
@@ -449,7 +450,8 @@ function isThrownWeapon(weapon: MonsterWeaponProfile): boolean {
 }
 
 function isNaturalWeapon(weapon: MonsterWeaponProfile, sheet: MonsterSheet): boolean {
-  if (capabilityLevel(sheet, ["arma natural", "armas naturales"]) <= 0) return false;
+  const hasNaturalAttackTraining = capabilityLevel(sheet, ["arma natural", "armas naturales", "combate sin armas"]) > 0;
+  if (!hasNaturalAttackTraining) return false;
   return /\b(garras?|zarpas?|mordisco|colmillos?|cuernos?|mandibulas?|tentaculos?|aguijon|picadura|pezuñas?|puños?|cabezazo|ramas?)\b/.test(weaponText(weapon));
 }
 
@@ -1056,7 +1058,7 @@ function buildWeaponCalculation(sheet: MonsterSheet, weapon: MonsterWeaponProfil
   };
 
   const unarmedLevel = capabilityLevel(sheet, ["combate sin armas"]);
-  if (natural && unarmedLevel > 0) applyDieUpgrade("Combate sin armas", unarmedLevel, "Aumenta un nivel el dado de Arma natural.");
+  if (natural && naturalWeaponLevel > 0 && unarmedLevel > 0) applyDieUpgrade("Combate sin armas", unarmedLevel, "Aumenta un nivel el dado de Arma natural.");
   const sacredFencingLevel = capabilityLevel(sheet, ["esgrima sagrada"]);
   if (/\bespada\b/.test(weaponText(weapon)) && precise && sacredFencingLevel > 0) {
     applyDieUpgrade("Esgrima sagrada", sacredFencingLevel, "La espada Precisa aumenta su dado de daño.");

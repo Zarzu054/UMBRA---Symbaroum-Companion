@@ -1203,7 +1203,7 @@ function getTraitLevelForCanonicalActions(sheet: z.infer<typeof characterSheetOb
 
     if (/\bmaestro\b/.test(normalized)) return 3;
     if (/\badepto\b/.test(normalized)) return 2;
-    if (/\bnovato\b/.test(normalized)) return 1;
+    if (/\b(?:principiante|novato)\b/.test(normalized)) return 1;
     if (/\biii\b|\b3\b/.test(normalized)) return 3;
     if (/\bii\b|\b2\b/.test(normalized)) return 2;
     return 1;
@@ -1305,7 +1305,7 @@ function inferRatedActionLevel(...values: string[]): z.infer<typeof skillLevelSc
   const joined = values.join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (joined.includes("maestro")) return "maestro";
   if (joined.includes("adepto")) return "adepto";
-  if (joined.includes("novato")) return "novato";
+  if (joined.includes("principiante") || joined.includes("novato")) return "novato";
   return undefined;
 }
 
@@ -1334,7 +1334,11 @@ function sanitizeImportedRatedEntry(entry: unknown): z.infer<typeof ratedEntrySc
   const candidate = entry as Record<string, unknown>;
   const nombre = String(candidate.nombre ?? "").trim();
   const nivelRaw = String(candidate.nivel ?? "").trim().toLowerCase();
-  const nivel = nivelRaw === "novato" || nivelRaw === "adepto" || nivelRaw === "maestro" ? nivelRaw : "novato";
+  const nivel = nivelRaw === "principiante"
+    ? "novato"
+    : nivelRaw === "novato" || nivelRaw === "adepto" || nivelRaw === "maestro"
+      ? nivelRaw
+      : "novato";
 
   const acciones = Array.isArray(candidate.acciones) ? candidate.acciones.filter((action) => action && typeof action === "object") : [];
 

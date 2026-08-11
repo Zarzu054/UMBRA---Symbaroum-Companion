@@ -355,7 +355,7 @@ function inferActionLevel(...values) {
         return "maestro";
     if (joined.includes("adepto"))
         return "adepto";
-    if (joined.includes("novato"))
+    if (joined.includes("principiante") || joined.includes("novato"))
         return "novato";
     return undefined;
 }
@@ -554,7 +554,7 @@ function getTraitLevel(sheet, traitNames) {
             return 3;
         if (/\badepto\b/.test(normalized))
             return 2;
-        if (/\bnovato\b/.test(normalized))
+        if (/\b(?:principiante|novato)\b/.test(normalized))
             return 1;
         if (/\biii\b|\b3\b/.test(normalized))
             return 3;
@@ -757,7 +757,7 @@ function capitalizeSkillLevel(level) {
             return "Adepto";
         case "novato":
         default:
-            return "Novato";
+            return "Principiante";
     }
 }
 const INTEGRATED_COMBAT_STYLE_ABILITIES = new Set([

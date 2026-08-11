@@ -2126,7 +2126,7 @@ export const CODEX_MONSTER_PROFILE_DATA: CanonicalMonsterProfileData[] = [
     "race": "Fenómeno",
     "publishedThreat": "Complicado",
     "traitsText": "Recio (III), Regeneración (III)",
-    "abilitiesText": "Atributo excepcional (Diestro, principiante), Atributo excepcional (Inteligente, principiante), Ola ahogadora* Armas Diestra Ahogamiento 3",
+    "abilitiesText": "Atributo excepcional (Diestro, principiante), Atributo excepcional (Inteligente, principiante), Ola ahogadora (principiante)",
     "blessingsBurdensText": "",
     "attributes": {
       "quick": 11,
@@ -4308,7 +4308,7 @@ export const CODEX_MONSTER_PROFILE_DATA: CanonicalMonsterProfileData[] = [
     "race": "Criaturas aladas",
     "publishedThreat": "Normal",
     "traitsText": "Alado (I), Ataque perforante (I), Enjambre (III), Venenoso (II) 141",
-    "abilitiesText": "Ninguna Armas Picadura 0 (Perforante 4)",
+    "abilitiesText": "Ninguna",
     "blessingsBurdensText": "",
     "attributes": {
       "quick": 15,
@@ -4488,7 +4488,7 @@ export const CODEX_MONSTER_PROFILE_DATA: CanonicalMonsterProfileData[] = [
     "race": "Hada (elfo vernal)",
     "publishedThreat": "Sencillo",
     "traitsText": "Arma natural (I), Ataque de Corrupción (I), Longevo",
-    "abilitiesText": "Ninguna Armas Garras 3 (Corta)",
+    "abilitiesText": "Ninguna",
     "blessingsBurdensText": "",
     "attributes": {
       "quick": 13,
@@ -5365,7 +5365,7 @@ export const CODEX_MONSTER_PROFILE_DATA: CanonicalMonsterProfileData[] = [
     "race": "Depredador (bestia)",
     "publishedThreat": "Difícil",
     "traitsText": "Arma natural (II), Duro (III), Robusto (III)",
-    "abilitiesText": "Combate sin armas (maestro), Dominación (maestro), Golpe de hierro (maestro) Armas Mordisco 16/10, dos ataques al mismo objetivo",
+    "abilitiesText": "Combate sin armas (maestro), Dominación (maestro), Golpe de hierro (maestro)",
     "blessingsBurdensText": "",
     "attributes": {
       "quick": 7,
@@ -6014,7 +6014,7 @@ export const CODEX_MONSTER_PROFILE_DATA: CanonicalMonsterProfileData[] = [
     "race": "Abominación",
     "publishedThreat": "Complicado",
     "traitsText": "Ataque perforante (I), Caparazón (II), Convocante (III), Duro (III), Venenoso (II)",
-    "abilitiesText": "Ninguna El Inframundo 155",
+    "abilitiesText": "Ninguna",
     "blessingsBurdensText": "",
     "attributes": {
       "quick": 9,

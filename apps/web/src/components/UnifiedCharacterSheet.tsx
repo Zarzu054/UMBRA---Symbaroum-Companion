@@ -121,7 +121,7 @@ type ActionDetailModal = {
 type InventoryCatalogModalTab = "weapons" | "armors" | "items";
 
 type CapabilityTier = {
-  label: "Novato" | "Adepto" | "Maestro";
+  label: "Principiante" | "Adepto" | "Maestro";
   content: string;
 };
 
@@ -626,7 +626,7 @@ function formatMoneyCounters(counters: MoneyCounters): string {
 function formatActionDisplayLabel(label: string): string {
   return String(label ?? "")
     .replace(/^(Usar|Lanzar)\s+/i, "")
-    .replace(/\s+\((Novato|Adepto|Maestro)\)\s*$/i, "")
+    .replace(/\s+\((Principiante|Novato|Adepto|Maestro)\)\s*$/i, "")
     .trim();
 }
 
@@ -828,7 +828,7 @@ function parseCapabilityTiers(text: string): { tiers: CapabilityTier[]; referenc
     return { tiers: [], reference: null, remainder: null };
   }
 
-  const tierRegex = /(Novato:|Adepto:|Maestro:)/g;
+  const tierRegex = /(Principiante:|Novato:|Adepto:|Maestro:)/g;
   const matches = [...source.matchAll(tierRegex)];
   if (matches.length === 0) {
     const referenceIndex = source.indexOf("Ref:");
@@ -846,7 +846,8 @@ function parseCapabilityTiers(text: string): { tiers: CapabilityTier[]; referenc
     const match = matches[index];
     const start = match.index ?? 0;
     const end = index + 1 < matches.length ? (matches[index + 1].index ?? source.length) : source.length;
-    const rawLabel = (match[0] ?? "").replace(":", "").trim();
+    const parsedLabel = (match[0] ?? "").replace(":", "").trim();
+    const rawLabel = parsedLabel === "Novato" ? "Principiante" : parsedLabel;
     const rawContent = source.slice(start + match[0].length, end).trim();
     const referenceIndex = rawContent.indexOf("Ref:");
     const content = (referenceIndex >= 0 ? rawContent.slice(0, referenceIndex) : rawContent).trim();
@@ -856,7 +857,7 @@ function parseCapabilityTiers(text: string): { tiers: CapabilityTier[]; referenc
     if (!content) {
       continue;
     }
-    if (rawLabel === "Novato" || rawLabel === "Adepto" || rawLabel === "Maestro") {
+    if (rawLabel === "Principiante" || rawLabel === "Adepto" || rawLabel === "Maestro") {
       tiers.push({ label: rawLabel, content });
     }
   }
@@ -902,7 +903,7 @@ function getSheetTraitLevel(sheet: CharacterSheet, traitName: string): number {
     }
     if (/\bmaestro\b/.test(normalized)) return 3;
     if (/\badepto\b/.test(normalized)) return 2;
-    if (/\bnovato\b/.test(normalized)) return 1;
+    if (/\b(?:principiante|novato)\b/.test(normalized)) return 1;
     if (/\biii\b|\b3\b/.test(normalized)) return 3;
     if (/\bii\b|\b2\b/.test(normalized)) return 2;
     return 1;
@@ -1024,10 +1025,11 @@ function getCustomItemQualities(item: CharacterSheet["inventoryItems"][number]):
     .filter((quality) => !knownIds.has(normalizeWeaponQualityKey(quality)));
 }
 
-function capitalizeActionLevel(level: string): "Novato" | "Adepto" | "Maestro" | null {
+function capitalizeActionLevel(level: string): "Principiante" | "Adepto" | "Maestro" | null {
   switch (String(level ?? "").toLowerCase()) {
+    case "principiante":
     case "novato":
-      return "Novato";
+      return "Principiante";
     case "adepto":
       return "Adepto";
     case "maestro":
@@ -1051,7 +1053,7 @@ function formatCapabilitySource(entry: RatedEntry): string {
 }
 
 function normalizeCapabilityTiers(tiers: CapabilityTier[]): CapabilityTier[] {
-  const order: CapabilityTier["label"][] = ["Novato", "Adepto", "Maestro"];
+  const order: CapabilityTier["label"][] = ["Principiante", "Adepto", "Maestro"];
   const unique = new Map<CapabilityTier["label"], CapabilityTier>();
   for (const tier of tiers) {
     if (!unique.has(tier.label) && tier.content.trim()) {
@@ -1075,7 +1077,7 @@ function shouldKeepCapabilityNote(note: string, tiers: CapabilityTier[], referen
     return true;
   }
 
-  if (/(novato:|adepto:|maestro:)/i.test(note)) {
+  if (/(principiante:|novato:|adepto:|maestro:)/i.test(note)) {
     return false;
   }
 
@@ -4684,7 +4686,7 @@ function CapabilityEditor({ title, entries, editable, onAdd, onRemove, onUpdate,
             <div className="form-grid">
               <Field label="Nombre"><input disabled={!editable} value={entry.nombre} onChange={(event) => onUpdate(index, "nombre", event.target.value)} /></Field>
               <Field label="Tipo"><input disabled={!editable} value={entry.tipo} onChange={(event) => onUpdate(index, "tipo", event.target.value)} /></Field>
-              <Field label="Nivel"><select disabled={!editable} value={entry.nivel} onChange={(event) => onUpdate(index, "nivel", event.target.value)}><option value="novato">Novato</option><option value="adepto">Adepto</option><option value="maestro">Maestro</option></select></Field>
+              <Field label="Nivel"><select disabled={!editable} value={entry.nivel} onChange={(event) => onUpdate(index, "nivel", event.target.value)}><option value="novato">Principiante</option><option value="adepto">Adepto</option><option value="maestro">Maestro</option></select></Field>
               <Field label="Fuente"><input disabled={!editable} value={entry.fuente} onChange={(event) => onUpdate(index, "fuente", event.target.value)} /></Field>
               <Field label="Pagina"><input disabled={!editable} type="number" min={0} value={entry.pagina ?? ""} onChange={(event) => onUpdate(index, "pagina", Number(event.target.value || 0))} /></Field>
             </div>

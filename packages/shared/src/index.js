@@ -1062,7 +1062,7 @@ function getTraitLevelForCanonicalActions(sheet, traitName) {
             return 3;
         if (/\badepto\b/.test(normalized))
             return 2;
-        if (/\bnovato\b/.test(normalized))
+        if (/\b(?:principiante|novato)\b/.test(normalized))
             return 1;
         if (/\biii\b|\b3\b/.test(normalized))
             return 3;
@@ -1150,7 +1150,7 @@ function inferRatedActionLevel(...values) {
         return "maestro";
     if (joined.includes("adepto"))
         return "adepto";
-    if (joined.includes("novato"))
+    if (joined.includes("principiante") || joined.includes("novato"))
         return "novato";
     return undefined;
 }
@@ -1176,7 +1176,11 @@ function sanitizeImportedRatedEntry(entry) {
     const candidate = entry;
     const nombre = String(candidate.nombre ?? "").trim();
     const nivelRaw = String(candidate.nivel ?? "").trim().toLowerCase();
-    const nivel = nivelRaw === "novato" || nivelRaw === "adepto" || nivelRaw === "maestro" ? nivelRaw : "novato";
+    const nivel = nivelRaw === "principiante"
+        ? "novato"
+        : nivelRaw === "novato" || nivelRaw === "adepto" || nivelRaw === "maestro"
+            ? nivelRaw
+            : "novato";
     const acciones = Array.isArray(candidate.acciones) ? candidate.acciones.filter((action) => action && typeof action === "object") : [];
     return {
         nombre: truncateImportedString(nombre, 120),

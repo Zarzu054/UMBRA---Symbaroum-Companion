@@ -59,7 +59,7 @@ describe("MonsterReferenceSheet", () => {
     fireEvent.click(screen.getByRole("button", { name: /Tirador.*Adepto/i }));
 
     const dialog = screen.getByRole("dialog", { name: "Tirador" });
-    expect(within(dialog).getByRole("heading", { name: "Novato" })).toBeTruthy();
+    expect(within(dialog).getByRole("heading", { name: "Principiante" })).toBeTruthy();
     expect(within(dialog).getByRole("heading", { name: "Adepto" })).toBeTruthy();
     expect(within(dialog).getByRole("heading", { name: "Maestro" })).toBeTruthy();
     const currentTier = within(dialog).getByRole("heading", { name: "Adepto" }).closest("section");
@@ -79,7 +79,7 @@ describe("MonsterReferenceSheet", () => {
 
     const dialog = screen.getByRole("dialog", { name: "Combate con látigo" });
     expect(within(dialog).getByText(/el látigo obstaculiza al enemigo/i)).toBeTruthy();
-    expect(within(dialog).getByRole("heading", { name: "Novato" })).toBeTruthy();
+    expect(within(dialog).getByRole("heading", { name: "Principiante" })).toBeTruthy();
     expect(within(dialog).getByRole("heading", { name: "Maestro" })).toBeTruthy();
     expect(within(dialog).getByRole("heading", { name: "Adepto" }).closest("section")?.classList.contains("is-current")).toBe(true);
   });
@@ -184,6 +184,31 @@ describe("MonsterReferenceSheet", () => {
     expect(within(armorDialog).getByText("Protección por tamaño").closest("div")?.textContent).toContain("1D4 → 2");
     expect(within(armorDialog).getByText("Protección durante el frenesí").closest("div")?.textContent).toContain("+1D4 → +2");
     expect(within(armorDialog).queryByText("Diferencia no atribuida")).toBeNull();
+  });
+
+  it("aplica los niveles Maestro publicados del cacique troll al daño", () => {
+    const monster = STARTER_MONSTER_CODEX.find((entry) => entry.id === "libro-basico-cacique-troll")!;
+    render(<MonsterReferenceSheet monster={monster} official backgroundPreferenceScope="gm:monsters" onClose={() => undefined} onDuplicate={() => undefined} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver cálculo de ataque de Zarpas" }));
+    const dialog = screen.getByRole("dialog", { name: "Desglose de ataque: Zarpas" });
+    expect(within(dialog).getAllByText("Combate sin armas (Maestro)").length).toBeGreaterThanOrEqual(1);
+    expect(within(dialog).getByText("Berserker (Maestro)")).toBeTruthy();
+    expect(within(dialog).getByText("Robusto (II)")).toBeTruthy();
+    expect(within(dialog).queryByText("Diferencia no atribuida")).toBeNull();
+    expect(within(dialog).getByText(/Resultado final/i).parentElement?.textContent).toContain("13");
+  });
+
+  it("reconstruye ataques naturales sin Arma natural cuando los define Combate sin armas", () => {
+    const monster = STARTER_MONSTER_CODEX.find((entry) => entry.id === "libro-basico-lindorma")!;
+    render(<MonsterReferenceSheet monster={monster} official backgroundPreferenceScope="gm:monsters" onClose={() => undefined} onDuplicate={() => undefined} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver cálculo de ataque de Mordisco" }));
+    const dialog = screen.getByRole("dialog", { name: "Desglose de ataque: Mordisco" });
+    expect(within(dialog).getAllByText("Combate sin armas (Maestro)").length).toBeGreaterThanOrEqual(1);
+    expect(within(dialog).getAllByText("Golpe de hierro (Maestro)").length).toBeGreaterThanOrEqual(1);
+    expect(within(dialog).getByText("Robusto (III)")).toBeTruthy();
+    expect(within(dialog).queryByText("Diferencia no atribuida")).toBeNull();
   });
 
   it("avisa cuando los componentes publicados no coinciden con la armadura mostrada", () => {

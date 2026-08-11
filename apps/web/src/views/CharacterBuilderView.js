@@ -23,7 +23,7 @@ const ROMAN_LEVEL_LABELS = {
     maestro: "III"
 };
 const LEVEL_OPTIONS = [
-    { value: "novato", label: "Novato" },
+    { value: "novato", label: "Principiante" },
     { value: "adepto", label: "Adepto" },
     { value: "maestro", label: "Maestro" }
 ];
@@ -211,12 +211,13 @@ function parseCapabilityTiers(detail, section) {
     if (!text) {
         return [];
     }
-    const labels = section === "rasgosMonstruosos" ? ["I", "II", "III"] : ["Novato", "Adepto", "Maestro"];
-    const labelPattern = section === "rasgosMonstruosos" ? "I|II|III" : "Novato|Adepto|Maestro";
+    const labels = section === "rasgosMonstruosos" ? ["I", "II", "III"] : ["Principiante", "Adepto", "Maestro"];
+    const labelPattern = section === "rasgosMonstruosos" ? "I|II|III" : "Principiante|Novato|Adepto|Maestro";
     const matches = [...text.matchAll(new RegExp(`(${labelPattern}):\\s*([\\s\\S]*?)(?=(?:${labelPattern}):|$)`, "gi"))];
     const mapped = new Map();
     for (const match of matches) {
-        const rawLabel = String(match[1] ?? "").trim();
+        const parsedLabel = String(match[1] ?? "").trim();
+        const rawLabel = normalizeName(parsedLabel) === "novato" ? "Principiante" : parsedLabel;
         const content = match[2]?.trim();
         if (!content)
             continue;

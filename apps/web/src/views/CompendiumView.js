@@ -163,7 +163,7 @@ export function renderHighlightedText(text, query) {
     return parts;
 }
 function parseCapabilityTiers(text) {
-    const tierRegex = /(Novato:|Adepto:|Maestro:)/g;
+    const tierRegex = /(Principiante:|Novato:|Adepto:|Maestro:)/g;
     const matches = [...text.matchAll(tierRegex)];
     if (matches.length === 0)
         return { tiers: [], reference: null, remainder: text.trim() || null };
@@ -176,8 +176,9 @@ function parseCapabilityTiers(text) {
         const referenceIndex = rawContent.indexOf("Ref:");
         if (referenceIndex >= 0)
             reference = rawContent.slice(referenceIndex).trim();
+        const parsedLabel = marker.slice(0, -1);
         tiers.push({
-            label: marker.slice(0, -1),
+            label: parsedLabel === "Novato" ? "Principiante" : parsedLabel,
             content: referenceIndex >= 0 ? rawContent.slice(0, referenceIndex).trim() : rawContent
         });
     });

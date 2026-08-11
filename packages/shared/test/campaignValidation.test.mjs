@@ -194,7 +194,7 @@ test("deriveCharacterActions filtra acciones por el nivel real de la capacidad",
       fuente: "Guía Avanzada del Jugador",
       notas: "",
       acciones: [
-        { id: "novato-tormenta", label: "Tormenta de flechas (Novato)", cost: "combat", requiredLevel: "novato", rollAttribute: "tenaz", damageFormula: "1d6", effectSummary: "" },
+        { id: "novato-tormenta", label: "Tormenta de flechas (Principiante)", cost: "combat", requiredLevel: "novato", rollAttribute: "tenaz", damageFormula: "1d6", effectSummary: "" },
         { id: "adepto-tormenta", label: "Tormenta de flechas (Adepto)", cost: "combat", requiredLevel: "adepto", rollAttribute: "tenaz", damageFormula: "1d8", effectSummary: "" },
         { id: "maestro-tormenta", label: "Tormenta de flechas (Maestro)", cost: "combat", requiredLevel: "maestro", rollAttribute: "tenaz", damageFormula: "1d8", effectSummary: "" }
       ]
@@ -244,7 +244,7 @@ test("Berserker novato agrega una defensa con objetivo fijo de Agil 5", () => {
         acciones: [
           {
             id: "novato-berserker",
-            label: "Entrar en frenesi (Novato)",
+            label: "Entrar en frenesi (Principiante)",
             cost: "free",
             requiredLevel: "novato",
             damageFormula: "+1d6",
@@ -252,7 +252,7 @@ test("Berserker novato agrega una defensa con objetivo fijo de Agil 5", () => {
           },
           {
             id: "novato-berserker-defensa",
-            label: "Defender con Berserker (Novato)",
+            label: "Defender con Berserker (Principiante)",
             cost: "reaction",
             requiredLevel: "novato",
             rollAttribute: "agil",
@@ -589,7 +589,7 @@ test("deriveCharacterActions tambien filtra acciones precalculadas de la hoja se
   sheet.actions = [
     {
       id: "ability:Guardaespaldas:novato",
-      label: "Usar Guardaespaldas (Novato)",
+      label: "Usar Guardaespaldas (Principiante)",
       sourceType: "ability",
       sourceName: "Guardaespaldas",
       cost: "reaction",
@@ -639,7 +639,7 @@ test("deriveCharacterActions infiere el nivel de acciones precalculadas antiguas
   sheet.actions = [
     {
       id: "ability:Guardaespaldas:novato",
-      label: "Usar Guardaespaldas (Novato)",
+      label: "Usar Guardaespaldas (Principiante)",
       sourceType: "ability",
       sourceName: "Guardaespaldas",
       cost: "reaction",
@@ -886,7 +886,7 @@ test("Ataque con Arma natural explica en el desglose cuando Combate sin armas au
   assert.ok(naturalWeaponAction);
   assert.deepEqual(naturalWeaponAction.damageBreakdown, [
     { label: "Arma natural", formula: "1d6" },
-    { label: "Combate sin armas", detail: "Mejora el dado base (Novato)." }
+    { label: "Combate sin armas", detail: "Mejora el dado base (Principiante)." }
   ]);
 });
 
@@ -1104,7 +1104,7 @@ test("Golpe de hierro cambia automaticamente a Fuerte los ataques cuerpo a cuerp
       acciones: [
         {
           id: "novato-golpe-de-hierro",
-          label: "Usar Golpe de hierro (Novato)",
+          label: "Usar Golpe de hierro (Principiante)",
           cost: "combat",
           requiredLevel: "novato",
           rollAttribute: "fuerte",
