@@ -22,22 +22,27 @@ describe("AppearancePopover", () => {
     delete document.documentElement.dataset.palette;
     delete document.documentElement.dataset.theme;
     delete document.documentElement.dataset.themePreference;
+    delete document.documentElement.dataset.characterSheetBackground;
+    document.documentElement.style.removeProperty("--character-sheet-background-image");
+    document.documentElement.style.removeProperty("--character-sheet-background-position");
   });
 
   it("changes both preferences live and restores focus when closed with Escape", async () => {
     render(<AppearancePopover />);
-    const trigger = screen.getByRole("button", { name: "Apariencia" });
+    const trigger = screen.getByRole("button", { name: "Personalización" });
 
     fireEvent.click(trigger);
-    expect(screen.getByRole("dialog", { name: "Apariencia" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Personalización" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Corrupción/ }));
     fireEvent.click(screen.getByRole("button", { name: "Oscuro" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ruinas del bosque" }));
     expect(document.documentElement).toHaveAttribute("data-palette", "corruption");
     expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(document.documentElement).toHaveAttribute("data-character-sheet-background", "forest-ruins");
 
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(trigger).toHaveFocus());
-    expect(screen.queryByRole("dialog", { name: "Apariencia" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Personalización" })).not.toBeInTheDocument();
   });
 });

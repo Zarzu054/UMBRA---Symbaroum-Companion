@@ -208,6 +208,20 @@ model Character {
   @@map("characters")
 }
 
+model CampaignCombat {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId          String   @unique @map("campaign_id") @db.Uuid
+  round               Int      @default(1)
+  activeParticipantId String?  @map("active_participant_id") @db.Uuid
+  revision            Int      @default(0)
+  participants        Json     @default("[]")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  campaign            Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("campaign_combats")
+}
+
 model CharacterProfessionMembership {
   id             String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   characterId    String                   @map("character_id") @db.Uuid
@@ -358,6 +372,7 @@ model Campaign {
   mysticArtifacts MysticArtifact[]
   characterChangeEvents CharacterChangeEvent[]
   professionMemberships CharacterProfessionMembership[]
+  combat       CampaignCombat?
 
   @@index([gmId])
   @@map("campaigns")

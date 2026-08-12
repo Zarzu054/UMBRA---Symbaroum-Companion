@@ -32,7 +32,6 @@ import { ARMOR_QUALITY_OPTIONS, ITEM_QUALITY_OPTIONS, createCustomInventoryItem,
 import { ALL_ENTRIES, findCompendiumEntryByTypeAndName, getCompendiumSourcePdfUrl, getCompendiumSummaryLink } from "../models/compendiumEntries";
 import { useUnifiedCharacterSheet } from "../hooks/useUnifiedCharacterSheet";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
-import { CharacterSheetBackgroundPicker } from "./CharacterSheetBackgroundPicker";
 import { SourceReferenceLink } from "./SourceReferenceLink";
 import {
   dispatchRoll20Request,
@@ -1099,7 +1098,6 @@ export function UnifiedCharacterSheet({
   onBack,
   onOpenBuilder,
   onUseArtifactAbility,
-  backgroundPreferenceScope,
   collapsibleHistory = false,
   onOpenCompendiumCapability,
   professionMemberships = [],
@@ -3396,11 +3394,6 @@ export function UnifiedCharacterSheet({
               <h2 className="unified-sheet-title">{displayName}</h2>
               {subtitle ? <span className="unified-sheet-inline-subtitle">{subtitle}</span> : null}
             </div>
-            {backgroundPreferenceScope ? (
-              <div className="unified-sheet-identity-actions">
-                <CharacterSheetBackgroundPicker preferenceScope={backgroundPreferenceScope} />
-              </div>
-            ) : null}
           </div>
         </section>
         <section className="unified-sheet-module unified-sheet-resources-module campaign-sheet-card" aria-labelledby="unified-sheet-resources-title">

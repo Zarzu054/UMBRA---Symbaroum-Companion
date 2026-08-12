@@ -2,12 +2,15 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ALL_ENTRIES,
+  RULE_CATEGORY_LABELS,
   TYPE_LABELS,
   canonicalizeCompendiumSourceName,
+  findCompendiumEntryById,
   getCompendiumSummaryLink,
   getCompendiumSourcePdfUrl,
   type CompendiumEntry,
-  type EntryType
+  type EntryType,
+  type RuleCategory
 } from "../models/compendiumEntries";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { SourceReferenceLink } from "../components/SourceReferenceLink";
@@ -27,6 +30,7 @@ type Props = {
   initialQuery?: string;
   initialSourceFilter?: string;
   initialTypeFilter?: "all" | EntryType;
+  initialRuleCategory?: "all" | RuleCategory;
   initialBrowseMode?: CompendiumBrowseMode;
   focusToken?: number;
 };
@@ -40,6 +44,7 @@ type SearchOptions = {
   query: string;
   type: "all" | EntryType;
   source: string;
+  ruleCategory?: "all" | RuleCategory;
 };
 
 type QuickSearchPosition = {
@@ -52,6 +57,7 @@ type QuickSearchPosition = {
 
 const MOBILE_DETAIL_QUERY = "(max-width: 900px)";
 const RECENT_ENTRY_LIMIT = 8;
+const RULE_CATEGORIES = Object.keys(RULE_CATEGORY_LABELS) as RuleCategory[];
 
 const TYPE_GROUPS: Array<{ label: string; description: string; types: EntryType[] }> = [
   { label: "Reglas", description: "Sistemas y resoluciones de juego", types: ["regla"] },
@@ -82,9 +88,14 @@ const SOURCE_GROUP_DEFINITIONS: Array<{ label: string; description: string; sour
   {
     label: "Referencias",
     description: "Resúmenes y reglas propias de UMBRA",
-    sources: ["Resumen de Reglas", "Reglas UMBRA"]
+    sources: ["Reglas UMBRA"]
   }
 ];
+
+function getEntryTypeLabel(entry: CompendiumEntry): string {
+  if (entry.tipo === "regla" && entry.ruleCategory) return RULE_CATEGORY_LABELS[entry.ruleCategory];
+  return TYPE_LABELS[entry.tipo];
+}
 
 export function normalizeCompendiumText(value: string): string {
   return value
@@ -113,7 +124,7 @@ function getSearchFields(entry: CompendiumEntry) {
   ].join(" ");
   return {
     name: normalizeCompendiumText(entry.nombre),
-    metadata: normalizeCompendiumText(`${TYPE_LABELS[entry.tipo]} ${source} ${entry.tags.join(" ")}`),
+    metadata: normalizeCompendiumText(`${TYPE_LABELS[entry.tipo]} ${getEntryTypeLabel(entry)} ${source} ${entry.tags.join(" ")}`),
     content: normalizeCompendiumText(`${entry.resumen} ${entry.detalle} ${structuredContent}`)
   };
 }
@@ -142,6 +153,7 @@ export function searchCompendiumEntries(entries: CompendiumEntry[], options: Sea
   return entries
     .filter((entry) => {
       if (options.type !== "all" && entry.tipo !== options.type) return false;
+      if (options.ruleCategory && options.ruleCategory !== "all" && entry.ruleCategory !== options.ruleCategory) return false;
       if (options.source !== "all" && !getEntrySources(entry).includes(options.source)) return false;
       if (tokens.length === 0) return true;
 
@@ -241,6 +253,24 @@ function parseCapabilityTiers(text: string): { tiers: CapabilityTier[]; referenc
   return { tiers, reference, remainder: null };
 }
 
+function parseMonsterTraitTiers(text: string): { tiers: CapabilityTier[]; reference: null; remainder: string | null } {
+  const tierRegex = /(?:^|\s)(III|II|I)\s*:/g;
+  const matches = [...text.matchAll(tierRegex)];
+  if (matches.length === 0) return { tiers: [], reference: null, remainder: text.trim() || null };
+
+  return {
+    tiers: matches.map((match, index) => {
+      const nextStart = matches[index + 1]?.index ?? text.length;
+      return {
+        label: `Nivel ${match[1]}`,
+        content: text.slice((match.index ?? 0) + match[0].length, nextStart).trim()
+      };
+    }),
+    reference: null,
+    remainder: text.slice(0, matches[0]?.index ?? 0).trim() || null
+  };
+}
+
 function isMobileDetailViewport(): boolean {
   return typeof window !== "undefined" && typeof window.matchMedia === "function"
     ? window.matchMedia(MOBILE_DETAIL_QUERY).matches
@@ -254,15 +284,17 @@ export function CompendiumView({
   initialQuery = "",
   initialSourceFilter = "all",
   initialTypeFilter = "all",
+  initialRuleCategory = "all",
   initialBrowseMode = "type",
   focusToken = 0
 }: Props) {
   const [query, setQuery] = useState(initialQuery);
   const [isQueryExplorerOpen, setIsQueryExplorerOpen] = useState(Boolean(initialQuery.trim()));
   const [typeFilter, setTypeFilter] = useState<"all" | EntryType>(initialTypeFilter);
+  const [ruleCategoryFilter, setRuleCategoryFilter] = useState<"all" | RuleCategory>(initialRuleCategory);
   const [sourceFilter, setSourceFilter] = useState(initialSourceFilter);
   const [browseMode, setBrowseMode] = useState<CompendiumBrowseMode>(initialBrowseMode);
-  const [selectedId, setSelectedId] = useState(initialEntryId ?? "");
+  const [selectedId, setSelectedId] = useState(() => initialEntryId ? findCompendiumEntryById(initialEntryId)?.id ?? "" : "");
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [recentIds, setRecentIds] = useState<string[]>([]);
   const [isLibraryLoading, setIsLibraryLoading] = useState(true);
@@ -299,6 +331,16 @@ export function CompendiumView({
     return counts;
   }, []);
 
+  const ruleCategoryCounts = useMemo(() => {
+    const counts = new Map<RuleCategory, number>();
+    ALL_ENTRIES.forEach((entry) => {
+      if (entry.tipo === "regla" && entry.ruleCategory) {
+        counts.set(entry.ruleCategory, (counts.get(entry.ruleCategory) ?? 0) + 1);
+      }
+    });
+    return counts;
+  }, []);
+
   const sourceGroups = useMemo(() => {
     const assignedSources = new Set(SOURCE_GROUP_DEFINITIONS.flatMap((group) => group.sources));
     const groups = SOURCE_GROUP_DEFINITIONS.map((group) => ({
@@ -317,12 +359,17 @@ export function CompendiumView({
   }, [sourceCounts, sources]);
 
   const filteredEntries = useMemo(
-    () => searchCompendiumEntries(ALL_ENTRIES, { query, type: typeFilter, source: sourceFilter }),
-    [query, sourceFilter, typeFilter]
+    () => searchCompendiumEntries(ALL_ENTRIES, {
+      query,
+      type: typeFilter,
+      source: sourceFilter,
+      ruleCategory: ruleCategoryFilter
+    }),
+    [query, ruleCategoryFilter, sourceFilter, typeFilter]
   );
 
-  const selectedEntry = ALL_ENTRIES.find((entry) => entry.id === selectedId) ?? null;
-  const visibleEntries = selectedEntry && !query.trim() && typeFilter === "all" && sourceFilter === "all"
+  const selectedEntry = selectedId ? findCompendiumEntryById(selectedId) : null;
+  const visibleEntries = selectedEntry && !query.trim() && typeFilter === "all" && sourceFilter === "all" && ruleCategoryFilter === "all"
     ? [selectedEntry]
     : filteredEntries;
   const favoriteEntries = useMemo(
@@ -333,11 +380,11 @@ export function CompendiumView({
   const recentEntries = useMemo(
     () => recentIds
       .filter((id) => !favoriteIds.has(id))
-      .map((id) => ALL_ENTRIES.find((entry) => entry.id === id))
+      .map((id) => findCompendiumEntryById(id))
       .filter((entry): entry is CompendiumEntry => Boolean(entry)),
     [favoriteIds, recentIds]
   );
-  const isExplorerOpen = Boolean(isQueryExplorerOpen || typeFilter !== "all" || sourceFilter !== "all" || selectedEntry);
+  const isExplorerOpen = Boolean(isQueryExplorerOpen || typeFilter !== "all" || sourceFilter !== "all" || ruleCategoryFilter !== "all" || selectedEntry);
   const quickSearchEntries = !isExplorerOpen && query.trim() ? filteredEntries.slice(0, 7) : [];
   const isQuickSearchOpen = Boolean(!isExplorerOpen && query.trim());
   const activeLibraryEntries = libraryModal === "favorites" ? favoriteEntries : recentEntries;
@@ -356,8 +403,12 @@ export function CompendiumView({
       : [{ source: selectedEntry.fuente, page: selectedEntry.pagina }]
     : [];
   const summaryLink = selectedEntry ? getCompendiumSummaryLink(selectedEntry) : null;
-  const parsedCapabilityDetail = selectedEntry && (selectedEntry.tipo === "habilidad" || selectedEntry.tipo === "poder_mistico")
-    ? parseCapabilityTiers(selectedEntry.detalle)
+  const parsedCapabilityDetail = selectedEntry
+    ? selectedEntry.tipo === "habilidad" || selectedEntry.tipo === "poder_mistico"
+      ? parseCapabilityTiers(selectedEntry.detalle)
+      : selectedEntry.tipo === "rasgo" && selectedEntry.tags.includes("monstruo")
+        ? parseMonsterTraitTiers(selectedEntry.detalle)
+        : null
     : null;
 
   useBodyScrollLock(Boolean(libraryModal || (selectedEntry && isMobileDetail)));
@@ -423,12 +474,13 @@ export function CompendiumView({
     setQuery(initialQuery);
     setIsQueryExplorerOpen(Boolean(initialQuery.trim()));
     setTypeFilter(initialTypeFilter);
+    setRuleCategoryFilter(initialRuleCategory);
     setSourceFilter(
       initialSourceFilter === "all" ? "all" : canonicalizeCompendiumSourceName(initialSourceFilter)
     );
     setBrowseMode(initialBrowseMode);
-    setSelectedId(initialEntryId && ALL_ENTRIES.some((entry) => entry.id === initialEntryId) ? initialEntryId : "");
-  }, [focusToken, initialBrowseMode, initialEntryId, initialQuery, initialSourceFilter, initialTypeFilter]);
+    setSelectedId(initialEntryId ? findCompendiumEntryById(initialEntryId)?.id ?? "" : "");
+  }, [focusToken, initialBrowseMode, initialEntryId, initialQuery, initialRuleCategory, initialSourceFilter, initialTypeFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -437,10 +489,12 @@ export function CompendiumView({
       .then(fetchCompendiumLibrary)
       .then((library) => {
         if (cancelled) return;
-        const knownIds = new Set(ALL_ENTRIES.map((entry) => entry.id));
-        setFavoriteIds(new Set(library.favoriteEntryIds.filter((id) => knownIds.has(id))));
+        const normalizeKnownIds = (ids: string[]) => ids
+          .map((id) => findCompendiumEntryById(id)?.id)
+          .filter((id): id is string => Boolean(id));
+        setFavoriteIds(new Set(normalizeKnownIds(library.favoriteEntryIds)));
         setRecentIds((current) => {
-          const merged = [...current, ...library.recentEntryIds.filter((id) => knownIds.has(id))];
+          const merged = [...current, ...normalizeKnownIds(library.recentEntryIds)];
           return [...new Set(merged)].slice(0, RECENT_ENTRY_LIMIT);
         });
         setLibraryError(null);
@@ -459,11 +513,12 @@ export function CompendiumView({
     params.set("mode", browseMode);
     if (query.trim()) params.set("q", query.trim());
     if (typeFilter !== "all") params.set("type", typeFilter);
+    if (ruleCategoryFilter !== "all") params.set("ruleCategory", ruleCategoryFilter);
     if (sourceFilter !== "all") params.set("source", sourceFilter);
     if (selectedEntry) params.set("id", selectedEntry.id);
     const nextHash = `#compendium?${params.toString()}`;
     if (window.location.hash !== nextHash) window.history.replaceState(null, "", nextHash);
-  }, [browseMode, query, selectedEntry, sourceFilter, typeFilter]);
+  }, [browseMode, query, ruleCategoryFilter, selectedEntry, sourceFilter, typeFilter]);
 
   useEffect(() => {
     if (!selectedEntry) return;
@@ -533,12 +588,13 @@ export function CompendiumView({
   }
 
   function openRelatedEntry(entryId: string, trigger: HTMLElement): void {
-    const target = ALL_ENTRIES.find((entry) => entry.id === entryId);
+    const target = findCompendiumEntryById(entryId);
     if (!target) return;
     lastEntryTriggerRef.current = trigger;
     setQuery("");
     setSourceFilter("all");
     setTypeFilter(target.tipo);
+    setRuleCategoryFilter(target.ruleCategory ?? "all");
     setSelectedId(target.id);
   }
 
@@ -551,6 +607,7 @@ export function CompendiumView({
     setQuery("");
     setIsQueryExplorerOpen(false);
     setTypeFilter("all");
+    setRuleCategoryFilter("all");
     setSourceFilter("all");
     closeDetail(false);
   }
@@ -559,6 +616,16 @@ export function CompendiumView({
     setIsQueryExplorerOpen(false);
     setBrowseMode("type");
     setTypeFilter(type);
+    setRuleCategoryFilter("all");
+    setSourceFilter("all");
+    closeDetail(false);
+  }
+
+  function selectRuleCategorySection(ruleCategory: RuleCategory): void {
+    setIsQueryExplorerOpen(false);
+    setBrowseMode("type");
+    setTypeFilter("regla");
+    setRuleCategoryFilter(ruleCategory);
     setSourceFilter("all");
     closeDetail(false);
   }
@@ -568,6 +635,7 @@ export function CompendiumView({
     setBrowseMode("source");
     setSourceFilter(source);
     setTypeFilter("all");
+    setRuleCategoryFilter("all");
     closeDetail(false);
   }
 
@@ -584,7 +652,8 @@ export function CompendiumView({
 
     try {
       const token = await ensureAccessToken();
-      await setCompendiumFavorite(entry.id, { favorite: nextFavorite }, token);
+      const idsToUpdate = nextFavorite ? [entry.id] : [entry.id, ...(entry.legacyIds ?? [])];
+      await Promise.all(idsToUpdate.map((entryId) => setCompendiumFavorite(entryId, { favorite: nextFavorite }, token)));
     } catch (error) {
       setFavoriteIds((current) => {
         const next = new Set(current);
@@ -617,14 +686,14 @@ export function CompendiumView({
           <button
             key={entry.id}
             type="button"
-            className={`compendium-shelf-entry app-card-accent app-card-accent--${entry.tipo}`}
+            className={`compendium-shelf-entry app-card-accent app-card-accent--${entry.tipo}${entry.ruleCategory ? ` rule-category--${entry.ruleCategory}` : ""}`}
             onClick={() => {
               closeLibraryModal(false);
               openEntry(entry.id, libraryModalTriggerRef.current ?? undefined);
             }}
           >
             <span className="compendium-shelf-entry-title">{entry.nombre}</span>
-            <span>{TYPE_LABELS[entry.tipo]} · {canonicalizeCompendiumSourceName(entry.fuente)}</span>
+            <span>{getEntryTypeLabel(entry)} · {canonicalizeCompendiumSourceName(entry.fuente)}</span>
           </button>
         ))}
       </div>
@@ -649,11 +718,11 @@ export function CompendiumView({
               type="button"
               role="option"
               aria-selected="false"
-              className={`compendium-quick-search-entry app-card-accent app-card-accent--${entry.tipo}`}
+              className={`compendium-quick-search-entry app-card-accent app-card-accent--${entry.tipo}${entry.ruleCategory ? ` rule-category--${entry.ruleCategory}` : ""}`}
               onClick={(event) => openEntry(entry.id, event.currentTarget)}
             >
               <strong>{renderHighlightedText(entry.nombre, query)}</strong>
-              <span>{TYPE_LABELS[entry.tipo]} · {canonicalizeCompendiumSourceName(entry.fuente)}</span>
+              <span>{getEntryTypeLabel(entry)} · {canonicalizeCompendiumSourceName(entry.fuente)}</span>
             </button>
           )) : <p className="compendium-empty-note">No hay entradas que coincidan.</p>}
         </div>
@@ -673,7 +742,7 @@ export function CompendiumView({
 
   return (
     <div className="compendium-library">
-      <section className="panel lore-panel compendium-library-hero">
+      <header className="panel lore-panel compendium-library-hero module-sticky-header">
         <div className="compendium-library-hero-copy">
           <span className="compendium-eyebrow">Archivo de consulta</span>
           <h2>Compendio Central</h2>
@@ -718,7 +787,7 @@ export function CompendiumView({
           </div>
           {libraryError ? <p className="compendium-library-error" role="alert">{libraryError}</p> : null}
         </div>
-      </section>
+      </header>
 
       {quickSearchPopover}
 
@@ -780,18 +849,31 @@ export function CompendiumView({
                       <p>{group.description}</p>
                     </div>
                     <div className="compendium-section-grid">
-                      {group.types.map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          className={`compendium-section-card app-card-accent app-card-accent--${type}`}
-                          onClick={() => selectTypeSection(type)}
-                        >
-                          <span className="compendium-section-card-ornament" aria-hidden="true" />
-                          <strong>{TYPE_LABELS[type]}</strong>
-                          <span>{typeCounts.get(type) ?? 0} entradas</span>
-                        </button>
-                      ))}
+                      {group.types.flatMap((type) => type === "regla"
+                        ? RULE_CATEGORIES.map((ruleCategory) => (
+                          <button
+                            key={ruleCategory}
+                            type="button"
+                            className={`compendium-section-card app-card-accent app-card-accent--regla rule-category-card--${ruleCategory}`}
+                            onClick={() => selectRuleCategorySection(ruleCategory)}
+                          >
+                            <span className="compendium-section-card-ornament" aria-hidden="true" />
+                            <strong>{RULE_CATEGORY_LABELS[ruleCategory]}</strong>
+                            <span>{ruleCategoryCounts.get(ruleCategory) ?? 0} entradas</span>
+                          </button>
+                        ))
+                        : [(
+                          <button
+                            key={type}
+                            type="button"
+                            className={`compendium-section-card app-card-accent app-card-accent--${type}`}
+                            onClick={() => selectTypeSection(type)}
+                          >
+                            <span className="compendium-section-card-ornament" aria-hidden="true" />
+                            <strong>{TYPE_LABELS[type]}</strong>
+                            <span>{typeCounts.get(type) ?? 0} entradas</span>
+                          </button>
+                        )])}
                     </div>
                   </section>
                 ))}
@@ -830,15 +912,30 @@ export function CompendiumView({
             <nav className="compendium-breadcrumb" aria-label="Ruta del compendio">
               <button type="button" onClick={clearFilters}>Biblioteca</button>
               <span aria-hidden="true">/</span>
-              <span>{typeFilter !== "all" ? TYPE_LABELS[typeFilter] : sourceFilter !== "all" ? sourceFilter : "Resultados"}</span>
+              <span>{ruleCategoryFilter !== "all" ? RULE_CATEGORY_LABELS[ruleCategoryFilter] : typeFilter !== "all" ? TYPE_LABELS[typeFilter] : sourceFilter !== "all" ? sourceFilter : "Resultados"}</span>
             </nav>
             <div className="compendium-explorer-controls">
               <label className="field">
                 <span>Tipo</span>
-                <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as "all" | EntryType)}>
+                <select value={typeFilter} onChange={(event) => {
+                  const nextType = event.target.value as "all" | EntryType;
+                  setTypeFilter(nextType);
+                  if (nextType !== "regla") setRuleCategoryFilter("all");
+                }}>
                   {Object.entries(TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
               </label>
+              {typeFilter === "regla" ? (
+                <label className="field">
+                  <span>Categoría</span>
+                  <select value={ruleCategoryFilter} onChange={(event) => setRuleCategoryFilter(event.target.value as "all" | RuleCategory)}>
+                    <option value="all">Todas</option>
+                    {RULE_CATEGORIES.map((ruleCategory) => (
+                      <option key={ruleCategory} value={ruleCategory}>{RULE_CATEGORY_LABELS[ruleCategory]}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
               <label className="field">
                 <span>Fuente</span>
                 <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
@@ -858,12 +955,12 @@ export function CompendiumView({
                   key={entry.id}
                   type="button"
                   aria-current={selectedEntry?.id === entry.id ? "true" : undefined}
-                  className={`compendium-result-card app-card-accent app-card-accent--${entry.tipo}${selectedEntry?.id === entry.id ? " is-active" : ""}`}
+                  className={`compendium-result-card app-card-accent app-card-accent--${entry.tipo}${entry.ruleCategory ? ` rule-category--${entry.ruleCategory}` : ""}${selectedEntry?.id === entry.id ? " is-active" : ""}`}
                   onClick={(event) => openEntry(entry.id, event.currentTarget)}
                 >
                   <span className="compendium-result-card-top">
                     <strong>{renderHighlightedText(entry.nombre, query)}</strong>
-                    <span className="compendium-chip">{TYPE_LABELS[entry.tipo]}</span>
+                    <span className="compendium-chip">{getEntryTypeLabel(entry)}</span>
                   </span>
                   <span className="meta-text">{canonicalizeCompendiumSourceName(entry.fuente)}{entry.pagina ? ` · p.${entry.pagina}` : ""}</span>
                 </button>
@@ -873,7 +970,7 @@ export function CompendiumView({
 
           <aside
             ref={readerRef}
-            className={`panel compendium-reader${selectedEntry ? ` is-open app-card-accent app-card-accent--${selectedEntry.tipo}` : ""}`}
+            className={`panel compendium-reader${selectedEntry ? ` is-open app-card-accent app-card-accent--${selectedEntry.tipo}${selectedEntry.ruleCategory ? ` rule-category--${selectedEntry.ruleCategory}` : ""}` : ""}`}
             role={isMobileDetail && selectedEntry ? "dialog" : "region"}
             aria-modal={isMobileDetail && selectedEntry ? "true" : undefined}
             aria-labelledby={selectedEntry ? "compendium-reader-title" : undefined}
@@ -883,7 +980,7 @@ export function CompendiumView({
               <>
                 <header className="compendium-reader-header">
                   <div>
-                    <span className="compendium-eyebrow">{TYPE_LABELS[selectedEntry.tipo]}</span>
+                    <span className="compendium-eyebrow">{selectedEntry.tipo === "regla" ? `Reglas · ${getEntryTypeLabel(selectedEntry)}` : TYPE_LABELS[selectedEntry.tipo]}</span>
                     <h3 id="compendium-reader-title" ref={detailHeadingRef} tabIndex={-1}>{renderHighlightedText(selectedEntry.nombre, query)}</h3>
                     <p>{canonicalSelectedSource}{selectedEntry.pagina ? ` · p.${selectedEntry.pagina}` : ""}</p>
                   </div>
@@ -924,16 +1021,18 @@ export function CompendiumView({
 
                   {selectedEntry.variants?.length ? (
                     <section className="compendium-variant-section" aria-labelledby="compendium-variant-title">
-                      <h4 id="compendium-variant-title">Variantes</h4>
+                      <h4 id="compendium-variant-title">{selectedEntry.tipo === "regla" && selectedEntry.legacyIds?.length ? "Reglas incluidas" : "Variantes"}</h4>
                       <div className="compendium-variant-list">
                         {selectedEntry.variants.map((variant) => (
                           <article key={`${selectedEntry.id}-${variant.id}`} className="compendium-variant-card">
                             <h5>{variant.label}</h5>
-                            <dl>
-                              {variant.facts.map((fact) => (
-                                <div key={`${variant.id}-${fact.label}`}><dt>{fact.label}</dt><dd>{renderHighlightedText(fact.value, query)}</dd></div>
-                              ))}
-                            </dl>
+                            {variant.facts.length ? (
+                              <dl>
+                                {variant.facts.map((fact) => (
+                                  <div key={`${variant.id}-${fact.label}`}><dt>{fact.label}</dt><dd>{renderHighlightedText(fact.value, query)}</dd></div>
+                                ))}
+                              </dl>
+                            ) : null}
                             {variant.detail ? <p>{renderHighlightedText(variant.detail, query)}</p> : null}
                           </article>
                         ))}
@@ -943,6 +1042,11 @@ export function CompendiumView({
 
                   {parsedCapabilityDetail && parsedCapabilityDetail.tiers.length > 0 ? (
                     <div className="capability-tier-list">
+                      {parsedCapabilityDetail.remainder ? (
+                        <p className="capability-tier-introduction">
+                          {renderHighlightedText(parsedCapabilityDetail.remainder, query)}
+                        </p>
+                      ) : null}
                       {parsedCapabilityDetail.tiers.map((tier) => (
                         <section key={`${selectedEntry.id}-${tier.label}`} className="capability-tier">
                           <h4 className="capability-tier-title">{tier.label}</h4>
@@ -961,7 +1065,7 @@ export function CompendiumView({
 
                   {selectedEntry.relations?.length ? (
                     <section className="compendium-related-section" aria-labelledby="compendium-related-title">
-                      <h4 id="compendium-related-title">Cualidades relacionadas</h4>
+                      <h4 id="compendium-related-title">Entradas relacionadas</h4>
                       <div className="compendium-related-list">
                         {selectedEntry.relations.map((relation) => (
                           <button

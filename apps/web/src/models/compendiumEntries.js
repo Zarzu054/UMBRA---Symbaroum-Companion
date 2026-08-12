@@ -1,7 +1,18 @@
 import { SYMBAROUM_ABILITIES, SYMBAROUM_ARCHETYPES, SYMBAROUM_CAPABILITIES, SYMBAROUM_CULTURES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RACES, SYMBAROUM_RITUALS, SYMBAROUM_PROFESSIONS, WEAPON_QUALITY_OPTIONS, WEAPON_TEMPLATES } from "@umbra/shared";
 import { ARMOR_QUALITY_OPTIONS, ITEM_CATALOG } from "./itemCatalog";
 import { EQUIPMENT_CATALOG_DEFINITIONS } from "./equipmentCatalog";
+import { MONSTER_TRAIT_CATALOG, formatMonsterTraitDetail } from "./monsterTraitCatalog";
 import { buildPdfViewerUrl } from "../services/pdfViewer";
+export const RULE_CATEGORY_LABELS = {
+    core: "Reglas básicas",
+    official_optional: "Reglas opcionales",
+    homebrew: "Reglas caseras"
+};
+export const RULE_CATEGORY_DESCRIPTIONS = {
+    core: "Reglas oficiales necesarias para jugar",
+    official_optional: "Módulos publicados que el grupo puede decidir utilizar",
+    homebrew: "Adaptaciones propias utilizadas por UMBRA"
+};
 export const TYPE_LABELS = {
     all: "Todo",
     regla: "Reglas",
@@ -1735,16 +1746,23 @@ function buildMonsterTraitEntries() {
             tags: ["sentidos", "oscuridad"]
         }
     ];
-    return traits.map((trait) => ({
-        id: `rasgo-${slugify(trait.nombre)}`,
-        tipo: "rasgo",
-        nombre: trait.nombre,
-        resumen: trait.resumen,
-        detalle: trait.detalle,
-        fuente: trait.fuente ?? "Códice de monstruos",
-        pagina: trait.pagina,
-        tags: ["rasgo", "monstruo", trait.fuente === "Libro Básico" ? "libro básico" : "código de monstruos", ...(trait.tags ?? [])]
-    }));
+    const canonicalByName = new Map(MONSTER_TRAIT_CATALOG.map((trait) => [trait.nombre, trait]));
+    return traits.map((legacyTrait) => {
+        const trait = canonicalByName.get(legacyTrait.nombre);
+        if (!trait) {
+            throw new Error(`Falta la descripción canónica del rasgo de monstruo: ${legacyTrait.nombre}`);
+        }
+        return {
+            id: `rasgo-${slugify(trait.nombre)}`,
+            tipo: "rasgo",
+            nombre: trait.nombre,
+            resumen: trait.resumen,
+            detalle: formatMonsterTraitDetail(trait),
+            fuente: trait.fuente,
+            pagina: trait.pagina,
+            tags: ["rasgo", "monstruo", trait.fuente === "Libro Básico" ? "libro básico" : "códice de monstruos", ...trait.tags]
+        };
+    });
 }
 function buildMonsterRuleEntries() {
     return [
@@ -2818,7 +2836,395 @@ export const RULE_SUMMARY_ENTRIES = [
         tags: ["superposicion-de-efectos", "superposicion", "de", "efectos"]
     },
 ];
-export const CORE_RULES = [...MANUAL_RULES, ...RULE_SUMMARY_ENTRIES];
+const REMOVED_RULE_IDS = new Set([
+    "regla-manual-1-creacion-inicial-de-personaje",
+    "regla-manual-3-patrones-iniciales-de-habilidades",
+    "regla-resumen-17-reglas-alternativas-a-discutir-por-el-grupo"
+]);
+const BASIC_SUMMARY_RULE_PAGES = {
+    2: 160,
+    3: 159,
+    4: 157,
+    5: 159,
+    6: 159,
+    7: 159,
+    8: 150,
+    9: 160,
+    10: 156,
+    11: 160,
+    12: 158,
+    13: 158,
+    14: 175,
+    15: 175,
+    16: 175
+};
+const CORE_OPTIONAL_RULE_PAGES = {
+    22: 176,
+    23: 176,
+    24: 177,
+    25: 177,
+    26: 177,
+    27: 178,
+    28: 178,
+    29: 179,
+    30: 179,
+    31: 179
+};
+const ADVANCED_OPTIONAL_RULE_PAGES = {
+    32: 98, 33: 98, 34: 98, 35: 98, 36: 98, 37: 98,
+    38: 99, 39: 99, 40: 99, 41: 99, 42: 99, 43: 99, 44: 99, 45: 99, 46: 99, 47: 99,
+    48: 100, 49: 100, 50: 101, 51: 102, 52: 102, 53: 102, 54: 102, 55: 102, 56: 102, 57: 102, 58: 102,
+    59: 103, 60: 103, 61: 103, 62: 103, 63: 103, 64: 103, 65: 103, 66: 103, 67: 103, 68: 103,
+    69: 104, 70: 104, 71: 104, 72: 104, 73: 104, 74: 104, 75: 105, 76: 105, 77: 106, 78: 106,
+    79: 106, 80: 106, 81: 106, 82: 106, 83: 106, 84: 107, 85: 107, 86: 107, 87: 108, 88: 108,
+    89: 108, 90: 108, 91: 109, 92: 109, 93: 109, 94: 109
+};
+const RULE_NAME_OVERRIDES = {
+    "regla-resumen-1-combate": "Combate sin tiradas de defensa",
+    "regla-resumen-45-resistencia": "Hazaña: Resistencia",
+    "regla-resumen-50-experiencia-inicial": "Comenzar con experiencia gratuita",
+    "regla-resumen-51-rituales-maximos-a-nivel-maestro": "Rituales máximos a nivel maestro",
+    "regla-resumen-61-maniobras-de-combate-combates-mas-tacticos": "Maniobras de combate",
+    "regla-resumen-81-resistencia": "Resistencia de edificios"
+};
+const RULE_CONTENT_OVERRIDES = {
+    "regla-resumen-1-combate": {
+        summary: "UMBRA resuelve los ataques contra personajes sin una tirada de Defensa separada, salvo que una regla indique lo contrario.",
+        detail: "Esta adaptación sustituye la tirada defensiva ordinaria por la resolución mediante el ataque. El resto de las reglas de combate se mantiene, salvo las excepciones caseras indicadas expresamente en el compendio. No es una regla oficial de los manuales."
+    },
+    "regla-resumen-8-escudo": {
+        summary: "Un escudo ocupa una mano y proporciona +1 a Defensa mientras pueda utilizarse contra el ataque.",
+        detail: "El escudo proporciona +1 a Defensa a cambio de ocupar una mano. Sus interacciones adicionales dependen de capacidades como Combate con escudo y de las cualidades concretas del escudo. El bono no se aplica cuando la situación impide interponerlo contra el ataque."
+    }
+};
+const RULE_PARENT_BY_ID = {
+    "regla-resumen-28-el-camino-de-la-misericordia": "regla-resumen-27-objetivos-vitales",
+    "regla-resumen-33-tubo-de-fuego-alquimico-portatil": "regla-resumen-32-armas-alquimicas",
+    "regla-resumen-34-tubo-de-fuego-alquimico-fijo": "regla-resumen-32-armas-alquimicas",
+    "regla-resumen-35-granada-alquimica": "regla-resumen-32-armas-alquimicas",
+    "regla-resumen-36-olla-explosiva": "regla-resumen-32-armas-alquimicas",
+    "regla-resumen-40-golpe-limpio": "regla-resumen-39-hazanas",
+    "regla-resumen-41-sin-miedo": "regla-resumen-39-hazanas",
+    "regla-resumen-42-ignorar-la-corrupcion": "regla-resumen-39-hazanas",
+    "regla-resumen-43-defensa-perfecta": "regla-resumen-39-hazanas",
+    "regla-resumen-44-golpe-rapido": "regla-resumen-39-hazanas",
+    "regla-resumen-45-resistencia": "regla-resumen-39-hazanas",
+    "regla-resumen-46-mirada-de-acero": "regla-resumen-39-hazanas",
+    "regla-resumen-47-ataque-torbellino": "regla-resumen-39-hazanas",
+    "regla-resumen-54-poner-una-trampa": "regla-resumen-53-trampas",
+    "regla-resumen-55-descubrir-una-trampa": "regla-resumen-53-trampas",
+    "regla-resumen-56-evitar-una-trampa": "regla-resumen-53-trampas",
+    "regla-resumen-57-desactivar-una-trampa": "regla-resumen-53-trampas",
+    "regla-resumen-58-liberarse-de-una-trampa": "regla-resumen-53-trampas",
+    "regla-resumen-62-apuntar-con-cuidado": "regla-resumen-61-maniobras-de-combate-combates-mas-tacticos",
+    "regla-resumen-63-embestir": "regla-resumen-61-maniobras-de-combate-combates-mas-tacticos",
+    "regla-resumen-64-retrasar-la-iniciativa": "regla-resumen-61-maniobras-de-combate-combates-mas-tacticos",
+    "regla-resumen-65-desarmar": "regla-resumen-61-maniobras-de-combate-combates-mas-tacticos",
+    "regla-resumen-66-defensa-completa": "regla-resumen-61-maniobras-de-combate-combates-mas-tacticos",
+    "regla-resumen-67-ofensiva-total": "regla-resumen-61-maniobras-de-combate-combates-mas-tacticos",
+    "regla-resumen-68-presa": "regla-resumen-61-maniobras-de-combate-combates-mas-tacticos",
+    "regla-resumen-69-dejar-inconsciente": "regla-resumen-61-maniobras-de-combate-combates-mas-tacticos",
+    "regla-resumen-70-veneno-en-las-armas": "regla-resumen-61-maniobras-de-combate-combates-mas-tacticos",
+    "regla-resumen-71-hacer-retroceder": "regla-resumen-61-maniobras-de-combate-combates-mas-tacticos",
+    "regla-resumen-72-placaje": "regla-resumen-61-maniobras-de-combate-combates-mas-tacticos",
+    "regla-resumen-73-tomar-la-iniciativa": "regla-resumen-61-maniobras-de-combate-combates-mas-tacticos",
+    "regla-resumen-77-ventajas-del-pacto": "regla-resumen-76-pactos",
+    "regla-resumen-78-precio-del-pacto": "regla-resumen-76-pactos",
+    "regla-resumen-79-romper-un-pacto": "regla-resumen-76-pactos",
+    "regla-resumen-81-resistencia": "regla-resumen-80-dano-a-edificios",
+    "regla-resumen-82-punto-critico": "regla-resumen-80-dano-a-edificios",
+    "regla-resumen-83-fortificacion": "regla-resumen-80-dano-a-edificios",
+    "regla-resumen-84-incendiar-edificios": "regla-resumen-80-dano-a-edificios",
+    "regla-resumen-88-apuntar-alto-o-bajo": "regla-resumen-87-golpes-localizados",
+    "regla-resumen-89-apuntar-a-una-parte-del-cuerpo": "regla-resumen-87-golpes-localizados",
+    "regla-resumen-90-partes-de-la-armadura": "regla-resumen-87-golpes-localizados",
+    "regla-resumen-92-cambios-en-la-reputacion": "regla-resumen-91-reputacion",
+    "regla-resumen-93-tipo-de-reputacion": "regla-resumen-91-reputacion"
+};
+function getLegacyRuleMetadata(entry) {
+    if (entry.id === "regla-manual-2-atributos-de-creacion") {
+        return { category: "core", source: "Libro Básico", page: 104 };
+    }
+    if (entry.id === "regla-manual-4-requisitos-de-poderes-y-rituales") {
+        return { category: "homebrew", source: "Reglas UMBRA" };
+    }
+    if (entry.id.startsWith("regla-monstruos-")) {
+        return { category: "core", source: entry.fuente, page: entry.pagina };
+    }
+    const summaryNumber = Number(entry.id.match(/^regla-resumen-(\d+)-/)?.[1]);
+    if (summaryNumber === 1 || (summaryNumber >= 18 && summaryNumber <= 21)) {
+        return { category: "homebrew", source: "Reglas UMBRA", name: RULE_NAME_OVERRIDES[entry.id] };
+    }
+    if (BASIC_SUMMARY_RULE_PAGES[summaryNumber]) {
+        return { category: "core", source: "Libro Básico", page: BASIC_SUMMARY_RULE_PAGES[summaryNumber] };
+    }
+    if (CORE_OPTIONAL_RULE_PAGES[summaryNumber]) {
+        return { category: "official_optional", source: "Libro Básico", page: CORE_OPTIONAL_RULE_PAGES[summaryNumber] };
+    }
+    return {
+        category: "official_optional",
+        source: "Guía Avanzada del Jugador",
+        page: ADVANCED_OPTIONAL_RULE_PAGES[summaryNumber],
+        name: RULE_NAME_OVERRIDES[entry.id]
+    };
+}
+function normalizeRuleEntry(entry) {
+    const metadata = getLegacyRuleMetadata(entry);
+    const contentOverride = RULE_CONTENT_OVERRIDES[entry.id];
+    const cameFromRulesSummary = entry.id.startsWith("regla-resumen-");
+    return {
+        ...entry,
+        tipo: "regla",
+        nombre: metadata.name ?? RULE_NAME_OVERRIDES[entry.id] ?? entry.nombre,
+        resumen: contentOverride?.summary ?? entry.resumen,
+        detalle: contentOverride?.detail ?? entry.detalle,
+        fuente: metadata.source,
+        pagina: metadata.page,
+        ruleCategory: metadata.category,
+        summaryReference: cameFromRulesSummary ? { document: "rules", section: entry.nombre } : undefined,
+        tags: [...new Set([...entry.tags, "regla", RULE_CATEGORY_LABELS[metadata.category].toLocaleLowerCase("es")])]
+    };
+}
+const ADDITIONAL_RULE_ENTRIES = [
+    {
+        id: "regla-basica-tiradas-de-accion", tipo: "regla", ruleCategory: "core", nombre: "Tiradas de acción",
+        resumen: "Las acciones inciertas se resuelven con 1D20: el resultado debe ser igual o inferior al atributo modificado.",
+        detalle: "El jugador tira 1D20 cuando el resultado de una acción es incierto y relevante. Tiene éxito si obtiene un resultado igual o inferior al atributo usado después de aplicar modificadores. En las pruebas enfrentadas, el atributo de la oposición modifica el valor del personaje; el DJ no tira por los adversarios contra los PJ salvo que una regla indique otra cosa.",
+        fuente: "Libro Básico", pagina: 100, tags: ["regla", "tiradas", "atributos", "éxito"]
+    },
+    {
+        id: "regla-basica-orden-de-turno", tipo: "regla", ruleCategory: "core", nombre: "Orden de turno e iniciativa",
+        resumen: "Los combatientes actúan normalmente de mayor a menor Ágil, resolviendo empates mediante Atento y después 1D20.",
+        detalle: "Al comenzar el combate se establece el orden de iniciativa. Los personajes y enemigos actúan de mayor a menor Ágil; los empates se resuelven comparando Atento y, si continúan, con una tirada. El orden se mantiene mientras no intervenga una regla que lo altere.",
+        fuente: "Libro Básico", pagina: 156, tags: ["regla", "combate", "iniciativa", "turno"]
+    },
+    {
+        id: "regla-basica-acciones-de-combate", tipo: "regla", ruleCategory: "core", nombre: "Acciones de combate y movimiento",
+        resumen: "Cada turno ofrece normalmente una acción de combate y una acción de movimiento, que pueden emplearse o intercambiarse según las reglas.",
+        detalle: "Un combatiente dispone normalmente de una acción de combate y otra de movimiento. La acción de combate permite atacar, usar una capacidad activa o realizar tareas exigentes; la de movimiento permite desplazarse, cambiar de arma, levantarse mediante Ágil o usar un elixir sobre uno mismo. Una acción de combate puede convertirse en una acción adicional de movimiento.",
+        fuente: "Libro Básico", pagina: 157, tags: ["regla", "combate", "acciones", "movimiento"]
+    },
+    {
+        id: "regla-basica-reacciones-y-ataques-gratuitos", tipo: "regla", ruleCategory: "core", nombre: "Reacciones y ataques gratuitos",
+        resumen: "Las reacciones responden a otras acciones y los ataques gratuitos se producen al exponerse o abandonar un combate trabado.",
+        detalle: "Las reacciones no consumen las dos acciones ordinarias y se ejecutan cuando se cumple su desencadenante. Los ataques gratuitos son reacciones provocadas por situaciones como destrabarse o pasar junto a un enemigo; solo pueden modificarse mediante efectos aplicables a reacciones o ataques gratuitos.",
+        fuente: "Libro Básico", pagina: 157, tags: ["regla", "combate", "reacción", "ataque gratuito"]
+    },
+    {
+        id: "regla-basica-defensa", tipo: "regla", ruleCategory: "core", nombre: "Defensa",
+        resumen: "La Defensa suele basarse en Ágil y se modifica por armadura, escudos y capacidades.",
+        detalle: "En las reglas oficiales, un PJ consciente del ataque realiza [Defensa←Diestro] para evitarlo. Si tiene éxito, para o esquiva; si falla, recibe el daño del arma reducido por su armadura. La Defensa es una reacción y puede realizarse contra cada ataque del que sea consciente. UMBRA conserva por separado su adaptación casera sin tiradas defensivas.",
+        fuente: "Libro Básico", pagina: 158, tags: ["regla", "combate", "defensa"]
+    },
+    {
+        id: "regla-basica-dano-armadura-resistencia", tipo: "regla", ruleCategory: "core", nombre: "Daño, armadura y Resistencia",
+        resumen: "El daño que supera la protección de la armadura reduce la Resistencia del objetivo.",
+        detalle: "Cuando un ataque impacta, el jugador tira el daño de su arma; contra un PJ, el daño del enemigo utiliza su valor fijo. La armadura reduce el daño mediante su dado de protección o valor fijo. El daño restante disminuye la Resistencia, nunca por debajo de cero. El Umbral de dolor determina los efectos de un impacto especialmente grave.",
+        fuente: "Libro Básico", pagina: 158, tags: ["regla", "daño", "armadura", "resistencia"]
+    },
+    {
+        id: "regla-basica-curacion", tipo: "regla", ruleCategory: "core", nombre: "Curación y recuperación",
+        resumen: "La Resistencia se recupera de forma natural o mediante Medicus, hierbas y poderes curativos.",
+        detalle: "La curación natural recupera un punto de Resistencia al día. Las hierbas curativas restauran un punto de inmediato y Medicus cura 1D4, con mejoras al combinarse con hierbas. Los poderes místicos y capacidades curativas aplican sus propios valores. Un personaje moribundo debe ser estabilizado mediante una fuente de curación válida.",
+        fuente: "Libro Básico", pagina: 159, tags: ["regla", "curación", "resistencia", "medicus"]
+    },
+    {
+        id: "regla-basica-retos", tipo: "regla", ruleCategory: "core", nombre: "Retos",
+        resumen: "Los retos resuelven situaciones relevantes fuera del combate mediante atributos y modificadores adecuados.",
+        detalle: "Un reto se utiliza cuando una acción fuera del combate tiene un desenlace incierto y consecuencias interesantes. El DJ decide el atributo, la oposición o modificador y qué información o resultado produce el éxito. Las tareas triviales o sin consecuencias no necesitan tirada.",
+        fuente: "Libro Básico", pagina: 169, tags: ["regla", "retos", "director de juego"]
+    },
+    {
+        id: "regla-basica-grados-de-exito", tipo: "regla", ruleCategory: "core", nombre: "Retos con grado de éxito",
+        resumen: "Las capacidades pertinentes pueden aportar información o resultados adicionales más allá del éxito básico.",
+        detalle: "En un reto con grado de éxito, superar la tirada resuelve la cuestión principal. Las habilidades tácticas, sociales o académicas pertinentes permiten obtener detalles, ventajas o resultados adicionales. El DJ debe comunicar qué conocimiento especial requiere una capacidad concreta.",
+        fuente: "Libro Básico", pagina: 170, tags: ["regla", "retos", "grado de éxito"]
+    },
+    {
+        id: "regla-basica-retos-complejos", tipo: "regla", ruleCategory: "core", nombre: "Retos complejos",
+        resumen: "Los retos prolongados se resuelven acumulando éxitos antes de alcanzar el límite de fallos establecido.",
+        detalle: "Un reto complejo divide una tarea extensa en varias pruebas. El DJ fija los éxitos necesarios, las capacidades útiles, el tiempo de cada intento y las consecuencias de los fallos. El progreso narrativo debe reflejar cada resultado y no reducirse a una sucesión de tiradas sin cambios en la ficción.",
+        fuente: "Libro Básico", pagina: 170, tags: ["regla", "retos", "complejos"]
+    },
+    {
+        id: "regla-basica-escenas-sociales", tipo: "regla", ruleCategory: "core", nombre: "Escenas sociales",
+        resumen: "La interpretación dirige las escenas sociales y las tiradas resuelven únicamente los puntos de incertidumbre relevantes.",
+        detalle: "Las escenas sociales se desarrollan mediante conversación, objetivos y consecuencias. Cuando hace falta una resolución mecánica suele emplearse Persuasivo modificado por Tenaz, además de capacidades como Dominación o Líder. Una tirada no obliga a un personaje a actuar contra decisiones que corresponden a su jugador.",
+        fuente: "Libro Básico", pagina: 170, tags: ["regla", "social", "persuasivo"]
+    },
+    {
+        id: "regla-basica-valores-fijos-del-dj", tipo: "regla", ruleCategory: "core", nombre: "Valores fijos para adversarios",
+        resumen: "Los adversarios usan valores fijos para daño y protección mientras los jugadores realizan las tiradas correspondientes.",
+        detalle: "Para aligerar la tarea del DJ, los dados de efecto de PNJ y monstruos se convierten en valores fijos: 1D4 vale 2, 1D6 vale 3, 1D8 vale 4, 1D10 vale 5 y 1D12 vale 6. Los modificadores se añaden después. Los jugadores continúan tirando el daño, la armadura y las demás tiradas que les correspondan.",
+        fuente: "Libro Básico", pagina: 172, tags: ["regla", "director de juego", "valores fijos", "promedios"]
+    },
+    {
+        id: "regla-basica-tiempo-en-partida", tipo: "regla", ruleCategory: "core", nombre: "Tiempo: escenas, interludios y turnos",
+        resumen: "El juego organiza el tiempo en escenas, interludios y turnos según el grado de precisión necesario.",
+        detalle: "Las escenas abarcan una situación dramática completa y marcan la duración de numerosos efectos. Los interludios cubren viajes, descanso y periodos sin resolución detallada. Los turnos ordenan acciones cuando importa cada instante, especialmente en combate. El DJ cambia de escala temporal según las necesidades de la ficción.",
+        fuente: "Libro Básico", pagina: 172, tags: ["regla", "tiempo", "escenas", "interludios", "turnos"]
+    },
+    {
+        id: "regla-basica-sombra", tipo: "regla", ruleCategory: "core", nombre: "Sombra",
+        resumen: "La Sombra revela la naturaleza espiritual de una criatura y puede transformarse por efecto de la Corrupción.",
+        detalle: "Todo ser y objeto relevante posee una Sombra descrita mediante color, brillo y carácter. Los poderes o rituales adecuados permiten percibirla. La Sombra base refleja la esencia de la criatura, mientras que la Corrupción genera una segunda expresión que termina imponiéndose cuando es más intensa.",
+        fuente: "Libro Básico", pagina: 173, tags: ["regla", "sombra", "corrupción"]
+    },
+    {
+        id: "regla-basica-corrupcion", tipo: "regla", ruleCategory: "core", nombre: "Corrupción temporal y permanente",
+        resumen: "La Corrupción puede ser temporal o permanente y transforma al personaje cuando alcanza límites determinados por Tenaz.",
+        detalle: "La Corrupción temporal suele desaparecer al final de la escena; la permanente permanece hasta que una regla permita reducirla. El Umbral de Corrupción es la mitad de Tenaz redondeada hacia arriba. Alcanzarlo provoca estigmas y acumular Corrupción total igual o superior a Tenaz transforma a la criatura en una abominación según las reglas oficiales.",
+        fuente: "Libro Básico", pagina: 174, tags: ["regla", "corrupción", "temporal", "permanente"]
+    },
+    {
+        id: "regla-basica-estigmas", tipo: "regla", ruleCategory: "core", nombre: "Estigmas de Corrupción",
+        resumen: "Al alcanzar determinados umbrales de Corrupción aparecen señales físicas temporales o permanentes.",
+        detalle: "Cuando la Corrupción total iguala o supera el Umbral de Corrupción aparece un estigma temporal. Cuando la Corrupción permanente alcanza ese umbral aparece un estigma permanente. El jugador elige una manifestación adecuada y otras criaturas pueden descubrirla en circunstancias adversas mediante [Discreto←Atento].",
+        fuente: "Libro Básico", pagina: 175, tags: ["regla", "corrupción", "estigmas"]
+    },
+    {
+        id: "regla-basica-pnj-aliados", tipo: "regla", ruleCategory: "core", nombre: "Personajes no jugadores aliados",
+        resumen: "Los aliados pueden gestionarse de forma narrativa o mediante distintas opciones de control durante los enfrentamientos.",
+        detalle: "El grupo debe decidir cómo se manejan los PNJ aliados cuando intervienen activamente. Pueden quedar bajo control del DJ, repartirse entre los jugadores o resolverse de forma simplificada. La elección debe evitar sobrecargar al DJ y mantener el foco en los personajes jugadores.",
+        fuente: "Libro Básico", pagina: 176, tags: ["regla", "pnj", "aliados"]
+    },
+    {
+        id: "regla-basica-categorias-de-marcha", tipo: "regla", ruleCategory: "core", nombre: "Categorías de marcha",
+        resumen: "Los viajes distinguen ritmos de marcha que cambian el tiempo recorrido, el descanso y el riesgo de agotamiento.",
+        detalle: "Las reglas de viaje distinguen marcha diaria, forzada y extenuante. El ritmo determina la distancia recorrida y cuándo debe comprobarse Fuerte para evitar daño o agotamiento. La regla opcional de Carga empeora estas categorías cuando un personaje transporta más de lo permitido.",
+        fuente: "Libro Básico", pagina: 182, tags: ["regla", "viajes", "marcha", "carga"]
+    },
+    {
+        id: "regla-opcional-rasgos-monstruosos-para-pj", tipo: "regla", ruleCategory: "official_optional", nombre: "Rasgos monstruosos para personajes jugadores",
+        resumen: "Con permiso del grupo, un PJ puede adquirir rasgos ajenos a su raza si existe una justificación adecuada.",
+        detalle: "Los rasgos monstruosos cuestan como habilidades del mismo nivel. Se recomienda ofrecer la posibilidad a todo el grupo y justificarla en el trasfondo. Normalmente un PJ no debería acceder a niveles superiores a I salvo circunstancias especiales acordadas con el DJ.",
+        fuente: "Libro Básico", pagina: 177, tags: ["regla", "opcional", "rasgos monstruosos", "personajes"]
+    },
+    {
+        id: "regla-opcional-jugar-con-abominacion", tipo: "regla", ruleCategory: "official_optional", nombre: "Jugar con una abominación",
+        resumen: "El grupo puede permitir que un personaje completamente corrupto continúe en juego como abominación.",
+        detalle: "Tras renacer como abominación, el personaje deja de obtener Corrupción, pero su existencia y naturaleza generan enemigos, persecución y consecuencias graves. Esta opción requiere el acuerdo del grupo y debe conservar el tono trágico de la transformación.",
+        fuente: "Libro Básico", pagina: 177, tags: ["regla", "opcional", "abominación", "corrupción"]
+    },
+    {
+        id: "regla-opcional-experiencia-concreta", tipo: "regla", ruleCategory: "official_optional", nombre: "Experiencia concreta",
+        resumen: "La experiencia puede asignarse a capacidades concretas usadas o aprendidas durante la aventura.",
+        detalle: "En lugar de conceder experiencia de uso libre, el DJ puede vincularla a habilidades empleadas durante la aventura o a capacidades nuevas justificadas por lo ocurrido. El grupo debe conocer de antemano esta limitación para orientar el desarrollo de los personajes.",
+        fuente: "Libro Básico", pagina: 179, tags: ["regla", "opcional", "experiencia", "avance"]
+    },
+    {
+        id: "regla-opcional-muerto-viviente-al-morir", tipo: "regla", ruleCategory: "official_optional", nombre: "Convertirse en muerto viviente en vez de morir",
+        resumen: "Un personaje fallecido puede permanecer en juego como muerto viviente si el grupo adopta esta posibilidad.",
+        detalle: "Cuando un PJ muere, el grupo puede permitir que se convierta en muerto viviente y continúe en juego. Puede combinarse con Muerte instantánea y, si se desea incertidumbre, resolverse mediante una tirada de Tenaz. El personaje pasa a utilizar las reglas de la raza Muerto viviente.",
+        fuente: "Guía Avanzada del Jugador", pagina: 98, tags: ["regla", "opcional", "muerto viviente", "muerte"]
+    },
+    {
+        id: "regla-monstruos-enfermedades", tipo: "regla", ruleCategory: "core", nombre: "Enfermedad en Symbaroum",
+        resumen: "Las enfermedades atacan Fuerte, avanzan durante días y tienen vigor débil, moderado o potente.",
+        detalle: "Tras exponerse a un contagio, el PJ tira Fuerte y queda infectado si falla. La enfermedad afecta a Fuerte en lugar de Resistencia y progresa durante días. Su vigor determina las consecuencias y el número de pruebas necesarias. Medicus, remedios y condiciones de descanso pueden ayudar según las reglas de tratamiento.",
+        fuente: "Códice de monstruos", pagina: 169, tags: ["regla", "enfermedad", "infección", "fuerte"]
+    },
+    {
+        id: "regla-monstruos-cronica", tipo: "regla", ruleCategory: "core", nombre: "Crónica de monstruos",
+        resumen: "El Códice propone campañas centradas en localizar, estudiar y afrontar criaturas extraordinarias.",
+        detalle: "Una caza de monstruos puede estructurarse en preparación, investigación, rastreo, enfrentamiento y consecuencias. La criatura debe ser un misterio con señales que permitan descubrir su conducta y debilidad antes del choque final.",
+        fuente: "Códice de monstruos", pagina: 182, tags: ["regla", "orientación", "campaña", "monstruos"],
+        variants: [
+            { id: "cazadores-trofeos", label: "Cazadores de trofeos", facts: [{ label: "Objetivo", value: "Prestigio, recompensas y trofeos" }], detail: "La campaña gira en torno a rastrear y abatir criaturas célebres, obtener trofeos y convertir la caza en fama o riqueza." },
+            { id: "exploradores-monstruos", label: "Exploradores de monstruos", facts: [{ label: "Objetivo", value: "Conocimiento y catalogación" }], detail: "Los personajes buscan comprender especies, hábitats y comportamientos, procurando obtener información además de sobrevivir." },
+            { id: "retadores-oculto", label: "Retadores de lo oculto", facts: [{ label: "Objetivo", value: "Proteger a otros de amenazas sobrenaturales" }], detail: "El grupo investiga sucesos extraños y ayuda a comunidades amenazadas por monstruos, espíritus y fuerzas corruptas." }
+        ]
+    }
+];
+const RULE_SECTION_OVERRIDES = {
+    "regla-resumen-28-el-camino-de-la-misericordia": {
+        label: "Ejemplos de objetivos vitales"
+    },
+    "regla-resumen-35-granada-alquimica": {
+        detail: "Se necesita Alquimista, Experto en asedios o Pirotecnia para usarla sin correr riesgos."
+    },
+    "regla-resumen-88-apuntar-alto-o-bajo": {
+        facts: [{ label: "Penalizador", value: "−2 al ataque" }],
+        detail: "El atacante declara si apunta alto o bajo antes de tirar. Si impacta, tira 1D10 en la distribución elegida para concretar la zona: ALTO: 1 pierna derecha, 2 pierna izquierda, 3–4 torso, 5–6 brazo derecho, 7–8 brazo izquierdo y 9–10 cabeza. BAJO: 1–2 pierna derecha, 3–4 pierna izquierda, 5–7 torso, 8 brazo derecho, 9 brazo izquierdo y 10 cabeza."
+    },
+    "regla-resumen-89-apuntar-a-una-parte-del-cuerpo": {
+        facts: [{ label: "Penalizador", value: "−5 al ataque" }],
+        detail: "El atacante elige una zona concreta antes de tirar y aplica −5 al ataque. Si impacta, no tira 1D10: la localización ya está determinada. Después se aplica la armadura de esa zona y, si el daño recibido iguala o supera el Umbral de dolor, el efecto localizado correspondiente."
+    },
+    "regla-resumen-90-partes-de-la-armadura": {
+        facts: [
+            { label: "Piernas", value: "20 % del precio; 10 % por pierna" },
+            { label: "Coraza", value: "40 % del precio" },
+            { label: "Brazos", value: "20 % del precio; 10 % por brazo" },
+            { label: "Yelmo", value: "20 % del precio" }
+        ]
+    }
+};
+const LOCALIZED_HIT_VARIANT = {
+    id: "localizacion-aleatoria-y-efectos",
+    label: "Localización aleatoria y efectos",
+    facts: [
+        { label: "1", value: "Pierna derecha: derribado y mitad de movimiento durante la escena" },
+        { label: "2", value: "Pierna izquierda: derribado y mitad de movimiento durante la escena" },
+        { label: "3–5", value: "Torso: pierde el aliento y queda incapacitado durante un turno" },
+        { label: "6–7", value: "Brazo derecho: puede soltar lo que lleva y falla con mayor facilidad al usarlo" },
+        { label: "8–9", value: "Brazo izquierdo: puede soltar lo que lleva y falla con mayor facilidad al usarlo" },
+        { label: "10", value: "Cabeza: +1D6 de daño e inconsciente durante 1D4 turnos" }
+    ],
+    detail: "Cuando la localización no se ha elegido, se tira 1D10 después de impactar. La zona determina qué armadura protege. Los efectos indicados solo se aplican si el daño recibido después de la armadura iguala o supera el Umbral de dolor."
+};
+const RULE_EXTRA_VARIANTS_BY_PARENT = {
+    "regla-resumen-32-armas-alquimicas": [
+        {
+            id: "arma-alquimica-mina-alquimica",
+            label: "Mina alquímica",
+            facts: [{ label: "Entrenamiento", value: "Trampero o Pirotecnia" }],
+            detail: "Se requiere Trampero o Pirotecnia para poder utilizar una mina alquímica."
+        }
+    ],
+    "regla-resumen-87-golpes-localizados": [LOCALIZED_HIT_VARIANT]
+};
+function consolidateRuleFamilies(entries) {
+    const byId = new Map(entries.map((entry) => [entry.id, entry]));
+    const childrenByParent = new Map();
+    Object.entries(RULE_PARENT_BY_ID).forEach(([childId, parentId]) => {
+        const child = byId.get(childId);
+        const parent = byId.get(parentId);
+        if (!child || !parent)
+            return;
+        childrenByParent.set(parentId, [...(childrenByParent.get(parentId) ?? []), child]);
+    });
+    const childIds = new Set(Object.keys(RULE_PARENT_BY_ID));
+    return entries
+        .filter((entry) => !childIds.has(entry.id))
+        .map((entry) => {
+        const children = childrenByParent.get(entry.id) ?? [];
+        if (children.length === 0)
+            return entry;
+        const childVariants = children.map((child) => {
+            const override = RULE_SECTION_OVERRIDES[child.id];
+            return {
+                id: child.id,
+                label: override?.label ?? child.nombre,
+                facts: override?.facts ?? [],
+                detail: override?.detail ?? child.detalle
+            };
+        });
+        const extraVariants = RULE_EXTRA_VARIANTS_BY_PARENT[entry.id] ?? [];
+        return {
+            ...entry,
+            variants: [...(entry.variants ?? []), ...extraVariants, ...childVariants],
+            legacyIds: [...new Set([...(entry.legacyIds ?? []), ...children.map((child) => child.id)])],
+            tags: [...new Set([...entry.tags, ...children.flatMap((child) => [child.nombre, ...child.tags])])]
+        };
+    });
+}
+export const CORE_RULES = consolidateRuleFamilies([
+    ...MANUAL_RULES.filter((entry) => !REMOVED_RULE_IDS.has(entry.id)).map(normalizeRuleEntry),
+    ...RULE_SUMMARY_ENTRIES.filter((entry) => !REMOVED_RULE_IDS.has(entry.id)).map(normalizeRuleEntry),
+    ...buildMonsterRuleEntries().map(normalizeRuleEntry),
+    ...ADDITIONAL_RULE_ENTRIES
+]);
 export const SYMBAROUM_BLESSINGS = mergeCompendiumEntries(COMPLETE_BLESSING_OVERRIDES, mergeCompendiumEntries(APG_BLESSING_SUPPLEMENTS, buildBlessingEntries()));
 export const SYMBAROUM_BURDENS = mergeCompendiumEntries(COMPLETE_BURDEN_OVERRIDES, mergeCompendiumEntries(APG_BURDEN_SUPPLEMENTS, buildBurdenEntries()));
 export const SYMBAROUM_EQUIPMENT = [
@@ -2829,7 +3235,6 @@ export const SYMBAROUM_EQUIPMENT = [
 ];
 export const ALL_ENTRIES = [
     ...CORE_RULES,
-    ...buildMonsterRuleEntries(),
     ...buildMonsterTraitEntries(),
     ...SYMBAROUM_BLESSINGS,
     ...SYMBAROUM_BURDENS,
@@ -2841,6 +3246,11 @@ export const ALL_ENTRIES = [
     ...buildProfessionEntries(),
     ...SYMBAROUM_EQUIPMENT
 ];
+export const COMPENDIUM_ENTRY_ID_ALIASES = Object.freeze(Object.fromEntries(ALL_ENTRIES.flatMap((entry) => (entry.legacyIds ?? []).map((legacyId) => [legacyId, entry.id]))));
+export function findCompendiumEntryById(entryId) {
+    const canonicalId = COMPENDIUM_ENTRY_ID_ALIASES[entryId] ?? entryId;
+    return ALL_ENTRIES.find((entry) => entry.id === canonicalId) ?? null;
+}
 export const COMPENDIUM_STATS = {
     totalEntries: ALL_ENTRIES.length,
     traits: buildMonsterTraitEntries().length,
@@ -3750,11 +4160,12 @@ export function getCompendiumSummaryLink(entry) {
         const page = SUMMARY_PDF_PAGE_LOOKUPS[documentKey]?.[slugify(sectionLabel)];
         return buildCompendiumPdfUrl(basePath, page);
     };
-    if (entry.fuente === "Resumen de Reglas") {
+    if (entry.summaryReference?.document === "rules" || entry.fuente === "Resumen de Reglas") {
+        const sectionLabel = entry.summaryReference?.section ?? entry.nombre;
         return {
-            url: buildSummaryUrl("rules", entry.nombre),
+            url: buildSummaryUrl("rules", sectionLabel),
             documentLabel: "Resumen: Reglas",
-            sectionLabel: entry.nombre
+            sectionLabel
         };
     }
     if (entry.tipo === "habilidad" || entry.tipo === "poder_mistico" || entry.tipo === "ritual" || entry.tipo === "tradicion" || entry.tipo === "profesion") {

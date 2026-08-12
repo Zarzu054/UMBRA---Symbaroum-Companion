@@ -33,6 +33,9 @@ describe("theme preference", () => {
     delete document.documentElement.dataset.theme;
     delete document.documentElement.dataset.themePreference;
     delete document.documentElement.dataset.palette;
+    delete document.documentElement.dataset.characterSheetBackground;
+    document.documentElement.style.removeProperty("--character-sheet-background-image");
+    document.documentElement.style.removeProperty("--character-sheet-background-position");
   });
 
   it("uses the system theme by default and ignores obsolete values", () => {
@@ -66,7 +69,7 @@ describe("theme preference", () => {
   it("persists atmosphere and theme independently", () => {
     render(<AppearanceSelector />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Davokar/ }));
+    fireEvent.click(screen.getByRole("group", { name: "Atmósfera visual" }).querySelector("button")!);
     fireEvent.click(screen.getByRole("button", { name: "Claro" }));
 
     expect(window.localStorage.getItem(PALETTE_STORAGE_KEY)).toBe("davokar");

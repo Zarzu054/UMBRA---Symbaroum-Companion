@@ -1,23 +1,20 @@
-import { findWeaponQualityOption, getCharacterMonsterTraitEffects, getEffectiveCharacterRobustezMax, parseWeaponQualities } from "@umbra/shared";
+import { computeCharacterCombatSummary, findWeaponQualityOption, getCharacterMonsterTraitEffects, parseWeaponQualities } from "@umbra/shared";
 import { getCharacterExperienceSummary } from "./characterExperience";
 const MODIFIER_REGEX = /\b(DEF|INI|ROBMAX|ROBACT|UMBDOLOR|UMBCORR|CORRTEMP|CORRPERM)\s*([+-]\d+)\b/gi;
 export function computeDerivedStats(sheet) {
+    const combatSummary = computeCharacterCombatSummary(sheet);
     const modifiers = collectCapabilityModifiers(sheet);
     const monsterTraitEffects = getCharacterMonsterTraitEffects(sheet);
     const experienceSummary = getCharacterExperienceSummary(sheet);
     const armorDefensePenalty = getArmorDefensePenalty(sheet);
-    const weaponDefenseBonus = getEquippedWeaponDefenseBonus(sheet);
     const xpDisponible = experienceSummary.effectiveAvailable;
     const corrupcionTotal = Math.max(0, sheet.corrupcion.temporal + modifiers.CORRTEMP) + Math.max(0, sheet.corrupcion.permanente + modifiers.CORRPERM);
-    const robustezBase = getEffectiveCharacterRobustezMax(sheet);
-    const robustezMaximaTotal = Math.max(0, robustezBase + modifiers.ROBMAX);
-    const robustezActualTotal = Math.min(Math.max(0, sheet.combate.robustezActual + modifiers.ROBACT), robustezMaximaTotal);
-    const umbralDolorTotal = Math.max(0, sheet.combate.umbralDolor + modifiers.UMBDOLOR);
-    const umbralCorrupcionTotal = Math.max(0, sheet.corrupcion.umbral + modifiers.UMBCORR);
-    const iniciativaBase = resolveInitiativeAttribute(sheet);
-    const defensaBase = resolveDefenseAttribute(sheet) - monsterTraitEffects.defenseModifier;
-    const defensaTotal = defensaBase + sheet.combate.defensaMod + modifiers.DEF + armorDefensePenalty.value + weaponDefenseBonus.value;
-    const iniciativaTotal = iniciativaBase + sheet.combate.iniciativaMod + modifiers.INI;
+    const robustezMaximaTotal = combatSummary.robustnessMaximum;
+    const robustezActualTotal = combatSummary.robustnessCurrent;
+    const umbralDolorTotal = combatSummary.painThreshold;
+    const umbralCorrupcionTotal = combatSummary.corruptionThreshold;
+    const defensaTotal = combatSummary.defense;
+    const iniciativaTotal = combatSummary.initiative;
     const armaduraNatural = monsterTraitEffects.armorFormula;
     const armaduraActiva = sheet.combate.armaduraProteccion || armaduraNatural;
     const armaduraNaturalBreakdown = [
@@ -55,7 +52,7 @@ export function computeDerivedStats(sheet) {
         robustezActualTotal,
         defensaTotal,
         defensaArmaduraMod: armorDefensePenalty.value,
-        defensaArmaduraDetalle: [armorDefensePenalty.detail, weaponDefenseBonus.detail].filter(Boolean).join(" "),
+        defensaArmaduraDetalle: combatSummary.armorDetail,
         iniciativaTotal,
         umbralDolorTotal,
         umbralCorrupcionTotal,

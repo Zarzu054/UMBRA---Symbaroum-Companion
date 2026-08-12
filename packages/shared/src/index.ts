@@ -9,6 +9,7 @@ import {
   validateExceptionalAttributeSelections
 } from "./actorCreation.js";
 import { STARTER_MONSTER_CODEX, createDefaultMonsterSheet, monsterSheetSchema, type MonsterSheet } from "./monsterCodex.js";
+import { findWeaponQualityOption, parseWeaponQualities } from "./weaponCatalog.js";
 import type { MysticArtifact, OwnedMysticArtifact } from "./mysticArtifacts.js";
 import type { ProfessionEligibility } from "./professionCatalog.js";
 export * from "./symbaroumCompendium.js";
@@ -268,7 +269,7 @@ const equipmentSlotsSchema = z.object({
   worn: z.string().max(120).default("")
 });
 
-const conditionSchema = z.object({
+export const conditionSchema = z.object({
   id: z.string().min(1).max(120),
   name: z.string().min(1).max(120),
   category: z.enum(["state", "injury", "corruption", "custom"]).default("custom"),
@@ -1608,6 +1609,122 @@ function buildSynchronizedCharacterSheet(input: CharacterSheet): CharacterSheet 
 
 export type CharacterSheet = z.infer<typeof characterSheetSchema>;
 
+export type CharacterCombatSummary = {
+  robustnessMaximum: number;
+  robustnessCurrent: number;
+  defense: number;
+  initiative: number;
+  painThreshold: number;
+  corruptionThreshold: number;
+  corruptionTotal: number;
+  armor: string;
+  armorDetail: string;
+};
+
+/** Pure combat projection shared by character sheets, campaign NPCs and encounters. */
+export function computeCharacterCombatSummary(sheet: CharacterSheet): CharacterCombatSummary {
+  const modifiers = collectCharacterCombatModifiers(sheet);
+  const monsterTraits = getCharacterMonsterTraitEffects(sheet);
+  const armorDefense = getCharacterArmorDefenseModifier(sheet);
+  const weaponDefense = getCharacterWeaponDefenseBonus(sheet);
+  const robustnessMaximum = Math.max(0, getEffectiveCharacterRobustezMax(sheet) + modifiers.ROBMAX);
+  const robustnessCurrent = Math.min(Math.max(0, sheet.combate.robustezActual + modifiers.ROBACT), robustnessMaximum);
+  const armor = sheet.combate.armaduraProteccion || monsterTraits.armorFormula;
+
+  return {
+    robustnessMaximum,
+    robustnessCurrent,
+    defense: resolveCharacterDefenseAttribute(sheet) - monsterTraits.defenseModifier + sheet.combate.defensaMod + modifiers.DEF + armorDefense.value + weaponDefense.value,
+    initiative: resolveCharacterInitiativeAttribute(sheet) + sheet.combate.iniciativaMod + modifiers.INI,
+    painThreshold: Math.max(0, sheet.combate.umbralDolor + modifiers.UMBDOLOR),
+    corruptionThreshold: Math.max(0, sheet.corrupcion.umbral + modifiers.UMBCORR),
+    corruptionTotal: Math.max(0, sheet.corrupcion.temporal + modifiers.CORRTEMP) + Math.max(0, sheet.corrupcion.permanente + modifiers.CORRPERM),
+    armor,
+    armorDetail: [armorDefense.detail, weaponDefense.detail].filter(Boolean).join(" ")
+  };
+}
+
+type CharacterCombatModifierKey = "DEF" | "INI" | "ROBMAX" | "ROBACT" | "UMBDOLOR" | "UMBCORR" | "CORRTEMP" | "CORRPERM";
+const CHARACTER_COMBAT_MODIFIER_REGEX = /\b(DEF|INI|ROBMAX|ROBACT|UMBDOLOR|UMBCORR|CORRTEMP|CORRPERM)\s*([+-]\d+)\b/gi;
+
+function normalizeCharacterCombatName(value: string): string {
+  return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+}
+
+function characterCombatCapabilityRank(level: string): number {
+  switch (normalizeCharacterCombatName(level)) {
+    case "maestro": return 3;
+    case "adepto": return 2;
+    default: return 1;
+  }
+}
+
+function characterHasCombatCapability(sheet: CharacterSheet, name: string, minimumLevel: "novato" | "adepto" | "maestro"): boolean {
+  const target = normalizeCharacterCombatName(name);
+  const rank = characterCombatCapabilityRank(minimumLevel);
+  return [...sheet.habilidades, ...sheet.poderesMisticos, ...sheet.rituales]
+    .some((entry) => normalizeCharacterCombatName(entry.nombre) === target && characterCombatCapabilityRank(entry.nivel) >= rank);
+}
+
+function resolveCharacterInitiativeAttribute(sheet: CharacterSheet): number {
+  const values = [sheet.atributos.agil];
+  if (characterHasCombatCapability(sheet, "Sexto sentido", "adepto")) values.push(sheet.atributos.atento);
+  if (characterHasCombatCapability(sheet, "Táctico", "novato")) values.push(sheet.atributos.inteligente);
+  return Math.max(...values);
+}
+
+function resolveCharacterDefenseAttribute(sheet: CharacterSheet): number {
+  const values = [sheet.atributos.agil];
+  if (characterHasCombatCapability(sheet, "Sexto sentido", "adepto")) values.push(sheet.atributos.atento);
+  if (characterHasCombatCapability(sheet, "Táctico", "adepto")) values.push(sheet.atributos.inteligente);
+  return Math.max(...values);
+}
+
+function collectCharacterCombatModifiers(sheet: CharacterSheet): Record<CharacterCombatModifierKey, number> {
+  const result: Record<CharacterCombatModifierKey, number> = { DEF: 0, INI: 0, ROBMAX: 0, ROBACT: 0, UMBDOLOR: 0, UMBCORR: 0, CORRTEMP: 0, CORRPERM: 0 };
+  for (const capability of [...sheet.habilidades, ...sheet.poderesMisticos, ...sheet.rituales]) {
+    const source = `${capability.efecto ?? ""} ${capability.notas ?? ""}`;
+    for (const match of source.matchAll(CHARACTER_COMBAT_MODIFIER_REGEX)) {
+      const key = (match[1] ?? "").toUpperCase() as CharacterCombatModifierKey;
+      const delta = Number(match[2] ?? 0);
+      if (Number.isFinite(delta)) result[key] += delta;
+    }
+  }
+  return result;
+}
+
+function getCharacterWeaponDefenseBonus(sheet: CharacterSheet): { value: number; detail: string } {
+  const slots = new Set([sheet.equipmentSlots.mainHand, sheet.equipmentSlots.offHand, sheet.equipmentSlots.ranged].filter(Boolean));
+  const bonuses = sheet.inventoryItems.flatMap((item) => {
+    if (item.category !== "weapon" || item.quantity <= 0 || (!item.equipped && !slots.has(item.id))) return [];
+    const explicit = item.modifiers.filter((modifier) => modifier.modifierType === "defense").reduce((sum, modifier) => sum + (Number.parseInt(modifier.value, 10) || 0), 0);
+    const balanced = parseWeaponQualities(item.qualities).some((quality) => findWeaponQualityOption(quality)?.id === "equilibrada") ? 1 : 0;
+    return explicit + balanced > 0 ? [{ label: item.name, total: explicit + balanced }] : [];
+  });
+  return { value: bonuses.reduce((sum, bonus) => sum + bonus.total, 0), detail: bonuses.map((bonus) => `${bonus.label}: +${bonus.total} a Defensa.`).join(" ") };
+}
+
+function getCharacterArmorDefenseModifier(sheet: CharacterSheet): { value: number; detail: string } {
+  const equipped = sheet.inventoryItems.find((item) => item.category === "armor" && item.quantity > 0 && (item.id === sheet.equipmentSlots.armor || item.equipped));
+  const armorName = (equipped?.name ?? sheet.combate.armadura ?? "").trim();
+  const protection = (equipped?.protectionFormula ?? sheet.combate.armaduraProteccion ?? "").trim();
+  if (!armorName && !protection) return { value: 0, detail: "" };
+  const qualities = new Set(String(equipped?.qualities ?? sheet.combate.armaduraCualidad ?? "").split(",").map(normalizeCharacterCombatName).filter(Boolean));
+  const weight = normalizeCharacterCombatName(equipped?.weight ?? "");
+  const normalizedName = normalizeCharacterCombatName(armorName);
+  let tier: "ligera" | "media" | "pesada" | null = qualities.has("ligera") ? "ligera" : qualities.has("media") ? "media" : qualities.has("pesada") ? "pesada" : (["ligera", "media", "pesada"].includes(weight) ? weight as "ligera" | "media" | "pesada" : null);
+  if (!tier) {
+    if (["armadura ligera", "armadura oculta", "capa de la ordo", "coraza de escaldo", "cuero tachonado", "hilo de seda", "piel de lobo", "ropajes de bruja", "tunica bendita"].some((name) => normalizedName.includes(name))) tier = "ligera";
+    else if (["armadura media", "armadura de cuervo", "armadura lamelar", "coraza de seda lacada", "cota de malla doble"].some((name) => normalizedName.includes(name))) tier = "media";
+    else if (["armadura pesada", "armadura completa", "armadura de la furia", "armadura de placas"].some((name) => normalizedName.includes(name))) tier = "pesada";
+  }
+  if (!tier) return { value: 0, detail: "" };
+  const base = tier === "ligera" ? -2 : tier === "media" ? -3 : -4;
+  const cumbersome = qualities.has("aparatosa") ? base - 1 : base;
+  const value = qualities.has("flexible") ? Math.min(0, base + 2) : cumbersome;
+  return { value, detail: `${tier[0].toUpperCase()}${tier.slice(1)}: ${value} a Defensa.` };
+}
+
 export const importedCharacterSheetSchema = characterSheetObjectSchema.superRefine((sheet, ctx) => {
   if (sheet.progreso.experienciaGastada > getEffectiveExperienceTotal(sheet)) {
     ctx.addIssue({
@@ -1980,6 +2097,88 @@ export const updateCampaignNpcSheetSchema = z.object({
   sheet: characterSheetSchema.nullable()
 });
 
+export const campaignCombatMonsterSnapshotSchema = z.object({
+  id: z.string().min(1).max(180),
+  name: z.string().min(1).max(160),
+  category: z.string().min(1).max(120),
+  threat: z.string().min(1).max(120),
+  source: z.string().max(160).default(""),
+  summary: z.string().max(1000).default(""),
+  sheet: monsterSheetSchema,
+  createdAt: z.string().max(80).default(""),
+  updatedAt: z.string().max(80).default("")
+});
+
+const campaignCombatParticipantBaseSchema = z.object({
+  id: z.string().uuid(),
+  alias: z.string().trim().min(1).max(160),
+  initiativeOverride: z.number().int().min(-50).max(100).nullable().default(null),
+  sortOrder: z.number().int().min(0).max(9999)
+});
+
+export const campaignCombatParticipantSchema = z.discriminatedUnion("kind", [
+  campaignCombatParticipantBaseSchema.extend({
+    kind: z.literal("character"),
+    campaignCharacterId: z.string().uuid()
+  }),
+  campaignCombatParticipantBaseSchema.extend({
+    kind: z.literal("npc"),
+    campaignNpcId: z.string().uuid()
+  }),
+  campaignCombatParticipantBaseSchema.extend({
+    kind: z.literal("monster"),
+    sourceKind: z.enum(["official", "custom"]),
+    sourceId: z.string().min(1).max(180),
+    snapshot: campaignCombatMonsterSnapshotSchema,
+    state: z.object({
+      robustnessCurrent: z.number().int().min(0).max(9999),
+      temporaryCorruption: z.number().int().min(0).max(999),
+      permanentCorruption: z.number().int().min(0).max(999),
+      conditions: z.array(conditionSchema).max(120).default([])
+    })
+  })
+]);
+
+export const addCampaignCombatParticipantSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("character"), campaignCharacterId: z.string().uuid() }),
+  z.object({ kind: z.literal("npc"), campaignNpcId: z.string().uuid() }),
+  z.object({
+    kind: z.literal("monster"),
+    sourceKind: z.enum(["official", "custom"]),
+    sourceId: z.string().min(1).max(180),
+    quantity: z.number().int().min(1).max(20).default(1),
+    alias: z.string().trim().max(160).optional()
+  })
+]);
+
+export const updateCampaignCombatParticipantSchema = z.object({
+  revision: z.number().int().min(0),
+  alias: z.string().trim().min(1).max(160).optional(),
+  initiativeOverride: z.number().int().min(-50).max(100).nullable().optional()
+});
+
+export const updateCampaignCombatResourcesSchema = z.object({
+  robustnessCurrent: z.number().int().min(0).max(9999).optional(),
+  temporaryCorruption: z.number().int().min(0).max(999).optional(),
+  permanentCorruption: z.number().int().min(0).max(999).optional(),
+  conditions: z.array(conditionSchema).max(120).optional()
+}).refine((input) => Object.keys(input).length > 0, "Debes modificar al menos un recurso");
+
+export const reorderCampaignCombatSchema = z.object({
+  revision: z.number().int().min(0),
+  participantIds: z.array(z.string().uuid()).max(200)
+}).refine((input) => new Set(input.participantIds).size === input.participantIds.length, "El orden contiene participantes repetidos");
+
+export const advanceCampaignCombatTurnSchema = z.object({
+  revision: z.number().int().min(0),
+  action: z.enum(["next", "previous", "select"]),
+  participantId: z.string().uuid().optional()
+}).superRefine((input, ctx) => {
+  if (input.action === "select" && !input.participantId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["participantId"], message: "Debes seleccionar un participante" });
+  }
+});
+
 export const grantCampaignExperienceSchema = z.object({
   characterId: z.string().uuid(),
   amount: z.number().int().min(1).max(1000),
@@ -2111,6 +2310,13 @@ export type CreateCampaignNpcInput = z.infer<typeof createCampaignNpcSchema>;
 export type UpdateCampaignNpcInput = z.infer<typeof updateCampaignNpcSchema>;
 export type UpdateCampaignCharacterSheetInput = z.infer<typeof updateCampaignCharacterSheetSchema>;
 export type UpdateCampaignNpcSheetInput = z.infer<typeof updateCampaignNpcSheetSchema>;
+export type CampaignCombatMonsterSnapshot = z.infer<typeof campaignCombatMonsterSnapshotSchema>;
+export type CampaignCombatParticipant = z.infer<typeof campaignCombatParticipantSchema>;
+export type AddCampaignCombatParticipantInput = z.infer<typeof addCampaignCombatParticipantSchema>;
+export type UpdateCampaignCombatParticipantInput = z.infer<typeof updateCampaignCombatParticipantSchema>;
+export type UpdateCampaignCombatResourcesInput = z.infer<typeof updateCampaignCombatResourcesSchema>;
+export type ReorderCampaignCombatInput = z.infer<typeof reorderCampaignCombatSchema>;
+export type AdvanceCampaignCombatTurnInput = z.infer<typeof advanceCampaignCombatTurnSchema>;
 export type GrantCampaignExperienceInput = z.infer<typeof grantCampaignExperienceSchema>;
 export type CreateCampaignSessionInput = z.infer<typeof createCampaignSessionSchema>;
 export type UpdateCampaignSessionInput = z.infer<typeof updateCampaignSessionSchema>;
@@ -2301,6 +2507,47 @@ export type CampaignReference = {
   visibility: CampaignReferenceVisibility;
   sharedWithUserIds: string[];
   sharedWithEmails: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CampaignCombatAttack = {
+  name: string;
+  attribute: string;
+  damage: string;
+  qualities: string;
+};
+
+export type CampaignCombatParticipantView = {
+  id: string;
+  kind: "character" | "npc" | "monster";
+  sourceId: string;
+  sourceKind?: "official" | "custom";
+  alias: string;
+  initiativeOverride: number | null;
+  sortOrder: number;
+  initiative: number;
+  defense: number | string;
+  armor: string;
+  armorDetail: string;
+  robustnessCurrent: number;
+  robustnessMaximum: number;
+  painThreshold: number | string;
+  temporaryCorruption: number;
+  permanentCorruption: number;
+  corruptionThreshold: number | string;
+  conditions: Array<z.infer<typeof conditionSchema>>;
+  attacks: CampaignCombatAttack[];
+  snapshot?: CampaignCombatMonsterSnapshot;
+};
+
+export type CampaignCombat = {
+  id: string;
+  campaignId: string;
+  round: number;
+  activeParticipantId: string | null;
+  revision: number;
+  participants: CampaignCombatParticipantView[];
   createdAt: string;
   updatedAt: string;
 };

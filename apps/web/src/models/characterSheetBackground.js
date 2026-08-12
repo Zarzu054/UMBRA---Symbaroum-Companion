@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 export const DEFAULT_CHARACTER_SHEET_BACKGROUND = "davokar-guardian";
+export const CHARACTER_SHEET_BACKGROUND_STORAGE_KEY = "umbra:background";
 export const CHARACTER_SHEET_BACKGROUND_STORAGE_PREFIX = "umbra:character-sheet-background:";
+const BACKGROUND_CHANGE_EVENT = "umbra:background-change";
 export const CHARACTER_SHEET_BACKGROUNDS = [
     { id: "davokar-guardian", name: "Guardián de Davokar", source: "Libro Básico", page: 75, imageUrl: "/backgrounds/character-sheets/01-davokar-guardian.jpg", thumbnailUrl: "/backgrounds/character-sheets/01-davokar-guardian-thumb.jpg", position: "center 42%" },
     { id: "forest-ruins", name: "Ruinas del bosque", source: "Mundo de Symbaroum", page: 50, imageUrl: "/backgrounds/character-sheets/02-forest-ruins.jpg", thumbnailUrl: "/backgrounds/character-sheets/02-forest-ruins-thumb.jpg", position: "center 38%" },
@@ -17,34 +19,99 @@ const VALID_BACKGROUND_IDS = new Set([
     "none",
     ...CHARACTER_SHEET_BACKGROUNDS.map((background) => background.id)
 ]);
-function storageKey(scope) {
+function legacyStorageKey(scope) {
     return `${CHARACTER_SHEET_BACKGROUND_STORAGE_PREFIX}${encodeURIComponent(scope.trim() || "default")}`;
 }
-export function readCharacterSheetBackground(scope) {
+function readValidStoredBackground(key) {
+    const stored = window.localStorage.getItem(key);
+    return stored && VALID_BACKGROUND_IDS.has(stored) ? stored : null;
+}
+export function readCharacterSheetBackground(legacyScope) {
     if (typeof window === "undefined")
         return DEFAULT_CHARACTER_SHEET_BACKGROUND;
     try {
-        const stored = window.localStorage.getItem(storageKey(scope));
-        return stored && VALID_BACKGROUND_IDS.has(stored) ? stored : DEFAULT_CHARACTER_SHEET_BACKGROUND;
+        const current = readValidStoredBackground(CHARACTER_SHEET_BACKGROUND_STORAGE_KEY);
+        if (current)
+            return current;
+        const scopedLegacy = legacyScope ? readValidStoredBackground(legacyStorageKey(legacyScope)) : null;
+        if (scopedLegacy)
+            return scopedLegacy;
+        for (let index = 0; index < window.localStorage.length; index += 1) {
+            const key = window.localStorage.key(index);
+            if (!key?.startsWith(CHARACTER_SHEET_BACKGROUND_STORAGE_PREFIX))
+                continue;
+            const migrated = readValidStoredBackground(key);
+            if (migrated)
+                return migrated;
+        }
+        return DEFAULT_CHARACTER_SHEET_BACKGROUND;
     }
     catch {
         return DEFAULT_CHARACTER_SHEET_BACKGROUND;
     }
 }
-export function useCharacterSheetBackground(scope) {
-    const [preference, setPreference] = useState(() => readCharacterSheetBackground(scope));
-    useEffect(() => {
-        setPreference(readCharacterSheetBackground(scope));
-    }, [scope]);
-    useEffect(() => {
-        try {
-            window.localStorage.setItem(storageKey(scope), preference);
+export function applyCharacterSheetBackground(id) {
+    if (typeof document === "undefined")
+        return;
+    const root = document.documentElement;
+    const selected = findCharacterSheetBackground(id);
+    if (!selected) {
+        delete root.dataset.characterSheetBackground;
+        root.style.removeProperty("--character-sheet-background-image");
+        root.style.removeProperty("--character-sheet-background-position");
+        return;
+    }
+    root.dataset.characterSheetBackground = selected.id;
+    root.style.setProperty("--character-sheet-background-image", `url("${selected.imageUrl}")`);
+    root.style.setProperty("--character-sheet-background-position", selected.position);
+}
+export function setCharacterSheetBackgroundPreference(next) {
+    applyCharacterSheetBackground(next);
+    try {
+        window.localStorage.setItem(CHARACTER_SHEET_BACKGROUND_STORAGE_KEY, next);
+    }
+    catch {
+        // The selected background remains active for this session when storage is unavailable.
+    }
+    window.dispatchEvent(new CustomEvent(BACKGROUND_CHANGE_EVENT, { detail: next }));
+}
+export function initializeCharacterSheetBackground() {
+    if (typeof window === "undefined")
+        return;
+    const preference = readCharacterSheetBackground();
+    applyCharacterSheetBackground(preference);
+    try {
+        if (!window.localStorage.getItem(CHARACTER_SHEET_BACKGROUND_STORAGE_KEY)) {
+            window.localStorage.setItem(CHARACTER_SHEET_BACKGROUND_STORAGE_KEY, preference);
         }
-        catch {
-            // The selected background remains active for this session.
-        }
-    }, [preference, scope]);
-    return [preference, setPreference];
+    }
+    catch {
+        // Initialization still applies the preference to the current session.
+    }
+}
+export function useCharacterSheetBackground(legacyScope) {
+    const [preference, setPreference] = useState(() => readCharacterSheetBackground(legacyScope));
+    useEffect(() => {
+        const synchronize = (event) => {
+            const detail = event?.detail;
+            setPreference(detail && VALID_BACKGROUND_IDS.has(detail) ? detail : readCharacterSheetBackground(legacyScope));
+        };
+        const handleStorage = (event) => {
+            if (event.key === CHARACTER_SHEET_BACKGROUND_STORAGE_KEY)
+                synchronize();
+        };
+        window.addEventListener(BACKGROUND_CHANGE_EVENT, synchronize);
+        window.addEventListener("storage", handleStorage);
+        return () => {
+            window.removeEventListener(BACKGROUND_CHANGE_EVENT, synchronize);
+            window.removeEventListener("storage", handleStorage);
+        };
+    }, [legacyScope]);
+    const selectPreference = useCallback((next) => {
+        setPreference(next);
+        setCharacterSheetBackgroundPreference(next);
+    }, []);
+    return [preference, selectPreference];
 }
 export function findCharacterSheetBackground(id) {
     return CHARACTER_SHEET_BACKGROUNDS.find((background) => background.id === id) ?? null;

@@ -2,7 +2,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
-import { CHARACTER_SHEET_BACKGROUNDS, findCharacterSheetBackground, useCharacterSheetBackground } from "../models/characterSheetBackground";
+import { CHARACTER_SHEET_BACKGROUNDS, applyCharacterSheetBackground, findCharacterSheetBackground, useCharacterSheetBackground } from "../models/characterSheetBackground";
 import { AppIcon } from "./AppIcon";
 const FOCUSABLE_SELECTOR = "button:not([disabled]), [href], [tabindex]:not([tabindex='-1'])";
 export function CharacterSheetBackgroundPicker({ preferenceScope }) {
@@ -13,24 +13,8 @@ export function CharacterSheetBackgroundPicker({ preferenceScope }) {
     const selectedBackground = findCharacterSheetBackground(selectedId);
     useBodyScrollLock(isOpen);
     useEffect(() => {
-        const root = document.documentElement;
-        if (!selectedBackground) {
-            delete root.dataset.characterSheetBackground;
-            root.style.removeProperty("--character-sheet-background-image");
-            root.style.removeProperty("--character-sheet-background-position");
-            return;
-        }
-        root.dataset.characterSheetBackground = selectedBackground.id;
-        root.style.setProperty("--character-sheet-background-image", `url("${selectedBackground.imageUrl}")`);
-        root.style.setProperty("--character-sheet-background-position", selectedBackground.position);
-        return () => {
-            if (root.dataset.characterSheetBackground === selectedBackground.id) {
-                delete root.dataset.characterSheetBackground;
-                root.style.removeProperty("--character-sheet-background-image");
-                root.style.removeProperty("--character-sheet-background-position");
-            }
-        };
-    }, [selectedBackground]);
+        applyCharacterSheetBackground(selectedId);
+    }, [selectedId]);
     function closePicker() {
         setIsOpen(false);
         window.setTimeout(() => triggerRef.current?.focus(), 0);

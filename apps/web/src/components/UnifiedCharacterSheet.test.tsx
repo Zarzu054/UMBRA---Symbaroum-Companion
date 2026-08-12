@@ -99,7 +99,7 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(container.querySelector(".unified-sheet-summary-column")).not.toBeInTheDocument();
   });
 
-  it("places the background control in identity and the icon-only builder access in experience", () => {
+  it("keeps identity compact after moving background controls to personalization", () => {
     const sheet = createEmptyCharacterSheet();
     sheet.identidad.nombrePersonaje = "Arold";
 
@@ -118,7 +118,7 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     const experience = screen.getByRole("region", { name: "Experiencia" });
     const builder = within(experience).getByRole("button", { name: "Constructor" });
 
-    expect(within(identity).getByRole("button", { name: "Fondo" })).toBeInTheDocument();
+    expect(within(identity).queryByRole("button", { name: "Fondo" })).not.toBeInTheDocument();
     expect(builder).toHaveClass("unified-sheet-builder-icon");
     expect(builder).toHaveAttribute("title", "Abrir constructor");
     expect(screen.queryByRole("region", { name: "Controles de ficha" })).not.toBeInTheDocument();

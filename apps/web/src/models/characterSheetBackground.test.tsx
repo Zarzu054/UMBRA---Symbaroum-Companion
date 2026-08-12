@@ -4,8 +4,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CharacterSheetBackgroundPicker } from "../components/CharacterSheetBackgroundPicker";
 import {
   CHARACTER_SHEET_BACKGROUNDS,
+  CHARACTER_SHEET_BACKGROUND_STORAGE_KEY,
   CHARACTER_SHEET_BACKGROUND_STORAGE_PREFIX,
   DEFAULT_CHARACTER_SHEET_BACKGROUND,
+  initializeCharacterSheetBackground,
   readCharacterSheetBackground
 } from "./characterSheetBackground";
 
@@ -21,12 +23,12 @@ describe("character sheet background preference", () => {
 
   it("falls back safely and exposes ten book illustrations", () => {
     expect(CHARACTER_SHEET_BACKGROUNDS).toHaveLength(10);
-    expect(readCharacterSheetBackground("user-a")).toBe(DEFAULT_CHARACTER_SHEET_BACKGROUND);
+    expect(readCharacterSheetBackground()).toBe(DEFAULT_CHARACTER_SHEET_BACKGROUND);
     window.localStorage.setItem(`${CHARACTER_SHEET_BACKGROUND_STORAGE_PREFIX}user-a`, "obsolete");
     expect(readCharacterSheetBackground("user-a")).toBe(DEFAULT_CHARACTER_SHEET_BACKGROUND);
   });
 
-  it("applies immediately, persists per user and restores focus on Escape", async () => {
+  it("applies immediately, persists globally and restores focus on Escape", async () => {
     render(<CharacterSheetBackgroundPicker preferenceScope="user-a" />);
     const trigger = screen.getByRole("button", { name: "Fondo" });
 
@@ -40,13 +42,13 @@ describe("character sheet background preference", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Ruinas del bosque/ }));
     expect(document.documentElement).toHaveAttribute("data-character-sheet-background", "forest-ruins");
-    expect(window.localStorage.getItem(`${CHARACTER_SHEET_BACKGROUND_STORAGE_PREFIX}user-a`)).toBe("forest-ruins");
+    expect(window.localStorage.getItem(CHARACTER_SHEET_BACKGROUND_STORAGE_KEY)).toBe("forest-ruins");
 
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(trigger).toHaveFocus());
     expect(screen.queryByRole("dialog", { name: "Elige una ilustración" })).not.toBeInTheDocument();
 
-    expect(readCharacterSheetBackground("user-b")).toBe(DEFAULT_CHARACTER_SHEET_BACKGROUND);
+    expect(readCharacterSheetBackground("user-b")).toBe("forest-ruins");
     expect(readCharacterSheetBackground("user-a")).toBe("forest-ruins");
   });
 
@@ -56,6 +58,15 @@ describe("character sheet background preference", () => {
     fireEvent.click(screen.getByRole("button", { name: /Sin ilustración/ }));
 
     expect(document.documentElement).not.toHaveAttribute("data-character-sheet-background");
-    expect(window.localStorage.getItem(`${CHARACTER_SHEET_BACKGROUND_STORAGE_PREFIX}user-a`)).toBe("none");
+    expect(window.localStorage.getItem(CHARACTER_SHEET_BACKGROUND_STORAGE_KEY)).toBe("none");
+  });
+
+  it("migrates a valid scoped preference to the shared setting", () => {
+    window.localStorage.setItem(`${CHARACTER_SHEET_BACKGROUND_STORAGE_PREFIX}user-a`, "winter-warrior");
+    initializeCharacterSheetBackground();
+
+    expect(readCharacterSheetBackground()).toBe("winter-warrior");
+    expect(window.localStorage.getItem(CHARACTER_SHEET_BACKGROUND_STORAGE_KEY)).toBe("winter-warrior");
+    expect(document.documentElement).toHaveAttribute("data-character-sheet-background", "winter-warrior");
   });
 });

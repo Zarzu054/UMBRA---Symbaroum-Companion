@@ -88,6 +88,14 @@ describe("component contrast contracts", () => {
     expect(stylesheet).toMatch(/\.compendium-result-card\.app-card-accent[\s\S]*?border-left: 6px solid var\(--app-card-accent-color\)/);
   });
 
+  it("keeps compact module controls below the persistent global navigation", () => {
+    expect(stylesheet).toMatch(/--app-top-navigation-height: 64px/);
+    expect(stylesheet).toMatch(/\.module-sticky-header\s*\{[\s\S]*?position: sticky;[\s\S]*?top: var\(--app-top-navigation-height\);[\s\S]*?z-index: 90/);
+    expect(stylesheet).toMatch(/\.campaign-module-header:not\(\.module-sticky-header--single-row\)[\s\S]*?--campaign-module-header-height/);
+    expect(stylesheet).toMatch(/\.campaign-module-header \.campaign-section-nav\s*\{[\s\S]*?overflow-x: auto/);
+    expect(stylesheet).toMatch(/@media \(width <= 900px\)[\s\S]*?--app-top-navigation-height: 58px/);
+  });
+
   it("lets the global-search dropdown escape its panel and scroll independently", () => {
     expect(stylesheet).toMatch(/\.module-theme \.panel\.compendium-library-hero\s*\{[\s\S]*?overflow: visible/);
     expect(stylesheet).toMatch(/\.compendium-quick-search-results\s*\{[\s\S]*?grid-template-rows: minmax\(0, 1fr\) auto;[\s\S]*?overflow: hidden/);
@@ -101,5 +109,13 @@ describe("component contrast contracts", () => {
     expect(stylesheet).toMatch(/\.modal-backdrop,[\s\S]*?z-index: var\(--ui-z-modal\)/);
     expect(stylesheet).toMatch(/\.modal-panel,[\s\S]*?max-height: calc\(100dvh - max\(36px/);
     expect(stylesheet).toMatch(/\.character-sheet-background-backdrop\s*\{[\s\S]*?z-index: var\(--ui-z-modal\)/);
+  });
+
+  it("shows the shared illustration in combat without sacrificing card readability", () => {
+    expect(stylesheet).toMatch(/:root\[data-character-sheet-background\] body\s*\{[\s\S]*?var\(--character-sheet-background-image\)[\s\S]*?cover fixed no-repeat/);
+    expect(stylesheet).not.toMatch(/:root\[data-character-sheet-background\] \.campaign-combat\s*\{/);
+    expect(stylesheet).toMatch(/:root\[data-character-sheet-background\] \.campaign-combat :is\(\.campaign-combat-toolbar, \.campaign-combat-card, \.campaign-combat-empty\)\s*\{[\s\S]*?background: color-mix\(in srgb, var\(--ui-surface\) 92%, transparent\);[\s\S]*?backdrop-filter: blur/);
+    expect(stylesheet).toMatch(/\.campaign-combat-resource-track strong\s*\{[\s\S]*?color: #fff;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;[\s\S]*?text-shadow:/);
+    expect(stylesheet).not.toContain("body:has(.module-theme--monsters)");
   });
 });

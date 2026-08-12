@@ -24,7 +24,6 @@ import {
   type CompendiumEntry
 } from "../models/compendiumEntries";
 import { buildPdfViewerUrl } from "../services/pdfViewer";
-import { CharacterSheetBackgroundPicker } from "./CharacterSheetBackgroundPicker";
 import { SourceReferenceLink } from "./SourceReferenceLink";
 
 type Props = {
@@ -1293,7 +1292,6 @@ function CalculationInfoButton({ label, onClick }: { label: string; onClick: () 
 
 export function MonsterReferenceSheet({
   monster,
-  backgroundPreferenceScope,
   official = false,
   busy = false,
   onClose,
@@ -1379,6 +1377,10 @@ export function MonsterReferenceSheet({
   }, [selectedCalculation]);
 
   useEffect(() => {
+    window.setTimeout(() => closeRef.current?.focus(), 0);
+  }, [monster.id]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -1398,9 +1400,8 @@ export function MonsterReferenceSheet({
       }
     };
     window.addEventListener("keydown", onKeyDown);
-    window.setTimeout(() => closeRef.current?.focus(), 0);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [monster.id, onClose, selectedCalculation, selectedCapability, selectedTrait]);
+  }, [onClose, selectedCalculation, selectedCapability, selectedTrait]);
 
   return (
     <article className="monster-reference-sheet" aria-label={`Ficha de ${monster.name}`}>
@@ -1411,7 +1412,6 @@ export function MonsterReferenceSheet({
           <p>{sheet.race || monster.category} · {monster.category}</p>
         </div>
         <div className="monster-reference-sheet__actions">
-          <CharacterSheetBackgroundPicker preferenceScope={backgroundPreferenceScope} />
           {official && onDuplicate ? <button type="button" onClick={onDuplicate}>Duplicar en Mis monstruos</button> : null}
           {!official && onEdit ? <button type="button" onClick={onEdit}>Editar</button> : null}
           {!official && onDelete ? <button type="button" className="danger" disabled={busy} onClick={onDelete}>Eliminar</button> : null}

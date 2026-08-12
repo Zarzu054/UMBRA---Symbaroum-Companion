@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppTopNavigation } from "./AppTopNavigation";
 
@@ -40,8 +40,12 @@ describe("AppTopNavigation", () => {
 
     const menuButton = screen.getByRole("button", { name: "Abrir navegación" });
     fireEvent.click(menuButton);
-    expect(screen.getByRole("dialog", { name: "Navegación y preferencias" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Tema de la interfaz" })).toBeInTheDocument();
+    const navigationDialog = screen.getByRole("dialog", { name: "Navegación y preferencias" });
+    expect(navigationDialog).toBeInTheDocument();
+    expect(within(navigationDialog).queryByRole("group", { name: "Tema de la interfaz" })).not.toBeInTheDocument();
+    fireEvent.click(within(navigationDialog).getByRole("button", { name: "Personalización" }));
+    expect(within(navigationDialog).getByRole("group", { name: "Tema de la interfaz" })).toBeInTheDocument();
+    expect(within(navigationDialog).getByRole("group", { name: "Fondo de pantalla" })).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(menuButton).toHaveFocus());
@@ -70,10 +74,10 @@ describe("AppTopNavigation", () => {
       />
     );
 
-    const appearanceButton = screen.getByRole("button", { name: "Gestionar apariencia" });
+    const appearanceButton = screen.getByRole("button", { name: "Abrir personalización" });
     expect(appearanceButton).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(appearanceButton);
-    expect(screen.getByRole("dialog", { name: "Apariencia" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Personalización" })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Tema de la interfaz" })).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
@@ -83,5 +87,8 @@ describe("AppTopNavigation", () => {
     const navigationDialog = screen.getByRole("dialog", { name: "Navegación y preferencias" });
     expect(navigationDialog).toBeInTheDocument();
     expect(navigationDialog.querySelector('[role="group"][aria-label="Tema de la interfaz"]')).toBeNull();
+    fireEvent.click(within(navigationDialog).getByRole("button", { name: "Personalización" }));
+    expect(within(navigationDialog).getByRole("group", { name: "Tema de la interfaz" })).toBeInTheDocument();
+    expect(within(navigationDialog).getByRole("group", { name: "Fondo de pantalla" })).toBeInTheDocument();
   });
 });

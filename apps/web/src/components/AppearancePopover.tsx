@@ -62,23 +62,23 @@ export function AppearancePopover({ compact = false }: Props) {
         ref={triggerRef}
         type="button"
         className={`subtle-button appearance-popover-trigger${compact ? " is-compact" : ""}`}
-        aria-label={compact ? "Gestionar apariencia" : undefined}
-        title={compact ? "Apariencia" : undefined}
+        aria-label={compact ? "Abrir personalización" : undefined}
+        title={compact ? "Personalización" : undefined}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((current) => !current)}
       >
         <AppIcon name="palette" />
-        <span>Apariencia</span>
+        <span>Personalización</span>
       </button>
       {isOpen ? (
-        <div ref={panelRef} className="appearance-popover-panel" role="dialog" aria-label="Apariencia">
+        <div ref={panelRef} className="appearance-popover-panel" role="dialog" aria-label="Personalización">
           <header>
             <div>
-              <strong>Apariencia</strong>
-              <span>Atmósfera y luminosidad</span>
+              <strong>Personalización</strong>
+              <span>Atmósfera, luminosidad y fondo</span>
             </div>
-            <button type="button" className="icon-button" aria-label="Cerrar apariencia" onClick={closeAndRestoreFocus}>
+            <button type="button" className="icon-button" aria-label="Cerrar personalización" onClick={closeAndRestoreFocus}>
               <AppIcon name="close" />
             </button>
           </header>

@@ -9,7 +9,7 @@ import { AppIcon } from "../components/AppIcon";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { CharacterCreationWizard } from "../components/ActorCreationWizard";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
-import { TYPE_LABELS, findCompendiumCapabilityEntryId, findCompendiumEntryByTypeAndName } from "../models/compendiumEntries";
+import { RULE_CATEGORY_LABELS, TYPE_LABELS, findCompendiumCapabilityEntryId, findCompendiumEntryByTypeAndName } from "../models/compendiumEntries";
 import { toCharacterCardViewModel } from "../models/characterModel";
 import { computeDerivedStats } from "../models/rulesEngine";
 import { exportCharacterSheetPdf } from "../services/characterPdfExport";
@@ -59,6 +59,7 @@ function parseHash() {
     const [, search = ""] = rawHash.split("?");
     const params = new URLSearchParams(search);
     const rawType = params.get("type");
+    const rawRuleCategory = params.get("ruleCategory");
     const source = params.get("source") ?? "all";
     const mode = params.get("mode");
     return {
@@ -68,6 +69,7 @@ function parseHash() {
             query: params.get("q") ?? "",
             source,
             type: rawType && rawType !== "all" && rawType in TYPE_LABELS ? rawType : "all",
+            ruleCategory: rawRuleCategory && rawRuleCategory in RULE_CATEGORY_LABELS ? rawRuleCategory : "all",
             mode: mode === "source" || (!mode && source !== "all") ? "source" : "type"
         }
     };
@@ -86,6 +88,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
         query: "",
         source: "all",
         type: "all",
+        ruleCategory: "all",
         mode: "type",
         token: 0
     });
@@ -133,6 +136,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
                         query: parsed.focus?.query ?? "",
                         source: parsed.focus?.source ?? "all",
                         type: parsed.focus?.type ?? "all",
+                        ruleCategory: parsed.focus?.ruleCategory ?? "all",
                         mode: parsed.focus?.mode ?? "type",
                         token: prev.token + 1
                     }));
@@ -229,7 +233,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
         ...(canAccessMonsters ? [{ id: "monsters", label: "Monstruos", active: activeModule === "monsters", onSelect: openMonstersModule }] : []),
         { id: "compendium", label: "Compendio", active: activeModule === "compendium", onSelect: openCompendiumModule }
     ];
-    return (_jsxs("main", { ref: dashboardRef, className: "page app-page", children: [_jsx(AppTopNavigation, { items: navigationItems, currentTitle: mobileHeaderTitle, userEmail: user.email, roleLabel: getRoleLabel(user.role), onLogout: onLogout }), _jsxs("section", { className: `app-content module-theme module-theme--${activeModule}`, children: [selectedCharacterSheet && activeModule === "characters" && selectedCharacterPageMode === "sheet" ? (_jsxs("div", { className: "app-context-navigation", children: [_jsxs("button", { type: "button", className: "text-button", onClick: closeCharacterSheet, children: [_jsx(AppIcon, { name: "arrow-left" }), "Volver"] }), _jsxs("span", { children: ["Personajes / ", selectedCharacterSheet.name] })] })) : null, activeModule === "compendium" ? (_jsx(CompendiumView, { onBackToCharacters: openCharactersModule, ensureAccessToken: ensureAccessToken, initialEntryId: compendiumFocus.entryId, initialQuery: compendiumFocus.query, initialSourceFilter: compendiumFocus.source, initialTypeFilter: compendiumFocus.type, initialBrowseMode: compendiumFocus.mode, focusToken: compendiumFocus.token })) : activeModule === "monsters" ? (_jsx(MonsterDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : activeModule === "npcs" ? (_jsx(NpcDashboardView, { ensureAccessToken: ensureAccessToken })) : activeModule === "campaigns" ? (_jsx(CampaignDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : selectedCharacterSheet ? (_jsx("section", { className: "character-actions-page", children: selectedCharacterPageMode === "builder" ? (_jsx(CharacterBuilderView, { character: selectedCharacterSheet, onBackToCharacters: closeCharacterSheet, onOpenSheet: () => openCharacterSheet(selectedCharacterSheet.id), onBindMysticArtifact: async (artifactId, paymentType) => {
+    return (_jsxs("main", { ref: dashboardRef, className: "page app-page", children: [_jsx(AppTopNavigation, { items: navigationItems, currentTitle: mobileHeaderTitle, userEmail: user.email, roleLabel: getRoleLabel(user.role), onLogout: onLogout }), _jsxs("section", { className: `app-content module-theme module-theme--${activeModule}`, children: [selectedCharacterSheet && activeModule === "characters" && selectedCharacterPageMode === "sheet" ? (_jsxs("div", { className: "app-context-navigation", children: [_jsxs("button", { type: "button", className: "text-button", onClick: closeCharacterSheet, children: [_jsx(AppIcon, { name: "arrow-left" }), "Volver"] }), _jsxs("span", { children: ["Personajes / ", selectedCharacterSheet.name] })] })) : null, activeModule === "compendium" ? (_jsx(CompendiumView, { onBackToCharacters: openCharactersModule, ensureAccessToken: ensureAccessToken, initialEntryId: compendiumFocus.entryId, initialQuery: compendiumFocus.query, initialSourceFilter: compendiumFocus.source, initialTypeFilter: compendiumFocus.type, initialRuleCategory: compendiumFocus.ruleCategory, initialBrowseMode: compendiumFocus.mode, focusToken: compendiumFocus.token })) : activeModule === "monsters" ? (_jsx(MonsterDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : activeModule === "npcs" ? (_jsx(NpcDashboardView, { ensureAccessToken: ensureAccessToken })) : activeModule === "campaigns" ? (_jsx(CampaignDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : selectedCharacterSheet ? (_jsx("section", { className: "character-actions-page", children: selectedCharacterPageMode === "builder" ? (_jsx(CharacterBuilderView, { character: selectedCharacterSheet, onBackToCharacters: closeCharacterSheet, onOpenSheet: () => openCharacterSheet(selectedCharacterSheet.id), onBindMysticArtifact: async (artifactId, paymentType) => {
                                 const token = await ensureAccessToken();
                                 await bindMysticArtifact(artifactId, { paymentType }, token);
                                 await controller.refresh();
@@ -277,13 +281,13 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
                                     sheet: synchronizeCharacterSheet(nextSheet)
                                 }, token);
                                 controller.upsertCharacterRecord(updated);
-                            } }, selectedCharacterSheet.id)) })) : (_jsx("section", { className: "character-directory-page unified-sheet", children: _jsxs("section", { className: "character-directory-shell campaign-sheet-card", children: [_jsxs("section", { className: "character-directory-header-band", children: [_jsx("div", { className: "unified-sheet-portrait", "aria-hidden": "true", children: _jsx("div", { className: "unified-sheet-portrait-ring", children: _jsx("div", { className: "unified-sheet-portrait-content", children: "PJ" }) }) }), _jsxs("div", { className: "character-directory-identity", children: [_jsx("h2", { children: "Archivo de personajes" }), _jsx("p", { className: "unified-sheet-inline-subtitle", children: "Gestiona hojas, constructor y progreso de PX con la misma presentacion que la ficha." })] })] }), _jsxs("section", { className: "character-directory-stage", children: [_jsxs("section", { className: "character-directory-panel campaign-sheet-card", children: [_jsxs("div", { className: "row-actions character-directory-toolbar-row", children: [_jsxs("div", { children: [_jsx("h3", { children: "Acciones del archivo" }), _jsx("p", { className: "section-help", children: "Crea, importa o genera personajes sin salir del modulo." })] }), _jsxs("div", { className: "toolbar", children: [_jsx("button", { onClick: controller.openCreateModal, children: "Nuevo personaje" }), _jsxs("label", { className: `file-trigger${controller.isSaving ? " is-disabled" : ""}`, children: ["Importar PDF", _jsx("input", { type: "file", accept: "application/pdf,.pdf", disabled: controller.isSaving, onChange: (event) => {
-                                                                                const file = event.target.files?.[0];
-                                                                                if (file) {
-                                                                                    void controller.importFromPdf(file);
-                                                                                }
-                                                                                event.currentTarget.value = "";
-                                                                            } })] }), _jsx("button", { disabled: controller.isSaving, onClick: () => void controller.createRandomCharacter(), children: "Generar aleatorio" })] })] }), controller.error && !controller.isFormModalOpen ? _jsx("p", { className: "error", children: controller.error }) : null] }), controller.isFormModalOpen ? (_jsx("section", { className: "modal-backdrop", children: _jsx(CharacterCreationWizard, { controller: controller, onCancel: controller.closeFormModal }) })) : null, false && controller.isFormModalOpen ? (_jsx("section", { className: "modal-backdrop", onClick: controller.closeFormModal, children: _jsxs("div", { className: "panel modal-panel character-directory-form-modal", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsx("h2", { children: controller.isEditing ? "Editar personaje" : "Crear personaje" }), _jsxs("div", { className: "toolbar", children: [controller.isEditing ? (_jsx("button", { onClick: () => {
+                            } }, selectedCharacterSheet.id)) })) : (_jsx("section", { className: "character-directory-page unified-sheet", children: _jsxs("section", { className: "character-directory-shell campaign-sheet-card", children: [_jsxs("header", { className: "character-directory-header-band module-sticky-header module-sticky-header--single-row", children: [_jsx("div", { className: "unified-sheet-portrait", "aria-hidden": "true", children: _jsx("div", { className: "unified-sheet-portrait-ring", children: _jsx("div", { className: "unified-sheet-portrait-content", children: "PJ" }) }) }), _jsxs("div", { className: "character-directory-identity", children: [_jsx("h2", { children: "Archivo de personajes" }), _jsx("p", { className: "unified-sheet-inline-subtitle", children: "Gestiona hojas, constructor y progreso de PX con la misma presentacion que la ficha." })] }), _jsxs("div", { className: "toolbar character-directory-header-actions", children: [_jsx("button", { onClick: controller.openCreateModal, children: "Nuevo personaje" }), _jsxs("label", { className: `file-trigger${controller.isSaving ? " is-disabled" : ""}`, children: ["Importar PDF", _jsx("input", { type: "file", accept: "application/pdf,.pdf", disabled: controller.isSaving, onChange: (event) => {
+                                                                const file = event.target.files?.[0];
+                                                                if (file) {
+                                                                    void controller.importFromPdf(file);
+                                                                }
+                                                                event.currentTarget.value = "";
+                                                            } })] }), _jsx("button", { disabled: controller.isSaving, onClick: () => void controller.createRandomCharacter(), children: "Generar aleatorio" })] })] }), _jsxs("section", { className: "character-directory-stage", children: [controller.error && !controller.isFormModalOpen ? _jsx("p", { className: "error", children: controller.error }) : null, controller.isFormModalOpen ? (_jsx("section", { className: "modal-backdrop", children: _jsx(CharacterCreationWizard, { controller: controller, onCancel: controller.closeFormModal }) })) : null, false && controller.isFormModalOpen ? (_jsx("section", { className: "modal-backdrop", onClick: controller.closeFormModal, children: _jsxs("div", { className: "panel modal-panel character-directory-form-modal", onClick: (event) => event.stopPropagation(), children: [_jsxs("div", { className: "row-actions", children: [_jsx("h2", { children: controller.isEditing ? "Editar personaje" : "Crear personaje" }), _jsxs("div", { className: "toolbar", children: [controller.isEditing ? (_jsx("button", { onClick: () => {
                                                                             const current = controller.characters.find((entry) => entry.id === controller.selectedCharacterId);
                                                                             if (current)
                                                                                 void exportCharacterSheetPdf(current);

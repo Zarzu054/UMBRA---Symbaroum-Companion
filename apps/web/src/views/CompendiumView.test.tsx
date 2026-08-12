@@ -56,7 +56,7 @@ describe("compendium search", () => {
     expect(rituals.every((ritual) => ritual.detalle.length > 100 && !ritual.detalle.startsWith("Consulta "))).toBe(true);
     expect(rituals.find((ritual) => ritual.nombre === "Grilletes rúnicos")?.detalle).toContain("hacer una misión");
     expect(ALL_ENTRIES.find((candidate) => candidate.nombre === "Talento místico superior")?.detalle).not.toContain("habilidad Rituales");
-    expect(ALL_ENTRIES.find((candidate) => candidate.nombre === "Compra individual de rituales")?.detalle).toContain("10 puntos de experiencia");
+    expect(ALL_ENTRIES.find((candidate) => candidate.nombre === "Rituales máximos a nivel maestro")?.detalle).toContain("10 puntos de experiencia");
   });
 
   it("includes useful race and archetype information with corrected source pages", () => {
@@ -138,6 +138,18 @@ describe("compendium search", () => {
     expect(results.map((result) => result.id)).toEqual(["basic-rule"]);
   });
 
+  it("encuentra una subregla dentro de su ficha consolidada", () => {
+    const results = searchCompendiumEntries(ALL_ENTRIES, {
+      query: "placaje",
+      type: "regla",
+      source: "all",
+      ruleCategory: "official_optional"
+    });
+
+    expect(results.map((result) => result.nombre)).toEqual(["Maniobras de combate"]);
+    expect(results[0]?.variants?.some((variant) => variant.label === "Placaje")).toBe(true);
+  });
+
   it("canonicalizes the mojibake source alias", () => {
     expect(canonicalizeCompendiumSourceName("GuÃ­a Avanzada del Jugador")).toBe("Guía Avanzada del Jugador");
   });
@@ -173,12 +185,16 @@ describe("CompendiumView library", () => {
     expect(abilityCategory.querySelector(".compendium-section-card-ornament")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Tradiciones.*7 entradas/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Profesiones.*17 entradas/ })).toHaveClass("app-card-accent--profesion");
+    expect(screen.getByRole("button", { name: /Reglas básicas.*entradas/ })).toHaveClass("rule-category-card--core");
+    expect(screen.getByRole("button", { name: /Reglas opcionales.*entradas/ })).toHaveClass("rule-category-card--official_optional");
+    expect(screen.getByRole("button", { name: /Reglas caseras.*entradas/ })).toHaveClass("rule-category-card--homebrew");
 
     fireEvent.click(screen.getByRole("tab", { name: "Por fuente" }));
     expect(screen.getByRole("heading", { name: "Libros" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Referencias" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Libro Básico.*entradas/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Resumen de Reglas.*entradas/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reglas UMBRA.*entradas/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Resumen de Reglas.*entradas/ })).not.toBeInTheDocument();
     await waitFor(() => expect(serviceMocks.fetchCompendiumLibrary).toHaveBeenCalledWith("access-token"));
   });
 
@@ -197,6 +213,19 @@ describe("CompendiumView library", () => {
     expect(screen.getByRole("heading", { name: "Equipo" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Elixires.*entradas/ })).toHaveClass("app-card-accent--elixir");
     expect(screen.getByRole("button", { name: /Artefactos menores.*entradas/ })).toBeInTheDocument();
+  });
+
+  it("separa los niveles de los rasgos de monstruo en su ficha", async () => {
+    const swarm = ALL_ENTRIES.find((candidate) => candidate.tipo === "rasgo" && candidate.nombre === "Enjambre")!;
+    renderCompendium({ initialEntryId: swarm.id });
+
+    const reader = await screen.findByRole("region", { name: "Enjambre" });
+    expect(within(reader).getByRole("heading", { name: "Nivel I" })).toBeInTheDocument();
+    expect(within(reader).getByRole("heading", { name: "Nivel II" })).toBeInTheDocument();
+    expect(within(reader).getByRole("heading", { name: "Nivel III" })).toBeInTheDocument();
+    expect(within(reader).getByText(/queda a la mitad de su Resistencia/i)).toBeInTheDocument();
+    expect(within(reader).getByText(/supera su Umbral de dolor/i)).toBeInTheDocument();
+    expect(within(reader).getByText(/una cuarta parte del daño/i)).toBeInTheDocument();
   });
 
   it("opens related weapon qualities as individual compendium entries", async () => {
@@ -221,6 +250,17 @@ describe("CompendiumView library", () => {
     fireEvent.click(screen.getByRole("button", { name: "← Volver al compendio" }));
     expect(screen.getByRole("heading", { name: "Explorar el archivo" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Volver a personajes" })).toBeInTheDocument();
+  });
+
+  it("abre cada categoría de reglas y la conserva en el enlace profundo", () => {
+    renderCompendium();
+    fireEvent.click(screen.getByRole("button", { name: /Reglas opcionales.*entradas/ }));
+
+    expect(screen.getByLabelText("Tipo")).toHaveValue("regla");
+    expect(screen.getByLabelText("Categoría")).toHaveValue("official_optional");
+    expect(screen.getAllByText("Reglas opcionales").length).toBeGreaterThan(0);
+    expect(window.location.hash).toContain("ruleCategory=official_optional");
+    expect(document.querySelectorAll(".compendium-result-card.rule-category--official_optional").length).toBeGreaterThan(0);
   });
 
   it("keeps global search on the cover with quick results and opens the complete result view on demand", () => {
@@ -251,6 +291,14 @@ describe("CompendiumView library", () => {
     fireEvent.click(within(quickResults).getByRole("option", { name: /^Antídoto/ }));
     expect(await screen.findByRole("heading", { name: "Antídoto" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "← Volver al compendio" })).toBeInTheDocument();
+  });
+
+  it("redirige enlaces antiguos de subreglas a la ficha consolidada", async () => {
+    renderCompendium({ initialEntryId: "regla-resumen-72-placaje" });
+
+    expect(await screen.findByRole("heading", { name: "Maniobras de combate" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Reglas incluidas" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Placaje" })).toBeInTheDocument();
   });
 
   it("opens a deep-linked entry, records it and serializes all hash fields", async () => {

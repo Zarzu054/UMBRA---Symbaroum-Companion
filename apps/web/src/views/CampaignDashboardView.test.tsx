@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { createEmptyCharacterSheet, type AuthUser, type Campaign, type MysticArtifact } from "@umbra/shared";
+import { createEmptyCharacterSheet, type AuthUser, type Campaign, type CampaignCombat, type MysticArtifact } from "@umbra/shared";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,7 +18,16 @@ const serviceMocks = vi.hoisted(() => ({
   removeCampaignMember: vi.fn(),
   unlinkCampaignCharacter: vi.fn(),
   updateCampaign: vi.fn(),
-  updateCampaignReference: vi.fn()
+  updateCampaignReference: vi.fn(),
+  fetchCampaignCombat: vi.fn().mockResolvedValue(null),
+  startCampaignCombat: vi.fn(),
+  finishCampaignCombat: vi.fn(),
+  addCampaignCombatParticipant: vi.fn(),
+  updateCampaignCombatParticipant: vi.fn(),
+  removeCampaignCombatParticipant: vi.fn(),
+  reorderCampaignCombat: vi.fn(),
+  advanceCampaignCombatTurn: vi.fn(),
+  updateCampaignCombatResources: vi.fn()
 }));
 const artifactServiceMocks = vi.hoisted(() => ({
   fetchMysticArtifactPresets: vi.fn().mockResolvedValue([]),
@@ -138,6 +147,141 @@ describe("CampaignDashboardView experience grants", () => {
     expect(await screen.findByText(/PX total: 15/)).toBeInTheDocument();
   });
 
+  it("exposes the DM-only combat section and loads its current state", async () => {
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+    await screen.findByRole("heading", { name: "Personajes vinculados" });
+    fireEvent.click(screen.getByRole("button", { name: "Combate" }));
+    expect(await screen.findByRole("heading", { name: "Combate" })).toBeInTheDocument();
+    expect(serviceMocks.fetchCampaignCombat).toHaveBeenCalledWith("campaign-a", "token-a");
+  });
+
+  it("allows editing initiative and saves only after confirming the field", async () => {
+    const combat: CampaignCombat = {
+      id: "00000000-0000-4000-8000-000000000010",
+      campaignId: "campaign-a",
+      round: 1,
+      activeParticipantId: "00000000-0000-4000-8000-000000000011",
+      revision: 3,
+      participants: [{
+        id: "00000000-0000-4000-8000-000000000011",
+        kind: "character",
+        sourceId: "link-a",
+        alias: "Alda",
+        initiativeOverride: null,
+        sortOrder: 0,
+        initiative: 10,
+        defense: 10,
+        armor: "Sin armadura",
+        armorDetail: "",
+        robustnessCurrent: 8,
+        robustnessMaximum: 10,
+        painThreshold: 5,
+        temporaryCorruption: 2,
+        permanentCorruption: 1,
+        corruptionThreshold: 5,
+        conditions: [],
+        attacks: []
+      }],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString()
+    };
+    serviceMocks.fetchCampaignCombat.mockResolvedValue(combat);
+    serviceMocks.updateCampaignCombatParticipant.mockResolvedValue({
+      ...combat,
+      revision: 4,
+      participants: [{ ...combat.participants[0], initiative: 17, initiativeOverride: 17 }]
+    });
+
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+    await screen.findByRole("heading", { name: "Personajes vinculados" });
+    fireEvent.click(screen.getByRole("button", { name: "Combate" }));
+    const initiative = await screen.findByRole("spinbutton", { name: "Iniciativa de Alda" });
+    const robustness = screen.getByRole("progressbar", { name: "Robustez de Alda" });
+    const robustnessControls = robustness.parentElement!;
+    expect(robustness).toHaveAttribute("aria-valuenow", "8");
+    expect(robustness).toHaveAttribute("aria-valuemax", "10");
+    expect(within(robustness).getByText("8 / 10")).toBeInTheDocument();
+    expect(robustness.querySelector(".campaign-combat-resource-fill")).toHaveStyle({ width: "80%" });
+    expect(robustnessControls.children[0]).toBe(screen.getByRole("button", { name: "Restar Robustez a Alda" }));
+    expect(robustnessControls.children[1]).toBe(robustness);
+    expect(robustnessControls.children[2]).toBe(screen.getByRole("button", { name: "Sumar Robustez a Alda" }));
+
+    const temporaryCorruption = screen.getByRole("progressbar", { name: "Corrupción temporal de Alda" });
+    const permanentCorruption = screen.getByRole("progressbar", { name: "Corrupción permanente de Alda" });
+    expect(temporaryCorruption.querySelector(".campaign-combat-resource-fill")).toHaveStyle({ width: "40%" });
+    expect(permanentCorruption.querySelector(".campaign-combat-resource-fill")).toHaveStyle({ width: "20%" });
+    expect(screen.queryByText(/^Ronda /)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Dar turno" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Turno →" })).not.toBeInTheDocument();
+    fireEvent.change(initiative, { target: { value: "17" } });
+    expect(serviceMocks.updateCampaignCombatParticipant).not.toHaveBeenCalled();
+    fireEvent.blur(initiative);
+    await waitFor(() => expect(serviceMocks.updateCampaignCombatParticipant).toHaveBeenCalledWith(
+      "campaign-a",
+      combat.participants[0].id,
+      { revision: 3, initiativeOverride: 17 },
+      "token-a"
+    ));
+  });
+
+  it("permite renombrar una instancia de monstruo sin alterar su perfil", async () => {
+    const combat: CampaignCombat = {
+      id: "00000000-0000-4000-8000-000000000020",
+      campaignId: "campaign-a",
+      round: 1,
+      activeParticipantId: null,
+      revision: 5,
+      participants: [{
+        id: "00000000-0000-4000-8000-000000000021",
+        kind: "monster",
+        sourceId: "libro-basico-maton",
+        sourceKind: "official",
+        alias: "Matón",
+        initiativeOverride: null,
+        sortOrder: 0,
+        initiative: 10,
+        defense: "−3",
+        armor: "2",
+        armorDetail: "Cuero",
+        robustnessCurrent: 10,
+        robustnessMaximum: 10,
+        painThreshold: 5,
+        temporaryCorruption: 0,
+        permanentCorruption: 0,
+        corruptionThreshold: 5,
+        conditions: [],
+        attacks: []
+      }],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString()
+    };
+    serviceMocks.fetchCampaignCombat.mockResolvedValue(combat);
+    serviceMocks.updateCampaignCombatParticipant.mockResolvedValue({
+      ...combat,
+      revision: 6,
+      participants: [{ ...combat.participants[0], alias: "Matón del puente" }]
+    });
+
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+    await screen.findByRole("heading", { name: "Personajes vinculados" });
+    fireEvent.click(screen.getByRole("button", { name: "Combate" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Renombrar a Matón" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Renombrar monstruo" });
+    const aliasInput = within(dialog).getByRole("textbox", { name: "Nombre del monstruo en combate" });
+    fireEvent.change(aliasInput, { target: { value: "  Matón del puente  " } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Guardar nombre" }));
+
+    await waitFor(() => expect(serviceMocks.updateCampaignCombatParticipant).toHaveBeenCalledWith(
+      "campaign-a",
+      combat.participants[0].id,
+      { revision: 5, alias: "Matón del puente" },
+      "token-a"
+    ));
+    expect(await screen.findByText("Matón del puente")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Renombrar monstruo" })).not.toBeInTheDocument();
+  });
+
   it("shows and approves pending profession requests", async () => {
     const campaign = buildCampaign();
     campaign.pendingProfessionRequests = [{
@@ -229,7 +373,7 @@ describe("CampaignDashboardView experience grants", () => {
     expect(screen.getByRole("button", { name: "Notas compartidas" })).toBeInTheDocument();
   });
 
-  it("shows a separate experience history for each linked character", async () => {
+  it("shows each character experience history in its own modal", async () => {
     const campaign = buildCampaign();
     const secondSheet = createEmptyCharacterSheet();
     secondSheet.identidad.nombrePersonaje = "Beremo";
@@ -274,13 +418,21 @@ describe("CampaignDashboardView experience grants", () => {
     const aldaCard = screen.getByRole("article", { name: "Personaje Alda" });
     const beremoCard = screen.getByRole("article", { name: "Personaje Beremo" });
 
-    expect(within(aldaCard).getByText("+5 PX")).toBeInTheDocument();
-    expect(within(aldaCard).getByText("Recompensa de Alda")).toBeInTheDocument();
-    expect(within(aldaCard).queryByText("+3 PX")).not.toBeInTheDocument();
-    expect(within(beremoCard).getByText("+3 PX")).toBeInTheDocument();
-    expect(within(beremoCard).getByText("Recompensa de Beremo")).toBeInTheDocument();
-    expect(within(beremoCard).queryByText("+5 PX")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { name: "Historial de experiencia" })).toHaveLength(2);
+    expect(within(aldaCard).queryByText("Recompensa de Alda")).not.toBeInTheDocument();
+    expect(within(beremoCard).queryByText("Recompensa de Beremo")).not.toBeInTheDocument();
+
+    fireEvent.click(within(aldaCard).getByRole("button", { name: "Historial de PX" }));
+    let modal = screen.getByRole("dialog", { name: "Historial de PX de Alda" });
+    expect(within(modal).getByText("+5 PX")).toBeInTheDocument();
+    expect(within(modal).getByText("Recompensa de Alda")).toBeInTheDocument();
+    expect(within(modal).queryByText("Recompensa de Beremo")).not.toBeInTheDocument();
+    fireEvent.click(within(modal).getByRole("button", { name: "Cerrar" }));
+
+    fireEvent.click(within(beremoCard).getByRole("button", { name: "Historial de PX" }));
+    modal = screen.getByRole("dialog", { name: "Historial de PX de Beremo" });
+    expect(within(modal).getByText("+3 PX")).toBeInTheDocument();
+    expect(within(modal).getByText("Recompensa de Beremo")).toBeInTheDocument();
+    expect(within(modal).queryByText("Recompensa de Alda")).not.toBeInTheDocument();
   });
 
   it("shows private GM notes as Markdown entries instead of an always-visible form", async () => {

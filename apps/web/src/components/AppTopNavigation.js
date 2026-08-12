@@ -10,6 +10,7 @@ function isMobileViewport() {
 }
 export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, onLogout }) {
     const [isOpen, setIsOpen] = useState(false);
+    const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(isMobileViewport);
     const triggerRef = useRef(null);
     const menuRef = useRef(null);
@@ -21,6 +22,7 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
         const sync = (matches) => {
             setIsMobile(matches);
             setIsOpen(false);
+            setIsCustomizationOpen(false);
         };
         sync(media.matches);
         const handleChange = (event) => sync(event.matches);
@@ -33,6 +35,7 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
         const handleKeyDown = (event) => {
             if (event.key === "Escape") {
                 setIsOpen(false);
+                setIsCustomizationOpen(false);
                 window.setTimeout(() => triggerRef.current?.focus(), 0);
                 return;
             }
@@ -56,6 +59,7 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
             if (menuRef.current?.contains(event.target) || triggerRef.current?.contains(event.target))
                 return;
             setIsOpen(false);
+            setIsCustomizationOpen(false);
         };
         window.addEventListener("keydown", handleKeyDown);
         window.addEventListener("pointerdown", handlePointerDown);
@@ -68,6 +72,11 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
     const selectItem = (item) => {
         item.onSelect();
         setIsOpen(false);
+        setIsCustomizationOpen(false);
     };
-    return (_jsxs("header", { className: "app-top-navigation", children: [_jsxs("div", { className: "app-top-navigation-inner", children: [_jsx("button", { type: "button", className: "app-brand", onClick: () => items[0] && selectItem(items[0]), "aria-label": "Ir al inicio de UMBRA", children: "UMBRA" }), _jsx("span", { className: "app-current-title", children: currentTitle }), !isMobile ? (_jsx("nav", { className: "app-primary-navigation", "aria-label": "Navegaci\u00F3n principal", children: items.map((item) => (_jsx("button", { type: "button", className: item.active ? "is-active" : "", "aria-current": item.active ? "page" : undefined, onClick: () => selectItem(item), children: item.label }, item.id))) })) : null, isMobile ? _jsx(AppearancePopover, { compact: true }) : null, _jsxs("button", { ref: triggerRef, type: "button", className: "app-navigation-menu-trigger", "aria-label": "Abrir navegaci\u00F3n", "aria-haspopup": "dialog", "aria-expanded": isOpen, onClick: () => setIsOpen((current) => !current), children: [_jsx(AppIcon, { name: isMobile ? "menu" : "user" }), _jsx("span", { children: isMobile ? "Menú" : userEmail })] })] }), isOpen ? (_jsxs("div", { ref: menuRef, className: "app-navigation-menu", role: "dialog", "aria-label": "Navegaci\u00F3n y preferencias", children: [_jsxs("div", { className: "app-navigation-menu-heading", children: [_jsxs("div", { children: [_jsx("strong", { children: userEmail }), _jsx("span", { children: roleLabel })] }), _jsx("button", { type: "button", className: "icon-button", "aria-label": "Cerrar navegaci\u00F3n", onClick: () => setIsOpen(false), children: _jsx(AppIcon, { name: "close" }) })] }), isMobile ? (_jsx("nav", { className: "app-navigation-menu-modules", "aria-label": "M\u00F3dulos", children: items.map((item) => (_jsx("button", { type: "button", className: item.active ? "is-active" : "", "aria-current": item.active ? "page" : undefined, onClick: () => selectItem(item), children: item.label }, item.id))) })) : null, !isMobile ? (_jsxs("div", { className: "app-navigation-menu-section", children: [_jsx("span", { className: "app-navigation-menu-label", children: "Apariencia" }), _jsx(AppearanceSelector, {})] })) : null, _jsx("button", { type: "button", className: "app-logout-button", onClick: () => void onLogout(), children: "Cerrar sesi\u00F3n" })] })) : null] }));
+    return (_jsxs("header", { className: "app-top-navigation", children: [_jsxs("div", { className: "app-top-navigation-inner", children: [_jsx("button", { type: "button", className: "app-brand", onClick: () => items[0] && selectItem(items[0]), "aria-label": "Ir al inicio de UMBRA", children: "UMBRA" }), _jsx("span", { className: "app-current-title", children: currentTitle }), !isMobile ? (_jsx("nav", { className: "app-primary-navigation", "aria-label": "Navegaci\u00F3n principal", children: items.map((item) => (_jsx("button", { type: "button", className: item.active ? "is-active" : "", "aria-current": item.active ? "page" : undefined, onClick: () => selectItem(item), children: item.label }, item.id))) })) : null, isMobile ? _jsx(AppearancePopover, { compact: true }) : null, _jsxs("button", { ref: triggerRef, type: "button", className: "app-navigation-menu-trigger", "aria-label": "Abrir navegaci\u00F3n", "aria-haspopup": "dialog", "aria-expanded": isOpen, onClick: () => setIsOpen((current) => {
+                            if (current)
+                                setIsCustomizationOpen(false);
+                            return !current;
+                        }), children: [_jsx(AppIcon, { name: isMobile ? "menu" : "user" }), _jsx("span", { children: isMobile ? "Menú" : userEmail })] })] }), isOpen ? (_jsxs("div", { ref: menuRef, className: "app-navigation-menu", role: "dialog", "aria-label": "Navegaci\u00F3n y preferencias", children: [_jsxs("div", { className: "app-navigation-menu-heading", children: [_jsxs("div", { children: [_jsx("strong", { children: userEmail }), _jsx("span", { children: roleLabel })] }), _jsx("button", { type: "button", className: "icon-button", "aria-label": "Cerrar navegaci\u00F3n", onClick: () => { setIsOpen(false); setIsCustomizationOpen(false); }, children: _jsx(AppIcon, { name: "close" }) })] }), isMobile ? (_jsx("nav", { className: "app-navigation-menu-modules", "aria-label": "M\u00F3dulos", children: items.map((item) => (_jsx("button", { type: "button", className: item.active ? "is-active" : "", "aria-current": item.active ? "page" : undefined, onClick: () => selectItem(item), children: item.label }, item.id))) })) : null, _jsxs("button", { type: "button", className: "subtle-button app-navigation-customization-trigger", "aria-expanded": isCustomizationOpen, "aria-controls": "session-customization-controls", onClick: () => setIsCustomizationOpen((current) => !current), children: [_jsx(AppIcon, { name: "palette" }), _jsx("span", { children: "Personalizaci\u00F3n" })] }), isCustomizationOpen ? (_jsx("div", { id: "session-customization-controls", className: "app-navigation-menu-section", children: _jsx(AppearanceSelector, {}) })) : null, _jsx("button", { type: "button", className: "app-logout-button", onClick: () => void onLogout(), children: "Cerrar sesi\u00F3n" })] })) : null] }));
 }

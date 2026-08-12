@@ -23,10 +23,12 @@ import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { CharacterCreationWizard } from "../components/ActorCreationWizard";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
 import {
+  RULE_CATEGORY_LABELS,
   TYPE_LABELS,
   findCompendiumCapabilityEntryId,
   findCompendiumEntryByTypeAndName,
-  type EntryType
+  type EntryType,
+  type RuleCategory
 } from "../models/compendiumEntries";
 import { toCharacterCardViewModel } from "../models/characterModel";
 import { computeDerivedStats } from "../models/rulesEngine";
@@ -62,6 +64,7 @@ type CompendiumFocus = {
   query: string;
   source: string;
   type: "all" | EntryType;
+  ruleCategory: "all" | RuleCategory;
   mode: CompendiumBrowseMode;
   token: number;
 };
@@ -116,6 +119,7 @@ function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"
   const [, search = ""] = rawHash.split("?");
   const params = new URLSearchParams(search);
   const rawType = params.get("type");
+  const rawRuleCategory = params.get("ruleCategory");
   const source = params.get("source") ?? "all";
   const mode = params.get("mode");
   return {
@@ -125,6 +129,7 @@ function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"
       query: params.get("q") ?? "",
       source,
       type: rawType && rawType !== "all" && rawType in TYPE_LABELS ? rawType as EntryType : "all",
+      ruleCategory: rawRuleCategory && rawRuleCategory in RULE_CATEGORY_LABELS ? rawRuleCategory as RuleCategory : "all",
       mode: mode === "source" || (!mode && source !== "all") ? "source" : "type"
     }
   };
@@ -146,6 +151,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     query: "",
     source: "all",
     type: "all",
+    ruleCategory: "all",
     mode: "type",
     token: 0
   });
@@ -201,6 +207,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             query: parsed.focus?.query ?? "",
             source: parsed.focus?.source ?? "all",
             type: parsed.focus?.type ?? "all",
+            ruleCategory: parsed.focus?.ruleCategory ?? "all",
             mode: parsed.focus?.mode ?? "type",
             token: prev.token + 1
           }));
@@ -337,6 +344,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               initialQuery={compendiumFocus.query}
               initialSourceFilter={compendiumFocus.source}
               initialTypeFilter={compendiumFocus.type}
+              initialRuleCategory={compendiumFocus.ruleCategory}
               initialBrowseMode={compendiumFocus.mode}
               focusToken={compendiumFocus.token}
             />
@@ -438,7 +446,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           ) : (
             <section className="character-directory-page unified-sheet">
               <section className="character-directory-shell campaign-sheet-card">
-                <section className="character-directory-header-band">
+                <header className="character-directory-header-band module-sticky-header module-sticky-header--single-row">
                   <div className="unified-sheet-portrait" aria-hidden="true">
                     <div className="unified-sheet-portrait-ring">
                       <div className="unified-sheet-portrait-content">PJ</div>
@@ -450,39 +458,31 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                       Gestiona hojas, constructor y progreso de PX con la misma presentacion que la ficha.
                     </p>
                   </div>
-                </section>
+                  <div className="toolbar character-directory-header-actions">
+                    <button onClick={controller.openCreateModal}>Nuevo personaje</button>
+                    <label className={`file-trigger${controller.isSaving ? " is-disabled" : ""}`}>
+                      Importar PDF
+                      <input
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        disabled={controller.isSaving}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) {
+                            void controller.importFromPdf(file);
+                          }
+                          event.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                    <button disabled={controller.isSaving} onClick={() => void controller.createRandomCharacter()}>
+                      Generar aleatorio
+                    </button>
+                  </div>
+                </header>
 
                 <section className="character-directory-stage">
-                  <section className="character-directory-panel campaign-sheet-card">
-                    <div className="row-actions character-directory-toolbar-row">
-                      <div>
-                        <h3>Acciones del archivo</h3>
-                        <p className="section-help">Crea, importa o genera personajes sin salir del modulo.</p>
-                      </div>
-                      <div className="toolbar">
-                        <button onClick={controller.openCreateModal}>Nuevo personaje</button>
-                        <label className={`file-trigger${controller.isSaving ? " is-disabled" : ""}`}>
-                          Importar PDF
-                          <input
-                            type="file"
-                            accept="application/pdf,.pdf"
-                            disabled={controller.isSaving}
-                            onChange={(event) => {
-                              const file = event.target.files?.[0];
-                              if (file) {
-                                void controller.importFromPdf(file);
-                              }
-                              event.currentTarget.value = "";
-                            }}
-                          />
-                        </label>
-                        <button disabled={controller.isSaving} onClick={() => void controller.createRandomCharacter()}>
-                          Generar aleatorio
-                        </button>
-                      </div>
-                    </div>
-                    {controller.error && !controller.isFormModalOpen ? <p className="error">{controller.error}</p> : null}
-                  </section>
+                  {controller.error && !controller.isFormModalOpen ? <p className="error">{controller.error}</p> : null}
 
                   {controller.isFormModalOpen ? (
                     <section className="modal-backdrop">
