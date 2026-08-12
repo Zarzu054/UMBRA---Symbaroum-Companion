@@ -27,6 +27,7 @@ function isMobileViewport(): boolean {
 
 export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, onLogout }: Props) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(isMobileViewport);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -38,6 +39,7 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
     const sync = (matches: boolean) => {
       setIsMobile(matches);
       setIsOpen(false);
+      setIsCustomizationOpen(false);
     };
     sync(media.matches);
     const handleChange = (event: MediaQueryListEvent) => sync(event.matches);
@@ -50,6 +52,7 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsOpen(false);
+        setIsCustomizationOpen(false);
         window.setTimeout(() => triggerRef.current?.focus(), 0);
         return;
       }
@@ -69,6 +72,7 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
     const handlePointerDown = (event: PointerEvent) => {
       if (menuRef.current?.contains(event.target as Node) || triggerRef.current?.contains(event.target as Node)) return;
       setIsOpen(false);
+      setIsCustomizationOpen(false);
     };
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("pointerdown", handlePointerDown);
@@ -82,6 +86,7 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
   const selectItem = (item: AppNavigationItem) => {
     item.onSelect();
     setIsOpen(false);
+    setIsCustomizationOpen(false);
   };
 
   return (
@@ -114,7 +119,10 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
           aria-label="Abrir navegación"
           aria-haspopup="dialog"
           aria-expanded={isOpen}
-          onClick={() => setIsOpen((current) => !current)}
+          onClick={() => setIsOpen((current) => {
+            if (current) setIsCustomizationOpen(false);
+            return !current;
+          })}
         >
           <AppIcon name={isMobile ? "menu" : "user"} />
           <span>{isMobile ? "Menú" : userEmail}</span>
@@ -128,7 +136,7 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
               <strong>{userEmail}</strong>
               <span>{roleLabel}</span>
             </div>
-            <button type="button" className="icon-button" aria-label="Cerrar navegación" onClick={() => setIsOpen(false)}>
+            <button type="button" className="icon-button" aria-label="Cerrar navegación" onClick={() => { setIsOpen(false); setIsCustomizationOpen(false); }}>
               <AppIcon name="close" />
             </button>
           </div>
@@ -147,9 +155,18 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
               ))}
             </nav>
           ) : null}
-          {!isMobile ? (
-            <div className="app-navigation-menu-section">
-              <span className="app-navigation-menu-label">Apariencia</span>
+          <button
+            type="button"
+            className="subtle-button app-navigation-customization-trigger"
+            aria-expanded={isCustomizationOpen}
+            aria-controls="session-customization-controls"
+            onClick={() => setIsCustomizationOpen((current) => !current)}
+          >
+            <AppIcon name="palette" />
+            <span>Personalización</span>
+          </button>
+          {isCustomizationOpen ? (
+            <div id="session-customization-controls" className="app-navigation-menu-section">
               <AppearanceSelector />
             </div>
           ) : null}

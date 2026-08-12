@@ -414,6 +414,7 @@ a {
   right: max(16px, calc((100vw - var(--ui-content-max)) / 2 + 16px));
   z-index: 110;
   width: min(360px, calc(100vw - 24px));
+  max-height: calc(100dvh - 70px);
   padding: 16px;
   display: grid;
   gap: 16px;
@@ -421,6 +422,7 @@ a {
   border-radius: var(--ui-radius-lg);
   background: var(--ui-surface);
   box-shadow: inset 0 0 0 3px var(--ui-surface), inset 0 0 0 4px color-mix(in srgb, var(--ui-metal) 28%, transparent), var(--ui-shadow-overlay);
+  overflow-y: auto;
 }
 
 .app-navigation-menu-heading {
@@ -615,6 +617,74 @@ a {
   gap: 7px;
 }
 
+.appearance-background-section {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.appearance-background-selector {
+  display: grid;
+  grid-auto-columns: 112px;
+  grid-auto-flow: column;
+  gap: 7px;
+  padding: 2px 2px 7px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+
+.appearance-background-selector > button {
+  min-width: 0;
+  height: 88px;
+  padding: 4px;
+  display: grid;
+  grid-template-rows: 58px auto;
+  gap: 4px;
+  color: var(--ui-text);
+  border-color: var(--ui-border);
+  background: var(--ui-surface);
+  text-align: left;
+}
+
+.appearance-background-selector > button:hover {
+  color: var(--ui-text);
+  border-color: var(--ui-metal);
+  background: var(--ui-surface-hover);
+}
+
+.appearance-background-selector > button.is-active {
+  color: var(--ui-brand-strong);
+  border-color: var(--ui-metal);
+  background: var(--ui-metal-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-metal) 30%, transparent);
+}
+
+.appearance-background-selector img,
+.appearance-background-none {
+  width: 100%;
+  height: 58px;
+  object-fit: cover;
+  border-radius: calc(var(--ui-radius-sm) - 2px);
+  background: var(--ui-canvas);
+}
+
+.appearance-background-none {
+  display: block;
+  background:
+    radial-gradient(circle at 28% 22%, color-mix(in srgb, var(--ui-metal) 22%, transparent), transparent 46%),
+    var(--ui-canvas);
+}
+
+.appearance-background-selector > button > span:last-child {
+  overflow: hidden;
+  padding-inline: 2px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .appearance-popover {
   position: relative;
 }
@@ -657,6 +727,7 @@ a {
   right: 0;
   z-index: 130;
   width: min(360px, calc(100vw - 24px));
+  max-height: min(820px, calc(100dvh - 84px));
   padding: 16px;
   display: grid;
   gap: 14px;
@@ -664,6 +735,7 @@ a {
   border-radius: var(--ui-radius-lg);
   background: var(--ui-surface);
   box-shadow: inset 0 0 0 3px var(--ui-surface), inset 0 0 0 4px color-mix(in srgb, var(--ui-metal) 28%, transparent), var(--ui-shadow-overlay);
+  overflow-y: auto;
 }
 
 .appearance-popover-panel > header {
@@ -713,6 +785,21 @@ a {
 .app-navigation-menu-modules {
   display: grid;
   gap: 4px;
+}
+
+.app-navigation-customization-trigger {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+}
+
+.app-navigation-customization-trigger[aria-expanded="true"] {
+  color: var(--ui-brand-strong);
+  border-color: var(--ui-metal);
+  background: var(--ui-metal-soft);
 }
 
 .app-navigation-menu-modules button {
@@ -1463,6 +1550,12 @@ button[disabled] {
 }
 
 .compendium-library .app-card-accent--regla { --compendium-entry-color: #7655a3; }
+.compendium-library .rule-category--core,
+.compendium-library .rule-category-card--core { --compendium-entry-color: #7655a3; }
+.compendium-library .rule-category--official_optional,
+.compendium-library .rule-category-card--official_optional { --compendium-entry-color: #287980; }
+.compendium-library .rule-category--homebrew,
+.compendium-library .rule-category-card--homebrew { --compendium-entry-color: #a34935; }
 .compendium-library .app-card-accent--habilidad { --compendium-entry-color: #a15d30; }
 .compendium-library .app-card-accent--poder_mistico { --compendium-entry-color: #287980; }
 .compendium-library .app-card-accent--ritual { --compendium-entry-color: #64753a; }
@@ -2340,12 +2433,6 @@ button[disabled] {
 }
 
 /* Full-height monster workspace */
-:root[data-character-sheet-background] body:has(.module-theme--monsters) {
-  background:
-    radial-gradient(circle at 12% -16%, color-mix(in srgb, var(--ui-metal) 8%, transparent) 0, transparent 34rem),
-    linear-gradient(145deg, color-mix(in srgb, var(--ui-brand) 2.5%, var(--ui-canvas)), var(--ui-canvas) 42%);
-}
-
 .app-content.module-theme--monsters {
   width: 100%;
   max-width: none;
@@ -3397,6 +3484,60 @@ button[disabled] {
     linear-gradient(rgba(10, 11, 9, 0.58), rgba(10, 9, 8, 0.72)),
     radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--ui-metal) 16%, transparent), transparent 46rem),
     var(--character-sheet-background-image) var(--character-sheet-background-position, center) / cover fixed no-repeat;
+}
+
+:root[data-character-sheet-background] .campaign-combat :is(.campaign-combat-toolbar, .campaign-combat-card, .campaign-combat-empty) {
+  background: color-mix(in srgb, var(--ui-surface) 92%, transparent);
+  backdrop-filter: blur(9px) saturate(0.78);
+}
+
+.campaign-combat {
+  --combat-temporary-corruption: #6d3fa3;
+  --combat-permanent-corruption: #171411;
+}
+
+:root[data-theme="dark"] .campaign-combat {
+  --combat-temporary-corruption: #d8b9ff;
+  --combat-permanent-corruption: #f4f1ed;
+}
+
+.campaign-combat-resource-track {
+  border-color: var(--ui-border-strong);
+  background: var(--ui-surface-muted);
+}
+
+.campaign-combat-resource-track strong {
+  color: #fff;
+  background: transparent;
+  box-shadow: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.82);
+}
+
+.campaign-combat-resource.is-health .campaign-combat-resource-track {
+  border-color: color-mix(in srgb, var(--ui-success) 55%, var(--ui-border-strong));
+  background: color-mix(in srgb, var(--ui-success) 20%, var(--ui-surface-muted));
+}
+
+.campaign-combat-resource.is-health .campaign-combat-resource-fill {
+  background: var(--ui-success);
+}
+
+.campaign-combat-resource.is-temporary-corruption .campaign-combat-resource-track {
+  border-color: color-mix(in srgb, var(--combat-temporary-corruption) 55%, var(--ui-border-strong));
+  background: color-mix(in srgb, var(--combat-temporary-corruption) 20%, var(--ui-surface-muted));
+}
+
+.campaign-combat-resource.is-temporary-corruption .campaign-combat-resource-fill {
+  background: var(--combat-temporary-corruption);
+}
+
+.campaign-combat-resource.is-permanent-corruption .campaign-combat-resource-track {
+  border-color: color-mix(in srgb, var(--combat-permanent-corruption) 55%, var(--ui-border-strong));
+  background: color-mix(in srgb, var(--combat-permanent-corruption) 20%, var(--ui-surface-muted));
+}
+
+.campaign-combat-resource.is-permanent-corruption .campaign-combat-resource-fill {
+  background: var(--combat-permanent-corruption);
 }
 
 :root[data-character-sheet-background][data-theme="light"] .unified-sheet-persistent,

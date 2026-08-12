@@ -110,4 +110,12 @@ describe("component contrast contracts", () => {
     expect(stylesheet).toMatch(/\.modal-panel,[\s\S]*?max-height: calc\(100dvh - max\(36px/);
     expect(stylesheet).toMatch(/\.character-sheet-background-backdrop\s*\{[\s\S]*?z-index: var\(--ui-z-modal\)/);
   });
+
+  it("shows the shared illustration in combat without sacrificing card readability", () => {
+    expect(stylesheet).toMatch(/:root\[data-character-sheet-background\] body\s*\{[\s\S]*?var\(--character-sheet-background-image\)[\s\S]*?cover fixed no-repeat/);
+    expect(stylesheet).not.toMatch(/:root\[data-character-sheet-background\] \.campaign-combat\s*\{/);
+    expect(stylesheet).toMatch(/:root\[data-character-sheet-background\] \.campaign-combat :is\(\.campaign-combat-toolbar, \.campaign-combat-card, \.campaign-combat-empty\)\s*\{[\s\S]*?background: color-mix\(in srgb, var\(--ui-surface\) 92%, transparent\);[\s\S]*?backdrop-filter: blur/);
+    expect(stylesheet).toMatch(/\.campaign-combat-resource-track strong\s*\{[\s\S]*?color: #fff;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;[\s\S]*?text-shadow:/);
+    expect(stylesheet).not.toContain("body:has(.module-theme--monsters)");
+  });
 });

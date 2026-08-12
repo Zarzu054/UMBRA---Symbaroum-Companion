@@ -173,11 +173,11 @@ describe("CampaignDashboardView experience grants", () => {
         defense: 10,
         armor: "Sin armadura",
         armorDetail: "",
-        robustnessCurrent: 10,
+        robustnessCurrent: 8,
         robustnessMaximum: 10,
         painThreshold: 5,
-        temporaryCorruption: 0,
-        permanentCorruption: 0,
+        temporaryCorruption: 2,
+        permanentCorruption: 1,
         corruptionThreshold: 5,
         conditions: [],
         attacks: []
@@ -196,6 +196,23 @@ describe("CampaignDashboardView experience grants", () => {
     await screen.findByRole("heading", { name: "Personajes vinculados" });
     fireEvent.click(screen.getByRole("button", { name: "Combate" }));
     const initiative = await screen.findByRole("spinbutton", { name: "Iniciativa de Alda" });
+    const robustness = screen.getByRole("progressbar", { name: "Robustez de Alda" });
+    const robustnessControls = robustness.parentElement!;
+    expect(robustness).toHaveAttribute("aria-valuenow", "8");
+    expect(robustness).toHaveAttribute("aria-valuemax", "10");
+    expect(within(robustness).getByText("8 / 10")).toBeInTheDocument();
+    expect(robustness.querySelector(".campaign-combat-resource-fill")).toHaveStyle({ width: "80%" });
+    expect(robustnessControls.children[0]).toBe(screen.getByRole("button", { name: "Restar Robustez a Alda" }));
+    expect(robustnessControls.children[1]).toBe(robustness);
+    expect(robustnessControls.children[2]).toBe(screen.getByRole("button", { name: "Sumar Robustez a Alda" }));
+
+    const temporaryCorruption = screen.getByRole("progressbar", { name: "Corrupción temporal de Alda" });
+    const permanentCorruption = screen.getByRole("progressbar", { name: "Corrupción permanente de Alda" });
+    expect(temporaryCorruption.querySelector(".campaign-combat-resource-fill")).toHaveStyle({ width: "40%" });
+    expect(permanentCorruption.querySelector(".campaign-combat-resource-fill")).toHaveStyle({ width: "20%" });
+    expect(screen.queryByText(/^Ronda /)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Dar turno" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Turno →" })).not.toBeInTheDocument();
     fireEvent.change(initiative, { target: { value: "17" } });
     expect(serviceMocks.updateCampaignCombatParticipant).not.toHaveBeenCalled();
     fireEvent.blur(initiative);
@@ -205,6 +222,64 @@ describe("CampaignDashboardView experience grants", () => {
       { revision: 3, initiativeOverride: 17 },
       "token-a"
     ));
+  });
+
+  it("permite renombrar una instancia de monstruo sin alterar su perfil", async () => {
+    const combat: CampaignCombat = {
+      id: "00000000-0000-4000-8000-000000000020",
+      campaignId: "campaign-a",
+      round: 1,
+      activeParticipantId: null,
+      revision: 5,
+      participants: [{
+        id: "00000000-0000-4000-8000-000000000021",
+        kind: "monster",
+        sourceId: "libro-basico-maton",
+        sourceKind: "official",
+        alias: "Matón",
+        initiativeOverride: null,
+        sortOrder: 0,
+        initiative: 10,
+        defense: "−3",
+        armor: "2",
+        armorDetail: "Cuero",
+        robustnessCurrent: 10,
+        robustnessMaximum: 10,
+        painThreshold: 5,
+        temporaryCorruption: 0,
+        permanentCorruption: 0,
+        corruptionThreshold: 5,
+        conditions: [],
+        attacks: []
+      }],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString()
+    };
+    serviceMocks.fetchCampaignCombat.mockResolvedValue(combat);
+    serviceMocks.updateCampaignCombatParticipant.mockResolvedValue({
+      ...combat,
+      revision: 6,
+      participants: [{ ...combat.participants[0], alias: "Matón del puente" }]
+    });
+
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+    await screen.findByRole("heading", { name: "Personajes vinculados" });
+    fireEvent.click(screen.getByRole("button", { name: "Combate" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Renombrar a Matón" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Renombrar monstruo" });
+    const aliasInput = within(dialog).getByRole("textbox", { name: "Nombre del monstruo en combate" });
+    fireEvent.change(aliasInput, { target: { value: "  Matón del puente  " } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Guardar nombre" }));
+
+    await waitFor(() => expect(serviceMocks.updateCampaignCombatParticipant).toHaveBeenCalledWith(
+      "campaign-a",
+      combat.participants[0].id,
+      { revision: 5, alias: "Matón del puente" },
+      "token-a"
+    ));
+    expect(await screen.findByText("Matón del puente")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Renombrar monstruo" })).not.toBeInTheDocument();
   });
 
   it("shows and approves pending profession requests", async () => {

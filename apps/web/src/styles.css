@@ -4189,19 +4189,13 @@ td {
 
 /* Campaign combat */
 .campaign-combat { display: grid; gap: 8px; min-width: 0; }
-.campaign-combat-toolbar { position: sticky; top: 64px; z-index: 20; min-height: 52px; padding: 7px 10px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.campaign-combat-toolbar h3, .campaign-combat-toolbar p { margin: 0; }
-.campaign-combat-toolbar > div:first-child { display: flex; align-items: baseline; gap: 9px; white-space: nowrap; }
-.campaign-combat-toolbar h3 { font-size: 1.05rem; }
-.campaign-combat-toolbar p { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-soft); font-size: .8rem; }
-.campaign-combat-eyebrow { color: var(--rubric); font-size: .62rem; font-weight: 700; letter-spacing: .07em; }
+.campaign-combat-toolbar { position: sticky; top: 64px; z-index: 20; min-height: 46px; padding: 6px 10px; display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
 .campaign-combat-toolbar-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
 .campaign-combat-toolbar-actions button { min-height: 32px; padding: 5px 9px; }
 .campaign-combat-error { margin: 0; padding: 10px 14px; border-radius: 10px; background: color-mix(in srgb, var(--danger) 10%, var(--paper)); }
 .campaign-combat-list { display: grid; gap: 7px; }
 .campaign-combat-empty { text-align: center; padding: 32px; }
 .campaign-combat-card { overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); box-shadow: 0 5px 14px rgba(31, 24, 19, .07); }
-.campaign-combat-card.is-active { border-color: var(--rubric); box-shadow: 0 0 0 2px color-mix(in srgb, var(--rubric) 24%, transparent), 0 10px 26px rgba(31, 24, 19, .13); }
 .campaign-combat-card > header { min-height: 42px; display: grid; grid-template-columns: auto minmax(130px, 1fr) 82px auto; align-items: center; gap: 7px; padding: 5px 8px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--paper-deep) 70%, transparent); }
 .campaign-combat-card > header > div { display: grid; }
 .campaign-combat-card > header span { color: var(--ink-soft); font-size: .62rem; }
@@ -4213,15 +4207,17 @@ td {
 .campaign-combat-drag { min-width: 28px; min-height: 30px; padding: 3px 6px; cursor: grab; color: var(--ink-soft); background: transparent; }
 .campaign-combat-card-actions { display: flex !important; align-items: center; justify-content: flex-end; gap: 4px; }
 .campaign-combat-card-actions button { min-height: 30px; padding: 4px 8px; white-space: nowrap; font-size: .72rem; }
-.campaign-combat-card .is-current-turn { color: #fff; border-color: var(--rubric-strong); background: var(--rubric-strong); }
 .campaign-combat-stats { display: grid; grid-template-columns: repeat(7, minmax(100px, 1fr)); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
 .campaign-combat-stats > div { min-height: 48px; padding: 5px 8px; display: flex; flex-direction: column; justify-content: center; gap: 1px; background: var(--paper); }
 .campaign-combat-stats span { color: var(--ink-soft); font-size: .58rem; line-height: 1.05; text-transform: uppercase; }
 .campaign-combat-stats strong { font-size: .88rem; line-height: 1; }
-.campaign-combat-resource { display: grid !important; grid-template-columns: 1fr auto; align-items: center; }
-.campaign-combat-resource > span { grid-column: 1 / -1; }
-.campaign-combat-resource > div { display: flex; gap: 3px; }
-.campaign-combat-resource button { min-width: 25px; min-height: 24px; padding: 1px 6px; }
+.campaign-combat-resource { min-width: 0; display: grid !important; grid-template-columns: minmax(0, 1fr); align-content: center; }
+.campaign-combat-resource > span { min-width: 0; }
+.campaign-combat-resource-controls { min-width: 0; display: grid; grid-template-columns: 25px minmax(42px, 1fr) 25px; align-items: center; gap: 5px; }
+.campaign-combat-resource button { min-width: 25px; min-height: 24px; padding: 1px 6px; display: inline-grid; place-items: center; }
+.campaign-combat-resource-track { position: relative; min-width: 0; height: 24px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 999px; background: var(--paper-deep); }
+.campaign-combat-resource-fill { position: absolute; inset: 0 auto 0 0; min-width: 0; border-radius: inherit; background: var(--rubric); transition: width .18s ease; }
+.campaign-combat-resource-track strong { position: relative; z-index: 1; padding: 0; border-radius: 0; color: #fff; background: transparent; font-size: .88rem; font-weight: 800; line-height: 1; }
 .campaign-combat-card-details { min-height: 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 5px 8px; }
 .campaign-combat-card-details > section { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 7px; }
 .campaign-combat-card-details h4 { margin: 0; font-size: .74rem; }
@@ -4235,6 +4231,11 @@ td {
 .campaign-combat-conditions button, .campaign-combat-conditions span { flex: 0 0 auto; min-height: 25px; padding: 2px 6px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink-soft); background: transparent; font-size: .62rem; }
 .campaign-combat-conditions button.is-active { color: #fff; border-color: var(--rubric); background: var(--rubric); }
 .campaign-combat-conditions .is-automatic { color: #fff; border-color: var(--danger); background: var(--danger); }
+.campaign-combat-rename-modal { width: min(460px, calc(100vw - 24px)); }
+.campaign-combat-rename-modal form { display: grid; gap: 16px; }
+.campaign-combat-rename-modal header :is(h3, p) { margin: 0; }
+.campaign-combat-rename-modal header p { margin-top: 5px; }
+.campaign-combat-rename-modal footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 .campaign-combat-picker { width: min(780px, calc(100vw - 24px)); max-height: min(86vh, 800px); display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; }
 .campaign-combat-picker > header { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
 .campaign-combat-picker > header :is(h3, p) { margin: 0; }

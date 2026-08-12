@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Campaign, CampaignCombat, CampaignCombatParticipantView, CharacterSheet, Monster } from "@umbra/shared";
 import {
   addCampaignCombatParticipant,
-  advanceCampaignCombatTurn,
   fetchCampaignCombat,
   finishCampaignCombat,
   removeCampaignCombatParticipant,
@@ -40,11 +39,11 @@ function monsterFromSnapshot(participant: CampaignCombatParticipantView): Monste
   const snapshot = participant.snapshot;
   return {
     id: snapshot.id,
-    name: snapshot.name,
+    name: participant.alias,
     category: snapshot.category as Monster["category"],
     threat: snapshot.threat as Monster["threat"],
     source: snapshot.source,
-    summary: snapshot.summary,
+    summary: participant.alias === snapshot.name ? snapshot.summary : `Instancia de ${snapshot.name}. ${snapshot.summary}`,
     sheet: snapshot.sheet,
     family: snapshot.sheet.family || undefined,
     variant: snapshot.sheet.variant || undefined,
@@ -110,6 +109,68 @@ function CombatInitiativeField({
   );
 }
 
+type CombatResourceTone = "health" | "temporary-corruption" | "permanent-corruption";
+
+function CombatResourceBar({
+  alias,
+  label,
+  value,
+  maximum,
+  displayValue,
+  tone,
+  disabled,
+  disableIncrease = false,
+  onDecrease,
+  onIncrease
+}: {
+  alias: string;
+  label: string;
+  value: number;
+  maximum: number;
+  displayValue: string;
+  tone: CombatResourceTone;
+  disabled: boolean;
+  disableIncrease?: boolean;
+  onDecrease: () => void;
+  onIncrease: () => void;
+}) {
+  const safeMaximum = Math.max(1, maximum);
+  const progressValue = Math.min(safeMaximum, Math.max(0, value));
+  const percentage = Math.min(100, Math.max(0, (value / safeMaximum) * 100));
+
+  return (
+    <div className={`campaign-combat-resource is-${tone}`}>
+      <span>{label}</span>
+      <div className="campaign-combat-resource-controls">
+        <button
+          type="button"
+          aria-label={`Restar ${label} a ${alias}`}
+          disabled={disabled || value <= 0}
+          onClick={onDecrease}
+        >−</button>
+        <div
+          className="campaign-combat-resource-track"
+          role="progressbar"
+          aria-label={`${label} de ${alias}`}
+          aria-valuemin={0}
+          aria-valuemax={safeMaximum}
+          aria-valuenow={progressValue}
+          aria-valuetext={displayValue}
+        >
+          <div className="campaign-combat-resource-fill" style={{ width: `${percentage}%` }} aria-hidden="true" />
+          <strong>{displayValue}</strong>
+        </div>
+        <button
+          type="button"
+          aria-label={`Sumar ${label} a ${alias}`}
+          disabled={disabled || disableIncrease}
+          onClick={onIncrease}
+        >+</button>
+      </div>
+    </div>
+  );
+}
+
 export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacter, onCampaignRefresh }: Props) {
   const [combat, setCombat] = useState<CampaignCombat | null>(null);
   const [loading, setLoading] = useState(true);
@@ -121,10 +182,12 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
   const [monsterQuantity, setMonsterQuantity] = useState(1);
   const [officialMonsters, setOfficialMonsters] = useState<Monster[]>([]);
   const [customMonsters, setCustomMonsters] = useState<Monster[]>([]);
+  const [renameTarget, setRenameTarget] = useState<CampaignCombatParticipantView | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
   const [selectedMonster, setSelectedMonster] = useState<CampaignCombatParticipantView | null>(null);
   const [selectedNpcSheet, setSelectedNpcSheet] = useState<{ name: string; sheet: CharacterSheet } | null>(null);
   const draggedId = useRef<string | null>(null);
-  useBodyScrollLock(pickerOpen || Boolean(selectedMonster) || Boolean(selectedNpcSheet));
+  useBodyScrollLock(pickerOpen || Boolean(renameTarget) || Boolean(selectedMonster) || Boolean(selectedNpcSheet));
 
   const loadCombat = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -209,6 +272,28 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
     await mutate((token) => reorderCampaignCombat(campaign.id, { revision: combat.revision, participantIds: ids }, token));
   }
 
+  function openMonsterRename(participant: CampaignCombatParticipantView): void {
+    if (participant.kind !== "monster") return;
+    setRenameTarget(participant);
+    setRenameDraft(participant.alias);
+  }
+
+  async function saveMonsterRename(): Promise<void> {
+    if (!combat || !renameTarget || renameTarget.kind !== "monster") return;
+    const alias = renameDraft.trim();
+    if (!alias || alias === renameTarget.alias) return;
+    const saved = await mutate((token) => updateCampaignCombatParticipant(
+      campaign.id,
+      renameTarget.id,
+      { revision: combat.revision, alias },
+      token
+    ));
+    if (saved) {
+      setRenameTarget(null);
+      setRenameDraft("");
+    }
+  }
+
   if (loading) return <section className="panel campaign-combat-empty"><p>Cargando combate…</p></section>;
   if (!combat) return (
     <section className="panel campaign-combat-empty">
@@ -222,10 +307,7 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
   return (
     <section className="campaign-combat" aria-label="Combate de campaña">
       <header className="panel campaign-combat-toolbar">
-        <div><span className="campaign-combat-eyebrow">ENCUENTRO ACTIVO</span><h3>Ronda {combat.round}</h3><p>{combat.participants.find((entry) => entry.id === combat.activeParticipantId)?.alias ?? "Sin turno activo"}</p></div>
         <div className="campaign-combat-toolbar-actions">
-          <button type="button" disabled={busy || combat.participants.length === 0} onClick={() => void mutate((token) => advanceCampaignCombatTurn(campaign.id, { revision: combat.revision, action: "previous" }, token))}>← Turno</button>
-          <button type="button" disabled={busy || combat.participants.length === 0} onClick={() => void mutate((token) => advanceCampaignCombatTurn(campaign.id, { revision: combat.revision, action: "next" }, token))}>Turno →</button>
           <button type="button" onClick={() => setPickerOpen(true)}>Añadir participante</button>
           <button type="button" className="subtle-button" disabled={busy || combat.participants.length < 2} onClick={() => void reorderByIds([...combat.participants].sort((a, b) => b.initiative - a.initiative).map((entry) => entry.id))}>Ordenar iniciativa</button>
           <button type="button" className="subtle-button" disabled={busy} onClick={() => { if (window.confirm("¿Reiniciar el combate? Se eliminará el estado actual.")) void mutate((token) => startCampaignCombat(campaign.id, token)); }}>Reiniciar</button>
@@ -235,10 +317,9 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
       {error ? <p className="error-text campaign-combat-error">{error}</p> : null}
       <div className="campaign-combat-list">
         {combat.participants.map((participant, index) => {
-          const isActive = participant.id === combat.activeParticipantId;
           const automaticIds = new Set(["condition-dying", "legacy-dying", "legacy-corruption"]);
           return (
-            <article key={participant.id} className={`campaign-combat-card${isActive ? " is-active" : ""}`} draggable={!busy}
+            <article key={participant.id} className="campaign-combat-card" draggable={!busy}
               onDragStart={() => { draggedId.current = participant.id; }}
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => { const sourceId = draggedId.current; if (!sourceId || sourceId === participant.id) return; const ids = combat.participants.map((entry) => entry.id); const from = ids.indexOf(sourceId); ids.splice(from, 1); ids.splice(index, 0, sourceId); draggedId.current = null; void reorderByIds(ids); }}>
@@ -251,17 +332,56 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
                   onCommit={async (initiativeOverride) => { await mutate((token) => updateCampaignCombatParticipant(campaign.id, participant.id, { revision: combat.revision, initiativeOverride }, token)); }}
                 />
                 <div className="campaign-combat-card-actions">
-                  <button type="button" className={isActive ? "is-current-turn" : "subtle-button"} disabled={busy} onClick={() => void mutate((token) => advanceCampaignCombatTurn(campaign.id, { revision: combat.revision, action: "select", participantId: participant.id }, token))}>{isActive ? "Turno actual" : "Dar turno"}</button>
-                  <button type="button" className="subtle-button" disabled={busy} onClick={() => { const alias = window.prompt("Nombre mostrado en combate", participant.alias)?.trim(); if (alias && alias !== participant.alias) void mutate((token) => updateCampaignCombatParticipant(campaign.id, participant.id, { revision: combat.revision, alias }, token)); }}>Renombrar</button>
+                  {participant.kind === "monster" ? (
+                    <button
+                      type="button"
+                      className="subtle-button"
+                      aria-label={`Renombrar a ${participant.alias}`}
+                      disabled={busy}
+                      onClick={() => openMonsterRename(participant)}
+                    >Renombrar</button>
+                  ) : null}
                   <button type="button" className="subtle-button" onClick={() => { if (participant.kind === "character") onOpenCharacter(participant.sourceId); else if (participant.kind === "npc") { const npc = campaign.npcs.find((entry) => entry.id === participant.sourceId); if (npc?.sheet) setSelectedNpcSheet({ name: npc.name, sheet: npc.sheet }); } else setSelectedMonster(participant); }}>Ver ficha</button>
                   <button type="button" className="danger-button" disabled={busy} onClick={() => void mutate((token) => removeCampaignCombatParticipant(campaign.id, participant.id, token))}>Retirar</button>
                 </div>
               </header>
               <div className="campaign-combat-stats">
-                <div className="campaign-combat-resource"><span>Robustez</span><strong>{participant.robustnessCurrent} / {participant.robustnessMaximum}</strong><div><button aria-label={`Restar Robustez a ${participant.alias}`} disabled={busy || participant.robustnessCurrent <= 0} onClick={() => void patchResources(participant, { robustnessCurrent: participant.robustnessCurrent - 1 })}>−</button><button aria-label={`Sumar Robustez a ${participant.alias}`} disabled={busy || participant.robustnessCurrent >= participant.robustnessMaximum} onClick={() => void patchResources(participant, { robustnessCurrent: participant.robustnessCurrent + 1 })}>+</button></div></div>
+                <CombatResourceBar
+                  alias={participant.alias}
+                  label="Robustez"
+                  value={participant.robustnessCurrent}
+                  maximum={participant.robustnessMaximum}
+                  displayValue={`${participant.robustnessCurrent} / ${participant.robustnessMaximum}`}
+                  tone="health"
+                  disabled={busy}
+                  disableIncrease={participant.robustnessCurrent >= participant.robustnessMaximum}
+                  onDecrease={() => void patchResources(participant, { robustnessCurrent: participant.robustnessCurrent - 1 })}
+                  onIncrease={() => void patchResources(participant, { robustnessCurrent: participant.robustnessCurrent + 1 })}
+                />
                 <div><span>Defensa</span><strong>{participant.defense}</strong></div><div><span>Armadura</span><strong>{participant.armor || "—"}</strong></div><div><span>Umbral de dolor</span><strong>{participant.painThreshold}</strong></div>
-                <div className="campaign-combat-resource"><span>Corrupción temporal</span><strong>{participant.temporaryCorruption}</strong><div><button disabled={busy || participant.temporaryCorruption <= 0} onClick={() => void patchResources(participant, { temporaryCorruption: Math.max(0, participant.temporaryCorruption - 1) })}>−</button><button disabled={busy} onClick={() => void patchResources(participant, { temporaryCorruption: participant.temporaryCorruption + 1 })}>+</button></div></div>
-                <div className="campaign-combat-resource"><span>Corrupción permanente</span><strong>{participant.permanentCorruption}</strong><div><button disabled={busy || participant.permanentCorruption <= 0} onClick={() => void patchResources(participant, { permanentCorruption: Math.max(0, participant.permanentCorruption - 1) })}>−</button><button disabled={busy} onClick={() => void patchResources(participant, { permanentCorruption: participant.permanentCorruption + 1 })}>+</button></div></div><div><span>Umbral de corrupción</span><strong>{participant.corruptionThreshold}</strong></div>
+                <CombatResourceBar
+                  alias={participant.alias}
+                  label="Corrupción temporal"
+                  value={participant.temporaryCorruption}
+                  maximum={Number(participant.corruptionThreshold) || 0}
+                  displayValue={String(participant.temporaryCorruption)}
+                  tone="temporary-corruption"
+                  disabled={busy}
+                  onDecrease={() => void patchResources(participant, { temporaryCorruption: Math.max(0, participant.temporaryCorruption - 1) })}
+                  onIncrease={() => void patchResources(participant, { temporaryCorruption: participant.temporaryCorruption + 1 })}
+                />
+                <CombatResourceBar
+                  alias={participant.alias}
+                  label="Corrupción permanente"
+                  value={participant.permanentCorruption}
+                  maximum={Number(participant.corruptionThreshold) || 0}
+                  displayValue={String(participant.permanentCorruption)}
+                  tone="permanent-corruption"
+                  disabled={busy}
+                  onDecrease={() => void patchResources(participant, { permanentCorruption: Math.max(0, participant.permanentCorruption - 1) })}
+                  onIncrease={() => void patchResources(participant, { permanentCorruption: participant.permanentCorruption + 1 })}
+                />
+                <div><span>Umbral de corrupción</span><strong>{participant.corruptionThreshold}</strong></div>
               </div>
               <div className="campaign-combat-card-details">
                 <section><h4>Ataques</h4><div className="campaign-combat-attack-list">{participant.attacks.length ? participant.attacks.slice(0, 2).map((attack, attackIndex) => <div className="campaign-combat-attack" key={`${attack.name}-${attackIndex}`}><strong>{attack.name}</strong><span>{attack.attribute} · {attack.damage}{attack.qualities ? ` · ${attack.qualities}` : ""}</span></div>) : <span>Sin ataques registrados.</span>}{participant.attacks.length > 2 ? <span className="campaign-combat-more-attacks">+{participant.attacks.length - 2} ataques en la ficha</span> : null}</div></section>
@@ -272,6 +392,55 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
         })}
         {combat.participants.length === 0 ? <div className="panel campaign-combat-empty"><p>Añade PJ, PNJ o monstruos para comenzar el orden de iniciativa.</p></div> : null}
       </div>
+
+      {renameTarget ? (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !busy) setRenameTarget(null);
+          }}
+        >
+          <section
+            className="modal-panel campaign-combat-rename-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="combat-rename-title"
+          >
+            <form onSubmit={(event) => { event.preventDefault(); void saveMonsterRename(); }}>
+              <header>
+                <div>
+                  <h3 id="combat-rename-title">Renombrar monstruo</h3>
+                  <p className="section-help">
+                    Solo cambia el nombre de esta instancia. El perfil original sigue siendo {renameTarget.snapshot?.name ?? "el mismo"}.
+                  </p>
+                </div>
+              </header>
+              <label className="field">
+                <span>Nombre en combate</span>
+                <input
+                  autoFocus
+                  aria-label="Nombre del monstruo en combate"
+                  value={renameDraft}
+                  maxLength={160}
+                  disabled={busy}
+                  onChange={(event) => setRenameDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape" && !busy) {
+                      event.preventDefault();
+                      setRenameTarget(null);
+                    }
+                  }}
+                />
+              </label>
+              <footer>
+                <button type="button" className="subtle-button" disabled={busy} onClick={() => setRenameTarget(null)}>Cancelar</button>
+                <button type="submit" disabled={busy || !renameDraft.trim() || renameDraft.trim() === renameTarget.alias}>Guardar nombre</button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      ) : null}
 
       {pickerOpen ? <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPickerOpen(false); }}><section className="modal-panel campaign-combat-picker" role="dialog" aria-modal="true" aria-labelledby="combat-picker-title"><header><div><h3 id="combat-picker-title">Añadir al combate</h3><p className="section-help">Los monstruos se copian como instancias independientes.</p></div><button type="button" className="subtle-button" onClick={() => setPickerOpen(false)}>Cerrar</button></header><nav aria-label="Tipos de participante"><button className={pickerTab === "character" ? "is-active" : ""} onClick={() => setPickerTab("character")}>PJ</button><button className={pickerTab === "npc" ? "is-active" : ""} onClick={() => setPickerTab("npc")}>PNJ</button><button className={pickerTab === "monster" ? "is-active" : ""} onClick={() => setPickerTab("monster")}>Monstruos</button></nav><div className="campaign-combat-picker-list">
         {pickerTab === "character" ? campaign.characters.filter((entry) => entry.sheet && !linkedCharacterIds.has(entry.id)).map((entry) => <button key={entry.id} disabled={busy} onClick={() => void addAndSort({ kind: "character", campaignCharacterId: entry.id })}><strong>{entry.name}</strong><span>{entry.ownerEmail}</span></button>) : null}

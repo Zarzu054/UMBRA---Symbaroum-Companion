@@ -5,5 +5,7 @@ import { App } from "./App";
 import "./styles.css";
 import "./styles/modern.css";
 import { initializeAppearancePreferences } from "./models/themePreference";
+import { initializeCharacterSheetBackground } from "./models/characterSheetBackground";
 initializeAppearancePreferences();
+initializeCharacterSheetBackground();
 ReactDOM.createRoot(document.getElementById("root")).render(_jsx(React.StrictMode, { children: _jsx(App, {}) }));

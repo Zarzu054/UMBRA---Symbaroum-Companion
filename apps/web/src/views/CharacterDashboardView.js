@@ -9,7 +9,7 @@ import { AppIcon } from "../components/AppIcon";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { CharacterCreationWizard } from "../components/ActorCreationWizard";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
-import { TYPE_LABELS, findCompendiumCapabilityEntryId, findCompendiumEntryByTypeAndName } from "../models/compendiumEntries";
+import { RULE_CATEGORY_LABELS, TYPE_LABELS, findCompendiumCapabilityEntryId, findCompendiumEntryByTypeAndName } from "../models/compendiumEntries";
 import { toCharacterCardViewModel } from "../models/characterModel";
 import { computeDerivedStats } from "../models/rulesEngine";
 import { exportCharacterSheetPdf } from "../services/characterPdfExport";
@@ -59,6 +59,7 @@ function parseHash() {
     const [, search = ""] = rawHash.split("?");
     const params = new URLSearchParams(search);
     const rawType = params.get("type");
+    const rawRuleCategory = params.get("ruleCategory");
     const source = params.get("source") ?? "all";
     const mode = params.get("mode");
     return {
@@ -68,6 +69,7 @@ function parseHash() {
             query: params.get("q") ?? "",
             source,
             type: rawType && rawType !== "all" && rawType in TYPE_LABELS ? rawType : "all",
+            ruleCategory: rawRuleCategory && rawRuleCategory in RULE_CATEGORY_LABELS ? rawRuleCategory : "all",
             mode: mode === "source" || (!mode && source !== "all") ? "source" : "type"
         }
     };
@@ -86,6 +88,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
         query: "",
         source: "all",
         type: "all",
+        ruleCategory: "all",
         mode: "type",
         token: 0
     });
@@ -133,6 +136,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
                         query: parsed.focus?.query ?? "",
                         source: parsed.focus?.source ?? "all",
                         type: parsed.focus?.type ?? "all",
+                        ruleCategory: parsed.focus?.ruleCategory ?? "all",
                         mode: parsed.focus?.mode ?? "type",
                         token: prev.token + 1
                     }));
@@ -229,7 +233,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }) {
         ...(canAccessMonsters ? [{ id: "monsters", label: "Monstruos", active: activeModule === "monsters", onSelect: openMonstersModule }] : []),
         { id: "compendium", label: "Compendio", active: activeModule === "compendium", onSelect: openCompendiumModule }
     ];
-    return (_jsxs("main", { ref: dashboardRef, className: "page app-page", children: [_jsx(AppTopNavigation, { items: navigationItems, currentTitle: mobileHeaderTitle, userEmail: user.email, roleLabel: getRoleLabel(user.role), onLogout: onLogout }), _jsxs("section", { className: `app-content module-theme module-theme--${activeModule}`, children: [selectedCharacterSheet && activeModule === "characters" && selectedCharacterPageMode === "sheet" ? (_jsxs("div", { className: "app-context-navigation", children: [_jsxs("button", { type: "button", className: "text-button", onClick: closeCharacterSheet, children: [_jsx(AppIcon, { name: "arrow-left" }), "Volver"] }), _jsxs("span", { children: ["Personajes / ", selectedCharacterSheet.name] })] })) : null, activeModule === "compendium" ? (_jsx(CompendiumView, { onBackToCharacters: openCharactersModule, ensureAccessToken: ensureAccessToken, initialEntryId: compendiumFocus.entryId, initialQuery: compendiumFocus.query, initialSourceFilter: compendiumFocus.source, initialTypeFilter: compendiumFocus.type, initialBrowseMode: compendiumFocus.mode, focusToken: compendiumFocus.token })) : activeModule === "monsters" ? (_jsx(MonsterDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : activeModule === "npcs" ? (_jsx(NpcDashboardView, { ensureAccessToken: ensureAccessToken })) : activeModule === "campaigns" ? (_jsx(CampaignDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : selectedCharacterSheet ? (_jsx("section", { className: "character-actions-page", children: selectedCharacterPageMode === "builder" ? (_jsx(CharacterBuilderView, { character: selectedCharacterSheet, onBackToCharacters: closeCharacterSheet, onOpenSheet: () => openCharacterSheet(selectedCharacterSheet.id), onBindMysticArtifact: async (artifactId, paymentType) => {
+    return (_jsxs("main", { ref: dashboardRef, className: "page app-page", children: [_jsx(AppTopNavigation, { items: navigationItems, currentTitle: mobileHeaderTitle, userEmail: user.email, roleLabel: getRoleLabel(user.role), onLogout: onLogout }), _jsxs("section", { className: `app-content module-theme module-theme--${activeModule}`, children: [selectedCharacterSheet && activeModule === "characters" && selectedCharacterPageMode === "sheet" ? (_jsxs("div", { className: "app-context-navigation", children: [_jsxs("button", { type: "button", className: "text-button", onClick: closeCharacterSheet, children: [_jsx(AppIcon, { name: "arrow-left" }), "Volver"] }), _jsxs("span", { children: ["Personajes / ", selectedCharacterSheet.name] })] })) : null, activeModule === "compendium" ? (_jsx(CompendiumView, { onBackToCharacters: openCharactersModule, ensureAccessToken: ensureAccessToken, initialEntryId: compendiumFocus.entryId, initialQuery: compendiumFocus.query, initialSourceFilter: compendiumFocus.source, initialTypeFilter: compendiumFocus.type, initialRuleCategory: compendiumFocus.ruleCategory, initialBrowseMode: compendiumFocus.mode, focusToken: compendiumFocus.token })) : activeModule === "monsters" ? (_jsx(MonsterDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : activeModule === "npcs" ? (_jsx(NpcDashboardView, { ensureAccessToken: ensureAccessToken })) : activeModule === "campaigns" ? (_jsx(CampaignDashboardView, { user: user, ensureAccessToken: ensureAccessToken })) : selectedCharacterSheet ? (_jsx("section", { className: "character-actions-page", children: selectedCharacterPageMode === "builder" ? (_jsx(CharacterBuilderView, { character: selectedCharacterSheet, onBackToCharacters: closeCharacterSheet, onOpenSheet: () => openCharacterSheet(selectedCharacterSheet.id), onBindMysticArtifact: async (artifactId, paymentType) => {
                                 const token = await ensureAccessToken();
                                 await bindMysticArtifact(artifactId, { paymentType }, token);
                                 await controller.refresh();

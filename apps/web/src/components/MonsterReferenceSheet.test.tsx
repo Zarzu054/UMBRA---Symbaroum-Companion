@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { STARTER_MONSTER_CODEX } from "@umbra/shared";
 import { MonsterReferenceSheet } from "./MonsterReferenceSheet";
@@ -10,6 +10,32 @@ vi.mock("./CharacterSheetBackgroundPicker", () => ({
 afterEach(cleanup);
 
 describe("MonsterReferenceSheet", () => {
+  it("no roba el foco de la búsqueda cuando cambia la identidad del callback de cierre", async () => {
+    const monster = STARTER_MONSTER_CODEX[0]!;
+    const firstClose = () => undefined;
+    const secondClose = () => undefined;
+    const { rerender } = render(
+      <>
+        <input aria-label="Buscar monstruos" />
+        <MonsterReferenceSheet monster={monster} official backgroundPreferenceScope="gm:monsters" onClose={firstClose} onDuplicate={() => undefined} />
+      </>
+    );
+
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Cerrar ficha" })));
+    const search = screen.getByRole("textbox", { name: "Buscar monstruos" });
+    search.focus();
+
+    rerender(
+      <>
+        <input aria-label="Buscar monstruos" />
+        <MonsterReferenceSheet monster={monster} official backgroundPreferenceScope="gm:monsters" onClose={secondClose} onDuplicate={() => undefined} />
+      </>
+    );
+
+    await new Promise((resolve) => window.setTimeout(resolve, 10));
+    expect(document.activeElement).toBe(search);
+  });
+
   it("separa los datos publicados y enlaza la página fuente", () => {
     const monster = STARTER_MONSTER_CODEX.find((entry) => entry.id === "codice-arak-emponzonador")!;
     render(<MonsterReferenceSheet monster={monster} official backgroundPreferenceScope="gm:monsters" onClose={() => undefined} onDuplicate={() => undefined} />);
@@ -95,6 +121,23 @@ describe("MonsterReferenceSheet", () => {
     expect(within(dialog).getByRole("heading", { name: "Nivel II" })).toBeTruthy();
     expect(within(dialog).getByRole("heading", { name: "Nivel III" })).toBeTruthy();
     expect(within(dialog).getByRole("heading", { name: "Nivel II" }).closest("section")?.classList.contains("is-current")).toBe(true);
+  });
+
+  it("muestra Enjambre en tres niveles completos en lugar de agrupar I/II/III", () => {
+    const monster = STARTER_MONSTER_CODEX.find((entry) => entry.id === "libro-basico-kranka")!;
+    render(<MonsterReferenceSheet monster={monster} official backgroundPreferenceScope="gm:monsters" onClose={() => undefined} onDuplicate={() => undefined} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Enjambre.*Nivel I/i }));
+
+    const dialog = screen.getByRole("dialog", { name: "Enjambre" });
+    expect(within(dialog).getByRole("heading", { name: "Nivel I" })).toBeTruthy();
+    expect(within(dialog).getByRole("heading", { name: "Nivel II" })).toBeTruthy();
+    expect(within(dialog).getByRole("heading", { name: "Nivel III" })).toBeTruthy();
+    expect(within(dialog).getByText(/queda a la mitad de su Resistencia/i)).toBeTruthy();
+    expect(within(dialog).getByText(/supera su Umbral de dolor/i)).toBeTruthy();
+    expect(within(dialog).getByText(/una cuarta parte del daño/i)).toBeTruthy();
+    expect(within(dialog).getByRole("heading", { name: "Nivel I" }).closest("section")?.classList.contains("is-current")).toBe(true);
+    expect(within(dialog).queryByRole("heading", { name: "Nivel I/II/III" })).toBeNull();
   });
 
   it("enlaza todos los rasgos publicados del catálogo de monstruos", () => {

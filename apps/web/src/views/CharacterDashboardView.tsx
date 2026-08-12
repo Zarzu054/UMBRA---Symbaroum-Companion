@@ -23,10 +23,12 @@ import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { CharacterCreationWizard } from "../components/ActorCreationWizard";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
 import {
+  RULE_CATEGORY_LABELS,
   TYPE_LABELS,
   findCompendiumCapabilityEntryId,
   findCompendiumEntryByTypeAndName,
-  type EntryType
+  type EntryType,
+  type RuleCategory
 } from "../models/compendiumEntries";
 import { toCharacterCardViewModel } from "../models/characterModel";
 import { computeDerivedStats } from "../models/rulesEngine";
@@ -62,6 +64,7 @@ type CompendiumFocus = {
   query: string;
   source: string;
   type: "all" | EntryType;
+  ruleCategory: "all" | RuleCategory;
   mode: CompendiumBrowseMode;
   token: number;
 };
@@ -116,6 +119,7 @@ function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"
   const [, search = ""] = rawHash.split("?");
   const params = new URLSearchParams(search);
   const rawType = params.get("type");
+  const rawRuleCategory = params.get("ruleCategory");
   const source = params.get("source") ?? "all";
   const mode = params.get("mode");
   return {
@@ -125,6 +129,7 @@ function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"
       query: params.get("q") ?? "",
       source,
       type: rawType && rawType !== "all" && rawType in TYPE_LABELS ? rawType as EntryType : "all",
+      ruleCategory: rawRuleCategory && rawRuleCategory in RULE_CATEGORY_LABELS ? rawRuleCategory as RuleCategory : "all",
       mode: mode === "source" || (!mode && source !== "all") ? "source" : "type"
     }
   };
@@ -146,6 +151,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
     query: "",
     source: "all",
     type: "all",
+    ruleCategory: "all",
     mode: "type",
     token: 0
   });
@@ -201,6 +207,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             query: parsed.focus?.query ?? "",
             source: parsed.focus?.source ?? "all",
             type: parsed.focus?.type ?? "all",
+            ruleCategory: parsed.focus?.ruleCategory ?? "all",
             mode: parsed.focus?.mode ?? "type",
             token: prev.token + 1
           }));
@@ -337,6 +344,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               initialQuery={compendiumFocus.query}
               initialSourceFilter={compendiumFocus.source}
               initialTypeFilter={compendiumFocus.type}
+              initialRuleCategory={compendiumFocus.ruleCategory}
               initialBrowseMode={compendiumFocus.mode}
               focusToken={compendiumFocus.token}
             />

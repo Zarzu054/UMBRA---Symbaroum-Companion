@@ -21,7 +21,7 @@ describe("modular character sheet layout", () => {
 
     expect(component).toContain('<div className="unified-sheet-top-grid">');
     expect(component).not.toContain("unified-sheet-controls-module");
-    expect(component.indexOf("CharacterSheetBackgroundPicker", heroStart)).toBeLessThan(identityEnd);
+    expect(component.slice(heroStart, identityEnd)).not.toContain("CharacterSheetBackgroundPicker");
     expect(component.indexOf("unified-sheet-builder-icon", experienceStart)).toBeGreaterThan(experienceStart);
     expect(stylesheet).toMatch(/\.unified-sheet-top-grid\s*\{[\s\S]*?grid-template-columns: minmax\(220px, 0\.8fr\) minmax\(0, 1\.7fr\) minmax\(190px, 0\.7fr\);[\s\S]*?justify-content: stretch/);
     expect(component).not.toContain('className="unified-sheet-portrait"');

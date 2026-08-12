@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import {
   CHARACTER_SHEET_BACKGROUNDS,
+  applyCharacterSheetBackground,
   findCharacterSheetBackground,
   useCharacterSheetBackground,
   type CharacterSheetBackgroundId
@@ -20,26 +21,8 @@ export function CharacterSheetBackgroundPicker({ preferenceScope }: { preference
   useBodyScrollLock(isOpen);
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (!selectedBackground) {
-      delete root.dataset.characterSheetBackground;
-      root.style.removeProperty("--character-sheet-background-image");
-      root.style.removeProperty("--character-sheet-background-position");
-      return;
-    }
-
-    root.dataset.characterSheetBackground = selectedBackground.id;
-    root.style.setProperty("--character-sheet-background-image", `url("${selectedBackground.imageUrl}")`);
-    root.style.setProperty("--character-sheet-background-position", selectedBackground.position);
-
-    return () => {
-      if (root.dataset.characterSheetBackground === selectedBackground.id) {
-        delete root.dataset.characterSheetBackground;
-        root.style.removeProperty("--character-sheet-background-image");
-        root.style.removeProperty("--character-sheet-background-position");
-      }
-    };
-  }, [selectedBackground]);
+    applyCharacterSheetBackground(selectedId);
+  }, [selectedId]);
 
   function closePicker(): void {
     setIsOpen(false);
