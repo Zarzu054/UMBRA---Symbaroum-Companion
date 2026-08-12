@@ -673,7 +673,7 @@ export function CompendiumView({
 
   return (
     <div className="compendium-library">
-      <section className="panel lore-panel compendium-library-hero">
+      <header className="panel lore-panel compendium-library-hero module-sticky-header">
         <div className="compendium-library-hero-copy">
           <span className="compendium-eyebrow">Archivo de consulta</span>
           <h2>Compendio Central</h2>
@@ -718,7 +718,7 @@ export function CompendiumView({
           </div>
           {libraryError ? <p className="compendium-library-error" role="alert">{libraryError}</p> : null}
         </div>
-      </section>
+      </header>
 
       {quickSearchPopover}
 

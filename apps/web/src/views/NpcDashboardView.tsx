@@ -539,24 +539,26 @@ export function NpcDashboardView({ ensureAccessToken }: Props) {
   if (pageMode === "detail" && selectedNpc) {
     return (
       <div className="monster-module npc-module">
-        <section className="panel monster-section">
-          <div className="row-actions">
-            <div>
-              <button type="button" className="subtle-button" onClick={() => setPageMode("list")}>Volver al archivo</button>
-              <h2>{selectedNpc.name}</h2>
-              <p className="section-help">{DEPTH_LABELS[selectedNpc.depth]} · {selectedNpc.faction || "Sin faccion"}</p>
+        <section className="panel monster-section npc-detail-panel">
+          <header className="module-sticky-header module-sticky-header--single-row npc-module-header">
+            <div className="row-actions">
+              <div>
+                <button type="button" className="subtle-button" onClick={() => setPageMode("list")}>Volver al archivo</button>
+                <h2>{selectedNpc.name}</h2>
+                <p className="section-help">{DEPTH_LABELS[selectedNpc.depth]} · {selectedNpc.faction || "Sin faccion"}</p>
+              </div>
+              <div className="toolbar">
+                {selectedNpc.depth === "full_sheet" ? (
+                  <>
+                    <button type="button" className="subtle-button" onClick={() => setPageMode("sheet")}>Abrir hoja</button>
+                    <button type="button" onClick={() => setPageMode("builder")}>Abrir constructor</button>
+                  </>
+                ) : null}
+                <button type="button" onClick={() => openEditModal(selectedNpc)}>Editar</button>
+                <button type="button" className="danger" onClick={() => void controller.removeNpc(selectedNpc.id)}>Eliminar</button>
+              </div>
             </div>
-            <div className="toolbar">
-              {selectedNpc.depth === "full_sheet" ? (
-                <>
-                  <button type="button" className="subtle-button" onClick={() => setPageMode("sheet")}>Abrir hoja</button>
-                  <button type="button" onClick={() => setPageMode("builder")}>Abrir constructor</button>
-                </>
-              ) : null}
-              <button type="button" onClick={() => openEditModal(selectedNpc)}>Editar</button>
-              <button type="button" className="danger" onClick={() => void controller.removeNpc(selectedNpc.id)}>Eliminar</button>
-            </div>
-          </div>
+          </header>
 
           <div className="compendium-tags">
             <span className="compendium-chip">{DEPTH_LABELS[selectedNpc.depth]}</span>
@@ -593,26 +595,25 @@ export function NpcDashboardView({ ensureAccessToken }: Props) {
 
   return (
     <div className="monster-module npc-module">
-      <section className="panel lore-panel">
-        <h2>Archivo de PNJ</h2>
-        <p>PNJ narrativos, PNJ con bloque rapido y PNJ con hoja completa, separados de los monstruos del Director de Juego.</p>
-        <div className="monster-guidance-grid">
-          <div className="info-box">Solo notas: ideal para contactos, mercaderes, nobles y PNJ sociales.</div>
-          <div className="info-box">Bloque rapido: añade estadisticas y rasgos de mesa sin cargar una hoja completa.</div>
-          <div className="info-box">Hoja completa: usa la misma hoja y constructor que un PJ, con inventario y acciones.</div>
+      <header className="panel lore-panel module-sticky-header module-sticky-header--single-row npc-module-header">
+        <div>
+          <h2>Archivo de PNJ</h2>
+          <p>PNJ narrativos, bloques rápidos y fichas completas del Director de Juego.</p>
         </div>
-      </section>
+        <div className="toolbar">
+          <button type="button" onClick={() => openCreateModal()}>Nuevo PNJ</button>
+        </div>
+      </header>
 
       <section className="panel monster-section">
-        <div className="row-actions">
-          <div>
-            <h2>PNJ del Director</h2>
-            <p className="section-help">Agrupados por faccion y filtrables por profundidad, etiquetas y nombre.</p>
+        <details className="npc-guidance narrative-collapsible-card">
+          <summary><span>Ayuda sobre tipos de PNJ</span><small>Mostrar u ocultar</small></summary>
+          <div className="monster-guidance-grid narrative-collapsible-content">
+            <div className="info-box">Solo notas: ideal para contactos, mercaderes, nobles y PNJ sociales.</div>
+            <div className="info-box">Bloque rápido: añade estadísticas y rasgos de mesa sin cargar una hoja completa.</div>
+            <div className="info-box">Hoja completa: usa la misma hoja y constructor que un PJ, con inventario y acciones.</div>
           </div>
-          <div className="toolbar">
-            <button type="button" onClick={() => openCreateModal()}>Nuevo PNJ</button>
-          </div>
-        </div>
+        </details>
 
         {controller.loadError ? <p className="error">{controller.loadError}</p> : null}
 

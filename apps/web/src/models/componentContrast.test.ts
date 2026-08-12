@@ -88,6 +88,14 @@ describe("component contrast contracts", () => {
     expect(stylesheet).toMatch(/\.compendium-result-card\.app-card-accent[\s\S]*?border-left: 6px solid var\(--app-card-accent-color\)/);
   });
 
+  it("keeps compact module controls below the persistent global navigation", () => {
+    expect(stylesheet).toMatch(/--app-top-navigation-height: 64px/);
+    expect(stylesheet).toMatch(/\.module-sticky-header\s*\{[\s\S]*?position: sticky;[\s\S]*?top: var\(--app-top-navigation-height\);[\s\S]*?z-index: 90/);
+    expect(stylesheet).toMatch(/\.campaign-module-header:not\(\.module-sticky-header--single-row\)[\s\S]*?--campaign-module-header-height/);
+    expect(stylesheet).toMatch(/\.campaign-module-header \.campaign-section-nav\s*\{[\s\S]*?overflow-x: auto/);
+    expect(stylesheet).toMatch(/@media \(width <= 900px\)[\s\S]*?--app-top-navigation-height: 58px/);
+  });
+
   it("lets the global-search dropdown escape its panel and scroll independently", () => {
     expect(stylesheet).toMatch(/\.module-theme \.panel\.compendium-library-hero\s*\{[\s\S]*?overflow: visible/);
     expect(stylesheet).toMatch(/\.compendium-quick-search-results\s*\{[\s\S]*?grid-template-rows: minmax\(0, 1fr\) auto;[\s\S]*?overflow: hidden/);

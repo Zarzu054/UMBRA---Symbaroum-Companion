@@ -560,6 +560,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [selectedSheetId, setSelectedSheetId] = useState<string | null>(initialHash.sheetId);
   const [campaignCharacterView, setCampaignCharacterView] = useState<"sheet" | "builder">("sheet");
   const [changeLogCharacterId, setChangeLogCharacterId] = useState<string | null>(null);
+  const [experienceHistoryCharacterId, setExperienceHistoryCharacterId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<CampaignSection>(
     initialHash.section && (isDirector || initialHash.section !== "dmNotes") ? initialHash.section : defaultSection
   );
@@ -622,6 +623,14 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     }
     return groupedEntries;
   }, [selectedCampaign]);
+  const experienceHistoryCharacter = useMemo(
+    () => selectedCampaign?.characters.find((entry) => entry.characterId === experienceHistoryCharacterId) ?? null,
+    [experienceHistoryCharacterId, selectedCampaign]
+  );
+  const selectedExperienceHistory = useMemo(
+    () => experienceHistoryCharacter ? experienceLogByCharacterId.get(experienceHistoryCharacter.characterId) ?? [] : [],
+    [experienceHistoryCharacter, experienceLogByCharacterId]
+  );
   const selectedSheetEntry = useMemo(
     () => selectedCampaign?.characters.find((entry) => entry.id === selectedSheetId) ?? null,
     [selectedCampaign, selectedSheetId]
@@ -765,6 +774,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     Boolean(artifactEditor) ||
     isSheetModalOpen ||
     Boolean(changeLogCharacterId) ||
+    Boolean(experienceHistoryCharacterId) ||
     Boolean(focusedInvitation);
 
   useBodyScrollLock(isAnyModalOpen);
@@ -853,6 +863,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setPendingUnlinkCharacter(null);
       setExperienceGrantDraft(null);
       setExperienceGrantError(null);
+      setExperienceHistoryCharacterId(null);
       setReferenceCreateError(null);
       setIsReferenceCreateModalOpen(false);
       setIsReferenceEditMode(false);
@@ -914,13 +925,17 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     if (!selectedCampaign) {
       setSelectedCampaignId(null);
       setSelectedSheetId(null);
+      setExperienceHistoryCharacterId(null);
       return;
     }
 
     if (selectedSheetId && !selectedCampaign.characters.some((entry) => entry.id === selectedSheetId)) {
       setSelectedSheetId(null);
     }
-  }, [activeSection, isLoading, selectedCampaign, selectedCampaignId, selectedSheetId]);
+    if (experienceHistoryCharacterId && !selectedCampaign.characters.some((entry) => entry.characterId === experienceHistoryCharacterId)) {
+      setExperienceHistoryCharacterId(null);
+    }
+  }, [activeSection, experienceHistoryCharacterId, isLoading, selectedCampaign, selectedCampaignId, selectedSheetId]);
 
   async function refresh(): Promise<void> {
     setIsLoading(true);
@@ -1520,29 +1535,32 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   return (
     <main className="campaign-dashboard">
       {!selectedCampaign ? (
-        <section className="panel campaign-list-panel">
-          <div className="row-actions">
-            <div>
-              <h1>Campañas</h1>
-              <p className="section-help">Notas compartidas, notas del DJ y personajes vinculados.</p>
-            </div>
-            <div className="toolbar">
-              {isDirector ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFormError(null);
-                    setIsCreateCampaignModalOpen(true);
-                  }}
-                >
-                  Nueva campaña
+        <>
+          <header className="panel module-sticky-header module-sticky-header--single-row campaign-module-header">
+            <div className="row-actions">
+              <div>
+                <h1>Campañas</h1>
+                <p className="section-help">Notas compartidas, notas del DJ y personajes vinculados.</p>
+              </div>
+              <div className="toolbar">
+                {isDirector ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormError(null);
+                      setIsCreateCampaignModalOpen(true);
+                    }}
+                  >
+                    Nueva campaña
+                  </button>
+                ) : null}
+                <button type="button" disabled={isLoading} onClick={() => void refresh()}>
+                  Recargar
                 </button>
-              ) : null}
-              <button type="button" disabled={isLoading} onClick={() => void refresh()}>
-                Recargar
-              </button>
+              </div>
             </div>
-          </div>
+          </header>
+          <section className="panel campaign-list-panel">
 
           {loadError ? <p className="error-text">{loadError}</p> : null}
           {formError ? <p className="error-text">{formError}</p> : null}
@@ -1598,12 +1616,13 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               <p className="section-help">Aun no hay campañas accesibles.</p>
             ) : null}
           </div>
-        </section>
+          </section>
+        </>
       ) : null}
 
       {selectedCampaign ? (
         <section className="campaign-main">
-          <section className="panel">
+          <header className="panel module-sticky-header campaign-module-header">
             <div className="row-actions">
               <div>
                 <h2>{selectedCampaign.name}</h2>
@@ -1702,7 +1721,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 </button>
               ) : null}
             </div>
-          </section>
+          </header>
 
           {isDirector && activeSection === "dmNotes" ? (
             <section className="panel">
@@ -1975,7 +1994,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               <div className="cards">
                 {selectedCampaign.characters.map((entry) => {
                   const canManageLink = isDirector || entry.ownerId === user.id;
-                  const characterExperienceLog = experienceLogByCharacterId.get(entry.characterId) ?? [];
                   return (
                     <article key={entry.id} className="card campaign-character-card" aria-label={`Personaje ${entry.name}`}>
                       <strong>{entry.name}</strong>
@@ -2001,6 +2019,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                         ) : null}
                         <button type="button" className="character-history-button" onClick={() => setChangeLogCharacterId(entry.characterId)}>
                           Historial{(entry.unreadChangeCount ?? 0) > 0 ? <span className="character-history-badge" aria-label={`${entry.unreadChangeCount} cambios sin leer`}>{entry.unreadChangeCount}</span> : null}
+                        </button>
+                        <button type="button" className="subtle-button" onClick={() => setExperienceHistoryCharacterId(entry.characterId)}>
+                          Historial de PX
                         </button>
                         {isDirector ? (
                           <button
@@ -2032,22 +2053,6 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                           </button>
                         ) : null}
                       </div>
-                      <section className="campaign-character-experience" aria-label={`Historial de experiencia de ${entry.name}`}>
-                        <h4>Historial de experiencia</h4>
-                        {characterExperienceLog.length > 0 ? (
-                          <div className="campaign-character-experience-list">
-                            {characterExperienceLog.map((logEntry) => (
-                              <article key={logEntry.id} className="campaign-character-experience-entry">
-                                <strong>+{logEntry.amount} PX</strong>
-                                <span>{logEntry.reason}</span>
-                                <span>{formatDate(logEntry.createdAt)} · {logEntry.grantedByEmail}</span>
-                              </article>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="section-help">Todavia no hay experiencia concedida a este personaje.</p>
-                        )}
-                      </section>
                     </article>
                   );
                 })}
@@ -2680,6 +2685,41 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           />
         ) : null;
       })() : null}
+
+      {experienceHistoryCharacter ? (
+        <section className="modal-backdrop" onClick={() => setExperienceHistoryCharacterId(null)}>
+          <div
+            className="panel modal-panel campaign-experience-history-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="campaign-experience-history-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="row-actions">
+              <div>
+                <h2 id="campaign-experience-history-title">Historial de PX de {experienceHistoryCharacter.name}</h2>
+                <p className="section-help">
+                  Total: {experienceHistoryCharacter.experienceTotal} · Gastada: {experienceHistoryCharacter.experienceSpent} · Disponible: {Math.max(0, experienceHistoryCharacter.experienceTotal - experienceHistoryCharacter.experienceSpent)}
+                </p>
+              </div>
+              <button type="button" className="subtle-button" onClick={() => setExperienceHistoryCharacterId(null)}>Cerrar</button>
+            </header>
+            <div className="campaign-experience-history-body">
+              {selectedExperienceHistory.length > 0 ? (
+                <div className="campaign-character-experience-list">
+                  {selectedExperienceHistory.map((logEntry) => (
+                    <article key={logEntry.id} className="campaign-character-experience-entry">
+                      <strong>+{logEntry.amount} PX</strong>
+                      <span>{logEntry.reason}</span>
+                      <span>{formatDate(logEntry.createdAt)} · {logEntry.grantedByEmail}</span>
+                    </article>
+                  ))}
+                </div>
+              ) : <p className="section-help">Todavía no hay experiencia concedida a este personaje.</p>}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {isDirector && isProfessionRequestsModalOpen ? (
         <section className="modal-backdrop" onClick={() => setIsProfessionRequestsModalOpen(false)}>

@@ -5135,3 +5135,325 @@ button[disabled] {
   .profession-requirement-list > div { grid-template-columns: auto 1fr; }
   .profession-requirement-list > div strong { grid-column: 2; }
 }
+
+/* Compact, persistent module context directly below the global navigation. */
+:root {
+  --app-top-navigation-height: 64px;
+  --campaign-module-header-height: 104px;
+  --compendium-module-header-height: 92px;
+}
+
+.app-content.module-theme:not(.module-theme--monsters) {
+  padding-top: 0;
+}
+
+.module-sticky-header {
+  position: sticky;
+  top: var(--app-top-navigation-height);
+  z-index: 90;
+  width: 100%;
+  min-height: 0;
+  margin-top: 0 !important;
+  padding: 8px 16px !important;
+  border: 1px solid var(--ui-border) !important;
+  border-top: 0 !important;
+  border-radius: 0 0 var(--ui-radius-md) var(--ui-radius-md) !important;
+  color: var(--ui-text);
+  background: color-mix(in srgb, var(--ui-surface) 95%, transparent) !important;
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--ui-text) 9%, transparent) !important;
+  backdrop-filter: blur(16px);
+}
+
+.module-sticky-header--single-row,
+.module-sticky-header--single-row > .row-actions {
+  width: 100%;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.module-sticky-header :is(h1, h2, h3, p),
+.module-sticky-header--single-row > .row-actions {
+  margin-block: 0;
+}
+
+.module-sticky-header :is(h1, h2) {
+  font-size: clamp(1.15rem, 1.8vw, 1.45rem);
+  line-height: 1.15;
+}
+
+.module-sticky-header :is(.section-help, .unified-sheet-inline-subtitle),
+.npc-module-header > div > p {
+  max-width: min(52vw, 680px);
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--ui-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-sticky-header .toolbar,
+.module-sticky-header .campaign-header-actions {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.module-sticky-header :is(button, .file-trigger) {
+  min-height: 34px;
+  padding-block: 5px;
+  white-space: nowrap;
+}
+
+/* Campaign title, actions and section tabs share one stable compact bar. */
+.campaign-module-header:not(.module-sticky-header--single-row) {
+  min-height: var(--campaign-module-header-height);
+  display: grid;
+  grid-template-rows: minmax(38px, auto) 42px;
+  align-content: center;
+  gap: 3px;
+}
+
+.campaign-module-header > .row-actions {
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.campaign-module-header .campaign-header-actions {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.campaign-module-header .campaign-section-nav {
+  min-width: 0;
+  min-height: 42px;
+  margin: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.campaign-module-header .campaign-section-nav button {
+  min-width: max-content;
+  min-height: 40px;
+  padding-block: 4px;
+}
+
+.campaign-main .campaign-combat-toolbar {
+  top: calc(var(--app-top-navigation-height) + var(--campaign-module-header-height));
+}
+
+/* Character archive and builder actions now live in their title bar. */
+.character-directory-shell,
+.character-builder-shell {
+  padding-top: 0;
+}
+
+.module-theme .character-builder-shell.campaign-sheet-card {
+  overflow: visible;
+}
+
+.character-directory-header-band.module-sticky-header,
+.character-builder-header-band.module-sticky-header {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+}
+
+.character-directory-header-actions,
+.character-builder-header-band .character-builder-toolbar {
+  position: static;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  scrollbar-width: thin;
+}
+
+/* NPC help remains available without occupying the persistent header. */
+.npc-module-header {
+  flex: 0 0 auto;
+}
+
+.npc-detail-panel {
+  padding-top: 0;
+}
+
+.npc-detail-panel > .npc-module-header {
+  margin-inline: -22px;
+  width: calc(100% + 44px);
+}
+
+.npc-guidance {
+  margin-bottom: 12px;
+}
+
+/* The compendium keeps all global controls in a short, persistent row. */
+.compendium-library-hero.module-sticky-header {
+  min-height: var(--compendium-module-header-height);
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) auto minmax(230px, 260px);
+  align-items: center;
+  gap: 12px;
+}
+
+.compendium-library-hero.module-sticky-header::after {
+  display: none;
+}
+
+.compendium-library-hero.module-sticky-header h2 {
+  margin: 0;
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
+}
+
+.compendium-library-hero.module-sticky-header .compendium-library-shortcuts {
+  width: 230px;
+}
+
+.compendium-library-hero.module-sticky-header .compendium-library-hero-actions {
+  width: 100%;
+  flex-basis: auto;
+  gap: 4px;
+}
+
+.compendium-library-hero.module-sticky-header .compendium-library-back-button {
+  min-height: 32px;
+}
+
+.compendium-library-hero.module-sticky-header .field {
+  gap: 2px;
+}
+
+.compendium-library-hero.module-sticky-header .field > span:first-child {
+  font-size: 0.66rem;
+}
+
+.compendium-library-hero.module-sticky-header .compendium-global-search input {
+  min-height: 34px;
+}
+
+.compendium-explorer .compendium-reader {
+  top: calc(var(--app-top-navigation-height) + var(--compendium-module-header-height) + 10px);
+  max-height: calc(100dvh - var(--app-top-navigation-height) - var(--compendium-module-header-height) - 20px);
+}
+
+/* The monster workspace already owns the remaining viewport; make its fixed header denser. */
+.monster-catalog-tabs,
+.monster-catalog-tabs button {
+  min-height: 44px;
+}
+
+.monster-catalog-list-header {
+  padding: 9px 14px;
+}
+
+.monster-catalog-list-header h1 {
+  font-size: clamp(1.15rem, 1.8vw, 1.4rem);
+}
+
+.monster-catalog-list-actions button {
+  min-height: 34px;
+}
+
+@media (width <= 900px) {
+  :root {
+    --app-top-navigation-height: 58px;
+    --campaign-module-header-height: 102px;
+    --compendium-module-header-height: 118px;
+  }
+
+  .app-content.module-theme:not(.module-theme--monsters) {
+    padding-top: 0;
+  }
+
+  .module-sticky-header {
+    padding-inline: 12px !important;
+  }
+
+  .module-sticky-header :is(.section-help, .unified-sheet-inline-subtitle),
+  .npc-module-header > div > p,
+  .compendium-library-hero-copy > p {
+    display: none;
+  }
+
+  .compendium-library-hero.module-sticky-header {
+    min-height: var(--compendium-module-header-height);
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 6px 10px;
+  }
+
+  .compendium-library-hero.module-sticky-header .compendium-library-shortcuts {
+    width: min(220px, 48vw);
+    align-self: center;
+  }
+
+  .compendium-library-hero.module-sticky-header .compendium-library-hero-actions {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: auto minmax(190px, 1fr);
+    align-items: end;
+  }
+
+  .compendium-library-hero.module-sticky-header .compendium-library-back-button {
+    align-self: end;
+  }
+
+  .character-directory-header-band.module-sticky-header,
+  .character-builder-header-band.module-sticky-header {
+    grid-template-columns: minmax(135px, 1fr) minmax(0, auto);
+  }
+}
+
+@media (width <= 600px) {
+  .module-sticky-header--single-row,
+  .module-sticky-header--single-row > .row-actions {
+    min-height: 54px;
+  }
+
+  .module-sticky-header :is(h1, h2) {
+    font-size: 1.08rem;
+  }
+
+  .campaign-module-header > .row-actions > div:first-child {
+    min-width: max-content;
+  }
+
+  .character-directory-header-band.module-sticky-header,
+  .character-builder-header-band.module-sticky-header {
+    grid-template-columns: minmax(110px, 0.65fr) minmax(0, 1fr);
+  }
+
+  .character-directory-header-actions,
+  .character-builder-header-band .character-builder-toolbar {
+    justify-content: flex-start;
+  }
+
+  .npc-detail-panel > .npc-module-header {
+    margin-inline: -16px;
+    width: calc(100% + 32px);
+  }
+
+  .compendium-library-hero.module-sticky-header {
+    padding-inline: 10px !important;
+  }
+
+  .compendium-library-hero.module-sticky-header .compendium-library-shortcuts {
+    width: min(184px, 52vw);
+  }
+
+  .compendium-library-hero.module-sticky-header .compendium-library-shortcuts button {
+    min-height: 32px;
+    padding-inline: 7px;
+  }
+}

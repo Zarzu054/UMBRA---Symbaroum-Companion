@@ -786,7 +786,7 @@ export function CharacterBuilderView({
   return (
     <section className="character-builder-page unified-sheet">
       <section className="character-builder-shell campaign-sheet-card">
-        <div className="character-builder-header-band">
+        <header className="character-builder-header-band module-sticky-header module-sticky-header--single-row">
           <div className="unified-sheet-portrait">
             <div className="unified-sheet-portrait-ring" />
             <div className="unified-sheet-portrait-content">
@@ -804,7 +804,7 @@ export function CharacterBuilderView({
               {isSaving ? "Guardando..." : saveLabel}
             </button>
           </div>
-        </div>
+        </header>
 
         {error ? (
           <section className="panel error-list">

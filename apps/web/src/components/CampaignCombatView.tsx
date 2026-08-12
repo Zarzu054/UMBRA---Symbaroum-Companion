@@ -56,6 +56,60 @@ function monsterFromSnapshot(participant: CampaignCombatParticipantView): Monste
   };
 }
 
+function CombatInitiativeField({
+  participant,
+  disabled,
+  onCommit
+}: {
+  participant: CampaignCombatParticipantView;
+  disabled: boolean;
+  onCommit: (value: number) => Promise<void>;
+}) {
+  const currentValue = participant.initiativeOverride ?? participant.initiative;
+  const [draft, setDraft] = useState(String(currentValue));
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (!editing) setDraft(String(currentValue));
+  }, [currentValue, editing]);
+
+  const commit = async () => {
+    setEditing(false);
+    const parsed = Number(draft);
+    if (!Number.isInteger(parsed) || parsed < -50 || parsed > 100) {
+      setDraft(String(currentValue));
+      return;
+    }
+    if (parsed !== currentValue) await onCommit(parsed);
+  };
+
+  return (
+    <label className="campaign-combat-initiative-field">
+      <span>Iniciativa <span aria-hidden="true">✎</span></span>
+      <input
+        aria-label={`Iniciativa de ${participant.alias}`}
+        title="Escribe una iniciativa y pulsa Enter o sal del campo para guardarla"
+        type="number"
+        min={-50}
+        max={100}
+        value={draft}
+        disabled={disabled}
+        draggable={false}
+        onFocus={() => setEditing(true)}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => void commit()}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur();
+          if (event.key === "Escape") {
+            setDraft(String(currentValue));
+            event.currentTarget.blur();
+          }
+        }}
+      />
+    </label>
+  );
+}
+
 export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacter, onCampaignRefresh }: Props) {
   const [combat, setCombat] = useState<CampaignCombat | null>(null);
   const [loading, setLoading] = useState(true);
@@ -191,8 +245,17 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
               <header>
                 <button className="campaign-combat-drag" type="button" aria-label={`Mover ${participant.alias}`}>⋮⋮</button>
                 <div><span>{participantTypeLabel(participant.kind)}</span><strong>{participant.alias}</strong></div>
-                <label><span>Iniciativa</span><input aria-label={`Iniciativa de ${participant.alias}`} type="number" value={participant.initiativeOverride ?? participant.initiative} onChange={(event) => void mutate((token) => updateCampaignCombatParticipant(campaign.id, participant.id, { revision: combat.revision, initiativeOverride: Number(event.target.value) }, token))} /></label>
-                <button type="button" className={isActive ? "is-current-turn" : "subtle-button"} disabled={busy} onClick={() => void mutate((token) => advanceCampaignCombatTurn(campaign.id, { revision: combat.revision, action: "select", participantId: participant.id }, token))}>{isActive ? "Turno actual" : "Dar turno"}</button>
+                <CombatInitiativeField
+                  participant={participant}
+                  disabled={busy}
+                  onCommit={async (initiativeOverride) => { await mutate((token) => updateCampaignCombatParticipant(campaign.id, participant.id, { revision: combat.revision, initiativeOverride }, token)); }}
+                />
+                <div className="campaign-combat-card-actions">
+                  <button type="button" className={isActive ? "is-current-turn" : "subtle-button"} disabled={busy} onClick={() => void mutate((token) => advanceCampaignCombatTurn(campaign.id, { revision: combat.revision, action: "select", participantId: participant.id }, token))}>{isActive ? "Turno actual" : "Dar turno"}</button>
+                  <button type="button" className="subtle-button" disabled={busy} onClick={() => { const alias = window.prompt("Nombre mostrado en combate", participant.alias)?.trim(); if (alias && alias !== participant.alias) void mutate((token) => updateCampaignCombatParticipant(campaign.id, participant.id, { revision: combat.revision, alias }, token)); }}>Renombrar</button>
+                  <button type="button" className="subtle-button" onClick={() => { if (participant.kind === "character") onOpenCharacter(participant.sourceId); else if (participant.kind === "npc") { const npc = campaign.npcs.find((entry) => entry.id === participant.sourceId); if (npc?.sheet) setSelectedNpcSheet({ name: npc.name, sheet: npc.sheet }); } else setSelectedMonster(participant); }}>Ver ficha</button>
+                  <button type="button" className="danger-button" disabled={busy} onClick={() => void mutate((token) => removeCampaignCombatParticipant(campaign.id, participant.id, token))}>Retirar</button>
+                </div>
               </header>
               <div className="campaign-combat-stats">
                 <div className="campaign-combat-resource"><span>Robustez</span><strong>{participant.robustnessCurrent} / {participant.robustnessMaximum}</strong><div><button aria-label={`Restar Robustez a ${participant.alias}`} disabled={busy || participant.robustnessCurrent <= 0} onClick={() => void patchResources(participant, { robustnessCurrent: participant.robustnessCurrent - 1 })}>−</button><button aria-label={`Sumar Robustez a ${participant.alias}`} disabled={busy || participant.robustnessCurrent >= participant.robustnessMaximum} onClick={() => void patchResources(participant, { robustnessCurrent: participant.robustnessCurrent + 1 })}>+</button></div></div>
@@ -201,14 +264,9 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
                 <div className="campaign-combat-resource"><span>Corrupción permanente</span><strong>{participant.permanentCorruption}</strong><div><button disabled={busy || participant.permanentCorruption <= 0} onClick={() => void patchResources(participant, { permanentCorruption: Math.max(0, participant.permanentCorruption - 1) })}>−</button><button disabled={busy} onClick={() => void patchResources(participant, { permanentCorruption: participant.permanentCorruption + 1 })}>+</button></div></div><div><span>Umbral de corrupción</span><strong>{participant.corruptionThreshold}</strong></div>
               </div>
               <div className="campaign-combat-card-details">
-                <section><h4>Ataques</h4>{participant.attacks.length ? participant.attacks.map((attack, attackIndex) => <div className="campaign-combat-attack" key={`${attack.name}-${attackIndex}`}><strong>{attack.name}</strong><span>{attack.attribute} · {attack.damage}{attack.qualities ? ` · ${attack.qualities}` : ""}</span></div>) : <span>Sin ataques registrados.</span>}</section>
+                <section><h4>Ataques</h4><div className="campaign-combat-attack-list">{participant.attacks.length ? participant.attacks.slice(0, 2).map((attack, attackIndex) => <div className="campaign-combat-attack" key={`${attack.name}-${attackIndex}`}><strong>{attack.name}</strong><span>{attack.attribute} · {attack.damage}{attack.qualities ? ` · ${attack.qualities}` : ""}</span></div>) : <span>Sin ataques registrados.</span>}{participant.attacks.length > 2 ? <span className="campaign-combat-more-attacks">+{participant.attacks.length - 2} ataques en la ficha</span> : null}</div></section>
                 <section><h4>Condiciones</h4><div className="campaign-combat-conditions">{MANUAL_CONDITIONS.map(([id, name]) => { const active = participant.conditions.some((condition) => condition.id === id && condition.active); return <button type="button" key={id} aria-pressed={active} className={active ? "is-active" : ""} disabled={busy} onClick={() => { const preserved = participant.conditions.filter((condition) => condition.id !== id); if (!active) preserved.push({ id, name, category: "state", active: true, severity: "minor", summary: "", notes: "" }); void patchResources(participant, { conditions: preserved }); }}>{name}</button>; })}{participant.conditions.filter((condition) => automaticIds.has(condition.id)).map((condition) => <span className="is-automatic" key={condition.id}>{condition.name}</span>)}</div></section>
               </div>
-              <footer>
-                <button type="button" className="subtle-button" disabled={busy} onClick={() => { const alias = window.prompt("Nombre mostrado en combate", participant.alias)?.trim(); if (alias && alias !== participant.alias) void mutate((token) => updateCampaignCombatParticipant(campaign.id, participant.id, { revision: combat.revision, alias }, token)); }}>Renombrar</button>
-                <button type="button" className="subtle-button" onClick={() => { if (participant.kind === "character") onOpenCharacter(participant.sourceId); else if (participant.kind === "npc") { const npc = campaign.npcs.find((entry) => entry.id === participant.sourceId); if (npc?.sheet) setSelectedNpcSheet({ name: npc.name, sheet: npc.sheet }); } else setSelectedMonster(participant); }}>Ver ficha completa</button>
-                <button type="button" className="danger-button" disabled={busy} onClick={() => void mutate((token) => removeCampaignCombatParticipant(campaign.id, participant.id, token))}>Retirar</button>
-              </footer>
             </article>
           );
         })}
