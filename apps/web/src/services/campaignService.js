@@ -44,3 +44,16 @@ export async function deleteCampaignReference(referenceId, accessToken) { return
 export async function assignCampaignSessionExperience(sessionId, input, accessToken) { return (await request(`/api/campaign-sessions/${sessionId}/xp-awards`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
 export async function grantCampaignExperience(campaignId, input, accessToken) { return (await request(`/api/campaigns/${campaignId}/xp-grants`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
 export async function decideProfessionRequest(campaignId, requestId, input, accessToken) { return (await request(`/api/campaigns/${campaignId}/profession-requests/${requestId}/decision`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
+export async function fetchCampaignCombat(campaignId, accessToken) { return (await request(`/api/campaigns/${campaignId}/combat`, accessToken)).data; }
+export async function startCampaignCombat(campaignId, accessToken) { return (await request(`/api/campaigns/${campaignId}/combat`, accessToken, { method: "PUT" })).data; }
+export async function finishCampaignCombat(campaignId, accessToken) {
+    const response = await fetch(`/api/campaigns/${campaignId}/combat`, { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!response.ok)
+        throw new Error(await readFriendlyApiError(response));
+}
+export async function addCampaignCombatParticipant(campaignId, input, accessToken) { return (await request(`/api/campaigns/${campaignId}/combat/participants`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
+export async function updateCampaignCombatParticipant(campaignId, participantId, input, accessToken) { return (await request(`/api/campaigns/${campaignId}/combat/participants/${participantId}`, accessToken, { method: "PATCH", body: JSON.stringify(input) })).data; }
+export async function removeCampaignCombatParticipant(campaignId, participantId, accessToken) { return (await request(`/api/campaigns/${campaignId}/combat/participants/${participantId}`, accessToken, { method: "DELETE" })).data; }
+export async function reorderCampaignCombat(campaignId, input, accessToken) { return (await request(`/api/campaigns/${campaignId}/combat/order`, accessToken, { method: "PUT", body: JSON.stringify(input) })).data; }
+export async function advanceCampaignCombatTurn(campaignId, input, accessToken) { return (await request(`/api/campaigns/${campaignId}/combat/turn`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
+export async function updateCampaignCombatResources(campaignId, participantId, input, accessToken) { return (await request(`/api/campaigns/${campaignId}/combat/participants/${participantId}/resources`, accessToken, { method: "PATCH", body: JSON.stringify(input) })).data; }

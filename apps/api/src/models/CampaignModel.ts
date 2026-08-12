@@ -1,5 +1,5 @@
 ﻿import type { Prisma } from "@prisma/client";
-import { createEmptyCharacterSheet, decodeCampaignDmNotes, decodeCampaignSharedNotes, encodeCampaignDmNotes, encodeCampaignSharedNotes, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CampaignInvitation, type CharacterSheet, type OwnedMysticArtifact, type UserRole } from "@umbra/shared";
+import { campaignCombatParticipantSchema, createEmptyCharacterSheet, decodeCampaignDmNotes, decodeCampaignSharedNotes, encodeCampaignDmNotes, encodeCampaignSharedNotes, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CampaignInvitation, type CharacterSheet, type OwnedMysticArtifact, type UserRole } from "@umbra/shared";
 import { Prisma as PrismaRuntime } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { getEffectiveCharacterExperienceSpent } from "../services/characterExperiencePolicy.js";
@@ -111,6 +111,28 @@ type CampaignChatMessageRow = Prisma.CampaignChatMessageGetPayload<{
     character: true;
   };
 }>;
+
+async function removeCombatParticipants(
+  tx: Prisma.TransactionClient,
+  campaignId: string,
+  predicate: (participant: import("@umbra/shared").CampaignCombatParticipant) => boolean
+): Promise<void> {
+  const combat = await tx.campaignCombat.findUnique({ where: { campaignId } });
+  if (!combat) return;
+  const parsed = campaignCombatParticipantSchema.array().safeParse(combat.participants);
+  if (!parsed.success) return;
+  const participants = parsed.data.filter((participant) => !predicate(participant));
+  if (participants.length === parsed.data.length) return;
+  participants.forEach((participant, index) => { participant.sortOrder = index; });
+  await tx.campaignCombat.update({
+    where: { campaignId },
+    data: {
+      participants: JSON.parse(JSON.stringify(participants)) as Prisma.InputJsonValue,
+      activeParticipantId: participants.some((participant) => participant.id === combat.activeParticipantId) ? combat.activeParticipantId : participants[0]?.id ?? null,
+      revision: { increment: 1 }
+    }
+  });
+}
 
 function mapAvailableCharacter(row: CharacterAvailabilityRow, linkedIds: Set<string>): CampaignAvailableCharacter {
   let experienceTotal = 0;
@@ -454,6 +476,7 @@ export class CampaignModel {
         where: { characterId: link.characterId, campaignId: link.campaignId, state: "pending" },
         data: { state: "aspiration", requestedById: null, requestedAt: null, reviewedById: null, reviewedAt: null, decisionNote: "" }
       });
+      await removeCombatParticipants(tx, link.campaignId, (participant) => participant.kind === "character" && participant.campaignCharacterId === linkId);
       await tx.campaignCharacter.delete({ where: { id: linkId } });
     });
   }
@@ -588,8 +611,11 @@ export class CampaignModel {
   }
 
   async deleteNpc(npcId: string): Promise<void> {
-    await prisma.campaignNpc.delete({
-      where: { id: npcId }
+    await prisma.$transaction(async (tx) => {
+      const npc = await tx.campaignNpc.findUnique({ where: { id: npcId }, select: { campaignId: true } });
+      if (!npc) return;
+      await removeCombatParticipants(tx, npc.campaignId, (participant) => participant.kind === "npc" && participant.campaignNpcId === npcId);
+      await tx.campaignNpc.delete({ where: { id: npcId } });
     });
   }
 

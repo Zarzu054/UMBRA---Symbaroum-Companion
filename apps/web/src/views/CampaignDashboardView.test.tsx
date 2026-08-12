@@ -18,7 +18,16 @@ const serviceMocks = vi.hoisted(() => ({
   removeCampaignMember: vi.fn(),
   unlinkCampaignCharacter: vi.fn(),
   updateCampaign: vi.fn(),
-  updateCampaignReference: vi.fn()
+  updateCampaignReference: vi.fn(),
+  fetchCampaignCombat: vi.fn().mockResolvedValue(null),
+  startCampaignCombat: vi.fn(),
+  finishCampaignCombat: vi.fn(),
+  addCampaignCombatParticipant: vi.fn(),
+  updateCampaignCombatParticipant: vi.fn(),
+  removeCampaignCombatParticipant: vi.fn(),
+  reorderCampaignCombat: vi.fn(),
+  advanceCampaignCombatTurn: vi.fn(),
+  updateCampaignCombatResources: vi.fn()
 }));
 const artifactServiceMocks = vi.hoisted(() => ({
   fetchMysticArtifactPresets: vi.fn().mockResolvedValue([]),
@@ -136,6 +145,14 @@ describe("CampaignDashboardView experience grants", () => {
       "token-a"
     ));
     expect(await screen.findByText(/PX total: 15/)).toBeInTheDocument();
+  });
+
+  it("exposes the DM-only combat section and loads its current state", async () => {
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+    await screen.findByRole("heading", { name: "Personajes vinculados" });
+    fireEvent.click(screen.getByRole("button", { name: "Combate" }));
+    expect(await screen.findByRole("heading", { name: "Combate" })).toBeInTheDocument();
+    expect(serviceMocks.fetchCampaignCombat).toHaveBeenCalledWith("campaign-a", "token-a");
   });
 
   it("shows and approves pending profession requests", async () => {

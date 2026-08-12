@@ -2,8 +2,11 @@ import type {
   CreateCampaignInvitationInput,
   AssignCampaignSessionExperienceInput,
   Campaign,
+  CampaignCombat,
   CampaignChatMessage,
   CampaignInvitation,
+  AddCampaignCombatParticipantInput,
+  AdvanceCampaignCombatTurnInput,
   CharacterProfessionMembership,
   CreateCampaignChatMessageInput,
   CreateCampaignInput,
@@ -12,6 +15,9 @@ import type {
   CreateCampaignSessionInput,
   GrantCampaignExperienceInput,
   ProfessionDecisionInput,
+  ReorderCampaignCombatInput,
+  UpdateCampaignCombatParticipantInput,
+  UpdateCampaignCombatResourcesInput,
   UpdateCampaignCharacterSheetInput,
   UpdateCampaignInput,
   UpdateCampaignNpcInput,
@@ -70,3 +76,16 @@ export async function deleteCampaignReference(referenceId: string, accessToken: 
 export async function assignCampaignSessionExperience(sessionId: string, input: AssignCampaignSessionExperienceInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-sessions/${sessionId}/xp-awards`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
 export async function grantCampaignExperience(campaignId: string, input: GrantCampaignExperienceInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaigns/${campaignId}/xp-grants`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
 export async function decideProfessionRequest(campaignId: string, requestId: string, input: ProfessionDecisionInput, accessToken: string): Promise<CharacterProfessionMembership[]> { return (await request<{ data: CharacterProfessionMembership[] }>(`/api/campaigns/${campaignId}/profession-requests/${requestId}/decision`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
+
+export async function fetchCampaignCombat(campaignId: string, accessToken: string): Promise<CampaignCombat | null> { return (await request<{ data: CampaignCombat | null }>(`/api/campaigns/${campaignId}/combat`, accessToken)).data; }
+export async function startCampaignCombat(campaignId: string, accessToken: string): Promise<CampaignCombat> { return (await request<{ data: CampaignCombat }>(`/api/campaigns/${campaignId}/combat`, accessToken, { method: "PUT" })).data; }
+export async function finishCampaignCombat(campaignId: string, accessToken: string): Promise<void> {
+  const response = await fetch(`/api/campaigns/${campaignId}/combat`, { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!response.ok) throw new Error(await readFriendlyApiError(response));
+}
+export async function addCampaignCombatParticipant(campaignId: string, input: AddCampaignCombatParticipantInput, accessToken: string): Promise<CampaignCombat> { return (await request<{ data: CampaignCombat }>(`/api/campaigns/${campaignId}/combat/participants`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
+export async function updateCampaignCombatParticipant(campaignId: string, participantId: string, input: UpdateCampaignCombatParticipantInput, accessToken: string): Promise<CampaignCombat> { return (await request<{ data: CampaignCombat }>(`/api/campaigns/${campaignId}/combat/participants/${participantId}`, accessToken, { method: "PATCH", body: JSON.stringify(input) })).data; }
+export async function removeCampaignCombatParticipant(campaignId: string, participantId: string, accessToken: string): Promise<CampaignCombat> { return (await request<{ data: CampaignCombat }>(`/api/campaigns/${campaignId}/combat/participants/${participantId}`, accessToken, { method: "DELETE" })).data; }
+export async function reorderCampaignCombat(campaignId: string, input: ReorderCampaignCombatInput, accessToken: string): Promise<CampaignCombat> { return (await request<{ data: CampaignCombat }>(`/api/campaigns/${campaignId}/combat/order`, accessToken, { method: "PUT", body: JSON.stringify(input) })).data; }
+export async function advanceCampaignCombatTurn(campaignId: string, input: AdvanceCampaignCombatTurnInput, accessToken: string): Promise<CampaignCombat> { return (await request<{ data: CampaignCombat }>(`/api/campaigns/${campaignId}/combat/turn`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }
+export async function updateCampaignCombatResources(campaignId: string, participantId: string, input: UpdateCampaignCombatResourcesInput, accessToken: string): Promise<CampaignCombat> { return (await request<{ data: CampaignCombat }>(`/api/campaigns/${campaignId}/combat/participants/${participantId}/resources`, accessToken, { method: "PATCH", body: JSON.stringify(input) })).data; }

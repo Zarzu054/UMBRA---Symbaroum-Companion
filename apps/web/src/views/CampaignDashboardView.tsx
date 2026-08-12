@@ -52,6 +52,7 @@ import {
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { ALL_ENTRIES } from "../models/compendiumEntries";
 import { buildPdfViewerUrl } from "../services/pdfViewer";
+import { CampaignCombatView } from "../components/CampaignCombatView";
 
 type Props = {
   user: AuthUser;
@@ -65,7 +66,7 @@ type CampaignHashState = {
   invitationId: string | null;
 };
 
-type CampaignSection = "dmNotes" | "sharedNotes" | "wiki" | "members" | "characters" | "artifacts";
+type CampaignSection = "dmNotes" | "sharedNotes" | "wiki" | "members" | "characters" | "artifacts" | "combat";
 type CampaignSharedNoteEntry = Campaign["sharedNoteEntries"][number];
 type CampaignDmNoteEntry = Campaign["dmNoteEntries"][number];
 type SharedNoteSortOption = "updated_desc" | "updated_asc" | "title_asc" | "title_desc";
@@ -498,7 +499,8 @@ function parseCampaignHash(): CampaignHashState {
     rawSection === "wiki" ||
     rawSection === "members" ||
     rawSection === "characters" ||
-    rawSection === "artifacts"
+    rawSection === "artifacts" ||
+    rawSection === "combat"
       ? rawSection
       : null;
   return {
@@ -1690,6 +1692,15 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   Artefactos
                 </button>
               ) : null}
+              {isDirector ? (
+                <button
+                  type="button"
+                  className={activeSection === "combat" ? "is-active" : ""}
+                  onClick={() => setActiveSection("combat")}
+                >
+                  Combate
+                </button>
+              ) : null}
             </div>
           </section>
 
@@ -2046,6 +2057,18 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               </div>
 
             </section>
+          ) : null}
+
+          {isDirector && activeSection === "combat" ? (
+            <CampaignCombatView
+              campaign={selectedCampaign}
+              ensureAccessToken={ensureAccessToken}
+              onCampaignRefresh={refresh}
+              onOpenCharacter={(campaignCharacterId) => {
+                setSelectedSheetId(campaignCharacterId);
+                setCampaignCharacterView("sheet");
+              }}
+            />
           ) : null}
 
           {isDirector && activeSection === "artifacts" ? (

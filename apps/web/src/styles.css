@@ -4171,6 +4171,76 @@ td {
   background: var(--ui-surface, #fffaf5);
 }
 
+/* Campaign combat */
+.campaign-combat { display: grid; gap: 14px; min-width: 0; }
+.campaign-combat-toolbar { position: sticky; top: 64px; z-index: 20; display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.campaign-combat-toolbar h3, .campaign-combat-toolbar p { margin: 0; }
+.campaign-combat-eyebrow { color: var(--rubric); font-size: .72rem; font-weight: 700; letter-spacing: .08em; }
+.campaign-combat-toolbar-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.campaign-combat-error { margin: 0; padding: 10px 14px; border-radius: 10px; background: color-mix(in srgb, var(--danger) 10%, var(--paper)); }
+.campaign-combat-list { display: grid; gap: 12px; }
+.campaign-combat-empty { text-align: center; padding: 32px; }
+.campaign-combat-card { overflow: hidden; border: 1px solid var(--line); border-radius: 15px; background: var(--paper); box-shadow: 0 8px 22px rgba(31, 24, 19, .08); }
+.campaign-combat-card.is-active { border-color: var(--rubric); box-shadow: 0 0 0 2px color-mix(in srgb, var(--rubric) 24%, transparent), 0 10px 26px rgba(31, 24, 19, .13); }
+.campaign-combat-card > header { display: grid; grid-template-columns: auto minmax(150px, 1fr) minmax(100px, 140px) auto; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--paper-deep) 70%, transparent); }
+.campaign-combat-card > header > div { display: grid; }
+.campaign-combat-card > header span { color: var(--ink-soft); font-size: .75rem; }
+.campaign-combat-card > header strong { font-size: 1.12rem; }
+.campaign-combat-card > header label { display: grid; gap: 3px; }
+.campaign-combat-card > header input { width: 100%; min-width: 0; }
+.campaign-combat-drag { padding-inline: 8px; cursor: grab; color: var(--ink-soft); background: transparent; }
+.campaign-combat-card .is-current-turn { color: #fff; border-color: var(--rubric-strong); background: var(--rubric-strong); }
+.campaign-combat-stats { display: grid; grid-template-columns: repeat(7, minmax(100px, 1fr)); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
+.campaign-combat-stats > div { min-height: 78px; padding: 10px; display: flex; flex-direction: column; justify-content: center; gap: 4px; background: var(--paper); }
+.campaign-combat-stats span { color: var(--ink-soft); font-size: .72rem; text-transform: uppercase; }
+.campaign-combat-stats strong { font-size: 1.05rem; }
+.campaign-combat-resource > div { display: flex; gap: 6px; }
+.campaign-combat-resource button { min-width: 34px; min-height: 30px; padding: 3px 9px; }
+.campaign-combat-card-details { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 14px; }
+.campaign-combat-card-details h4 { margin: 0 0 8px; }
+.campaign-combat-attack { display: flex; justify-content: space-between; gap: 12px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 9px; }
+.campaign-combat-attack + .campaign-combat-attack { margin-top: 6px; }
+.campaign-combat-attack span { color: var(--ink-soft); text-align: right; }
+.campaign-combat-conditions { display: flex; flex-wrap: wrap; gap: 6px; }
+.campaign-combat-conditions button, .campaign-combat-conditions span { padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink-soft); background: transparent; font-size: .78rem; }
+.campaign-combat-conditions button.is-active { color: #fff; border-color: var(--rubric); background: var(--rubric); }
+.campaign-combat-conditions .is-automatic { color: #fff; border-color: var(--danger); background: var(--danger); }
+.campaign-combat-card > footer { display: flex; justify-content: flex-end; gap: 8px; padding: 0 14px 14px; }
+.campaign-combat-picker { width: min(780px, calc(100vw - 24px)); max-height: min(86vh, 800px); display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; }
+.campaign-combat-picker > header { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
+.campaign-combat-picker > header :is(h3, p) { margin: 0; }
+.campaign-combat-picker > nav { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 14px; border-bottom: 1px solid var(--line); }
+.campaign-combat-picker > nav button { border-radius: 10px 10px 0 0; background: transparent; }
+.campaign-combat-picker > nav button.is-active { color: var(--rubric-strong); background: color-mix(in srgb, var(--rubric) 12%, var(--paper)); box-shadow: inset 0 -2px 0 var(--rubric); }
+.campaign-combat-picker-list { min-height: 220px; overflow: auto; overscroll-behavior: contain; padding: 12px 2px 2px; display: grid; align-content: start; gap: 7px; }
+.campaign-combat-picker-list > button { display: flex; justify-content: space-between; gap: 12px; text-align: left; color: var(--ink); border-color: var(--line); background: var(--paper); }
+.campaign-combat-picker-list > button span { color: var(--ink-soft); }
+.campaign-combat-monster-filter { position: sticky; top: 0; z-index: 1; display: grid; grid-template-columns: 1fr 120px; gap: 10px; padding-bottom: 8px; background: var(--paper); }
+.campaign-combat-monster-filter label { display: grid; grid-template-columns: auto 64px; align-items: center; gap: 6px; }
+.campaign-combat-sheet-backdrop { align-items: stretch; padding: 12px; }
+.campaign-combat-sheet-backdrop > section { width: min(1180px, 100%); max-height: calc(100vh - 24px); margin: auto; overflow: auto; }
+
+@media (max-width: 980px) {
+  .campaign-combat-toolbar { position: sticky; top: 52px; align-items: stretch; flex-direction: column; }
+  .campaign-combat-toolbar-actions { justify-content: stretch; display: grid; grid-template-columns: repeat(2, 1fr); }
+  .campaign-combat-card > header { grid-template-columns: auto 1fr 94px; }
+  .campaign-combat-card > header > button:last-child { grid-column: 2 / -1; }
+  .campaign-combat-stats { grid-template-columns: repeat(2, 1fr); }
+  .campaign-combat-card-details { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .campaign-combat-toolbar { margin-inline: -8px; border-radius: 0; }
+  .campaign-combat-toolbar-actions { grid-template-columns: 1fr 1fr; }
+  .campaign-combat-card { border-radius: 10px; }
+  .campaign-combat-card > header { grid-template-columns: auto 1fr; }
+  .campaign-combat-card > header label { grid-column: 2; }
+  .campaign-combat-stats { grid-template-columns: 1fr 1fr; }
+  .campaign-combat-monster-filter { grid-template-columns: 1fr; }
+  .campaign-combat-picker-list > button, .campaign-combat-attack { flex-direction: column; }
+  .campaign-combat-attack span { text-align: left; }
+}
+
 .monster-capability-modal__actions a {
   min-height: 38px;
   display: inline-flex;

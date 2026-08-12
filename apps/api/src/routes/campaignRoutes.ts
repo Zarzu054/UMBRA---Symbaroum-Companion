@@ -21,12 +21,24 @@ import { requirePasswordChangeComplete } from "../middleware/requirePasswordChan
 import { CampaignModel } from "../models/CampaignModel.js";
 import { CampaignService } from "../services/CampaignService.js";
 import { ProfessionController } from "../controllers/ProfessionController.js";
+import { CampaignCombatController } from "../controllers/CampaignCombatController.js";
 
 export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   const model = new CampaignModel();
   const service = new CampaignService(model);
   const controller = new CampaignController(service);
   const professionController = new ProfessionController();
+  const combatController = new CampaignCombatController();
+
+  app.get<{ Params: { campaignId: string } }>("/campaigns/:campaignId/combat", { preHandler: [requireAuth, requirePasswordChangeComplete] }, (request, reply) => combatController.get(request, reply));
+  app.put<{ Params: { campaignId: string } }>("/campaigns/:campaignId/combat", { preHandler: [requireAuth, requirePasswordChangeComplete] }, (request, reply) => combatController.start(request, reply));
+  app.delete<{ Params: { campaignId: string } }>("/campaigns/:campaignId/combat", { preHandler: [requireAuth, requirePasswordChangeComplete] }, (request, reply) => combatController.finish(request, reply));
+  app.post<{ Params: { campaignId: string }; Body: import("@umbra/shared").AddCampaignCombatParticipantInput }>("/campaigns/:campaignId/combat/participants", { preHandler: [requireAuth, requirePasswordChangeComplete] }, (request, reply) => combatController.addParticipant(request, reply));
+  app.patch<{ Params: { campaignId: string; participantId: string }; Body: import("@umbra/shared").UpdateCampaignCombatParticipantInput }>("/campaigns/:campaignId/combat/participants/:participantId", { preHandler: [requireAuth, requirePasswordChangeComplete] }, (request, reply) => combatController.updateParticipant(request, reply));
+  app.delete<{ Params: { campaignId: string; participantId: string } }>("/campaigns/:campaignId/combat/participants/:participantId", { preHandler: [requireAuth, requirePasswordChangeComplete] }, (request, reply) => combatController.removeParticipant(request, reply));
+  app.put<{ Params: { campaignId: string }; Body: import("@umbra/shared").ReorderCampaignCombatInput }>("/campaigns/:campaignId/combat/order", { preHandler: [requireAuth, requirePasswordChangeComplete] }, (request, reply) => combatController.reorder(request, reply));
+  app.post<{ Params: { campaignId: string }; Body: import("@umbra/shared").AdvanceCampaignCombatTurnInput }>("/campaigns/:campaignId/combat/turn", { preHandler: [requireAuth, requirePasswordChangeComplete] }, (request, reply) => combatController.advanceTurn(request, reply));
+  app.patch<{ Params: { campaignId: string; participantId: string }; Body: import("@umbra/shared").UpdateCampaignCombatResourcesInput }>("/campaigns/:campaignId/combat/participants/:participantId/resources", { preHandler: [requireAuth, requirePasswordChangeComplete] }, (request, reply) => combatController.updateResources(request, reply));
 
   app.get("/campaigns", { preHandler: [requireAuth, requirePasswordChangeComplete] }, controller.list.bind(controller));
   app.get<{ Params: { campaignId: string } }>("/campaigns/:campaignId", { preHandler: [requireAuth, requirePasswordChangeComplete] }, async (request, reply) =>
