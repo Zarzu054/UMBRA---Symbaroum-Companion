@@ -944,9 +944,16 @@ function buildLegacyNotesSections(sheet) {
 }
 function buildCanonicalActions(sheet) {
     const actions = [];
+    const standardWeaponClasses = new Set();
     for (const item of sheet.inventoryItems) {
         if (item.category !== "weapon" || item.quantity <= 0)
             continue;
+        if (!item.isCustom && !item.managedArtifactId) {
+            const weaponClass = buildStandardWeaponClassKey(item);
+            if (standardWeaponClasses.has(weaponClass))
+                continue;
+            standardWeaponClasses.add(weaponClass);
+        }
         actions.push({
             id: `inventory:${item.id}`,
             label: `Atacar con ${item.name}`,
@@ -1066,6 +1073,20 @@ function buildCanonicalActions(sheet) {
         });
     }
     return actions;
+}
+function buildStandardWeaponClassKey(item) {
+    const qualities = item.qualities
+        .split(",")
+        .map((quality) => normalizeName(quality))
+        .filter(Boolean)
+        .sort()
+        .join(",");
+    return [
+        normalizeName(item.name),
+        item.attackAttribute ?? "diestro",
+        normalizeName(item.damageFormula),
+        qualities
+    ].join("|");
 }
 function normalizeActionFavorites(favorites) {
     return Array.from(new Set((favorites ?? []).map((entry) => String(entry ?? "").trim()).filter(Boolean))).slice(0, 80);

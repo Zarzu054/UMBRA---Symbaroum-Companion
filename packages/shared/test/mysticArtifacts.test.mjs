@@ -99,6 +99,35 @@ test("projects a managed weapon and all roll metadata into artifact actions", ()
   assert.equal(action.rolls.length, 2);
 });
 
+test("elimina una accion antigua con el nombre del artefacto cuando duplica su ataque de arma", () => {
+  const artifact = makeArtifact(true);
+  artifact.name = "Parcabrasa";
+  artifact.abilities.push({
+    id: "legacy-base-attack",
+    name: "Parcabrasa",
+    description: "Accion antigua que repetia el ataque basico del arma.",
+    activation: "active",
+    actionCost: "combat",
+    corruptionFormula: undefined,
+    requiresBinding: false,
+    perSceneNote: "",
+    locked: false,
+    lockReason: "",
+    rolls: [
+      { id: "legacy-attack", kind: "attack", label: "Ataque", formula: "1D20", actorAttribute: "diestro" },
+      { id: "legacy-damage", kind: "damage", label: "Daño", formula: "1D8" }
+    ],
+    requirements: [],
+    resourceCosts: []
+  });
+  const sheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(createEmptyCharacterSheet(), [artifact]));
+  const actions = deriveCharacterActions(sheet);
+
+  assert.equal(actions.filter((action) => action.label === "Atacar con Parcabrasa").length, 1);
+  assert.equal(actions.filter((action) => action.label === "Parcabrasa").length, 0);
+  assert.equal(actions.filter((action) => action.label === "Descarga").length, 1);
+});
+
 test("Viento de acero mejora el dado base de cualquier artefacto arrojadizo y conserva sus dados adicionales", () => {
   for (const [publishedFormula, expectedFormula] of [
     ["1D4+1D4", "1d6+1d4"],

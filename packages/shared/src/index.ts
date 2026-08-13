@@ -1079,9 +1079,15 @@ function buildLegacyNotesSections(sheet: z.infer<typeof characterSheetObjectSche
 
 function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>): z.infer<typeof canonicalActionEntrySchema>[] {
   const actions: z.infer<typeof canonicalActionEntrySchema>[] = [];
+  const standardWeaponClasses = new Set<string>();
 
   for (const item of sheet.inventoryItems) {
     if (item.category !== "weapon" || item.quantity <= 0) continue;
+    if (!item.isCustom && !item.managedArtifactId) {
+      const weaponClass = buildStandardWeaponClassKey(item);
+      if (standardWeaponClasses.has(weaponClass)) continue;
+      standardWeaponClasses.add(weaponClass);
+    }
     actions.push({
       id: `inventory:${item.id}`,
       label: `Atacar con ${item.name}`,
@@ -1210,6 +1216,21 @@ function buildCanonicalActions(sheet: z.infer<typeof characterSheetObjectSchema>
   }
 
   return actions;
+}
+
+function buildStandardWeaponClassKey(item: z.infer<typeof inventoryItemSchema>): string {
+  const qualities = item.qualities
+    .split(",")
+    .map((quality) => normalizeName(quality))
+    .filter(Boolean)
+    .sort()
+    .join(",");
+  return [
+    normalizeName(item.name),
+    item.attackAttribute ?? "diestro",
+    normalizeName(item.damageFormula),
+    qualities
+  ].join("|");
 }
 
 function normalizeActionFavorites(favorites: string[] | undefined): string[] {
@@ -2625,6 +2646,7 @@ export type CharacterActionDefinition = {
   label: string;
   sourceType: "weapon" | "ability" | "power" | "ritual" | "artifact";
   sourceName: string;
+  linkedItemId?: string;
   cost: ActionCost;
   requiredLevel?: SkillLevel;
   rollAttribute?: AttributeKey;
