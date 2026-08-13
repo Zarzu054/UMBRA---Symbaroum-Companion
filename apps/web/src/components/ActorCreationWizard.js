@@ -139,7 +139,7 @@ export function CharacterCreationWizard({ controller, onCancel }) {
     const sheet = controller.form.sheet;
     const selections = useMemo(() => buildLegacySelections(sheet), [sheet]);
     const baseAttributes = removeExceptionalAttributeBonuses(sheet.atributos, selections);
-    const experience = getCharacterExperienceSummary({ ...sheet, capabilitySelections: selections });
+    const experience = getCharacterExperienceSummary({ ...sheet, capabilitySelections: selections }, { includeBurdenBonus: !controller.isEditing });
     const racial = getRacialRecommendations(sheet.identidad.raza);
     const catalog = useMemo(() => getCharacterCatalog(sheet.identidad.raza, selections), [sheet.identidad.raza, selections]);
     const filteredCatalog = catalog.filter((entry) => {
@@ -206,7 +206,7 @@ export function CharacterCreationWizard({ controller, onCancel }) {
         };
         const nextSelections = [...selections, next];
         const nextSheet = updateLegacyCollections({ ...sheet, atributos: synchronizeExceptionalAttributes(sheet.atributos, selections, nextSelections) }, nextSelections);
-        const nextExperience = getCharacterExperienceSummary(nextSheet);
+        const nextExperience = getCharacterExperienceSummary(nextSheet, { includeBurdenBonus: !controller.isEditing });
         if (nextExperience.computedSpent > nextExperience.effectiveTotal) {
             setLocalError(`No hay PX suficientes para añadir ${choice.name}.`);
             return;
@@ -222,7 +222,7 @@ export function CharacterCreationWizard({ controller, onCancel }) {
     function updateCapabilityLevel(index, level) {
         const nextSelections = selections.map((entry, currentIndex) => currentIndex === index ? { ...entry, level } : entry);
         const nextSheet = updateLegacyCollections({ ...sheet, atributos: synchronizeExceptionalAttributes(sheet.atributos, selections, nextSelections) }, nextSelections);
-        const nextExperience = getCharacterExperienceSummary(nextSheet);
+        const nextExperience = getCharacterExperienceSummary(nextSheet, { includeBurdenBonus: !controller.isEditing });
         if (nextExperience.computedSpent > nextExperience.effectiveTotal) {
             setLocalError("La mejora supera los PX disponibles.");
             return;
@@ -324,7 +324,11 @@ export function CharacterCreationWizard({ controller, onCancel }) {
             return;
         const nextSheet = {
             ...sheet,
-            progreso: { ...sheet.progreso, experienciaGastada: Math.max(sheet.progreso.experienciaGastada, experience.computedSpent) },
+            progreso: {
+                ...sheet.progreso,
+                experienciaTotal: controller.isEditing ? sheet.progreso.experienciaTotal : experience.effectiveTotal,
+                experienciaGastada: Math.max(sheet.progreso.experienciaGastada, experience.computedSpent)
+            },
             recursos: { ...sheet.recursos, dinero: formatOrtegs(moneyRemaining) }
         };
         setSheet(nextSheet);

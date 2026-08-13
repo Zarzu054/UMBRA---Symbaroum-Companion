@@ -706,7 +706,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           <div className="info-box">Armadura activa: {controller.derived.armaduraActiva || "-"}</div>
         </div>
         <p className="section-help">
-          Las bendiciones suman <code>5 PX</code> gastados cada una y las cargas aportan <code>5 PX</code> extra disponibles cada una.
+          Las bendiciones suman <code>5 PX</code> gastados cada una. El bono de las cargas se consolida en los PX totales al crear el personaje y no debe sumarse de nuevo.
         </p>
         {controller.derived.warnings.length > 0 ? (
           <div className="warning-block">

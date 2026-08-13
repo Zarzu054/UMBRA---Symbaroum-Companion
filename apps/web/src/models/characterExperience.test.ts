@@ -35,7 +35,7 @@ describe("character ritual experience", () => {
     expect(experience.effectiveAvailable).toBe(20);
   });
 
-  it("adds five spendable XP for every burden", () => {
+  it("does not add burden XP again when it is already consolidated in the stored total", () => {
     const sheet = createEmptyCharacterSheet();
     sheet.progreso.experienciaTotal = 10;
     sheet.cargas = ["Acosado"];
@@ -43,8 +43,36 @@ describe("character ritual experience", () => {
     const experience = getCharacterExperienceSummary(sheet);
 
     expect(experience.extraFromBurdens).toBe(5);
+    expect(experience.effectiveTotal).toBe(10);
+    expect(experience.effectiveAvailable).toBe(10);
+  });
+
+  it("adds burden XP once while calculating initial character creation", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.progreso.experienciaTotal = 10;
+    sheet.cargas = ["Acosado"];
+
+    const experience = getCharacterExperienceSummary(sheet, { includeBurdenBonus: true });
+
+    expect(experience.extraFromBurdens).toBe(5);
     expect(experience.effectiveTotal).toBe(15);
     expect(experience.effectiveAvailable).toBe(15);
+  });
+
+  it("calculates persisted available XP from the stored total without duplicating structured burdens", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.progreso.experienciaTotal = 102;
+    sheet.progreso.experienciaGastada = 90;
+    sheet.capabilitySelections = [
+      { catalogId: "burden-a", name: "Paria", kind: "carga", origin: "comprada", source: "Guía Avanzada del Jugador" },
+      { catalogId: "burden-b", name: "Secreto oscuro", kind: "carga", origin: "comprada", source: "Guía Avanzada del Jugador" }
+    ];
+
+    const experience = getCharacterExperienceSummary(sheet);
+
+    expect(experience.extraFromBurdens).toBe(10);
+    expect(experience.effectiveTotal).toBe(102);
+    expect(experience.effectiveAvailable).toBe(12);
   });
 
   it("uses structured costs, free racial blessings and cumulative levels", () => {
@@ -59,7 +87,7 @@ describe("character ritual experience", () => {
     const experience = getCharacterExperienceSummary(sheet);
 
     expect(experience.computedSpent).toBe(40);
-    expect(experience.effectiveTotal).toBe(55);
-    expect(experience.effectiveAvailable).toBe(15);
+    expect(experience.effectiveTotal).toBe(50);
+    expect(experience.effectiveAvailable).toBe(10);
   });
 });
