@@ -345,11 +345,51 @@ describe("CompendiumView library", () => {
     const target = ALL_ENTRIES[0];
 
     renderCompendium({ initialEntryId: target.id });
-    expect(await screen.findByRole("dialog", { name: target.nombre })).toHaveAttribute("aria-modal", "true");
+    const dialog = await screen.findByRole("dialog", { name: target.nombre });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog.closest(".compendium-mobile-reader-page")).toBe(document.body.lastElementChild);
     expect(screen.getByRole("button", { name: "Volver a resultados" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copiar enlace" })).not.toBeInTheDocument();
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog", { name: target.nombre })).not.toBeInTheDocument();
 
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
+  });
+
+  it("restores the mobile result list exactly as it was after returning from an entry", async () => {
+    const originalMatchMedia = window.matchMedia;
+    const originalScrollY = Object.getOwnPropertyDescriptor(window, "scrollY");
+    const originalScrollX = Object.getOwnPropertyDescriptor(window, "scrollX");
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn().mockReturnValue({
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn()
+      })
+    });
+    Object.defineProperty(window, "scrollY", { configurable: true, value: 420 });
+    Object.defineProperty(window, "scrollX", { configurable: true, value: 0 });
+
+    renderCompendium({ initialTypeFilter: "profesion" });
+    const resultList = document.querySelector<HTMLElement>(".compendium-result-list")!;
+    resultList.scrollTop = 135;
+    const target = screen.getByRole("button", { name: /^Nómada de la sangre/ });
+    fireEvent.click(target);
+
+    const dialog = await screen.findByRole("dialog", { name: "Nómada de la sangre" });
+    expect(dialog.closest(".compendium-mobile-reader-page")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Volver a resultados" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Nómada de la sangre" })).not.toBeInTheDocument());
+    expect(resultList.scrollTop).toBe(135);
+    expect(scrollTo).toHaveBeenCalledWith({ left: 0, top: 420, behavior: "auto" });
+    expect(target).toHaveFocus();
+
+    scrollTo.mockRestore();
+    if (originalScrollY) Object.defineProperty(window, "scrollY", originalScrollY);
+    if (originalScrollX) Object.defineProperty(window, "scrollX", originalScrollX);
     Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
   });
 });

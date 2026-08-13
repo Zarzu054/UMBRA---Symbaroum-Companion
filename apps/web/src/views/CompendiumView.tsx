@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   ALL_ENTRIES,
@@ -277,6 +277,16 @@ function isMobileDetailViewport(): boolean {
     : false;
 }
 
+function MobileCompendiumReaderPortal({ enabled, children }: { enabled: boolean; children: ReactNode }) {
+  if (!enabled || typeof document === "undefined") return children;
+  return createPortal(
+    <div className="compendium-mobile-reader-page compendium-library module-theme">
+      {children}
+    </div>,
+    document.body
+  );
+}
+
 export function CompendiumView({
   onBackToCharacters,
   ensureAccessToken,
@@ -300,7 +310,6 @@ export function CompendiumView({
   const [isLibraryLoading, setIsLibraryLoading] = useState(true);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [savingFavoriteIds, setSavingFavoriteIds] = useState<Set<string>>(new Set());
-  const [linkCopied, setLinkCopied] = useState(false);
   const [isMobileDetail, setIsMobileDetail] = useState(isMobileDetailViewport);
   const [libraryModal, setLibraryModal] = useState<CompendiumLibraryModal | null>(null);
   const [quickSearchPosition, setQuickSearchPosition] = useState<QuickSearchPosition | null>(null);
@@ -310,6 +319,8 @@ export function CompendiumView({
   const libraryModalTriggerRef = useRef<HTMLButtonElement | null>(null);
   const libraryModalCloseRef = useRef<HTMLButtonElement | null>(null);
   const quickSearchAnchorRef = useRef<HTMLDivElement | null>(null);
+  const resultListRef = useRef<HTMLDivElement | null>(null);
+  const mobileReturnPositionRef = useRef({ canRestore: false, windowX: 0, windowY: 0, resultListY: 0 });
 
   const sources = useMemo(
     () => [...new Set(ALL_ENTRIES.flatMap(getEntrySources))]
@@ -574,6 +585,14 @@ export function CompendiumView({
 
   function openEntry(entryId: string, trigger?: HTMLElement): void {
     if (trigger) lastEntryTriggerRef.current = trigger;
+    if (isMobileDetail) {
+      mobileReturnPositionRef.current = {
+        canRestore: true,
+        windowX: window.scrollX,
+        windowY: window.scrollY,
+        resultListY: resultListRef.current?.scrollTop ?? 0
+      };
+    }
     setSelectedId(entryId);
   }
 
@@ -599,8 +618,18 @@ export function CompendiumView({
   }
 
   function closeDetail(restoreFocus = true): void {
+    const returnPosition = mobileReturnPositionRef.current;
     setSelectedId("");
-    if (restoreFocus) window.setTimeout(() => lastEntryTriggerRef.current?.focus(), 0);
+    if (!restoreFocus) return;
+
+    window.requestAnimationFrame(() => {
+      if (isMobileDetail && returnPosition.canRestore) {
+        resultListRef.current?.scrollTo?.({ top: returnPosition.resultListY });
+        window.scrollTo({ left: returnPosition.windowX, top: returnPosition.windowY, behavior: "auto" });
+        mobileReturnPositionRef.current.canRestore = false;
+      }
+      lastEntryTriggerRef.current?.focus({ preventScroll: true });
+    });
   }
 
   function clearFilters(): void {
@@ -668,12 +697,6 @@ export function CompendiumView({
         return next;
       });
     }
-  }
-
-  async function copyDeepLink(): Promise<void> {
-    await navigator.clipboard.writeText(window.location.href);
-    setLinkCopied(true);
-    window.setTimeout(() => setLinkCopied(false), 1500);
   }
 
   function renderLibraryEntries(entries: CompendiumEntry[], emptyText: string) {
@@ -949,7 +972,7 @@ export function CompendiumView({
               <h3>Resultados</h3>
               <span className="meta-text" aria-live="polite">{visibleEntries.length} coincidencias</span>
             </div>
-            <div className="compendium-result-list">
+            <div ref={resultListRef} className="compendium-result-list">
               {visibleEntries.length > 0 ? visibleEntries.map((entry) => (
                 <button
                   key={entry.id}
@@ -968,6 +991,7 @@ export function CompendiumView({
             </div>
           </section>
 
+          <MobileCompendiumReaderPortal enabled={Boolean(isMobileDetail && selectedEntry)}>
           <aside
             ref={readerRef}
             className={`panel compendium-reader${selectedEntry ? ` is-open app-card-accent app-card-accent--${selectedEntry.tipo}${selectedEntry.ruleCategory ? ` rule-category--${selectedEntry.ruleCategory}` : ""}` : ""}`}
@@ -1001,7 +1025,7 @@ export function CompendiumView({
                       aria-label={isMobileDetail ? "Volver a resultados" : "Cerrar ficha"}
                       onClick={() => closeDetail()}
                     >
-                      <span aria-hidden="true" className="compendium-detail-close-mobile">Volver a resultados</span>
+                      <span aria-hidden="true" className="compendium-detail-close-mobile">← Volver</span>
                       <span aria-hidden="true" className="compendium-detail-close-desktop">Cerrar ficha</span>
                     </button>
                   </div>
@@ -1113,7 +1137,6 @@ export function CompendiumView({
                     ) : null;
                   })}
                   {summaryLink ? <SourceReferenceLink href={summaryLink.url} source={summaryLink.documentLabel} eyebrow="Resumen" /> : null}
-                  <button type="button" className="subtle-button" onClick={() => void copyDeepLink()}>{linkCopied ? "Enlace copiado" : "Copiar enlace"}</button>
                 </footer>
               </>
             ) : (
@@ -1124,6 +1147,7 @@ export function CompendiumView({
               </div>
             )}
           </aside>
+          </MobileCompendiumReaderPortal>
         </main>
       )}
     </div>
