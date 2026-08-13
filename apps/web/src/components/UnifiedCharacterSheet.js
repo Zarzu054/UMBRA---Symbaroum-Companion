@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ATTRIBUTE_KEYS, ATTRIBUTE_LABELS, WEAPON_QUALITY_OPTIONS, SYMBAROUM_ABILITIES, buildRollRequest, averageDiceFormula, deriveCharacterActions, executeCharacterAction, findWeaponQualityOption, formatWeaponQualities, parseWeaponQualities, synchronizeCharacterSheet, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS, evaluateProfession, getBenefitProfessionIds, normalizeProfessionCapabilities } from "@umbra/shared";
+import { ATTRIBUTE_KEYS, ATTRIBUTE_LABELS, WEAPON_QUALITY_OPTIONS, SYMBAROUM_ABILITIES, buildRollRequest, averageDiceFormula, deriveCharacterActions, executeCharacterAction, findWeaponQualityOption, formatSkillLevelLabel, formatWeaponQualities, parseWeaponQualities, synchronizeCharacterSheet, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS, evaluateProfession, getBenefitProfessionIds, normalizeProfessionCapabilities } from "@umbra/shared";
 import { computeDerivedStats } from "../models/rulesEngine";
 import { getCharacterActionRollPresentation } from "../models/actionPresentation";
 import { getCharacterExperienceSummary } from "../models/characterExperience";
@@ -436,7 +436,7 @@ function formatMoneyCounters(counters) {
 function formatActionDisplayLabel(label) {
     return String(label ?? "")
         .replace(/^(Usar|Lanzar)\s+/i, "")
-        .replace(/\s+\((Principiante|Novato|Adepto|Maestro)\)\s*$/i, "")
+        .replace(/\s+\((Principiante|Adepto|Maestro)\)\s*$/i, "")
         .trim();
 }
 function removeRepeatedWeaponDescription(effectSummary, description) {
@@ -586,7 +586,7 @@ function parseCapabilityTiers(text) {
     if (!source) {
         return { tiers: [], reference: null, remainder: null };
     }
-    const tierRegex = /(Principiante:|Novato:|Adepto:|Maestro:)/g;
+    const tierRegex = /(Principiante:|Adepto:|Maestro:)/g;
     const matches = [...source.matchAll(tierRegex)];
     if (matches.length === 0) {
         const referenceIndex = source.indexOf("Ref:");
@@ -603,7 +603,7 @@ function parseCapabilityTiers(text) {
         const start = match.index ?? 0;
         const end = index + 1 < matches.length ? (matches[index + 1].index ?? source.length) : source.length;
         const parsedLabel = (match[0] ?? "").replace(":", "").trim();
-        const rawLabel = parsedLabel === "Novato" ? "Principiante" : parsedLabel;
+        const rawLabel = parsedLabel;
         const rawContent = source.slice(start + match[0].length, end).trim();
         const referenceIndex = rawContent.indexOf("Ref:");
         const content = (referenceIndex >= 0 ? rawContent.slice(0, referenceIndex) : rawContent).trim();
@@ -625,7 +625,7 @@ function capabilityLevelRank(level) {
             return 3;
         case "adepto":
             return 2;
-        case "novato":
+        case "principiante":
         default:
             return 1;
     }
@@ -656,7 +656,7 @@ function getSheetTraitLevel(sheet, traitName) {
             return 3;
         if (/\badepto\b/.test(normalized))
             return 2;
-        if (/\b(?:principiante|novato)\b/.test(normalized))
+        if (/\bprincipiante\b/.test(normalized))
             return 1;
         if (/\biii\b|\b3\b/.test(normalized))
             return 3;
@@ -765,17 +765,8 @@ function getCustomItemQualities(item) {
         .filter((quality) => !knownIds.has(normalizeWeaponQualityKey(quality)));
 }
 function capitalizeActionLevel(level) {
-    switch (String(level ?? "").toLowerCase()) {
-        case "principiante":
-        case "novato":
-            return "Principiante";
-        case "adepto":
-            return "Adepto";
-        case "maestro":
-            return "Maestro";
-        default:
-            return null;
-    }
+    const label = formatSkillLevelLabel(level);
+    return label === "Principiante" || label === "Adepto" || label === "Maestro" ? label : null;
 }
 function formatCapabilitySource(entry) {
     if (entry.fuente && entry.pagina) {
@@ -810,7 +801,7 @@ function shouldKeepCapabilityNote(note, tiers, reference) {
     if (tiers.length === 0) {
         return true;
     }
-    if (/(principiante:|novato:|adepto:|maestro:)/i.test(note)) {
+    if (/(principiante:|adepto:|maestro:)/i.test(note)) {
         return false;
     }
     const combinedTierText = normalizeCapabilityText(tiers.map((tier) => `${tier.label} ${tier.content}`).join(" "));
@@ -1741,7 +1732,7 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
     function addRatedEntry(section) {
         setDraft({
             ...draft,
-            [section]: [...draft[section], { nombre: "", tipo: "", efecto: "", nivel: "novato", fuente: "", pagina: undefined, notas: "", acciones: [] }]
+            [section]: [...draft[section], { nombre: "", tipo: "", efecto: "", nivel: "principiante", fuente: "", pagina: undefined, notas: "", acciones: [] }]
         });
     }
     function removeRatedEntry(section, index) {
@@ -2456,7 +2447,7 @@ function CapabilityTextList({ title, entries, onOpenDetail, categoryKey }) {
                     event.preventDefault();
                     onOpenDetail(entry);
                 }
-            } : undefined, role: onOpenDetail ? "button" : undefined, tabIndex: onOpenDetail ? 0 : undefined, children: [_jsx("div", { className: "row-actions", children: _jsx("h3", { children: entry.nombre || title }) }), _jsxs("div", { className: "unified-sheet-capability-meta", children: [entry.tipo ? _jsx("span", { children: entry.tipo }) : null, entry.nivel ? _jsx("span", { children: entry.nivel }) : null, entry.fuente ? _jsxs("span", { children: [entry.fuente, entry.pagina ? ` p. ${entry.pagina}` : ""] }) : entry.pagina ? _jsxs("span", { children: ["p. ", entry.pagina] }) : null] })] }, `${title}-${index}-${entry.nombre}`)))) : (_jsx("p", { className: "unified-sheet-capability-empty", children: "Sin entradas." })) }));
+            } : undefined, role: onOpenDetail ? "button" : undefined, tabIndex: onOpenDetail ? 0 : undefined, children: [_jsx("div", { className: "row-actions", children: _jsx("h3", { children: entry.nombre || title }) }), _jsxs("div", { className: "unified-sheet-capability-meta", children: [entry.tipo ? _jsx("span", { children: entry.tipo }) : null, entry.nivel ? _jsx("span", { children: formatSkillLevelLabel(entry.nivel) }) : null, entry.fuente ? _jsxs("span", { children: [entry.fuente, entry.pagina ? ` p. ${entry.pagina}` : ""] }) : entry.pagina ? _jsxs("span", { children: ["p. ", entry.pagina] }) : null] })] }, `${title}-${index}-${entry.nombre}`)))) : (_jsx("p", { className: "unified-sheet-capability-empty", children: "Sin entradas." })) }));
 }
 function SimpleStringList({ title, entries, emptyText, onOpenDetail, categoryKey }) {
     return (_jsx("div", { className: "unified-sheet-list", children: entries.length > 0 ? (entries.map((entry, index) => (_jsxs("article", { className: `unified-sheet-capability-card${onOpenDetail ? " is-clickable" : ""}${appCardCategoryClass(categoryKey)}`, onClick: onOpenDetail ? () => onOpenDetail(entry) : undefined, onKeyDown: onOpenDetail ? (event) => {
@@ -2470,5 +2461,5 @@ function SimpleStringListEditor({ title, entries, editable, rows, helpText, onCh
     return (_jsxs("article", { className: "campaign-sheet-card", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: title }), editable ? _jsx("button", { type: "button", onClick: onAdd, children: "Agregar linea" }) : null] }), helpText ? _jsx("p", { className: "section-help", children: helpText }) : null, _jsx(Field, { label: title, children: _jsx("textarea", { disabled: !editable, rows: rows, value: entries.join("\n"), onChange: (event) => onChange(event.target.value) }) }), _jsx("div", { className: "unified-sheet-list", children: entries.length > 0 ? (entries.map((entry, index) => (_jsx("article", { className: `campaign-structured-card${appCardCategoryClass(categoryKey)}`, children: _jsxs("div", { className: "row-actions", children: [_jsx("strong", { children: entry || `${title} ${index + 1}` }), editable ? _jsx("button", { type: "button", className: "subtle-button", onClick: () => onRemove(index), children: "Quitar" }) : null] }) }, `${title}-editor-${index}-${entry}`)))) : (_jsx("p", { className: "section-help", children: "Sin entradas." })) })] }));
 }
 function CapabilityEditor({ title, entries, editable, onAdd, onRemove, onUpdate, onOpenDetail, onOpenCompendium, categoryKey }) {
-    return (_jsxs("article", { className: "campaign-sheet-card", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: title }), editable ? _jsx("button", { type: "button", onClick: onAdd, children: "Agregar" }) : null] }), _jsxs("div", { className: "unified-sheet-list", children: [entries.map((entry, index) => (_jsxs("article", { className: `campaign-structured-card${appCardCategoryClass(categoryKey)}`, children: [_jsxs("div", { className: "form-grid", children: [_jsx(Field, { label: "Nombre", children: _jsx("input", { disabled: !editable, value: entry.nombre, onChange: (event) => onUpdate(index, "nombre", event.target.value) }) }), _jsx(Field, { label: "Tipo", children: _jsx("input", { disabled: !editable, value: entry.tipo, onChange: (event) => onUpdate(index, "tipo", event.target.value) }) }), _jsx(Field, { label: "Nivel", children: _jsxs("select", { disabled: !editable, value: entry.nivel, onChange: (event) => onUpdate(index, "nivel", event.target.value), children: [_jsx("option", { value: "novato", children: "Principiante" }), _jsx("option", { value: "adepto", children: "Adepto" }), _jsx("option", { value: "maestro", children: "Maestro" })] }) }), _jsx(Field, { label: "Fuente", children: _jsx("input", { disabled: !editable, value: entry.fuente, onChange: (event) => onUpdate(index, "fuente", event.target.value) }) }), _jsx(Field, { label: "Pagina", children: _jsx("input", { disabled: !editable, type: "number", min: 0, value: entry.pagina ?? "", onChange: (event) => onUpdate(index, "pagina", Number(event.target.value || 0)) }) })] }), _jsx("textarea", { disabled: !editable, rows: 3, value: entry.efecto, onChange: (event) => onUpdate(index, "efecto", event.target.value) }), _jsx("textarea", { disabled: !editable, rows: 2, value: entry.notas, onChange: (event) => onUpdate(index, "notas", event.target.value) }), _jsxs("div", { className: "card-actions", children: [onOpenDetail ? _jsx("button", { type: "button", className: "subtle-button", onClick: () => onOpenDetail(entry), children: "Ver detalle" }) : null, onOpenCompendium ? _jsx("button", { type: "button", className: "subtle-button", onClick: () => onOpenCompendium(entry.nombre), children: "Ver en compendio" }) : null, editable ? _jsx("button", { type: "button", className: "subtle-button", onClick: () => onRemove(index), children: "Quitar" }) : null] })] }, `${title}-${index}-${entry.nombre}`))), entries.length === 0 ? _jsx("p", { className: "section-help", children: "Sin entradas." }) : null] })] }));
+    return (_jsxs("article", { className: "campaign-sheet-card", children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: title }), editable ? _jsx("button", { type: "button", onClick: onAdd, children: "Agregar" }) : null] }), _jsxs("div", { className: "unified-sheet-list", children: [entries.map((entry, index) => (_jsxs("article", { className: `campaign-structured-card${appCardCategoryClass(categoryKey)}`, children: [_jsxs("div", { className: "form-grid", children: [_jsx(Field, { label: "Nombre", children: _jsx("input", { disabled: !editable, value: entry.nombre, onChange: (event) => onUpdate(index, "nombre", event.target.value) }) }), _jsx(Field, { label: "Tipo", children: _jsx("input", { disabled: !editable, value: entry.tipo, onChange: (event) => onUpdate(index, "tipo", event.target.value) }) }), _jsx(Field, { label: "Nivel", children: _jsxs("select", { disabled: !editable, value: entry.nivel, onChange: (event) => onUpdate(index, "nivel", event.target.value), children: [_jsx("option", { value: "principiante", children: "Principiante" }), _jsx("option", { value: "adepto", children: "Adepto" }), _jsx("option", { value: "maestro", children: "Maestro" })] }) }), _jsx(Field, { label: "Fuente", children: _jsx("input", { disabled: !editable, value: entry.fuente, onChange: (event) => onUpdate(index, "fuente", event.target.value) }) }), _jsx(Field, { label: "Pagina", children: _jsx("input", { disabled: !editable, type: "number", min: 0, value: entry.pagina ?? "", onChange: (event) => onUpdate(index, "pagina", Number(event.target.value || 0)) }) })] }), _jsx("textarea", { disabled: !editable, rows: 3, value: entry.efecto, onChange: (event) => onUpdate(index, "efecto", event.target.value) }), _jsx("textarea", { disabled: !editable, rows: 2, value: entry.notas, onChange: (event) => onUpdate(index, "notas", event.target.value) }), _jsxs("div", { className: "card-actions", children: [onOpenDetail ? _jsx("button", { type: "button", className: "subtle-button", onClick: () => onOpenDetail(entry), children: "Ver detalle" }) : null, onOpenCompendium ? _jsx("button", { type: "button", className: "subtle-button", onClick: () => onOpenCompendium(entry.nombre), children: "Ver en compendio" }) : null, editable ? _jsx("button", { type: "button", className: "subtle-button", onClick: () => onRemove(index), children: "Quitar" }) : null] })] }, `${title}-${index}-${entry.nombre}`))), entries.length === 0 ? _jsx("p", { className: "section-help", children: "Sin entradas." }) : null] })] }));
 }

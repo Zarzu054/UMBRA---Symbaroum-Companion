@@ -51,7 +51,7 @@ function emptyRoll(): ArtifactRoll {
 }
 
 function emptyRequirement(): Requirement {
-  return { type: "capability", capabilityName: "", minimumLevel: "novato", description: "" };
+  return { type: "capability", capabilityName: "", minimumLevel: "principiante", description: "" };
 }
 
 function emptyResource(index: number): Resource {
@@ -357,8 +357,8 @@ export function MysticArtifactEditorWizard({ initialValue, title, busy = false, 
                   <div className="row-actions"><h6>Requisitos</h6><button type="button" onClick={() => updateAbility(abilityIndex, { requirements: [...ability.requirements, emptyRequirement()] })}>Añadir requisito</button></div>
                   {ability.requirements.map((requirement, requirementIndex) => <div key={requirementIndex} className="mystic-artifact-wizard__nested-item">
                     <div className="form-grid">
-                      <label className="field"><span>Tipo</span><select value={requirement.type} onChange={(event) => updateRequirement(abilityIndex, requirementIndex, event.target.value === "capability" ? { type: "capability", capabilityName: "", minimumLevel: "novato", description: "" } : { type: "narrative", capabilityName: "", description: "" })}><option value="capability">Habilidad comprobable</option><option value="narrative">Condición narrativa</option></select></label>
-                      {requirement.type === "capability" ? <><label className="field"><span>Habilidad necesaria</span><input value={requirement.capabilityName} onChange={(event) => updateRequirement(abilityIndex, requirementIndex, { ...requirement, capabilityName: event.target.value })} /></label><label className="field"><span>Nivel mínimo</span><select value={requirement.minimumLevel ?? ""} onChange={(event) => updateRequirement(abilityIndex, requirementIndex, { ...requirement, minimumLevel: (event.target.value || undefined) as Requirement["minimumLevel"] })}><option value="">Cualquiera</option><option value="novato">Principiante</option><option value="adepto">Adepto</option><option value="maestro">Maestro</option></select></label></> : null}
+                      <label className="field"><span>Tipo</span><select value={requirement.type} onChange={(event) => updateRequirement(abilityIndex, requirementIndex, event.target.value === "capability" ? { type: "capability", capabilityName: "", minimumLevel: "principiante", description: "" } : { type: "narrative", capabilityName: "", description: "" })}><option value="capability">Habilidad comprobable</option><option value="narrative">Condición narrativa</option></select></label>
+                      {requirement.type === "capability" ? <><label className="field"><span>Habilidad necesaria</span><input value={requirement.capabilityName} onChange={(event) => updateRequirement(abilityIndex, requirementIndex, { ...requirement, capabilityName: event.target.value })} /></label><label className="field"><span>Nivel mínimo</span><select value={requirement.minimumLevel ?? ""} onChange={(event) => updateRequirement(abilityIndex, requirementIndex, { ...requirement, minimumLevel: (event.target.value || undefined) as Requirement["minimumLevel"] })}><option value="">Cualquiera</option><option value="principiante">Principiante</option><option value="adepto">Adepto</option><option value="maestro">Maestro</option></select></label></> : null}
                       <label className="field"><span>{requirement.type === "narrative" ? "Condición" : "Explicación"}</span><input value={requirement.description} onChange={(event) => updateRequirement(abilityIndex, requirementIndex, { ...requirement, description: event.target.value })} /></label>
                     </div>
                     <button type="button" className="text-button" onClick={() => updateAbility(abilityIndex, { requirements: ability.requirements.filter((_, index) => index !== requirementIndex) })}>Quitar requisito</button>

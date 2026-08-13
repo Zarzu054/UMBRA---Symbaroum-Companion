@@ -21,7 +21,7 @@ KEYWORD_GROUPS: Dict[str, List[str]] = {
     "combate": ["combate", "ataque", "defensa", "armadura", "danio", "iniciativa"],
     "corrupcion": ["corrupcion", "temporal", "permanente", "mancha", "abominacion"],
     "magia": ["misterio", "ritual", "poder", "hechizo", "tradicion", "artefacto"],
-    "talentos": ["habilidad", "talento", "novato", "adepto", "maestro"],
+    "talentos": ["habilidad", "talento", "principiante", "adepto", "maestro"],
     "equipo": ["arma", "escudo", "armadura", "equipo", "objeto", "reliquia"],
     "bestiario": ["criatura", "monstruo", "bestia", "abominacion", "no muerto"],
     "aventura": ["aventura", "escena", "acto", "trama", "encuentro", "pnj"],

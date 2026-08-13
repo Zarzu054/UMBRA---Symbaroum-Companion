@@ -14,7 +14,7 @@ export const actorCapabilitySelectionSchema = z.object({
     catalogId: z.string().max(180).default(""),
     name: z.string().min(1).max(180),
     kind: actorCapabilityKindSchema,
-    level: z.enum(["novato", "adepto", "maestro"]).optional(),
+    level: z.enum(["principiante", "adepto", "maestro"]).optional(),
     origin: actorCapabilityOriginSchema.default("comprada"),
     source: z.string().max(160).default(""),
     page: z.number().int().min(1).max(2000).optional(),

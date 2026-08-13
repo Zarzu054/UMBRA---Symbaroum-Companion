@@ -295,7 +295,7 @@ export function synchronizeMonsterCreationValues(sheet: MonsterSheet): MonsterSh
         const normalized = trait.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
         const level = /(?:iii|3)\)?\s*$/.test(normalized) ? "maestro" as const
           : /(?:ii|2)\)?\s*$/.test(normalized) ? "adepto" as const
-            : "novato" as const;
+            : "principiante" as const;
         return {
           catalogId: `legacy-monster-trait-${index}-${normalized.replace(/[^a-z0-9]+/g, "-")}`,
           name: trait.replace(/\s*\(?(?:i{1,3}|[1-3])\)?\s*$/i, "").trim() || trait,
@@ -352,11 +352,11 @@ function splitPublishedEntries(value: string): string[] {
   return entries;
 }
 
-function publishedLevel(value: string): "novato" | "adepto" | "maestro" {
+function publishedLevel(value: string): "principiante" | "adepto" | "maestro" {
   const normalized = normalizePublishedName(value);
   if (/\b(?:maestr[oa]|iii)\b/.test(normalized)) return "maestro";
   if (/\b(?:adept[oa]|ii)\b/.test(normalized)) return "adepto";
-  return "novato";
+  return "principiante";
 }
 
 function publishedEntryName(value: string): string {

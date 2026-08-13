@@ -40,7 +40,12 @@ export const adminAccountActionSchema = z.enum([
   "sessions_revoked",
   "credentials_resent"
 ]);
-export const skillLevelSchema = z.enum(["novato", "adepto", "maestro"]);
+const canonicalSkillLevelSchema = z.enum(["principiante", "adepto", "maestro"]);
+export const skillLevelSchema = z.preprocess(
+  // Transitional compatibility for requests made by a cached pre-migration client.
+  (value) => value === "novato" ? "principiante" : value,
+  canonicalSkillLevelSchema
+);
 export const actionCostSchema = z.enum(["free", "movement", "combat", "reaction"]);
 export const campaignChatVisibilitySchema = z.enum(["all", "gm_only"]);
 export const campaignChatMessageTypeSchema = z.enum(["text", "action"]);
@@ -55,6 +60,31 @@ export type SkillLevel = z.infer<typeof skillLevelSchema>;
 export type ActionCost = z.infer<typeof actionCostSchema>;
 export type CampaignChatVisibility = z.infer<typeof campaignChatVisibilitySchema>;
 export type CampaignChatMessageType = z.infer<typeof campaignChatMessageTypeSchema>;
+
+/**
+ * Canonical label for capability tiers. Both the application and persisted
+ * data use the terminology from the Spanish rulebooks.
+ */
+export function formatSkillLevelLabel(level: SkillLevel | "principiante" | string | null | undefined): string {
+  const value = String(level ?? "").trim();
+  switch (value.toLocaleLowerCase("es")) {
+    case "principiante":
+      return "Principiante";
+    case "adepto":
+    case "adepta":
+      return "Adepto";
+    case "maestro":
+    case "maestra":
+      return "Maestro";
+    default:
+      return value;
+  }
+}
+
+/** Normalize legacy terminology contained in old notes or audit payloads. */
+export function replaceLegacySkillLevelTerminology(value: string): string {
+  return value.replace(/\bnovat(?:o|a)(s?)\b/giu, (_match, plural: string) => plural ? "Principiantes" : "Principiante");
+}
 
 export const SYMBAROUM_RACES = [
   "Humano",
@@ -643,11 +673,11 @@ function extractMonsterTraitBaseName(value: string): string {
     .trim();
 }
 
-function parseMonsterTraitLevel(value: string): "novato" | "adepto" | "maestro" {
+function parseMonsterTraitLevel(value: string): "principiante" | "adepto" | "maestro" {
   const normalized = normalizeName(value);
   if (/\bmaestro\b|\biii\b|\b3\b/.test(normalized)) return "maestro";
   if (/\badepto\b|\bii\b|\b2\b/.test(normalized)) return "adepto";
-  return "novato";
+  return "principiante";
 }
 
 function isCharacterMonsterTrait(value: string): boolean {
@@ -1204,7 +1234,7 @@ function getTraitLevelForCanonicalActions(sheet: z.infer<typeof characterSheetOb
 
     if (/\bmaestro\b/.test(normalized)) return 3;
     if (/\badepto\b/.test(normalized)) return 2;
-    if (/\b(?:principiante|novato)\b/.test(normalized)) return 1;
+    if (/\bprincipiante\b/.test(normalized)) return 1;
     if (/\biii\b|\b3\b/.test(normalized)) return 3;
     if (/\bii\b|\b2\b/.test(normalized)) return 2;
     return 1;
@@ -1306,7 +1336,7 @@ function inferRatedActionLevel(...values: string[]): z.infer<typeof skillLevelSc
   const joined = values.join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (joined.includes("maestro")) return "maestro";
   if (joined.includes("adepto")) return "adepto";
-  if (joined.includes("principiante") || joined.includes("novato")) return "novato";
+  if (joined.includes("principiante")) return "principiante";
   return undefined;
 }
 
@@ -1335,11 +1365,9 @@ function sanitizeImportedRatedEntry(entry: unknown): z.infer<typeof ratedEntrySc
   const candidate = entry as Record<string, unknown>;
   const nombre = String(candidate.nombre ?? "").trim();
   const nivelRaw = String(candidate.nivel ?? "").trim().toLowerCase();
-  const nivel = nivelRaw === "principiante"
-    ? "novato"
-    : nivelRaw === "novato" || nivelRaw === "adepto" || nivelRaw === "maestro"
-      ? nivelRaw
-      : "novato";
+  const nivel = nivelRaw === "principiante" || nivelRaw === "adepto" || nivelRaw === "maestro"
+    ? nivelRaw
+    : "principiante";
 
   const acciones = Array.isArray(candidate.acciones) ? candidate.acciones.filter((action) => action && typeof action === "object") : [];
 
@@ -1659,7 +1687,7 @@ function characterCombatCapabilityRank(level: string): number {
   }
 }
 
-function characterHasCombatCapability(sheet: CharacterSheet, name: string, minimumLevel: "novato" | "adepto" | "maestro"): boolean {
+function characterHasCombatCapability(sheet: CharacterSheet, name: string, minimumLevel: "principiante" | "adepto" | "maestro"): boolean {
   const target = normalizeCharacterCombatName(name);
   const rank = characterCombatCapabilityRank(minimumLevel);
   return [...sheet.habilidades, ...sheet.poderesMisticos, ...sheet.rituales]
@@ -1669,7 +1697,7 @@ function characterHasCombatCapability(sheet: CharacterSheet, name: string, minim
 function resolveCharacterInitiativeAttribute(sheet: CharacterSheet): number {
   const values = [sheet.atributos.agil];
   if (characterHasCombatCapability(sheet, "Sexto sentido", "adepto")) values.push(sheet.atributos.atento);
-  if (characterHasCombatCapability(sheet, "Táctico", "novato")) values.push(sheet.atributos.inteligente);
+  if (characterHasCombatCapability(sheet, "Táctico", "principiante")) values.push(sheet.atributos.inteligente);
   return Math.max(...values);
 }
 

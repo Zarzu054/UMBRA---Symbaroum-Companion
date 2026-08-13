@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ATTRIBUTE_KEYS,
   ATTRIBUTE_LABELS,
@@ -151,7 +151,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
     if (!text) return;
     setForm((prev) => {
       const next = structuredClone(prev);
-      next.sheet[section] = [...next.sheet[section], { nombre: text, tipo: "", efecto: "", nivel: "novato", fuente: "", notas: "", acciones: [] }];
+      next.sheet[section] = [...next.sheet[section], { nombre: text, tipo: "", efecto: "", nivel: "principiante", fuente: "", notas: "", acciones: [] }];
       return { ...next, sheet: safeSheetForEditing(next.sheet) };
     });
     setListInput((prev) => ({ ...prev, [sourceInput]: "" }));
@@ -170,7 +170,7 @@ export function useCharacterController(ensureAccessToken: () => Promise<string>)
           nombre: entry.nombre,
           tipo: section === "habilidades" ? "Habilidad" : section === "poderesMisticos" ? "Poder místico" : "Ritual",
           efecto: entry.efectoResumen,
-          nivel: "novato",
+          nivel: "principiante",
           fuente: entry.libro,
           pagina: entry.pagina,
           notas: entry.efectoResumen,

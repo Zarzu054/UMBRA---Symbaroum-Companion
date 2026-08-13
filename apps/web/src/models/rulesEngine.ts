@@ -194,7 +194,7 @@ function resolveInitiativeAttribute(sheet: CharacterSheet): number {
     candidates.push(sheet.atributos.atento);
   }
 
-  if (hasCapabilityAtLevel(sheet, "Tactico", "novato")) {
+  if (hasCapabilityAtLevel(sheet, "Tactico", "principiante")) {
     candidates.push(sheet.atributos.inteligente);
   }
 
@@ -215,7 +215,7 @@ function resolveDefenseAttribute(sheet: CharacterSheet): number {
   return Math.max(...candidates);
 }
 
-function hasCapabilityAtLevel(sheet: CharacterSheet, capabilityName: string, minimumLevel: "novato" | "adepto" | "maestro"): boolean {
+function hasCapabilityAtLevel(sheet: CharacterSheet, capabilityName: string, minimumLevel: "principiante" | "adepto" | "maestro"): boolean {
   const capabilities = [...sheet.habilidades, ...sheet.poderesMisticos, ...sheet.rituales];
   const normalizedTarget = normalizeCapabilityName(capabilityName);
   const minimumRank = capabilityRank(minimumLevel);
@@ -229,7 +229,7 @@ function capabilityRank(level: string): number {
       return 3;
     case "adepto":
       return 2;
-    case "novato":
+    case "principiante":
     default:
       return 1;
   }

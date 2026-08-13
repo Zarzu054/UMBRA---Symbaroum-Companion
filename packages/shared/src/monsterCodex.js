@@ -236,7 +236,7 @@ export function synchronizeMonsterCreationValues(sheet) {
             const normalized = trait.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
             const level = /(?:iii|3)\)?\s*$/.test(normalized) ? "maestro"
                 : /(?:ii|2)\)?\s*$/.test(normalized) ? "adepto"
-                    : "novato";
+                    : "principiante";
             return {
                 catalogId: `legacy-monster-trait-${index}-${normalized.replace(/[^a-z0-9]+/g, "-")}`,
                 name: trait.replace(/\s*\(?(?:i{1,3}|[1-3])\)?\s*$/i, "").trim() || trait,
@@ -298,7 +298,7 @@ function publishedLevel(value) {
         return "maestro";
     if (/\b(?:adept[oa]|ii)\b/.test(normalized))
         return "adepto";
-    return "novato";
+    return "principiante";
 }
 function publishedEntryName(value) {
     if (/^Atributo excepcional\s*\(/i.test(value))

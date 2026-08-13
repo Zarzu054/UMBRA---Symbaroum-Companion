@@ -44,9 +44,9 @@ it("shows all profession goals with live requirement progress and creates an asp
   const sheet = createEmptyCharacterSheet();
   sheet.habilidades = [
     { nombre: "Estudioso", tipo: "Habilidad", efecto: "", nivel: "maestro", fuente: "Libro Básico", pagina: 1, notas: "", acciones: [] },
-    { nombre: "Tirador", tipo: "Habilidad", efecto: "", nivel: "novato", fuente: "Libro Básico", pagina: 1, notas: "", acciones: [] },
-    { nombre: "Versado en criaturas", tipo: "Habilidad", efecto: "", nivel: "novato", fuente: "Libro Básico", pagina: 1, notas: "", acciones: [] },
-    { nombre: "Armas de asta", tipo: "Habilidad", efecto: "", nivel: "novato", fuente: "Libro Básico", pagina: 1, notas: "", acciones: [] }
+    { nombre: "Tirador", tipo: "Habilidad", efecto: "", nivel: "principiante", fuente: "Libro Básico", pagina: 1, notas: "", acciones: [] },
+    { nombre: "Versado en criaturas", tipo: "Habilidad", efecto: "", nivel: "principiante", fuente: "Libro Básico", pagina: 1, notas: "", acciones: [] },
+    { nombre: "Armas de asta", tipo: "Habilidad", efecto: "", nivel: "principiante", fuente: "Libro Básico", pagina: 1, notas: "", acciones: [] }
   ];
   const character: Character = { id: "character-prof", name: "Alda", archetype: "Cazador", race: "Humano", culture: "Ambriano", profession: "", level: 1, sheet, professionMemberships: [], createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString() };
   const onAspire = vi.fn().mockResolvedValue(undefined);

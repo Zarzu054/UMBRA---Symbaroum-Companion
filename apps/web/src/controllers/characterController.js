@@ -123,7 +123,7 @@ export function useCharacterController(ensureAccessToken) {
             return;
         setForm((prev) => {
             const next = structuredClone(prev);
-            next.sheet[section] = [...next.sheet[section], { nombre: text, tipo: "", efecto: "", nivel: "novato", fuente: "", notas: "", acciones: [] }];
+            next.sheet[section] = [...next.sheet[section], { nombre: text, tipo: "", efecto: "", nivel: "principiante", fuente: "", notas: "", acciones: [] }];
             return { ...next, sheet: safeSheetForEditing(next.sheet) };
         });
         setListInput((prev) => ({ ...prev, [sourceInput]: "" }));
@@ -139,7 +139,7 @@ export function useCharacterController(ensureAccessToken) {
                     nombre: entry.nombre,
                     tipo: section === "habilidades" ? "Habilidad" : section === "poderesMisticos" ? "Poder místico" : "Ritual",
                     efecto: entry.efectoResumen,
-                    nivel: "novato",
+                    nivel: "principiante",
                     fuente: entry.libro,
                     pagina: entry.pagina,
                     notas: entry.efectoResumen,

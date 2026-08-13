@@ -74,7 +74,7 @@ function buildRandomCharacter() {
     sheet.progreso.nivel = 1;
     sheet.progreso.experienciaTotal = 10;
     sheet.progreso.experienciaGastada = 0;
-    const startingPattern = Math.random() < 0.5 ? "2novato_1adepto" : "5novato";
+    const startingPattern = Math.random() < 0.5 ? "2principiante_1adepto" : "5principiante";
     const generatedCapabilities = generateStartingCapabilities(archetype, startingPattern);
     sheet.habilidades = generatedCapabilities.habilidades;
     sheet.poderesMisticos = generatedCapabilities.poderesMisticos;
@@ -124,9 +124,9 @@ function generateAttributeBlock() {
     return attributes;
 }
 function generateStartingCapabilities(archetype, pattern) {
-    const slotCount = pattern === "2novato_1adepto" ? 3 : 5;
-    const noviceCount = pattern === "2novato_1adepto" ? 2 : 5;
-    const adeptCount = pattern === "2novato_1adepto" ? 1 : 0;
+    const slotCount = pattern === "2principiante_1adepto" ? 3 : 5;
+    const noviceCount = pattern === "2principiante_1adepto" ? 2 : 5;
+    const adeptCount = pattern === "2principiante_1adepto" ? 1 : 0;
     const abilityCatalog = new Map(SYMBAROUM_ABILITIES.map((entry) => [entry.nombre, entry]));
     const powerCatalog = new Map(SYMBAROUM_MYSTIC_POWERS.map((entry) => [entry.nombre, entry]));
     const selectedAbilities = pickUnique(ABILITY_POOL_BY_ARCHETYPE[archetype], Math.min(slotCount, ABILITY_POOL_BY_ARCHETYPE[archetype].length));
@@ -144,7 +144,7 @@ function generateStartingCapabilities(archetype, pattern) {
     }
     const orderedEntries = [...selectedAbilities.map((name) => ({ type: "ability", name })), ...selectedPowers.map((name) => ({ type: "power", name }))].slice(0, slotCount);
     orderedEntries.forEach((entry, index) => {
-        const level = levels[index] ?? "novato";
+        const level = levels[index] ?? "principiante";
         if (entry.type === "ability") {
             const fromCatalog = abilityCatalog.get(entry.name);
             habilidades.push(buildRatedEntry(entry.name, level, "Habilidad", fromCatalog));
@@ -161,7 +161,7 @@ function buildLevels(noviceCount, adeptCount) {
         levels.push("adepto");
     }
     for (let index = 0; index < noviceCount; index += 1) {
-        levels.push("novato");
+        levels.push("principiante");
     }
     return shuffle(levels);
 }

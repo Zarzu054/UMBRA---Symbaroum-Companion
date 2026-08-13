@@ -18,7 +18,7 @@ function sourcePdf(source) {
 function hasText(value) {
     return Boolean(value?.trim());
 }
-const CAPABILITY_LEVEL_ORDER = { novato: 1, adepto: 2, maestro: 3 };
+const CAPABILITY_LEVEL_ORDER = { principiante: 1, adepto: 2, maestro: 3 };
 const CAPABILITY_CATALOG = [...SYMBAROUM_ABILITIES, ...SYMBAROUM_MYSTIC_POWERS, ...SYMBAROUM_RITUALS];
 const PUBLISHED_CAPABILITY_DETAILS = {
     "combate con latigo": "Esta técnica combina un látigo en una mano con un arma a una mano en la otra. Principiante: Activa. Si el ataque con látigo impacta, el personaje obtiene un ataque gratuito con el arma a una mano, aunque el látigo no cause daño. Adepto: Activa. Como en Principiante, pero el látigo obstaculiza al enemigo y el ataque gratuito impacta automáticamente. Maestro: Activa. Como en Adepto, pero el combatiente acerca al enemigo para que el ataque gratuito inflija +1D6 de daño. Ref: Códice de monstruos, p.123.",
@@ -110,7 +110,7 @@ function capabilityLevelLabel(level) {
         return "Maestro";
     if (level === "adepto")
         return "Adepto";
-    if (level === "novato")
+    if (level === "principiante")
         return "Principiante";
     return "Sin nivel";
 }
@@ -120,9 +120,9 @@ function inferCapabilityLevel(raw, fallback) {
         return "maestro";
     if (/\badept[oa]\b/.test(normalized))
         return "adepto";
-    if (/\b(?:principiante|novato)\b/.test(normalized))
-        return "novato";
-    return fallback ?? "novato";
+    if (/\bprincipiante\b/.test(normalized))
+        return "principiante";
+    return fallback ?? "principiante";
 }
 function buildMonsterCapabilityItems(capabilities) {
     const resolved = new Map();
@@ -160,7 +160,7 @@ function buildMonsterCapabilityItems(capabilities) {
                 level: entry.kind === "ritual" ? null : inferCapabilityLevel(publishedText, entry.level),
                 canonical: null,
                 publishedText,
-                descriptionOverride: PUBLISHED_CAPABILITY_DETAILS[normalizedPublished.replace(/\b(?:principiante|novato|adepto|maestro)\b.*$/, "").trim()],
+                descriptionOverride: PUBLISHED_CAPABILITY_DETAILS[normalizedPublished.replace(/\b(?:principiante|adepto|maestro)\b.*$/, "").trim()],
                 source: entry.source,
                 page: entry.page
             });
@@ -188,7 +188,7 @@ function buildMonsterCapabilityItems(capabilities) {
 }
 function parseCapabilityDescription(text) {
     const source = text.trim();
-    const matches = [...source.matchAll(/(Principiante|Novato|Adepto|Maestro):/g)];
+    const matches = [...source.matchAll(/(Principiante|Adepto|Maestro):/g)];
     if (!matches.length) {
         const referenceIndex = source.indexOf("Ref:");
         return {
@@ -205,7 +205,7 @@ function parseCapabilityDescription(text) {
         if (referenceIndex >= 0)
             content = content.slice(0, referenceIndex).trim();
         const parsedLabel = match[1] ?? "Principiante";
-        return { label: (parsedLabel === "Novato" ? "Principiante" : parsedLabel), content };
+        return { label: parsedLabel, content };
     });
     const firstTierIndex = matches[0]?.index ?? 0;
     const referenceIndex = source.lastIndexOf("Ref:");
@@ -295,7 +295,7 @@ function capabilityLevel(sheet, aliases) {
         const normalized = normalizeCapability(`${capability.name} ${capability.legacyData ?? ""}`);
         if (!normalizedAliases.some((alias) => normalized === alias || normalized.startsWith(`${alias} `) || normalized.includes(`${alias} `)))
             continue;
-        const level = capability.level === "maestro" ? 3 : capability.level === "adepto" ? 2 : capability.level === "novato" ? 1 : inferCapabilityLevel(normalized) === "maestro" ? 3 : inferCapabilityLevel(normalized) === "adepto" ? 2 : 1;
+        const level = capability.level === "maestro" ? 3 : capability.level === "adepto" ? 2 : capability.level === "principiante" ? 1 : inferCapabilityLevel(normalized) === "maestro" ? 3 : inferCapabilityLevel(normalized) === "adepto" ? 2 : 1;
         highest = Math.max(highest, level);
     }
     return highest;

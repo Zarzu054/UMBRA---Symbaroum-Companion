@@ -137,7 +137,7 @@ export function normalizeProfessionText(value) {
     return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 }
 export function normalizeProfessionCapabilities(capabilities) {
-    const levelRank = { novato: 1, adepto: 2, maestro: 3 };
+    const levelRank = { principiante: 1, adepto: 2, maestro: 3 };
     const merged = new Map();
     for (const capability of capabilities) {
         const key = normalizeProfessionText(capability.name);

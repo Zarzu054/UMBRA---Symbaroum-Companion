@@ -159,7 +159,7 @@ type CatalogDetail = {
   abilityExtras?: AbilityExtra[];
 };
 
-const capability = (capabilityName: string, minimumLevel: "novato" | "adepto" | "maestro" = "novato") => ({
+const capability = (capabilityName: string, minimumLevel: "principiante" | "adepto" | "maestro" = "principiante") => ({
   type: "capability" as const, capabilityName, minimumLevel, description: ""
 });
 const check = (label: string, actorAttribute: "agil" | "atento" | "diestro" | "discreto" | "fuerte" | "inteligente" | "persuasivo" | "tenaz", opponentAttribute?: "agil" | "atento" | "diestro" | "discreto" | "fuerte" | "inteligente" | "persuasivo" | "tenaz") => ({
@@ -525,13 +525,13 @@ const detailedPresets: Preset[] = [
     weapon: { attackAttribute: "diestro", attackFormula: "1D20", damageFormula: "1D6", tags: ["long"], qualities: ["Bastón", "Larga"], requiresBinding: false },
     abilities: [
       ability("El mordisco del báculo", "Tras causar daño con el báculo, aplica veneno moderado durante 1D6 turnos.", "reaction", "1D4", { rolls: [{ kind: "damage", label: "Veneno", formula: "1D6" }] }),
-      ability("Abrazo de mordiscos", "El báculo se enrosca y sigue mordiendo mientras se mantenga la presa.", "reaction", "1D6", { rolls: [{ kind: "check", label: "Mantener presa", formula: "1D20", actorAttribute: "atento", opponentAttribute: "fuerte" }, { kind: "damage", label: "Mordisco", formula: "1D6" }], requirements: [{ type: "capability", capabilityName: "Armas de asta", minimumLevel: "novato", description: "" }] })
+      ability("Abrazo de mordiscos", "El báculo se enrosca y sigue mordiendo mientras se mantenga la presa.", "reaction", "1D6", { rolls: [{ kind: "check", label: "Mantener presa", formula: "1D20", actorAttribute: "atento", opponentAttribute: "fuerte" }, { kind: "damage", label: "Mordisco", formula: "1D6" }], requirements: [{ type: "capability", capabilityName: "Armas de asta", minimumLevel: "principiante", description: "" }] })
     ]
   }),
   preset(3, "mano-mal-rogan", "Mano momificada de Mal-Rogan", "Libro Básico", 255, {
     description: "La mano de Mal-Rogan contiene su alma y le permite regresar mientras exista.",
     abilities: [
-      ability("Palabra de perdición", "El objetivo repite sus tiradas de Defensa y conserva el peor resultado durante la escena.", "combat", "1D6", { rolls: [{ kind: "check", label: "Perdición", formula: "1D20", actorAttribute: "tenaz" }], requirements: [{ type: "capability", capabilityName: "Líder", minimumLevel: "novato", description: "" }] }),
+      ability("Palabra de perdición", "El objetivo repite sus tiradas de Defensa y conserva el peor resultado durante la escena.", "combat", "1D6", { rolls: [{ kind: "check", label: "Perdición", formula: "1D20", actorAttribute: "tenaz" }], requirements: [{ type: "capability", capabilityName: "Líder", minimumLevel: "principiante", description: "" }] }),
       ability("Éxtasis oscuro", "Permite repetir una tirada de acción.", "free", "1D4", { rolls: [{ kind: "check", label: "Activación", formula: "1D20", actorAttribute: "tenaz" }] }),
       ability("La venganza de Mal-Rogan", "Destruye el amuleto y libera el alma de Mal-Rogan, que intenta poseer al portador. Al terminar la posesión, tenga éxito o no, Mal-Rogan muere definitivamente.", "combat", "Ninguna; resuelve Posesión", { rolls: [{ kind: "check", label: "Destrucción", formula: "1D20", actorAttribute: "tenaz" }] })
     ]
@@ -550,7 +550,7 @@ const detailedPresets: Preset[] = [
     armor: { protectionFormula: "", qualities: ["Escudo"], requiresBinding: false },
     abilities: [
       ability("Punto de apoyo", "Permite tirar Fuerte en vez de Ágil para mantener la posición o recuperar el equilibrio.", "reaction", "1"),
-      ability("Arremetida enana", "La cara de piedra muerde al golpear e inflige 1D4 adicional.", "reaction", "1D4", { rolls: [{ kind: "damage", label: "Mordisco", formula: "1D4" }], requirements: [{ type: "capability", capabilityName: "Combate con escudo", minimumLevel: "novato", description: "" }] })
+      ability("Arremetida enana", "La cara de piedra muerde al golpear e inflige 1D4 adicional.", "reaction", "1D4", { rolls: [{ kind: "damage", label: "Mordisco", formula: "1D4" }], requirements: [{ type: "capability", capabilityName: "Combate con escudo", minimumLevel: "principiante", description: "" }] })
     ]
   }),
   preset(6, "ojo-matulda", "Ojo de Matulda", "Aventuras 1", 6, {
@@ -564,19 +564,19 @@ const detailedPresets: Preset[] = [
   }),
   preset(7, "velo-mial", "Velo de Mial", "Aventuras 1", 8, { description: "Velo encargado por el rey Mial para ocultar sus secretos. Puede volver invisibles objetos y, en manos de alguien hábil con el engaño, también criaturas vivas.", abilities: [
     ability("Ocultar objeto", "Vuelve invisible un objeto inanimado; puede detectarse con Discreto contra Atento.", "combat", "1", { rolls: [{ kind: "check", label: "Ocultación", formula: "1D20", actorAttribute: "discreto", opponentAttribute: "atento" }] }),
-    ability("Ocultar criatura", "Oculta una criatura viva, incluso en movimiento con mayor dificultad.", "combat", "1D4", { rolls: [{ kind: "check", label: "Ocultación", formula: "1D20", actorAttribute: "discreto", opponentAttribute: "atento" }], requirements: [{ type: "capability", capabilityName: "Finta", minimumLevel: "novato", description: "" }] })
+    ability("Ocultar criatura", "Oculta una criatura viva, incluso en movimiento con mayor dificultad.", "combat", "1D4", { rolls: [{ kind: "check", label: "Ocultación", formula: "1D20", actorAttribute: "discreto", opponentAttribute: "atento" }], requirements: [{ type: "capability", capabilityName: "Finta", minimumLevel: "principiante", description: "" }] })
   ] }),
   preset(8, "capa-vesper", "Capa Flotante de Vesper", "Aventuras 1", 8, { description: "Capa asociada a Vesper y los Zorros Voladores. Retiene el aire para permitir descensos seguros y breves ascensos antes de planear.", abilities: [
     ability("Aterrizaje suave", "Permite planear y aterrizar suavemente desde gran altura.", "movement", "1D4"),
-    ability("Jinete del viento", "Permite elevarse y descender planeando en la dirección elegida.", "combat", "1D6", { rolls: [{ kind: "check", label: "Vuelo", formula: "1D20", actorAttribute: "agil" }], requirements: [{ type: "capability", capabilityName: "Acróbata", minimumLevel: "novato", description: "" }] })
+    ability("Jinete del viento", "Permite elevarse y descender planeando en la dirección elegida.", "combat", "1D6", { rolls: [{ kind: "check", label: "Vuelo", formula: "1D20", actorAttribute: "agil" }], requirements: [{ type: "capability", capabilityName: "Acróbata", minimumLevel: "principiante", description: "" }] })
   ] }),
   preset(9, "mascaras-yeleta", "Máscaras de Yeleta", "Aventuras 1", 8, { description: "Máscaras creadas por la huldra Yeleta para contemplar el mundo sin disfraces. Revelan formas verdaderas y pueden proyectar una aparición aterradora.", abilities: [
     ability("La terrible realidad", "Permite ver al objetivo tal y como es realmente.", "free", "1D4", { rolls: [{ kind: "check", label: "Revelación", formula: "1D20", actorAttribute: "atento" }] }),
-    ability("Mordisco de máscara", "Una aparición ataca al objetivo y puede aterrorizarlo.", "combat", "1D4", { rolls: [{ kind: "check", label: "Terror", formula: "1D20", actorAttribute: "tenaz", opponentAttribute: "tenaz" }], requirements: [{ type: "capability", capabilityName: "Ojo místico", minimumLevel: "novato", description: "" }] })
+    ability("Mordisco de máscara", "Una aparición ataca al objetivo y puede aterrorizarlo.", "combat", "1D4", { rolls: [{ kind: "check", label: "Terror", formula: "1D20", actorAttribute: "tenaz", opponentAttribute: "tenaz" }], requirements: [{ type: "capability", capabilityName: "Ojo místico", minimumLevel: "principiante", description: "" }] })
   ] }),
   preset(10, "careta-garulfu", "Careta de Garulfu", "Aventuras 1", 8, { description: "Sombría careta del caudillo Garulfu, concebida para imponer disciplina y convertir la fuerza de la personalidad en protección y dominio.", abilities: [
     ability("Escudo de carisma", "Sustituye una vez por turno la Defensa por Persuasivo e ignora Incómoda.", "reaction", "1D4"),
-    ability("Pastor de esclavos", "Permite usar Dominación como Someter voluntad al mismo nivel.", "combat", "1D6", { requirements: [{ type: "capability", capabilityName: "Dominación", minimumLevel: "novato", description: "" }] })
+    ability("Pastor de esclavos", "Permite usar Dominación como Someter voluntad al mismo nivel.", "combat", "1D6", { requirements: [{ type: "capability", capabilityName: "Dominación", minimumLevel: "principiante", description: "" }] })
   ] })
 ];
 

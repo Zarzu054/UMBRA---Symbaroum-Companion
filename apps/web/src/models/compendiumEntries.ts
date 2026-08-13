@@ -2137,9 +2137,9 @@ function buildMonsterRuleEntries(): CompendiumEntry[] {
       id: "regla-monstruos-nivel-de-competencia",
       tipo: "regla",
       nombre: "Nivel de competencia",
-      resumen: "El libro divide a los grupos en novatos, experimentados, veteranos y héroes según experiencia, equipo y alcance de sus aventuras.",
+      resumen: "El libro divide a los grupos en principiantes, experimentados, veteranos y héroes según experiencia, equipo y alcance de sus aventuras.",
       detalle:
-        "Los grupos novatos rondan 50 XP y afrontan aventuras limitadas; los experimentados, unas 100 XP y retos locales; los veteranos, unas 200 XP y amenazas regionales; y los héroes, 300 XP o más, con artefactos abundantes y conflictos globales.",
+        "Los grupos principiantes rondan 50 XP y afrontan aventuras limitadas; los experimentados, unas 100 XP y retos locales; los veteranos, unas 200 XP y amenazas regionales; y los héroes, 300 XP o más, con artefactos abundantes y conflictos globales.",
       fuente: "Códice de monstruos",
       pagina: 178,
       tags: ["monstruos", "campaña", "competencia"]
@@ -2161,7 +2161,7 @@ function buildMonsterRuleEntries(): CompendiumEntry[] {
       nombre: "Competencia y entorno",
       resumen: "El entorno también escala el peligro: Ambria es relativamente segura y Davokar se vuelve letal cuanto más profundo se entra.",
       detalle:
-        "Las pautas sugieren novatos principalmente en Ambria y Davokar la Luminosa, experimentados con incursiones crecientes en la Oscura, veteranos habituados a la Luminosa pero probados en la Oscura, y héroes enfrentados a zonas completamente consumidas por corrupción.",
+        "Las pautas sugieren principiantes principalmente en Ambria y Davokar la Luminosa, experimentados con incursiones crecientes en la Oscura, veteranos habituados a la Luminosa pero probados en la Oscura, y héroes enfrentados a zonas completamente consumidas por corrupción.",
       fuente: "Códice de monstruos",
       pagina: 180,
       tags: ["monstruos", "Davokar", "entorno"]
@@ -2197,7 +2197,7 @@ export const MANUAL_RULES: CompendiumEntry[] = [
     detalle: "UMBRA valida los patrones iniciales de capacidades durante la creaci\u00f3n: o bien cinco habilidades a nivel principiante, o bien dos a nivel principiante y una a nivel adepto. No se permite nivel maestro en creaci\u00f3n.",
     fuente: "Libro B\u00e1sico",
     pagina: 104,
-    tags: ["creacion", "habilidades", "principiante", "novato", "adepto"]
+    tags: ["creacion", "habilidades", "principiante", "adepto"]
   },
   {
     id: "regla-manual-4-requisitos-de-poderes-y-rituales",

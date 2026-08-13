@@ -194,7 +194,7 @@ test("deriveCharacterActions filtra acciones por el nivel real de la capacidad",
       fuente: "Guía Avanzada del Jugador",
       notas: "",
       acciones: [
-        { id: "novato-tormenta", label: "Tormenta de flechas (Principiante)", cost: "combat", requiredLevel: "novato", rollAttribute: "tenaz", damageFormula: "1d6", effectSummary: "" },
+        { id: "principiante-tormenta", label: "Tormenta de flechas (Principiante)", cost: "combat", requiredLevel: "principiante", rollAttribute: "tenaz", damageFormula: "1d6", effectSummary: "" },
         { id: "adepto-tormenta", label: "Tormenta de flechas (Adepto)", cost: "combat", requiredLevel: "adepto", rollAttribute: "tenaz", damageFormula: "1d8", effectSummary: "" },
         { id: "maestro-tormenta", label: "Tormenta de flechas (Maestro)", cost: "combat", requiredLevel: "maestro", rollAttribute: "tenaz", damageFormula: "1d8", effectSummary: "" }
       ]
@@ -216,7 +216,7 @@ test("Glifo vampirico deriva tirada y dano", () => {
         nombre: "Glifo vampírico",
         tipo: "Poder místico",
         efecto: "",
-        nivel: "novato",
+        nivel: "principiante",
         fuente: "Guía Avanzada del Jugador",
         notas: "",
         acciones: []
@@ -230,7 +230,7 @@ test("Glifo vampirico deriva tirada y dano", () => {
   assert.equal(action.damageFormula, "1d4");
 });
 
-test("Berserker novato agrega una defensa con objetivo fijo de Agil 5", () => {
+test("Berserker principiante agrega una defensa con objetivo fijo de Agil 5", () => {
   const sheet = synchronizeCharacterSheet({
     ...createEmptyCharacterSheet(),
     habilidades: [
@@ -238,23 +238,23 @@ test("Berserker novato agrega una defensa con objetivo fijo de Agil 5", () => {
         nombre: "Berserker",
         tipo: "Habilidad",
         efecto: "",
-        nivel: "novato",
+        nivel: "principiante",
         fuente: "Libro basico",
         notas: "",
         acciones: [
           {
-            id: "novato-berserker",
+            id: "principiante-berserker",
             label: "Entrar en frenesi (Principiante)",
             cost: "free",
-            requiredLevel: "novato",
+            requiredLevel: "principiante",
             damageFormula: "+1d6",
             effectSummary: ""
           },
           {
-            id: "novato-berserker-defensa",
+            id: "principiante-berserker-defensa",
             label: "Defender con Berserker (Principiante)",
             cost: "reaction",
-            requiredLevel: "novato",
+            requiredLevel: "principiante",
             rollAttribute: "agil",
             fixedTarget: 5,
             effectSummary: ""
@@ -276,10 +276,10 @@ test("Berserker novato agrega una defensa con objetivo fijo de Agil 5", () => {
 
   assert.deepEqual(
     actions.map((action) => action.id),
-    ["ability:Berserker:novato-berserker", "ability:Berserker:novato-berserker-defensa"]
+    ["ability:Berserker:principiante-berserker", "ability:Berserker:principiante-berserker-defensa"]
   );
 
-  const defenseAction = actions.find((action) => action.id === "ability:Berserker:novato-berserker-defensa");
+  const defenseAction = actions.find((action) => action.id === "ability:Berserker:principiante-berserker-defensa");
   assert.ok(defenseAction);
   assert.equal(defenseAction.rollAttribute, "agil");
   assert.equal(defenseAction.fixedTarget, 5);
@@ -300,7 +300,7 @@ test("synchronizeCharacterSheet hidrata acciones canonicas para Berserker aunque
         nombre: "Berserker",
         tipo: "Habilidad",
         efecto: "",
-        nivel: "novato",
+        nivel: "principiante",
         fuente: "Libro basico",
         notas: "",
         acciones: []
@@ -312,10 +312,10 @@ test("synchronizeCharacterSheet hidrata acciones canonicas para Berserker aunque
 
   assert.deepEqual(
     actions.map((action) => action.id),
-    ["ability:Berserker:novato-berserker", "ability:Berserker:novato-berserker-defensa"]
+    ["ability:Berserker:principiante-berserker", "ability:Berserker:principiante-berserker-defensa"]
   );
 
-  const defenseAction = actions.find((action) => action.id === "ability:Berserker:novato-berserker-defensa");
+  const defenseAction = actions.find((action) => action.id === "ability:Berserker:principiante-berserker-defensa");
   assert.ok(defenseAction);
   assert.equal(defenseAction.fixedTarget, 5);
 });
@@ -403,7 +403,7 @@ test("Robusta tambien funciona como bono de dano seleccionable cuando se guarda 
         nombre: "Robusta",
         tipo: "Rasgo monstruoso",
         efecto: "",
-        nivel: "novato",
+        nivel: "principiante",
         fuente: "Codice de monstruos",
         notas: "",
         acciones: []
@@ -492,7 +492,7 @@ test("bonos de dano de una vez por turno generan una variante extra en ataques d
         nombre: "Ataque traicionero",
         tipo: "Habilidad",
         efecto: "",
-        nivel: "novato",
+        nivel: "principiante",
         fuente: "Libro basico",
         notas: "",
         acciones: []
@@ -507,7 +507,7 @@ test("bonos de dano de una vez por turno generan una variante extra en ataques d
     [["Ataque traicionero", "+1d4"]]
   );
 
-  const damage = executeCharacterAction(sheet, weaponAttack.id, "damage", ["ability:Ataque traicionero:novato-ataque-traicionero"]);
+  const damage = executeCharacterAction(sheet, weaponAttack.id, "damage", ["ability:Ataque traicionero:principiante-ataque-traicionero"]);
   assert.equal(damage.rolls.length, 1);
   assert.equal(damage.rolls[0].formula, "1d6+1d4");
 });
@@ -542,7 +542,7 @@ test("Berserker aparece como modificador seleccionable de dano para ataques cuer
         nombre: "Berserker",
         tipo: "Habilidad",
         efecto: "",
-        nivel: "novato",
+        nivel: "principiante",
         fuente: "Libro basico",
         notas: "",
         acciones: []
@@ -564,12 +564,12 @@ test("Berserker aparece como modificador seleccionable de dano para ataques cuer
     "damage",
     "umbra",
     "",
-    ["ability:Berserker:novato-berserker"]
+    ["ability:Berserker:principiante-berserker"]
   );
   assert.equal(request.formula, "1d8+1d6");
   assert.match(request.note ?? "", /Berserker/);
 
-  const berserkerStandalone = deriveCharacterActions(sheet).find((action) => action.id === "ability:Berserker:novato-berserker");
+  const berserkerStandalone = deriveCharacterActions(sheet).find((action) => action.id === "ability:Berserker:principiante-berserker");
   assert.ok(berserkerStandalone);
 });
 
@@ -588,12 +588,12 @@ test("deriveCharacterActions tambien filtra acciones precalculadas de la hoja se
   ];
   sheet.actions = [
     {
-      id: "ability:Guardaespaldas:novato",
+      id: "ability:Guardaespaldas:principiante",
       label: "Usar Guardaespaldas (Principiante)",
       sourceType: "ability",
       sourceName: "Guardaespaldas",
       cost: "reaction",
-      requiredLevel: "novato",
+      requiredLevel: "principiante",
       effectSummary: ""
     },
     {
@@ -638,7 +638,7 @@ test("deriveCharacterActions infiere el nivel de acciones precalculadas antiguas
   ];
   sheet.actions = [
     {
-      id: "ability:Guardaespaldas:novato",
+      id: "ability:Guardaespaldas:principiante",
       label: "Usar Guardaespaldas (Principiante)",
       sourceType: "ability",
       sourceName: "Guardaespaldas",
@@ -728,8 +728,8 @@ test("synchronizeCharacterSheet colapsa capacidades duplicadas y conserva el niv
     {
       nombre: "Guardaespaldas",
       tipo: "Habilidad",
-      efecto: "novato",
-      nivel: "novato",
+      efecto: "principiante",
+      nivel: "principiante",
       fuente: "Libro basico",
       notas: "",
       acciones: []
@@ -807,7 +807,7 @@ test("Arma natural crea un ataque separado y no modifica el ataque desarmado bas
       nombre: "Arma natural",
       tipo: "Rasgo monstruoso",
       efecto: "",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "Codice de monstruos",
       notas: "",
       acciones: []
@@ -825,7 +825,7 @@ test("Arma natural crea un ataque separado y no modifica el ataque desarmado bas
 
 test("Combate sin armas aumenta un nivel de dado el ataque con Arma natural", () => {
   const expectedDamageByNaturalWeaponLevel = {
-    novato: "1d8",
+    principiante: "1d8",
     adepto: "1d10",
     maestro: "1d12"
   };
@@ -837,7 +837,7 @@ test("Combate sin armas aumenta un nivel de dado el ataque con Arma natural", ()
         nombre: "Combate sin armas",
         tipo: "Habilidad",
         efecto: "",
-        nivel: "novato",
+        nivel: "principiante",
         fuente: "Libro basico",
         notas: "",
         acciones: []
@@ -866,7 +866,7 @@ test("Ataque con Arma natural explica en el desglose cuando Combate sin armas au
       nombre: "Combate sin armas",
       tipo: "Habilidad",
       efecto: "",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "Libro basico",
       notas: "",
       acciones: []
@@ -875,7 +875,7 @@ test("Ataque con Arma natural explica en el desglose cuando Combate sin armas au
       nombre: "Arma natural",
       tipo: "Rasgo monstruoso",
       efecto: "",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "Codice de monstruos",
       notas: "",
       acciones: []
@@ -899,7 +899,7 @@ test("getEffectiveCharacterRobustezMax no conserva un robustezMax guardado obsol
       nombre: "Recio",
       tipo: "Rasgo monstruoso",
       efecto: "",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "Codice de monstruos",
       notas: "",
       acciones: []
@@ -961,7 +961,7 @@ test("deriveCharacterActions reemplaza acciones guardadas obsoletas de Arma natu
         nombre: "Combate sin armas",
         tipo: "Habilidad",
         efecto: "",
-        nivel: "novato",
+        nivel: "principiante",
         fuente: "Libro basico",
         notas: "",
         acciones: []
@@ -970,7 +970,7 @@ test("deriveCharacterActions reemplaza acciones guardadas obsoletas de Arma natu
         nombre: "Arma natural",
         tipo: "Rasgo monstruoso",
         efecto: "",
-        nivel: "novato",
+        nivel: "principiante",
         fuente: "Codice de monstruos",
         notas: "",
         acciones: []
@@ -1010,7 +1010,7 @@ test("las armas heredadas llamadas Natural no generan un arma equipada falsa", (
         nombre: "Arma natural",
         tipo: "Rasgo monstruoso",
         efecto: "",
-        nivel: "novato",
+        nivel: "principiante",
         fuente: "Codice de monstruos",
         notas: "",
         acciones: []
@@ -1098,15 +1098,15 @@ test("Golpe de hierro cambia automaticamente a Fuerte los ataques cuerpo a cuerp
       nombre: "Golpe de hierro",
       tipo: "Habilidad",
       efecto: "",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "Libro basico",
       notas: "",
       acciones: [
         {
-          id: "novato-golpe-de-hierro",
+          id: "principiante-golpe-de-hierro",
           label: "Usar Golpe de hierro (Principiante)",
           cost: "combat",
-          requiredLevel: "novato",
+          requiredLevel: "principiante",
           rollAttribute: "fuerte",
           effectSummary: "Puedes usar Fuerte en vez de Diestro para atacar cuerpo a cuerpo."
         }
@@ -1134,7 +1134,7 @@ test("Golpe de hierro tambien modifica el ataque desarmado", () => {
       nombre: "Golpe de hierro",
       tipo: "Habilidad",
       efecto: "",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "Libro basico",
       notas: "",
       acciones: []
@@ -1238,7 +1238,7 @@ test("Tirador mejora automaticamente arcos y ballestas equipados", () => {
       nombre: "Tirador",
       tipo: "Habilidad",
       efecto: "",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "Libro basico",
       notas: "",
       acciones: []
@@ -1276,7 +1276,7 @@ test("Sexto sentido cambia a Atento los ataques a distancia disponibles", () => 
       nombre: "Sexto sentido",
       tipo: "Habilidad",
       efecto: "",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "Libro basico",
       notas: "",
       acciones: []
@@ -1327,7 +1327,7 @@ test("las subidas acumuladas de nivel de dado se topan en 1d12 y el exceso pasa 
       nombre: "Armas a dos manos",
       tipo: "Habilidad",
       efecto: "",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "Libro basico",
       notas: "",
       acciones: []
@@ -1336,7 +1336,7 @@ test("las subidas acumuladas de nivel de dado se topan en 1d12 y el exceso pasa 
       nombre: "Armas de asta",
       tipo: "Habilidad",
       efecto: "",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "Libro basico",
       notas: "",
       acciones: []

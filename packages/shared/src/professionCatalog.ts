@@ -204,7 +204,7 @@ export function normalizeProfessionText(value: string): string {
 export function normalizeProfessionCapabilities(
   capabilities: Pick<ActorCapabilitySelection, "name" | "kind" | "level">[]
 ): Pick<ActorCapabilitySelection, "name" | "kind" | "level">[] {
-  const levelRank = { novato: 1, adepto: 2, maestro: 3 } as const;
+  const levelRank = { principiante: 1, adepto: 2, maestro: 3 } as const;
   const merged = new Map<string, Pick<ActorCapabilitySelection, "name" | "kind" | "level">>();
   for (const capability of capabilities) {
     const key = normalizeProfessionText(capability.name);

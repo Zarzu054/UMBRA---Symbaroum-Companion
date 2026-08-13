@@ -12,7 +12,7 @@ describe("character ritual experience", () => {
         nombre: "Adivinación",
         tipo: "Ritual",
         efecto: "",
-        nivel: "novato",
+        nivel: "principiante",
         fuente: "Guía Avanzada del Jugador",
         notas: "",
         acciones: []

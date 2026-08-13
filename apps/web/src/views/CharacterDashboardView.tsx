@@ -1010,7 +1010,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   value={item.nivel}
                   onChange={(event) => controller.updateRatedItem("habilidades", index, "nivel", event.target.value)}
                 >
-                  <option value="novato">Principiante</option>
+                  <option value="principiante">Principiante</option>
                   <option value="adepto">Adepto</option>
                   <option value="maestro">Maestro</option>
                 </select>
@@ -1102,7 +1102,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   value={item.nivel}
                   onChange={(event) => controller.updateRatedItem("poderesMisticos", index, "nivel", event.target.value)}
                 >
-                  <option value="novato">Principiante</option>
+                  <option value="principiante">Principiante</option>
                   <option value="adepto">Adepto</option>
                   <option value="maestro">Maestro</option>
                 </select>
@@ -1192,7 +1192,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   value={item.nivel}
                   onChange={(event) => controller.updateRatedItem("rituales", index, "nivel", event.target.value)}
                 >
-                  <option value="novato">Principiante</option>
+                  <option value="principiante">Principiante</option>
                   <option value="adepto">Adepto</option>
                   <option value="maestro">Maestro</option>
                 </select>

@@ -9,6 +9,7 @@ import {
   deriveCharacterActions,
   executeCharacterAction,
   findWeaponQualityOption,
+  formatSkillLevelLabel,
   formatWeaponQualities,
   parseWeaponQualities,
   synchronizeCharacterSheet,
@@ -625,7 +626,7 @@ function formatMoneyCounters(counters: MoneyCounters): string {
 function formatActionDisplayLabel(label: string): string {
   return String(label ?? "")
     .replace(/^(Usar|Lanzar)\s+/i, "")
-    .replace(/\s+\((Principiante|Novato|Adepto|Maestro)\)\s*$/i, "")
+    .replace(/\s+\((Principiante|Adepto|Maestro)\)\s*$/i, "")
     .trim();
 }
 
@@ -827,7 +828,7 @@ function parseCapabilityTiers(text: string): { tiers: CapabilityTier[]; referenc
     return { tiers: [], reference: null, remainder: null };
   }
 
-  const tierRegex = /(Principiante:|Novato:|Adepto:|Maestro:)/g;
+  const tierRegex = /(Principiante:|Adepto:|Maestro:)/g;
   const matches = [...source.matchAll(tierRegex)];
   if (matches.length === 0) {
     const referenceIndex = source.indexOf("Ref:");
@@ -846,7 +847,7 @@ function parseCapabilityTiers(text: string): { tiers: CapabilityTier[]; referenc
     const start = match.index ?? 0;
     const end = index + 1 < matches.length ? (matches[index + 1].index ?? source.length) : source.length;
     const parsedLabel = (match[0] ?? "").replace(":", "").trim();
-    const rawLabel = parsedLabel === "Novato" ? "Principiante" : parsedLabel;
+    const rawLabel = parsedLabel;
     const rawContent = source.slice(start + match[0].length, end).trim();
     const referenceIndex = rawContent.indexOf("Ref:");
     const content = (referenceIndex >= 0 ? rawContent.slice(0, referenceIndex) : rawContent).trim();
@@ -870,7 +871,7 @@ function capabilityLevelRank(level: string): number {
       return 3;
     case "adepto":
       return 2;
-    case "novato":
+    case "principiante":
     default:
       return 1;
   }
@@ -902,7 +903,7 @@ function getSheetTraitLevel(sheet: CharacterSheet, traitName: string): number {
     }
     if (/\bmaestro\b/.test(normalized)) return 3;
     if (/\badepto\b/.test(normalized)) return 2;
-    if (/\b(?:principiante|novato)\b/.test(normalized)) return 1;
+    if (/\bprincipiante\b/.test(normalized)) return 1;
     if (/\biii\b|\b3\b/.test(normalized)) return 3;
     if (/\bii\b|\b2\b/.test(normalized)) return 2;
     return 1;
@@ -1025,17 +1026,8 @@ function getCustomItemQualities(item: CharacterSheet["inventoryItems"][number]):
 }
 
 function capitalizeActionLevel(level: string): "Principiante" | "Adepto" | "Maestro" | null {
-  switch (String(level ?? "").toLowerCase()) {
-    case "principiante":
-    case "novato":
-      return "Principiante";
-    case "adepto":
-      return "Adepto";
-    case "maestro":
-      return "Maestro";
-    default:
-      return null;
-  }
+  const label = formatSkillLevelLabel(level);
+  return label === "Principiante" || label === "Adepto" || label === "Maestro" ? label : null;
 }
 
 function formatCapabilitySource(entry: RatedEntry): string {
@@ -1076,7 +1068,7 @@ function shouldKeepCapabilityNote(note: string, tiers: CapabilityTier[], referen
     return true;
   }
 
-  if (/(principiante:|novato:|adepto:|maestro:)/i.test(note)) {
+  if (/(principiante:|adepto:|maestro:)/i.test(note)) {
     return false;
   }
 
@@ -2155,7 +2147,7 @@ export function UnifiedCharacterSheet({
   function addRatedEntry(section: "habilidades" | "poderesMisticos" | "rituales"): void {
     setDraft({
       ...draft,
-      [section]: [...draft[section], { nombre: "", tipo: "", efecto: "", nivel: "novato", fuente: "", pagina: undefined, notas: "", acciones: [] }]
+      [section]: [...draft[section], { nombre: "", tipo: "", efecto: "", nivel: "principiante", fuente: "", pagina: undefined, notas: "", acciones: [] }]
     });
   }
 
@@ -4545,7 +4537,7 @@ function CapabilityTextList({
             </div>
             <div className="unified-sheet-capability-meta">
               {entry.tipo ? <span>{entry.tipo}</span> : null}
-              {entry.nivel ? <span>{entry.nivel}</span> : null}
+              {entry.nivel ? <span>{formatSkillLevelLabel(entry.nivel)}</span> : null}
               {entry.fuente ? <span>{entry.fuente}{entry.pagina ? ` p. ${entry.pagina}` : ""}</span> : entry.pagina ? <span>p. {entry.pagina}</span> : null}
             </div>
           </article>
@@ -4679,7 +4671,7 @@ function CapabilityEditor({ title, entries, editable, onAdd, onRemove, onUpdate,
             <div className="form-grid">
               <Field label="Nombre"><input disabled={!editable} value={entry.nombre} onChange={(event) => onUpdate(index, "nombre", event.target.value)} /></Field>
               <Field label="Tipo"><input disabled={!editable} value={entry.tipo} onChange={(event) => onUpdate(index, "tipo", event.target.value)} /></Field>
-              <Field label="Nivel"><select disabled={!editable} value={entry.nivel} onChange={(event) => onUpdate(index, "nivel", event.target.value)}><option value="novato">Principiante</option><option value="adepto">Adepto</option><option value="maestro">Maestro</option></select></Field>
+              <Field label="Nivel"><select disabled={!editable} value={entry.nivel} onChange={(event) => onUpdate(index, "nivel", event.target.value)}><option value="principiante">Principiante</option><option value="adepto">Adepto</option><option value="maestro">Maestro</option></select></Field>
               <Field label="Fuente"><input disabled={!editable} value={entry.fuente} onChange={(event) => onUpdate(index, "fuente", event.target.value)} /></Field>
               <Field label="Pagina"><input disabled={!editable} type="number" min={0} value={entry.pagina ?? ""} onChange={(event) => onUpdate(index, "pagina", Number(event.target.value || 0))} /></Field>
             </div>

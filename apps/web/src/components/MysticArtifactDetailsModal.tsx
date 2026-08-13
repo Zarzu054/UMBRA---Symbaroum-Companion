@@ -1,4 +1,4 @@
-import type { MysticArtifact } from "@umbra/shared";
+import { formatSkillLevelLabel, type MysticArtifact } from "@umbra/shared";
 import { SourceReferenceButton } from "./SourceReferenceLink";
 
 type Props = {
@@ -60,7 +60,7 @@ export function MysticArtifactDetailsModal({ artifact, busy = false, onClose, on
                   {ability.perSceneLimit ? <div><dt>Límite</dt><dd>{ability.perSceneLimit} por escena</dd></div> : null}
                 </dl>
                 {ability.rolls.length ? <p className="meta-text">Tiradas: {ability.rolls.map((roll) => `${roll.label}${roll.formula ? ` ${roll.formula}` : ""}${roll.opponentAttribute ? ` (${roll.actorAttribute} contra ${roll.opponentAttribute})` : roll.actorAttribute ? ` (${roll.actorAttribute})` : ""}`).join(" · ")}</p> : null}
-                {ability.requirements.length ? <p className="meta-text">Requisitos: {ability.requirements.map((requirement) => requirement.type === "capability" ? `${requirement.capabilityName}${requirement.minimumLevel ? ` (${requirement.minimumLevel})` : ""}` : requirement.description).join(" · ")}</p> : null}
+                {ability.requirements.length ? <p className="meta-text">Requisitos: {ability.requirements.map((requirement) => requirement.type === "capability" ? `${requirement.capabilityName}${requirement.minimumLevel ? ` (${formatSkillLevelLabel(requirement.minimumLevel)})` : ""}` : requirement.description).join(" · ")}</p> : null}
                 {ability.perSceneNote ? <p className="meta-text">{ability.perSceneNote}</p> : null}
               </article>
             ))}

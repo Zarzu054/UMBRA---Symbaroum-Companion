@@ -355,8 +355,8 @@ function inferActionLevel(...values) {
         return "maestro";
     if (joined.includes("adepto"))
         return "adepto";
-    if (joined.includes("principiante") || joined.includes("novato"))
-        return "novato";
+    if (joined.includes("principiante"))
+        return "principiante";
     return undefined;
 }
 function isActionAvailableForEntryLevel(entryLevel, requiredLevel) {
@@ -554,7 +554,7 @@ function getTraitLevel(sheet, traitNames) {
             return 3;
         if (/\badepto\b/.test(normalized))
             return 2;
-        if (/\b(?:principiante|novato)\b/.test(normalized))
+        if (/\b(?:principiante)\b/.test(normalized))
             return 1;
         if (/\biii\b|\b3\b/.test(normalized))
             return 3;
@@ -581,7 +581,7 @@ function skillLevelToNumber(level) {
             return 3;
         case "adepto":
             return 2;
-        case "novato":
+        case "principiante":
             return 1;
         default:
             return 0;
@@ -755,7 +755,7 @@ function capitalizeSkillLevel(level) {
             return "Maestro";
         case "adepto":
             return "Adepto";
-        case "novato":
+        case "principiante":
         default:
             return "Principiante";
     }

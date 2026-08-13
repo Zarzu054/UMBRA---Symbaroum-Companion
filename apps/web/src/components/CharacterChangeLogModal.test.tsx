@@ -36,6 +36,11 @@ describe("CharacterChangeLogModal", () => {
     render(<CharacterChangeLogModal characterId="character-a" characterName="Alda" ensureAccessToken={vi.fn().mockResolvedValue("token")} onClose={vi.fn()} onRead={onRead} />);
 
     expect(await screen.findByText("Historial de Alda")).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Historial de Alda" });
+    expect(dialog).toHaveClass("character-change-log-modal");
+    expect(dialog).not.toHaveClass("panel");
+    expect(dialog.parentElement).toHaveClass("character-change-log-backdrop");
+    expect(dialog.parentElement?.parentElement).toBe(document.body);
     expect(await screen.findByText("Nuevo")).toBeInTheDocument();
     expect(screen.getAllByText("dj@example.com")).toHaveLength(1);
     expect(screen.getByText("Corrupción temporal")).toBeInTheDocument();

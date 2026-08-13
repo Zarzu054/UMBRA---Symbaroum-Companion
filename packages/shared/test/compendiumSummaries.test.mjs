@@ -36,7 +36,7 @@ test("las habilidades de combate ambiguas usan metadata de accion explicitamente
   assert.deepEqual(
     ability.acciones.map((action) => [action.id, action.cost, action.rollAttribute, action.damageFormula]),
     [
-      ["novato-ataque-traicionero", "reaction", "discreto", "+1d4"],
+      ["principiante-ataque-traicionero", "reaction", "discreto", "+1d4"],
       ["adepto-ataque-traicionero", "reaction", "discreto", "+1d4"],
       ["maestro-ataque-traicionero", "reaction", "discreto", "+1d8"]
     ]
@@ -51,7 +51,7 @@ test("los poderes de combate ambiguos usan metadata de accion explicitamente red
   assert.deepEqual(
     power.acciones.map((action) => [action.id, action.cost, action.rollAttribute, action.damageFormula]),
     [
-      ["novato-rayo-negro", "combat", "tenaz", "1d6"],
+      ["principiante-rayo-negro", "combat", "tenaz", "1d6"],
       ["adepto-rayo-negro", "combat", "tenaz", "1d6"],
       ["maestro-rayo-negro", "combat", "tenaz", "1d6"]
     ]
@@ -94,7 +94,7 @@ test("ataque con dos armas expone los perfiles exactos de dano por nivel", () =>
   assert.deepEqual(
     ability.acciones.map((action) => [action.id, action.cost, action.damageFormula]),
     [
-      ["novato-ataque-con-dos-armas", "combat", "1d8/1d6"],
+      ["principiante-ataque-con-dos-armas", "combat", "1d8/1d6"],
       ["adepto-ataque-con-dos-armas", "combat", "1d8/1d8"],
       ["maestro-ataque-con-dos-armas", "combat", "1d10/1d8"]
     ]
@@ -108,7 +108,7 @@ test("recuperacion usa acciones authored con curacion escalada por nivel", () =>
   assert.deepEqual(
     ability.acciones.map((action) => [action.id, action.rollAttribute, action.damageFormula]),
     [
-      ["novato-recuperacion", "tenaz", "1d4"],
+      ["principiante-recuperacion", "tenaz", "1d4"],
       ["adepto-recuperacion", "tenaz", "1d6"],
       ["maestro-recuperacion", "tenaz", "1d8"]
     ]
@@ -122,7 +122,7 @@ test("medicus expone curacion authored por nivel con atributo correcto", () => {
   assert.deepEqual(
     ability.acciones.map((action) => [action.id, action.cost, action.rollAttribute, action.damageFormula]),
     [
-      ["novato-medicus", "combat", "inteligente", "1d4"],
+      ["principiante-medicus", "combat", "inteligente", "1d4"],
       ["adepto-medicus", "combat", "inteligente", "1d6"],
       ["maestro-medicus", "combat", "inteligente", "1d8"]
     ]
@@ -136,7 +136,7 @@ test("venenos expone aplicacion gratuita authored en todos sus niveles", () => {
   assert.deepEqual(
     ability.acciones.map((action) => [action.id, action.cost, action.rollAttribute]),
     [
-      ["novato-venenos", "free", "inteligente"],
+      ["principiante-venenos", "free", "inteligente"],
       ["adepto-venenos", "free", undefined],
       ["maestro-venenos", "free", "inteligente"]
     ]
@@ -150,7 +150,7 @@ test("cascada de azufre expone dano y atributo authored por nivel", () => {
   assert.deepEqual(
     power.acciones.map((action) => [action.id, action.cost, action.rollAttribute, action.damageFormula]),
     [
-      ["novato-cascada-de-azufre", "combat", "tenaz", "1d12"],
+      ["principiante-cascada-de-azufre", "combat", "tenaz", "1d12"],
       ["adepto-cascada-de-azufre", "combat", "tenaz", "1d12"],
       ["maestro-cascada-de-azufre", "combat", "tenaz", "1d12"]
     ]
@@ -164,7 +164,7 @@ test("teletransportacion expone acciones authored por nivel", () => {
   assert.deepEqual(
     power.acciones.map((action) => [action.id, action.cost, action.rollAttribute]),
     [
-      ["novato-teletransportacion", "combat", "tenaz"],
+      ["principiante-teletransportacion", "combat", "tenaz"],
       ["adepto-teletransportacion", "combat", "tenaz"],
       ["maestro-teletransportacion", "combat", "tenaz"]
     ]
@@ -178,7 +178,7 @@ test("canalizacion ya no depende de inferencia residual y expone sus reacciones 
   assert.deepEqual(
     ability.acciones.map((action) => [action.id, action.cost, action.rollAttribute]),
     [
-      ["novato-canalizacion", "reaction", undefined],
+      ["principiante-canalizacion", "reaction", undefined],
       ["adepto-canalizacion", "reaction", undefined],
       ["maestro-canalizacion", "reaction", "tenaz"]
     ]
