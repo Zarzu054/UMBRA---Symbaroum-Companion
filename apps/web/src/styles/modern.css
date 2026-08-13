@@ -4898,7 +4898,7 @@ button[disabled] {
   gap: 8px;
   padding: 6px 10px 6px 7px;
   border: 1px solid color-mix(in srgb, var(--ui-brand) 54%, var(--ui-border));
-  border-radius: 999px 14px 14px 999px;
+  border-radius: 999px;
   color: var(--ui-text);
   background:
     linear-gradient(110deg, color-mix(in srgb, var(--ui-brand-soft) 82%, var(--ui-surface)), var(--ui-surface) 72%);

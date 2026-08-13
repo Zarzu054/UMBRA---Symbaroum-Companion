@@ -7,6 +7,7 @@ import {
   createEmptyCharacterSheet,
   createCampaignReferenceSchema,
   createCampaignSessionSchema,
+  updateCampaignSchema,
   executeCharacterAction,
   decodeCampaignDmNotes,
   encodeCampaignDmNotes,
@@ -16,6 +17,34 @@ import {
   synchronizeCharacterSheet,
   SYMBAROUM_ABILITIES
 } from "../dist/index.js";
+
+test("las entradas de notas Markdown no tienen un limite artificial de caracteres", () => {
+  const longMarkdown = `# Cronica\n\n${"Una historia extensa de la campana. ".repeat(1000)}`;
+  const parsed = updateCampaignSchema.parse({
+    dmNoteEntries: [{
+      id: "dm-note-long",
+      title: "Cronica privada",
+      content: longMarkdown,
+      authorId: "gm-a",
+      authorEmail: "gm@example.com",
+      createdAt: "2026-08-13T10:00:00.000Z",
+      updatedAt: "2026-08-13T10:00:00.000Z"
+    }],
+    sharedNoteEntries: [{
+      id: "shared-note-long",
+      title: "Cronica compartida",
+      content: longMarkdown,
+      authorId: "gm-a",
+      authorEmail: "gm@example.com",
+      createdAt: "2026-08-13T10:00:00.000Z",
+      updatedAt: "2026-08-13T10:00:00.000Z"
+    }]
+  });
+
+  assert.equal(parsed.dmNoteEntries?.[0]?.content, longMarkdown);
+  assert.equal(parsed.sharedNoteEntries?.[0]?.content, longMarkdown);
+  assert.ok(longMarkdown.length > 12000);
+});
 
 test("las notas privadas del DJ conservan entradas Markdown y migran el texto antiguo", () => {
   const legacy = decodeCampaignDmNotes("# Secreto\n\nNo mostrar a los jugadores.");
