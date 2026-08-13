@@ -10,10 +10,12 @@ import {
 } from "./actorCreation.js";
 import { STARTER_MONSTER_CODEX, createDefaultMonsterSheet, monsterSheetSchema, type MonsterSheet } from "./monsterCodex.js";
 import { findWeaponQualityOption, parseWeaponQualities } from "./weaponCatalog.js";
+import { increaseEffectDieFormula } from "./diceFormula.js";
 import type { MysticArtifact, OwnedMysticArtifact } from "./mysticArtifacts.js";
 import type { ProfessionEligibility } from "./professionCatalog.js";
 export * from "./symbaroumCompendium.js";
 export * from "./campaignActionEngine.js";
+export * from "./diceFormula.js";
 export * from "./monsterCodex.js";
 export * from "./monsterTraitRules.js";
 export * from "./actorCreation.js";
@@ -1653,6 +1655,29 @@ export type CharacterCombatSummary = {
   armorDetail: string;
 };
 
+export type CharacterArmorProtection = {
+  baseFormula: string;
+  effectiveFormula: string;
+  improvedByArmoredCombat: boolean;
+};
+
+export function getCharacterArmorProtection(sheet: CharacterSheet): CharacterArmorProtection {
+  const equipped = sheet.inventoryItems.find((item) => item.category === "armor" && item.quantity > 0
+    && (item.id === sheet.equipmentSlots.armor || item.equipped));
+  const baseFormula = (equipped?.protectionFormula ?? sheet.combate.armaduraProteccion ?? "").trim();
+  if (!baseFormula) {
+    return { baseFormula: "", effectiveFormula: "", improvedByArmoredCombat: false };
+  }
+
+  const hasArmoredCombat = characterHasCombatCapability(sheet, "Combate con armadura", "principiante");
+  const effectiveFormula = hasArmoredCombat ? (increaseEffectDieFormula(baseFormula) ?? baseFormula) : baseFormula;
+  return {
+    baseFormula,
+    effectiveFormula,
+    improvedByArmoredCombat: hasArmoredCombat && effectiveFormula.toLowerCase() !== baseFormula.toLowerCase()
+  };
+}
+
 /** Pure combat projection shared by character sheets, campaign NPCs and encounters. */
 export function computeCharacterCombatSummary(sheet: CharacterSheet): CharacterCombatSummary {
   const modifiers = collectCharacterCombatModifiers(sheet);
@@ -1661,7 +1686,8 @@ export function computeCharacterCombatSummary(sheet: CharacterSheet): CharacterC
   const weaponDefense = getCharacterWeaponDefenseBonus(sheet);
   const robustnessMaximum = Math.max(0, getEffectiveCharacterRobustezMax(sheet) + modifiers.ROBMAX);
   const robustnessCurrent = Math.min(Math.max(0, sheet.combate.robustezActual + modifiers.ROBACT), robustnessMaximum);
-  const armor = sheet.combate.armaduraProteccion || monsterTraits.armorFormula;
+  const armorProtection = getCharacterArmorProtection(sheet);
+  const armor = armorProtection.effectiveFormula || monsterTraits.armorFormula;
 
   return {
     robustnessMaximum,

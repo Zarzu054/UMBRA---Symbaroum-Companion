@@ -101,10 +101,11 @@ test("projects a managed weapon and all roll metadata into artifact actions", ()
 
 test("Viento de acero mejora el dado base de cualquier artefacto arrojadizo y conserva sus dados adicionales", () => {
   for (const [publishedFormula, expectedFormula] of [
-    ["1D4+1D4", "1d8+1d4"],
+    ["1D4+1D4", "1d6+1d4"],
     ["1D6+1D4", "1d8+1d4"],
-    ["1D8+1D4", "1d8+1d4"],
-    ["1D10+1D4", "1d10+1d4"]
+    ["1D8+1D4", "1d10+1d4"],
+    ["1D10+1D4", "1d12+1d4"],
+    ["1D12+1D4", "1d12+1d4+1"]
   ]) {
     const artifact = makeArtifact(true);
     artifact.name = "Artefacto arrojadizo futuro";
@@ -127,9 +128,7 @@ test("Viento de acero mejora el dado base de cualquier artefacto arrojadizo y co
 
     assert.ok(attack);
     assert.equal(attack.damageFormula, expectedFormula);
-    if (publishedFormula === "1D4+1D4" || publishedFormula === "1D6+1D4") {
-      assert.ok(attack.damageBreakdown.some((entry) => entry.label === "Viento de acero"));
-    }
+    assert.ok(attack.damageBreakdown.some((entry) => entry.label === "Viento de acero"));
   }
 });
 

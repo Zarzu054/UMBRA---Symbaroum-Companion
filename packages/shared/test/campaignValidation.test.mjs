@@ -4,6 +4,7 @@ import {
   deriveCharacterActions,
   assignCampaignSessionExperienceSchema,
   buildRollRequest,
+  computeCharacterCombatSummary,
   createEmptyCharacterSheet,
   createCampaignReferenceSchema,
   createCampaignSessionSchema,
@@ -1439,6 +1440,103 @@ test("las subidas acumuladas de nivel de dado se topan en 1d12 y el exceso pasa 
   const weaponAction = deriveCharacterActions(sheet).find((action) => action.label === "Atacar con Alabarda");
   assert.ok(weaponAction);
   assert.equal(weaponAction.damageFormula, "1d12+1");
+});
+
+test("Tirador mejora armas personalizadas A distancia pero no armas arrojadizas", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.inventoryItems = [
+    {
+      id: "custom-ranged", name: "Proyector personalizado", category: "weapon", quantity: 1,
+      description: "", weight: "", value: "", equipped: true, slot: "ranged",
+      attackAttribute: "diestro", damageFormula: "1d8+1d4", protectionFormula: "",
+      qualities: "A distancia", notes: ""
+    },
+    {
+      id: "custom-thrown", name: "Disco personalizado", category: "weapon", quantity: 1,
+      description: "", weight: "", value: "", equipped: true, slot: "mainHand",
+      attackAttribute: "diestro", damageFormula: "1d8", protectionFormula: "",
+      qualities: "Arrojadiza", notes: ""
+    }
+  ];
+  sheet.habilidades = [{
+    nombre: "Tirador", tipo: "Habilidad", efecto: "", nivel: "principiante",
+    fuente: "Libro Básico", notas: "", acciones: []
+  }];
+
+  const actions = deriveCharacterActions(sheet);
+  assert.equal(actions.find((action) => action.label === "Atacar con Proyector personalizado")?.damageFormula, "1d10+1d4");
+  assert.equal(actions.find((action) => action.label === "Atacar con Disco personalizado")?.damageFormula, "1d8");
+});
+
+test("Combate con armadura mejora la proteccion de armaduras personalizadas sin alterar su base", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.inventoryItems = [{
+    id: "custom-armor", name: "Coraza personalizada", category: "armor", quantity: 1,
+    description: "", weight: "Media", value: "", equipped: true, slot: "armor",
+    damageFormula: "", protectionFormula: "1d8+1d4", qualities: "Media", notes: ""
+  }];
+  sheet.equipmentSlots.armor = "custom-armor";
+  sheet.habilidades = [{
+    nombre: "Combate con armadura", tipo: "Habilidad", efecto: "", nivel: "principiante",
+    fuente: "Libro Básico", notas: "", acciones: []
+  }];
+
+  const summary = computeCharacterCombatSummary(sheet);
+  assert.equal(summary.armor, "1d10+1d4");
+  assert.equal(sheet.inventoryItems[0].protectionFormula, "1d8+1d4");
+});
+
+test("Combate con escudo mejora un nivel el arma compatible y exige el escudo equipado", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.inventoryItems = [
+    {
+      id: "sword", name: "Espada personalizada", category: "weapon", quantity: 1,
+      description: "", weight: "", value: "", equipped: true, slot: "mainHand",
+      attackAttribute: "diestro", damageFormula: "1d8", protectionFormula: "", qualities: "", notes: ""
+    },
+    {
+      id: "shield", name: "Escudo personalizado", category: "weapon", quantity: 1,
+      description: "", weight: "", value: "", equipped: true, slot: "offHand",
+      attackAttribute: "diestro", damageFormula: "1d4", protectionFormula: "", qualities: "Escudo", notes: ""
+    }
+  ];
+  sheet.equipmentSlots.mainHand = "sword";
+  sheet.equipmentSlots.offHand = "shield";
+  sheet.habilidades = [{
+    nombre: "Combate con escudo", tipo: "Habilidad", efecto: "", nivel: "principiante",
+    fuente: "Libro Básico", notas: "", acciones: []
+  }];
+
+  assert.equal(deriveCharacterActions(sheet).find((action) => action.label === "Atacar con Espada personalizada")?.damageFormula, "1d10");
+  sheet.inventoryItems[1].equipped = false;
+  sheet.equipmentSlots.offHand = "";
+  assert.equal(deriveCharacterActions(sheet).find((action) => action.label === "Atacar con Espada personalizada")?.damageFormula, "1d8");
+});
+
+test("Esgrima sagrada aplica sus aumentos a una espada Precisa con daga", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.inventoryItems = [
+    {
+      id: "fencing-sword", name: "Espada precisa personalizada", category: "weapon", quantity: 1,
+      description: "", weight: "", value: "", equipped: true, slot: "mainHand",
+      attackAttribute: "diestro", damageFormula: "1d8", protectionFormula: "", qualities: "Precisa", notes: ""
+    },
+    {
+      id: "dagger", name: "Daga", category: "weapon", quantity: 1,
+      description: "", weight: "", value: "", equipped: true, slot: "offHand",
+      attackAttribute: "diestro", damageFormula: "1d6", protectionFormula: "", qualities: "Corta", notes: ""
+    }
+  ];
+  sheet.equipmentSlots.mainHand = "fencing-sword";
+  sheet.equipmentSlots.offHand = "dagger";
+  sheet.habilidades = [{
+    nombre: "Esgrima sagrada", tipo: "Habilidad", efecto: "", nivel: "maestro",
+    fuente: "Libro Básico", notas: "", acciones: []
+  }];
+
+  const action = deriveCharacterActions(sheet).find((entry) => entry.label === "Atacar con Espada precisa personalizada");
+  assert.equal(action?.damageFormula, "1d12");
+  assert.equal(action?.damageBreakdown.filter((entry) => entry.label.startsWith("Esgrima sagrada")).length, 2);
 });
 
 test("executeCharacterAction no tira daño cuando falla la tirada de ataque", () => {

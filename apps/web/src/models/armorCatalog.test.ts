@@ -71,6 +71,30 @@ describe("armor catalog", () => {
     expect(retributive.notes).toContain("1d4 de daño por acido durante 1d4 turnos");
   });
 
+  it("shows the effective protection from Combate con armadura for custom formulas", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.inventoryItems = [{
+      ...createInventoryItemFromTemplate(ITEM_CATALOG.find((item) => item.templateId === "armor-heavy")!),
+      id: "custom-armor",
+      name: "Armadura personalizada",
+      isCustom: true,
+      equipped: true,
+      protectionFormula: "1d8+1d4"
+    }];
+    sheet.equipmentSlots.armor = "custom-armor";
+    sheet.habilidades = [{
+      nombre: "Combate con armadura",
+      tipo: "Habilidad",
+      nivel: "principiante",
+      efecto: "",
+      fuente: "Libro Básico",
+      notas: "",
+      acciones: []
+    }];
+
+    expect(computeDerivedStats(sheet).armaduraActiva).toBe("1d10+1d4");
+  });
+
   it("migrates existing armor shields into weapons", () => {
     const sheet = createEmptyCharacterSheet();
     sheet.inventoryItems = [{

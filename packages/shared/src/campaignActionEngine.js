@@ -1,3 +1,4 @@
+import { increaseEffectDieFormula } from "./diceFormula.js";
 import { findWeaponQualityOption, parseWeaponQualities } from "./weaponCatalog.js";
 const LEGACY_WEAPON_SLOTS = [
     {
@@ -466,7 +467,7 @@ function applyConditionalDamageVariants(sheet, actions) {
         if (action.sourceType !== "weapon" || !action.damageFormula) {
             continue;
         }
-        const applicableBonuses = bonuses.filter((bonus) => doesBonusApplyToWeaponAction(bonus, action));
+        const applicableBonuses = bonuses.filter((bonus) => doesBonusApplyToWeaponAction(sheet, bonus, action));
         if (applicableBonuses.length === 0) {
             continue;
         }
@@ -612,14 +613,14 @@ function inferConditionalBonusApplicability(text) {
     }
     return "any";
 }
-function doesBonusApplyToWeaponAction(bonus, action) {
+function doesBonusApplyToWeaponAction(sheet, bonus, action) {
     if (bonus.appliesTo === "any") {
         return true;
     }
     if (bonus.appliesTo === "melee") {
-        return !isBowOrCrossbowAction(action) && !isThrownWeaponAction(action);
+        return !isRangedWeaponAction(sheet, action);
     }
-    return isBowOrCrossbowAction(action) || isThrownWeaponAction(action);
+    return isRangedWeaponAction(sheet, action);
 }
 function combineDamageFormulas(base, bonus) {
     const normalizedBase = normalizeFormula(base) ?? base.trim().toLowerCase();
@@ -699,7 +700,7 @@ function createUnarmedAttackAction(sheet, level) {
 function getNaturalWeaponDamageFormula(sheet, naturalWeaponLevel) {
     const baseDamage = naturalWeaponLevel === 3 ? "1d10" : naturalWeaponLevel === 2 ? "1d8" : "1d6";
     const unarmedCombatLevel = getRatedEntryLevel(sheet, "Combate sin armas");
-    return unarmedCombatLevel ? (increaseDamageDie(baseDamage) ?? baseDamage) : baseDamage;
+    return unarmedCombatLevel ? (increaseEffectDieFormula(baseDamage) ?? baseDamage) : baseDamage;
 }
 function createNaturalWeaponAttackAction(sheet) {
     const naturalWeaponLevel = getTraitLevel(sheet, ["arma natural", "armas naturales"]);
@@ -708,7 +709,7 @@ function createNaturalWeaponAttackAction(sheet) {
     }
     const baseDamage = naturalWeaponLevel === 3 ? "1d10" : naturalWeaponLevel === 2 ? "1d8" : "1d6";
     const unarmedCombatLevel = getRatedEntryLevel(sheet, "Combate sin armas");
-    const damageFormula = unarmedCombatLevel ? (increaseDamageDie(baseDamage) ?? baseDamage) : baseDamage;
+    const damageFormula = unarmedCombatLevel ? (increaseEffectDieFormula(baseDamage) ?? baseDamage) : baseDamage;
     const damageBreakdown = unarmedCombatLevel
         ? [
             { label: "Arma natural", formula: baseDamage },
@@ -789,35 +790,32 @@ function applyIntegratedCombatStyles(sheet, actions) {
                     : undefined
         };
         const twoHandedLevel = getRatedEntryLevel(sheet, "Armas a dos manos");
-        if (twoHandedLevel && isHeavyWeaponAction(next)) {
-            if (next.damageFormula) {
-                next.damageFormula = normalizeFormula(increaseDamageDie(next.damageFormula) ?? next.damageFormula);
-                appendDamageBreakdownDetail(next, "Armas a dos manos", `Mejora el dado base (${capitalizeSkillLevel(twoHandedLevel)}).`);
-            }
+        if (twoHandedLevel && isHeavyWeaponAction(sheet, next)) {
+            upgradeActionDamageDie(next, "Armas a dos manos", twoHandedLevel);
             next.effectSummary = appendSummary(next.effectSummary, buildTwoHandedSummary(twoHandedLevel));
         }
         const polearmLevel = getRatedEntryLevel(sheet, "Armas de asta");
-        if (polearmLevel && isPolearmAction(next)) {
-            if (next.damageFormula) {
-                next.damageFormula = normalizeFormula(increaseDamageDie(next.damageFormula) ?? next.damageFormula);
-                appendDamageBreakdownDetail(next, "Armas de asta", `Mejora el dado base (${capitalizeSkillLevel(polearmLevel)}).`);
-            }
+        if (polearmLevel && isPolearmAction(sheet, next)) {
+            upgradeActionDamageDie(next, "Armas de asta", polearmLevel);
             next.effectSummary = appendSummary(next.effectSummary, buildPolearmSummary(polearmLevel));
         }
         const preyLevel = getRatedEntryLevel(sheet, "Armas de presa");
-        if (preyLevel && isPreyWeaponAction(next)) {
+        if (preyLevel && isPreyWeaponAction(sheet, next)) {
             next.effectSummary = appendSummary(next.effectSummary, buildPreySummary(preyLevel));
         }
         const longWeaponLevel = getRatedEntryLevel(sheet, "Combate con arma larga");
-        if (longWeaponLevel && isLongWeaponAction(next)) {
+        if (longWeaponLevel && isLongWeaponAction(sheet, next)) {
             next.effectSummary = appendSummary(next.effectSummary, buildLongWeaponSummary(longWeaponLevel));
         }
         const shieldLevel = getRatedEntryLevel(sheet, "Combate con escudo");
-        if (shieldLevel && hasEquippedShield(sheet) && isMeleeWeaponAction(next)) {
+        if (shieldLevel && hasEquippedShield(sheet) && isMeleeWeaponAction(sheet, next)) {
+            if (!isHeavyWeaponAction(sheet, next) && !isLongWeaponAction(sheet, next) && !actionHasWeaponQuality(sheet, next, "escudo")) {
+                upgradeActionDamageDie(next, "Combate con escudo", shieldLevel);
+            }
             next.effectSummary = appendSummary(next.effectSummary, buildShieldSummary(shieldLevel));
         }
         const ironFistLevel = getRatedEntryLevel(sheet, "Golpe de hierro");
-        if (ironFistLevel && isMeleeWeaponAction(next)) {
+        if (ironFistLevel && isMeleeWeaponAction(sheet, next)) {
             if (isAttributeEligibleForIronFist(next.rollAttribute)) {
                 next.rollAttribute = "fuerte";
             }
@@ -839,30 +837,27 @@ function applyIntegratedCombatStyles(sheet, actions) {
             next.effectSummary = appendSummary(next.effectSummary, buildFastBowSummary(fastBowLevel));
         }
         const marksmanLevel = getRatedEntryLevel(sheet, "Tirador");
-        if (marksmanLevel && isBowOrCrossbowAction(next)) {
-            if (next.damageFormula) {
-                next.damageFormula = normalizeFormula(increaseDamageDie(next.damageFormula) ?? next.damageFormula);
-                appendDamageBreakdownDetail(next, "Tirador", `Mejora el dado base (${capitalizeSkillLevel(marksmanLevel)}).`);
-            }
+        if (marksmanLevel && isMarksmanWeaponAction(sheet, next)) {
+            upgradeActionDamageDie(next, "Tirador", marksmanLevel);
             next.effectSummary = appendSummary(next.effectSummary, buildMarksmanSummary(marksmanLevel));
         }
+        const sacredFencingLevel = getRatedEntryLevel(sheet, "Esgrima sagrada");
+        if (sacredFencingLevel && isPreciseSwordAction(sheet, next) && hasEquippedDagger(sheet)) {
+            upgradeActionDamageDie(next, "Esgrima sagrada", sacredFencingLevel);
+            if (sacredFencingLevel === "maestro") {
+                upgradeActionDamageDie(next, "Esgrima sagrada (Maestro)", sacredFencingLevel);
+            }
+        }
         const sixthSenseLevel = getRatedEntryLevel(sheet, "Sexto sentido");
-        if (sixthSenseLevel && isRangedWeaponAction(next)) {
+        if (sixthSenseLevel && isRangedWeaponAction(sheet, next)) {
             if (!next.rollAttribute || next.rollAttribute === "diestro") {
                 next.rollAttribute = "atento";
             }
             next.effectSummary = appendSummary(next.effectSummary, buildSixthSenseSummary(sixthSenseLevel));
         }
         const steelWindLevel = getRatedEntryLevel(sheet, "Viento de acero");
-        if (steelWindLevel && isThrownWeaponAction(next)) {
-            if (next.damageFormula) {
-                const originalFormula = normalizeFormula(next.damageFormula);
-                const adjustedFormula = ensureMinimumDamageDie(next.damageFormula, 8);
-                next.damageFormula = normalizeFormula(adjustedFormula ?? next.damageFormula);
-                if (next.damageFormula !== originalFormula) {
-                    appendDamageBreakdownDetail(next, "Viento de acero", `Establece el dado base del arma arrojadiza en 1D8 (${capitalizeSkillLevel(steelWindLevel)}).`);
-                }
-            }
+        if (steelWindLevel && isThrownWeaponAction(sheet, next)) {
+            upgradeActionDamageDie(next, "Viento de acero", steelWindLevel);
             next.effectSummary = appendSummary(next.effectSummary, buildSteelWindSummary(steelWindLevel));
         }
         return next;
@@ -880,43 +875,18 @@ function appendSummary(base, extra) {
     }
     return `${trimmedBase} ${trimmedExtra}`;
 }
-function increaseDamageDie(formula) {
-    const normalized = formula.trim().toLowerCase().replace(/\s+/g, "");
-    const match = normalized.match(/^(\d+)d(4|6|8|10|12)(.*)$/);
-    if (!match)
-        return null;
-    const count = Number(match[1]);
-    const sides = Number(match[2]);
-    const remainder = match[3] ?? "";
-    if (remainder && !/^(?:[+-](?:\d+d\d+|\d+))+$/.test(remainder)) {
-        return null;
-    }
-    if (sides >= 12) {
-        if (count === 1) {
-            const flatModifier = remainder.match(/^[+-]\d+$/);
-            if (flatModifier) {
-                const nextModifier = Number(flatModifier[0]) + 1;
-                return `1d12${nextModifier > 0 ? `+${nextModifier}` : nextModifier < 0 ? String(nextModifier) : ""}`;
-            }
-            return `1d12+1${remainder}`;
-        }
-        return `${count}d12${remainder}`;
-    }
-    const nextSides = sides === 4 ? 6 : sides === 6 ? 8 : sides === 8 ? 10 : 12;
-    return `${count}d${nextSides}${remainder}`;
-}
-function ensureMinimumDamageDie(formula, minimumSides) {
-    const normalized = formula.trim().toLowerCase().replace(/\s+/g, "");
-    const match = normalized.match(/^(\d+)d(4|6|8|10|12)(.*)$/);
-    if (!match)
-        return null;
-    const count = Number(match[1]);
-    const sides = Number(match[2]);
-    const remainder = match[3] ?? "";
-    if (remainder && !/^(?:[+-](?:\d+d\d+|\d+))+$/.test(remainder)) {
-        return null;
-    }
-    return `${count}d${Math.max(sides, minimumSides)}${remainder}`;
+function upgradeActionDamageDie(action, label, level) {
+    if (!action.damageFormula)
+        return false;
+    if (action.damageBreakdown?.some((entry) => normalizeName(entry.label) === normalizeName(label)))
+        return false;
+    const previous = normalizeFormula(action.damageFormula);
+    const upgraded = normalizeFormula(increaseEffectDieFormula(action.damageFormula) ?? action.damageFormula);
+    if (!previous || !upgraded || previous === upgraded)
+        return false;
+    action.damageFormula = upgraded;
+    appendDamageBreakdownDetail(action, label, `${previous.toUpperCase()} → ${upgraded.toUpperCase()} (${capitalizeSkillLevel(level)}).`);
+    return true;
 }
 function appendDamageBreakdownDetail(action, label, detail) {
     if (!action.damageBreakdown) {
@@ -934,7 +904,9 @@ function isAttributeEligibleForIronFist(attribute) {
     return !attribute || attribute === "diestro";
 }
 function hasEquippedShield(sheet) {
-    const inventoryShield = sheet.inventoryItems.some((item) => item.quantity > 0 && /escudo/.test(normalizeName(`${item.name} ${item.qualities}`)));
+    const equippedIds = new Set([sheet.equipmentSlots.mainHand, sheet.equipmentSlots.offHand].filter(Boolean));
+    const inventoryShield = sheet.inventoryItems.some((item) => item.quantity > 0 && (item.equipped || equippedIds.has(item.id))
+        && /escudo/.test(normalizeName(`${item.name} ${item.qualities}`)));
     if (inventoryShield) {
         return true;
     }
@@ -1023,28 +995,49 @@ function buildSteelWindSummary(level) {
         return "Viento de acero: puedes lanzar hasta tres armas arrojadizas con una sola accion.";
     if (level === "adepto")
         return "Viento de acero: puedes lanzar dos armas arrojadizas con una sola accion.";
-    return "Viento de acero: el daño de las armas arrojadizas aumenta a 1d8.";
+    return "Viento de acero: el daño de las armas arrojadizas aumenta un nivel de dado.";
 }
 function isWeaponTextMatch(action, pattern) {
     return pattern.test(normalizeName(`${action.label} ${action.sourceName} ${action.effectSummary}`));
 }
-function isHeavyWeaponAction(action) {
-    return isWeaponTextMatch(action, /(pesad|mandoble|gran hacha|hacha a dos manos|martillo de guerra|arma pesada|maza pesada)/);
+function findActionWeapon(sheet, action) {
+    const linkedId = action.id.match(/^weapon:([^:]+)/)?.[1];
+    return sheet.inventoryItems.find((item) => item.category === "weapon" && ((linkedId && item.id === linkedId)
+        || normalizeName(item.name) === normalizeName(action.sourceName)));
 }
-function isPolearmAction(action) {
-    return isWeaponTextMatch(action, /(lanza|alabarda|vara|baculo|baston|asta)/);
+function actionHasWeaponQuality(sheet, action, qualityId) {
+    const weapon = findActionWeapon(sheet, action);
+    return Boolean(weapon && parseWeaponQualities(weapon.qualities)
+        .some((quality) => findWeaponQualityOption(quality)?.id === qualityId));
 }
-function isPreyWeaponAction(action) {
-    return isWeaponTextMatch(action, /(presa)/);
+function isHeavyWeaponAction(sheet, action) {
+    return actionHasWeaponQuality(sheet, action, "pesada")
+        || isWeaponTextMatch(action, /(pesad|mandoble|gran hacha|hacha a dos manos|martillo de guerra|arma pesada|maza pesada)/);
 }
-function isLongWeaponAction(action) {
-    return isWeaponTextMatch(action, /(larga|lanza|alabarda|vara|baculo|baston|asta)/);
+function isPolearmAction(sheet, action) {
+    return actionHasWeaponQuality(sheet, action, "larga")
+        || isWeaponTextMatch(action, /(lanza|alabarda|vara|baculo|baston|asta)/);
 }
-function isMeleeWeaponAction(action) {
-    return !isRangedWeaponAction(action);
+function isPreyWeaponAction(sheet, action) {
+    return actionHasWeaponQuality(sheet, action, "presa") || isWeaponTextMatch(action, /(presa)/);
 }
-function isRangedWeaponAction(action) {
-    return isBowOrCrossbowAction(action) || isThrownWeaponAction(action) || isWeaponTextMatch(action, /(honda|tirachinas|onda)/);
+function isLongWeaponAction(sheet, action) {
+    return actionHasWeaponQuality(sheet, action, "larga")
+        || isWeaponTextMatch(action, /(larga|lanza|alabarda|vara|baculo|baston|asta)/);
+}
+function isMeleeWeaponAction(sheet, action) {
+    return !isRangedWeaponAction(sheet, action);
+}
+function isRangedWeaponAction(sheet, action) {
+    return actionHasWeaponQuality(sheet, action, "a-distancia")
+        || isBowOrCrossbowAction(action)
+        || isThrownWeaponAction(sheet, action)
+        || isWeaponTextMatch(action, /(honda|tirachinas|onda)/);
+}
+function isMarksmanWeaponAction(sheet, action) {
+    if (isThrownWeaponAction(sheet, action))
+        return false;
+    return actionHasWeaponQuality(sheet, action, "a-distancia") || isBowOrCrossbowAction(action);
 }
 function isChainWeaponAction(action) {
     return isWeaponTextMatch(action, /(cadena|latigo|mayal|flail)/);
@@ -1058,8 +1051,18 @@ function isBowWeaponAction(action) {
 function isBowOrCrossbowAction(action) {
     return isWeaponTextMatch(action, /(arco|ballesta)/);
 }
-function isThrownWeaponAction(action) {
-    return isWeaponTextMatch(action, /(arrojadiz|jabalina|venablo|hacha arrojadiza|cuchillo arrojadizo)/);
+function isThrownWeaponAction(sheet, action) {
+    return actionHasWeaponQuality(sheet, action, "arrojadiza")
+        || isWeaponTextMatch(action, /(arrojadiz|jabalina|venablo|hacha arrojadiza|cuchillo arrojadizo)/);
+}
+function isPreciseSwordAction(sheet, action) {
+    return actionHasWeaponQuality(sheet, action, "precisa") && isWeaponTextMatch(action, /(espada|hoja de esgrima)/);
+}
+function hasEquippedDagger(sheet) {
+    const equippedIds = new Set([sheet.equipmentSlots.mainHand, sheet.equipmentSlots.offHand].filter(Boolean));
+    return sheet.inventoryItems.some((item) => item.category === "weapon" && item.quantity > 0
+        && (item.equipped || equippedIds.has(item.id))
+        && /(daga|cuchillo|punal|puñal|estilete)/.test(normalizeName(`${item.name} ${item.qualities}`)));
 }
 function isNaturalWeaponAction(action) {
     if (action.sourceType !== "weapon")

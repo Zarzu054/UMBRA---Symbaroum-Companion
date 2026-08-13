@@ -2045,7 +2045,7 @@ export function UnifiedCharacterSheet({
   }
 
   function runArmorRoll(): void {
-    const formula = activeArmor?.protectionFormula || derived.armaduraActiva;
+    const formula = derived.armaduraActiva;
     if (!formula) return;
     const label = activeArmor?.name || normalizedSheet.combate.armadura || (derived.armaduraNatural ? "Armadura natural" : "Armadura");
     if (usesFixedAverages) {
@@ -2054,10 +2054,18 @@ export function UnifiedCharacterSheet({
     }
     if (rollDestination !== "umbra") {
       const formulaBreakdown = activeArmor?.protectionFormula
-        ? [{
-            label: activeArmor?.name || "Armadura",
-            formula
-          }]
+        ? activeArmor.protectionFormula.toLowerCase() === formula.toLowerCase()
+          ? [{
+              label: activeArmor?.name || "Armadura",
+              formula
+            }]
+          : [{
+              label: activeArmor?.name || "Armadura",
+              formula: activeArmor.protectionFormula
+            }, {
+              label: "Combate con armadura",
+              detail: `${activeArmor.protectionFormula.toUpperCase()} → ${formula.toUpperCase()}.`
+            }]
         : (derived.armaduraNaturalBreakdown.length > 0
             ? derived.armaduraNaturalBreakdown
             : [{
@@ -3525,11 +3533,11 @@ export function UnifiedCharacterSheet({
 
             <article className="unified-sheet-quick-card">
               <h3>Armadura</h3>
-              <strong className="unified-sheet-combat-value">{activeArmor?.protectionFormula || derived.armaduraActiva || "-"}</strong>
+              <strong className="unified-sheet-combat-value">{derived.armaduraActiva || "-"}</strong>
               <strong>{activeArmor?.name || normalizedSheet.combate.armadura || (derived.armaduraNatural ? "Armadura natural" : "Sin armadura")}</strong>
               {isReadOnly ? null : (
                 <div className="unified-sheet-vital-actions">
-                  <button type="button" className="vital-action subtle" onClick={runArmorRoll} disabled={!(activeArmor?.protectionFormula || derived.armaduraActiva)}>Tirar Armadura</button>
+                  <button type="button" className="vital-action subtle" onClick={runArmorRoll} disabled={!derived.armaduraActiva}>Tirar Armadura</button>
                 </div>
               )}
             </article>
