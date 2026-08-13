@@ -144,4 +144,23 @@ describe("CharacterDashboardView mobile navigation", () => {
     expect(fields.length).toBeGreaterThan(0);
     fields.forEach((field) => expect(field).toHaveAttribute("data-bwignore", "true"));
   });
+
+  it("separa la cabecera de controles y el listado sin una tarjeta exterior", () => {
+    render(
+      <CharacterDashboardView
+        user={{ id: "player", email: "player@umbra.local", role: "player", mustChangePassword: false } as never}
+        ensureAccessToken={vi.fn().mockResolvedValue("token")}
+        onLogout={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+
+    const page = screen.getByRole("heading", { name: "Archivo de personajes" }).closest(".character-directory-page");
+    const header = page?.querySelector(":scope > .character-directory-header-band");
+    const stage = page?.querySelector(":scope > .character-directory-stage");
+    expect(page).not.toBeNull();
+    expect(header).not.toBeNull();
+    expect(stage).not.toBeNull();
+    expect(page?.querySelector(":scope > .character-directory-shell")).toBeNull();
+    expect(stage?.querySelector(":scope > .character-directory-panel")).not.toBeNull();
+  });
 });

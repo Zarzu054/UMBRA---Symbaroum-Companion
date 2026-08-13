@@ -445,8 +445,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
             </section>
           ) : (
             <section className="character-directory-page unified-sheet">
-              <section className="character-directory-shell campaign-sheet-card">
-                <header className="character-directory-header-band module-sticky-header module-sticky-header--single-row">
+              <header className="character-directory-header-band module-sticky-header module-sticky-header--single-row">
                   <div className="unified-sheet-portrait" aria-hidden="true">
                     <div className="unified-sheet-portrait-ring">
                       <div className="unified-sheet-portrait-content">PJ</div>
@@ -479,9 +478,9 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                       Generar aleatorio
                     </button>
                   </div>
-                </header>
+              </header>
 
-                <section className="character-directory-stage">
+              <section className="character-directory-stage">
                   {controller.error && !controller.isFormModalOpen ? <p className="error">{controller.error}</p> : null}
 
                   {controller.isFormModalOpen ? (
@@ -707,7 +706,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
           <div className="info-box">Armadura activa: {controller.derived.armaduraActiva || "-"}</div>
         </div>
         <p className="section-help">
-          Las bendiciones suman <code>5 PX</code> gastados cada una y las cargas aportan <code>5 PX</code> extra disponibles cada una.
+          Las bendiciones suman <code>5 PX</code> gastados cada una. El bono de las cargas se consolida en los PX totales al crear el personaje y no debe sumarse de nuevo.
         </p>
         {controller.derived.warnings.length > 0 ? (
           <div className="warning-block">
@@ -1500,7 +1499,6 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                       />
                     ) : null;
                   })() : null}
-                </section>
               </section>
             </section>
           )}

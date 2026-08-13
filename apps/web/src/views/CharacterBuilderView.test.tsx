@@ -20,6 +20,25 @@ function makeArtifact(): OwnedMysticArtifact {
   };
 }
 
+it("uses the persisted XP total without adding burden bonuses a second time", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.progreso.experienciaTotal = 102;
+  sheet.progreso.experienciaGastada = 90;
+  sheet.capabilitySelections = [
+    { catalogId: "burden-a", name: "Paria", kind: "carga", origin: "comprada", source: "Guía Avanzada del Jugador" },
+    { catalogId: "burden-b", name: "Secreto oscuro", kind: "carga", origin: "comprada", source: "Guía Avanzada del Jugador" }
+  ];
+  const character: Character = {
+    id: "character-xp", name: "Urmak", archetype: "Místico", race: "Humano", culture: "Ambriano", profession: "",
+    level: 1, sheet, createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+  };
+
+  render(<CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={vi.fn()} />);
+
+  const availableCard = screen.getByText("PX disponible").closest("article");
+  expect(availableCard).toHaveTextContent("12");
+});
+
 it("lets the player choose a configured artifact binding payment", async () => {
   const sheet = createEmptyCharacterSheet();
   sheet.progreso.experienciaTotal = 5;

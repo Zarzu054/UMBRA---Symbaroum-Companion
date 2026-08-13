@@ -373,6 +373,70 @@ describe("CampaignDashboardView experience grants", () => {
     expect(screen.getByRole("button", { name: "Notas compartidas" })).toBeInTheDocument();
   });
 
+  it.each([
+    {
+      label: "otro jugador",
+      viewer: {
+        id: "player-b",
+        email: "other-player@example.com",
+        role: "player",
+        status: "active",
+        mustChangePassword: false
+      } as AuthUser
+    },
+    {
+      label: "un DJ que no dirige la campaña",
+      viewer: {
+        id: "gm-b",
+        email: "other-gm@example.com",
+        role: "gm",
+        status: "active",
+        mustChangePassword: false
+      } as AuthUser
+    }
+  ])("hides the character change log from $label", async ({ viewer }) => {
+    const campaign = buildCampaign();
+    campaign.members.push({
+      id: `member-${viewer.id}`,
+      userId: viewer.id,
+      email: viewer.email,
+      role: "player",
+      joinedAt: new Date(0).toISOString()
+    });
+    serviceMocks.fetchCampaigns.mockResolvedValue([campaign]);
+
+    render(<CampaignDashboardView user={viewer} ensureAccessToken={vi.fn().mockResolvedValue("token-viewer")} />);
+
+    await screen.findByRole("heading", { name: "Personajes vinculados" });
+    const characterCard = screen.getByRole("article", { name: "Personaje Alda" });
+    expect(within(characterCard).queryByRole("button", { name: "Historial de cambios de Alda" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the character change log available to its owner", async () => {
+    const owner: AuthUser = {
+      id: "player-a",
+      email: "player@example.com",
+      role: "player",
+      status: "active",
+      mustChangePassword: false
+    };
+    const campaign = buildCampaign();
+    campaign.members.push({
+      id: "member-player-a",
+      userId: owner.id,
+      email: owner.email,
+      role: "player",
+      joinedAt: new Date(0).toISOString()
+    });
+    serviceMocks.fetchCampaigns.mockResolvedValue([campaign]);
+
+    render(<CampaignDashboardView user={owner} ensureAccessToken={vi.fn().mockResolvedValue("token-owner")} />);
+
+    await screen.findByRole("heading", { name: "Personajes vinculados" });
+    const characterCard = screen.getByRole("article", { name: "Personaje Alda" });
+    expect(within(characterCard).getByRole("button", { name: "Historial de cambios de Alda" })).toBeInTheDocument();
+  });
+
   it("shows each character experience history in its own modal", async () => {
     const campaign = buildCampaign();
     const secondSheet = createEmptyCharacterSheet();

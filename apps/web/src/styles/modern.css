@@ -1097,6 +1097,11 @@ button[disabled] {
   margin: 0;
 }
 
+.character-directory-page.unified-sheet {
+  gap: 16px;
+  overflow: visible;
+}
+
 .character-directory-shell,
 .character-builder-shell {
   border: 0;
@@ -1135,6 +1140,10 @@ button[disabled] {
 .character-directory-stage,
 .character-builder-stage {
   padding: 0;
+}
+
+.character-directory-stage {
+  min-width: 0;
 }
 
 .character-directory-panel,
@@ -5812,8 +5821,7 @@ button[disabled] {
     padding-inline: 7px;
   }
 
-  /* Keep the character archive header attached to the global navigation. The
-     directory shell must not inherit the large character-sheet card surface. */
+  /* Keep the character archive header attached to the global navigation. */
   .app-content.module-theme--characters > .character-directory-page {
     width: calc(100% + 20px);
     margin-inline: -10px;
@@ -5821,16 +5829,6 @@ button[disabled] {
 
   .character-directory-page.unified-sheet {
     gap: 0;
-  }
-
-  .character-directory-page.unified-sheet > .character-directory-shell.campaign-sheet-card {
-    padding: 0;
-    gap: 0;
-    overflow: visible;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
   }
 
   .character-directory-header-band.module-sticky-header {

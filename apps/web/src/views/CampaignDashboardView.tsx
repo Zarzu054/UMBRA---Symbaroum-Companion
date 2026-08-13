@@ -1994,6 +1994,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               <div className="cards">
                 {selectedCampaign.characters.map((entry) => {
                   const canManageLink = isDirector || entry.ownerId === user.id;
+                  const canViewChangeLog =
+                    entry.ownerId === user.id ||
+                    user.role === "superadmin" ||
+                    selectedCampaign.gmId === user.id;
                   return (
                     <article key={entry.id} className="card campaign-character-card" aria-label={`Personaje ${entry.name}`}>
                       <strong>{entry.name}</strong>
@@ -2018,9 +2022,16 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                             Constructor
                           </button>
                         ) : null}
-                        <button type="button" className="character-history-button" onClick={() => setChangeLogCharacterId(entry.characterId)}>
-                          Historial{(entry.unreadChangeCount ?? 0) > 0 ? <span className="character-history-badge" aria-label={`${entry.unreadChangeCount} cambios sin leer`}>{entry.unreadChangeCount}</span> : null}
-                        </button>
+                        {canViewChangeLog ? (
+                          <button
+                            type="button"
+                            className="character-history-button"
+                            aria-label={`Historial de cambios de ${entry.name}`}
+                            onClick={() => setChangeLogCharacterId(entry.characterId)}
+                          >
+                            Historial{(entry.unreadChangeCount ?? 0) > 0 ? <span className="character-history-badge" aria-label={`${entry.unreadChangeCount} cambios sin leer`}>{entry.unreadChangeCount}</span> : null}
+                          </button>
+                        ) : null}
                         <button type="button" className="subtle-button" onClick={() => setExperienceHistoryCharacterId(entry.characterId)}>
                           Historial de PX
                         </button>
@@ -2676,7 +2687,14 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
       {changeLogCharacterId ? (() => {
         const entry = selectedCampaign?.characters.find((character) => character.characterId === changeLogCharacterId);
-        return entry ? (
+        const canViewChangeLog = Boolean(
+          entry && selectedCampaign && (
+            entry.ownerId === user.id ||
+            user.role === "superadmin" ||
+            selectedCampaign.gmId === user.id
+          )
+        );
+        return entry && canViewChangeLog ? (
           <CharacterChangeLogModal
             characterId={entry.characterId}
             characterName={entry.name}

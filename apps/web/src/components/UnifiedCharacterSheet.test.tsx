@@ -329,6 +329,22 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(screen.getByRole("button", { name: "Gastar 1 PX para repetir un dado" })).toBeDisabled();
   });
 
+  it("does not add structured burden bonuses twice to persisted available XP", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.progreso.experienciaTotal = 102;
+    sheet.progreso.experienciaGastada = 90;
+    sheet.capabilitySelections = [
+      { catalogId: "burden-a", name: "Paria", kind: "carga", origin: "comprada", source: "Guía Avanzada del Jugador" },
+      { catalogId: "burden-b", name: "Secreto oscuro", kind: "carga", origin: "comprada", source: "Guía Avanzada del Jugador" }
+    ];
+
+    const { container } = render(<UnifiedCharacterSheet title="Urmak" subtitle="Místico" sheet={sheet} editable />);
+    const xpCard = container.querySelector(".unified-sheet-xp-card");
+
+    expect(xpCard).toHaveTextContent("PX total102");
+    expect(xpCard).toHaveTextContent("PX disponible12");
+  });
+
   it("charges a reroll on top of experience computed from purchased capabilities", () => {
     const sheet = createEmptyCharacterSheet();
     sheet.progreso.experienciaTotal = 12;

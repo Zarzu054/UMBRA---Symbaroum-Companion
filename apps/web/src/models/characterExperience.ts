@@ -31,14 +31,21 @@ export type CharacterExperienceSummary = {
   effectiveAvailable: number;
 };
 
-export function getCharacterExperienceSummary(sheet: CharacterSheet): CharacterExperienceSummary {
+export type CharacterExperienceOptions = {
+  includeBurdenBonus?: boolean;
+};
+
+export function getCharacterExperienceSummary(
+  sheet: CharacterSheet,
+  options: CharacterExperienceOptions = {}
+): CharacterExperienceSummary {
   if ((sheet.capabilitySelections?.length ?? 0) > 0) {
     const spent = sheet.capabilitySelections.reduce(
       (total, entry) => total + Math.max(0, getActorCapabilityXpDelta(entry)),
       0
     );
     const extraFromBurdens = sheet.capabilitySelections.filter((entry) => entry.kind === "carga").length * 5;
-    const effectiveTotal = sheet.progreso.experienciaTotal + extraFromBurdens;
+    const effectiveTotal = sheet.progreso.experienciaTotal + (options.includeBurdenBonus ? extraFromBurdens : 0);
     return {
       spentFromCapabilities: sheet.capabilitySelections
         .filter((entry) => !["ritual", "bendicion", "carga", "rasgo_personaje"].includes(entry.kind))
@@ -68,7 +75,7 @@ export function getCharacterExperienceSummary(sheet: CharacterSheet): CharacterE
   const spentFromBlessings = (sheet.bendiciones?.length ?? 0) * 5;
   const extraFromBurdens = (sheet.cargas?.length ?? 0) * 5;
   const computedSpent = spentFromCapabilities + spentFromRituals + spentFromBlessings;
-  const effectiveTotal = sheet.progreso.experienciaTotal + extraFromBurdens;
+  const effectiveTotal = sheet.progreso.experienciaTotal + (options.includeBurdenBonus ? extraFromBurdens : 0);
   const effectiveAvailable = Math.max(0, effectiveTotal - Math.max(sheet.progreso.experienciaGastada, computedSpent));
 
   return {

@@ -97,7 +97,7 @@ describe("component contrast contracts", () => {
   });
 
   it("integrates the mobile character archive header without an outer sheet card", () => {
-    expect(stylesheet).toMatch(/\.character-directory-page\.unified-sheet > \.character-directory-shell\.campaign-sheet-card\s*\{[\s\S]*?padding: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none/);
+    expect(stylesheet).toMatch(/\.character-directory-page\.unified-sheet\s*\{[\s\S]*?gap: 16px;[\s\S]*?overflow: visible/);
     expect(stylesheet).toMatch(/\.character-directory-header-band\.module-sticky-header\s*\{[\s\S]*?top: var\(--app-top-navigation-height\);[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
     expect(stylesheet).toMatch(/\.character-directory-header-actions\s*\{[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[\s\S]*?overflow: visible/);
   });
