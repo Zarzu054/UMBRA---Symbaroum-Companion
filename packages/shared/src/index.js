@@ -114,6 +114,9 @@ const MONSTER_TRAIT_NAME_SET = buildMonsterTraitNameSet();
 function nullableDefaultString(maxLength, fallback = "") {
     return z.preprocess((value) => value == null ? fallback : value, z.string().max(maxLength).default(fallback));
 }
+function nullableDefaultText(fallback = "") {
+    return z.preprocess((value) => value == null ? fallback : value, z.string().default(fallback));
+}
 const attributeBlockSchema = z.object({
     agil: z.number().int().min(5).max(18),
     atento: z.number().int().min(5).max(18),
@@ -133,7 +136,7 @@ const actionMetadataSchema = z.object({
     opponentAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
     fixedTarget: z.number().int().min(1).max(20).optional(),
     damageFormula: z.preprocess((value) => value == null ? undefined : value, z.string().max(80).optional()),
-    effectSummary: nullableDefaultString(400, ""),
+    effectSummary: nullableDefaultText(""),
     corruptionFormula: z.string().max(80).optional(),
     artifactAbilityId: z.string().max(120).optional(),
     disabledReason: z.string().max(400).optional(),
@@ -150,11 +153,11 @@ const actionMetadataSchema = z.object({
 const ratedEntrySchema = z.object({
     nombre: z.string().min(1).max(120),
     tipo: nullableDefaultString(120, ""),
-    efecto: nullableDefaultString(1200, ""),
+    efecto: nullableDefaultText(""),
     nivel: skillLevelSchema,
     fuente: nullableDefaultString(120, ""),
     pagina: z.number().int().min(1).max(2000).optional(),
-    notas: nullableDefaultString(800, ""),
+    notas: nullableDefaultText(""),
     acciones: z.array(actionMetadataSchema).max(12).default([])
 });
 const sourceRefSchema = z.object({
@@ -192,9 +195,9 @@ const canonicalActionEntrySchema = z.object({
     opponentAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
     fixedTarget: z.number().int().min(1).max(20).optional(),
     damageFormula: z.string().max(80).optional(),
-    effectSummary: z.string().max(800).default(""),
+    effectSummary: z.string().default(""),
     category: z.string().max(80).default("general"),
-    notes: z.string().max(800).default(""),
+    notes: z.string().default(""),
     linkedItemId: z.string().max(120).default(""),
     corruptionFormula: z.string().max(80).optional(),
     artifactAbilityId: z.string().max(120).optional(),
@@ -214,7 +217,7 @@ const itemModifierSchema = z.object({
     label: z.string().min(1).max(120),
     modifierType: z.enum(["attack", "damage", "armor", "defense", "initiative", "painThreshold", "corruptionThreshold", "custom"]).default("custom"),
     value: z.string().max(80).default(""),
-    notes: z.string().max(240).default("")
+    notes: z.string().default("")
 });
 const inventoryItemSchema = z.object({
     id: z.string().min(1).max(120),
@@ -223,7 +226,7 @@ const inventoryItemSchema = z.object({
     quantity: z.number().int().min(0).max(999).default(1),
     stackable: z.boolean().default(false),
     isCustom: z.boolean().default(false),
-    description: z.string().max(1200).default(""),
+    description: z.string().default(""),
     weight: z.string().max(40).default(""),
     value: z.string().max(80).default(""),
     equipped: z.boolean().default(false),
@@ -232,7 +235,7 @@ const inventoryItemSchema = z.object({
     damageFormula: z.string().max(80).default(""),
     protectionFormula: z.string().max(80).default(""),
     qualities: z.string().max(240).default(""),
-    notes: z.string().max(800).default(""),
+    notes: z.string().default(""),
     managedArtifactId: z.string().max(120).optional(),
     artifactBound: z.boolean().optional(),
     artifactBindingCostLabel: z.string().max(160).optional(),
@@ -259,19 +262,19 @@ export const conditionSchema = z.object({
     category: z.enum(["state", "injury", "corruption", "custom"]).default("custom"),
     active: z.boolean().default(true),
     severity: z.enum(["minor", "moderate", "major"]).default("minor"),
-    summary: z.string().max(400).default(""),
-    notes: z.string().max(800).default("")
+    summary: z.string().default(""),
+    notes: z.string().default("")
 });
 const noteSectionsSchema = z.object({
-    general: z.string().max(8000).default(""),
-    background: z.string().max(4000).default(""),
-    traits: z.string().max(2000).default(""),
-    campaign: z.string().max(4000).default("")
+    general: z.string().default(""),
+    background: z.string().default(""),
+    traits: z.string().default(""),
+    campaign: z.string().default("")
 });
 const structuredNoteEntrySchema = z.object({
     id: z.string().min(1).max(120),
     title: z.string().min(1).max(160),
-    content: z.string().max(12000).default(""),
+    content: z.string().default(""),
     createdAt: z.string().max(80).default(""),
     updatedAt: z.string().max(80).default("")
 });
@@ -433,9 +436,9 @@ const characterSheetObjectSchema = z.object({
         edad: z.string().max(40).default(""),
         altura: z.string().max(40).default(""),
         peso: z.string().max(40).default(""),
-        apariencia: z.string().max(240).default(""),
-        objetivoPersonal: z.string().max(400).default(""),
-        trasfondo: z.string().max(4000).default("")
+        apariencia: z.string().default(""),
+        objetivoPersonal: z.string().default(""),
+        trasfondo: z.string().default("")
     }),
     atributos: attributeBlockSchema,
     progreso: z.object({
@@ -475,7 +478,7 @@ const characterSheetObjectSchema = z.object({
         temporal: z.number().int().min(0).max(999).default(0),
         permanente: z.number().int().min(0).max(999).default(0),
         umbral: z.number().int().min(0).max(999).default(5),
-        notas: z.string().max(1000).default("")
+        notas: z.string().default("")
     }),
     bendiciones: z.array(z.string().min(1).max(120)).max(40).default([]),
     cargas: z.array(z.string().min(1).max(120)).max(40).default([]),
@@ -527,12 +530,12 @@ const characterSheetObjectSchema = z.object({
         campaign: ""
     }),
     gmBackground: z.object({
-        tactics: z.string().max(2000).default(""),
-        weakness: z.string().max(2000).default(""),
-        loot: z.string().max(2000).default("")
+        tactics: z.string().default(""),
+        weakness: z.string().default(""),
+        loot: z.string().default("")
     }).default({ tactics: "", weakness: "", loot: "" }),
     referencias: z.array(sourceRefSchema).max(300).default([]),
-    notas: z.string().max(8000).default("")
+    notas: z.string().default("")
 });
 export const characterSheetSchema = characterSheetObjectSchema.superRefine((sheet, ctx) => {
     if (sheet.progreso.experienciaGastada > getEffectiveExperienceTotal(sheet)) {
@@ -1210,11 +1213,11 @@ function sanitizeImportedRatedEntry(entry) {
     return {
         nombre: truncateImportedString(nombre, 120),
         tipo: truncateImportedString(candidate.tipo, 120),
-        efecto: truncateImportedString(candidate.efecto, 1200),
+        efecto: String(candidate.efecto ?? ""),
         nivel,
         fuente: truncateImportedString(candidate.fuente, 120),
         pagina: typeof candidate.pagina === "number" && Number.isInteger(candidate.pagina) ? candidate.pagina : undefined,
-        notas: truncateImportedString(candidate.notas, 800),
+        notas: String(candidate.notas ?? ""),
         acciones: acciones
     };
 }
@@ -1230,10 +1233,10 @@ function hydrateRatedEntryActions(entries, sourceType) {
             ...entry,
             nombre: truncateImportedString(canonicalEntry?.nombre || entry.nombre, 120),
             tipo: truncateImportedString(canonicalEntry?.tipo || entry.tipo || "", 120),
-            efecto: truncateImportedString(canonicalEntry?.efectoResumen || entry.efecto || "", 1200),
+            efecto: String(canonicalEntry?.efectoResumen || entry.efecto || ""),
             fuente: truncateImportedString(canonicalEntry?.libro || entry.fuente || "", 120),
             pagina: canonicalEntry?.pagina ?? entry.pagina,
-            notas: truncateImportedString(canonicalEntry?.efectoResumen || entry.notas || entry.efecto || "", 800),
+            notas: String(canonicalEntry?.efectoResumen || entry.notas || entry.efecto || ""),
             acciones: canonicalEntry?.acciones.map((action) => ({ ...action })) ?? (actions.length > 0 ? actions : [])
         };
     });
@@ -1297,9 +1300,9 @@ function sanitizeRawRatedEntryCollection(entries) {
             ...candidate,
             nombre: truncateImportedString(candidate.nombre, 120),
             tipo: truncateImportedString(candidate.tipo, 120),
-            efecto: truncateImportedString(candidate.efecto, 1200),
+            efecto: String(candidate.efecto ?? ""),
             fuente: truncateImportedString(candidate.fuente, 120),
-            notas: truncateImportedString(candidate.notas, 800),
+            notas: String(candidate.notas ?? ""),
             acciones
         };
     });
@@ -1706,7 +1709,7 @@ export const createNpcSchema = z.object({
     faction: z.string().max(120).default(""),
     labels: z.array(npcLabelSchema).max(20).default([]),
     summary: z.string().max(500).default(""),
-    notes: z.string().max(4000).default(""),
+    notes: z.string().default(""),
     statBlock: monsterSheetSchema.nullable().default(null),
     sheet: importedCharacterSheetSchema.nullable().default(null)
 });
@@ -1814,9 +1817,9 @@ export const createCampaignSchema = z.object({
     name: z.string().min(3).max(120),
     summary: z.string().max(400).default(""),
     setting: z.string().max(200).default(""),
-    notes: z.string().max(4000).default(""),
+    notes: z.string().default(""),
     dmNoteEntries: z.array(campaignSharedNoteEntrySchema).max(200).default([]),
-    sharedNotes: z.string().max(6000).default(""),
+    sharedNotes: z.string().default(""),
     sharedNoteEntries: z.array(campaignSharedNoteEntrySchema).max(200).default([])
 });
 export const updateCampaignSchema = createCampaignSchema.partial();
@@ -1834,7 +1837,7 @@ export const createCampaignNpcSchema = z.object({
     occupation: z.string().max(120).default(""),
     threat: z.string().max(80).default(""),
     summary: z.string().max(500).default(""),
-    notes: z.string().max(3000).default(""),
+    notes: z.string().default(""),
     statBlock: z.string().max(1200).default(""),
     isGenerated: z.boolean().default(false)
 });
@@ -1930,8 +1933,8 @@ export const createCampaignSessionSchema = z.object({
     scheduledFor: z.string().datetime(),
     location: z.string().max(160).default(""),
     summary: z.string().max(500).default(""),
-    publicNotes: z.string().max(4000).default(""),
-    dmNotes: z.string().max(4000).default(""),
+    publicNotes: z.string().default(""),
+    dmNotes: z.string().default(""),
     status: campaignSessionStatusSchema.default("planned")
 });
 export const updateCampaignSessionSchema = createCampaignSessionSchema.partial();
@@ -1972,7 +1975,7 @@ export const createCampaignReferenceSchema = z.object({
     label: z.string().max(80).default(""),
     aliases: z.array(z.string().min(1).max(120)).max(20).default([]),
     summary: z.string().max(300).default(""),
-    content: z.string().max(6000).default(""),
+    content: z.string().default(""),
     visibility: campaignReferenceVisibilitySchema.default("campaign"),
     sharedWithUserIds: z.array(z.string().uuid()).max(50).default([]),
     isPublic: z.boolean().optional()

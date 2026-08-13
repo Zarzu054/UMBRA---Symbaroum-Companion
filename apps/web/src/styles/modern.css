@@ -5811,6 +5811,59 @@ button[disabled] {
     min-height: 32px;
     padding-inline: 7px;
   }
+
+  /* Keep the character archive header attached to the global navigation. The
+     directory shell must not inherit the large character-sheet card surface. */
+  .app-content.module-theme--characters > .character-directory-page {
+    width: calc(100% + 20px);
+    margin-inline: -10px;
+  }
+
+  .character-directory-page.unified-sheet {
+    gap: 0;
+  }
+
+  .character-directory-page.unified-sheet > .character-directory-shell.campaign-sheet-card {
+    padding: 0;
+    gap: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .character-directory-header-band.module-sticky-header {
+    top: var(--app-top-navigation-height);
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding: 7px 10px !important;
+    border-inline: 0 !important;
+  }
+
+  .character-directory-header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .character-directory-header-actions > :is(button, .file-trigger) {
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    padding-inline: 5px;
+    justify-content: center;
+    font-size: 0.7rem;
+    line-height: 1.05;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .character-directory-stage {
+    padding: 12px 10px 18px;
+  }
 }
 
 /* Character history is a true overlay over the directory, not a module page. */
@@ -5846,14 +5899,47 @@ button[disabled] {
 }
 
 .character-change-row {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+  padding: 9px 11px;
+}
+
+.character-change-summary {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.character-change-summary .character-change-section {
+  width: fit-content;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 24%, var(--ui-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ui-accent) 7%, var(--ui-surface));
+  color: var(--ui-text-muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.character-change-description {
+  grid-column: 2;
+  color: var(--ui-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .character-change-values {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: start;
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  padding-left: 2px;
+  color: var(--ui-text);
+  font-size: 0.86rem;
 }
 
 @media (width <= 720px) {
@@ -5883,11 +5969,14 @@ button[disabled] {
   }
 
   .character-change-values {
-    grid-template-columns: minmax(0, 1fr);
+    padding-left: 0;
   }
 
-  .character-change-values > [aria-hidden="true"] {
-    transform: rotate(90deg);
-    justify-self: center;
+  .character-change-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .character-change-description {
+    grid-column: 1;
   }
 }

@@ -20,7 +20,10 @@ describe("CharacterChangeLogModal", () => {
           id: "event-2", characterId: "character-a", campaignId: "campaign-a", campaignName: "Bosque",
           actorId: "gm-a", actorEmail: "dj@example.com", actorRole: "gm", source: "sheet",
           summary: "Actualizó la hoja del personaje", isUnread: true, createdAt: "2026-08-11T10:04:00.000Z",
-          changes: [{ path: "sheet.corrupcion.temporal", section: "Corrupción", label: "Corrupción temporal", operation: "changed", before: 0, after: 1 }]
+          changes: [
+            { path: "sheet.corrupcion.temporal", section: "Corrupción", label: "Corrupción temporal", operation: "changed", before: 0, after: 1 },
+            { path: "actions[cambiaformas].notes", section: "Ficha", label: "Notes", operation: "changed", before: "Texto interno anterior", after: "Texto interno nuevo" }
+          ]
         },
         {
           id: "event-1", characterId: "character-a", campaignId: "campaign-a", campaignName: "Bosque",
@@ -49,6 +52,9 @@ describe("CharacterChangeLogModal", () => {
     expect(await screen.findByText("Nuevo")).toBeInTheDocument();
     expect(screen.getAllByText("dj@example.com")).toHaveLength(1);
     expect(screen.getByText("Corrupción temporal")).toBeInTheDocument();
+    expect(screen.getByText("Acción «Cambiaformas» actualizada")).toBeInTheDocument();
+    expect(screen.queryByText("Notes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Mostrar contenido")).not.toBeInTheDocument();
     await waitFor(() => expect(markCharacterChangeLogRead).toHaveBeenCalledWith("character-a", "token"));
     expect(onRead).toHaveBeenCalled();
   });

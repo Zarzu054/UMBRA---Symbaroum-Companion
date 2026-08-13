@@ -438,10 +438,10 @@ function importCapabilities(fields: PdfFieldMap): {
         continue;
       }
 
-      const canonicalEffect = truncateImportedCapabilityText(fromCatalog?.efectoResumen || "", 1200);
-      const canonicalNotes = truncateImportedCapabilityText(fromCatalog?.efectoResumen || "", 800);
-      const importedEffect = truncateImportedCapabilityText(efecto, 1200);
-      const importedNotes = truncateImportedCapabilityText(efecto, 800);
+      const canonicalEffect = normalizeImportedCapabilityText(fromCatalog?.efectoResumen || "");
+      const canonicalNotes = normalizeImportedCapabilityText(fromCatalog?.efectoResumen || "");
+      const importedEffect = normalizeImportedCapabilityText(efecto);
+      const importedNotes = normalizeImportedCapabilityText(efecto);
       const entry = {
         nombre: fromCatalog?.nombre ?? nombre,
         tipo: resolvedType === "poder_mistico" ? "Poder místico" : resolvedType === "ritual" ? "Ritual" : "Habilidad",
@@ -466,18 +466,16 @@ function importCapabilities(fields: PdfFieldMap): {
   return { habilidades, poderesMisticos, rituales, bendiciones, cargas, rasgos };
 }
 
-function truncateImportedCapabilityText(value: string, maxLength: number): string {
-  const text = String(value ?? "").trim();
-  if (!text) return "";
-  return text.length > maxLength ? text.slice(0, maxLength) : text;
+function normalizeImportedCapabilityText(value: string): string {
+  return String(value ?? "").trim();
 }
 
 function sanitizeImportSheetForValidation(sheet: ImportCharacterInput["sheet"]): ImportCharacterInput["sheet"] {
   const sanitizeEntries = <T extends Array<{ efecto?: string; notas?: string }>>(entries: T): T =>
     entries.map((entry) => ({
       ...entry,
-      efecto: truncateImportedCapabilityText(entry.efecto ?? "", 1200),
-      notas: truncateImportedCapabilityText(entry.notas ?? "", 800)
+      efecto: normalizeImportedCapabilityText(entry.efecto ?? ""),
+      notas: normalizeImportedCapabilityText(entry.notas ?? "")
     })) as T;
 
   return {
