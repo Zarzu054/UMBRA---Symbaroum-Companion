@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CharacterChangeLogModal } from "./CharacterChangeLogModal";
 
@@ -32,10 +32,20 @@ describe("CharacterChangeLogModal", () => {
     });
     markCharacterChangeLogRead.mockResolvedValue(undefined);
     const onRead = vi.fn();
+    const onClose = vi.fn();
 
-    render(<CharacterChangeLogModal characterId="character-a" characterName="Alda" ensureAccessToken={vi.fn().mockResolvedValue("token")} onClose={vi.fn()} onRead={onRead} />);
+    render(<CharacterChangeLogModal characterId="character-a" characterName="Alda" ensureAccessToken={vi.fn().mockResolvedValue("token")} onClose={onClose} onRead={onRead} />);
 
     expect(await screen.findByText("Historial de Alda")).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Historial de Alda" });
+    expect(dialog).toHaveClass("character-change-log-modal");
+    expect(dialog).not.toHaveClass("panel");
+    expect(dialog.parentElement).toHaveClass("character-change-log-backdrop");
+    expect(dialog.parentElement?.parentElement).toBe(document.body);
+    fireEvent.click(dialog);
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(dialog.parentElement!);
+    expect(onClose).toHaveBeenCalledOnce();
     expect(await screen.findByText("Nuevo")).toBeInTheDocument();
     expect(screen.getAllByText("dj@example.com")).toHaveLength(1);
     expect(screen.getByText("Corrupción temporal")).toBeInTheDocument();

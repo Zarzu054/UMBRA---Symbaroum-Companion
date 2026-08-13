@@ -7,7 +7,7 @@ function addNoviceAbility(sheet: CharacterSheet, name: string): void {
     nombre: name,
     tipo: "Habilidad",
     efecto: "",
-    nivel: "novato",
+    nivel: "principiante",
     fuente: "Libro Basico",
     notas: "",
     acciones: []

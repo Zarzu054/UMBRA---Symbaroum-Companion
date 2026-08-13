@@ -90,13 +90,13 @@ const BUILDER_MONSTER_TRAITS: SymbaroumCapability[] = ALL_ENTRIES
   }));
 const BUILDER_MONSTER_TRAIT_NAME_SET = new Set(BUILDER_MONSTER_TRAITS.map((entry) => normalizeName(entry.nombre)));
 const ROMAN_LEVEL_LABELS: Record<SkillLevel, string> = {
-  novato: "I",
+  principiante: "I",
   adepto: "II",
   maestro: "III"
 };
 
 const LEVEL_OPTIONS: Array<{ value: SkillLevel; label: string }> = [
-  { value: "novato", label: "Principiante" },
+  { value: "principiante", label: "Principiante" },
   { value: "adepto", label: "Adepto" },
   { value: "maestro", label: "Maestro" }
 ];
@@ -140,7 +140,7 @@ function getRatedEntryCost(level: SkillLevel): number {
       return 60;
     case "adepto":
       return 30;
-    case "novato":
+    case "principiante":
     default:
       return 10;
   }
@@ -250,7 +250,7 @@ function buildRatedEntry(entry: SymbaroumCapability, section: RatedSection): Cha
     nombre: entry.nombre,
     tipo: section === "habilidades" ? "Habilidad" : section === "rasgosMonstruosos" ? "Rasgo monstruoso" : section === "poderesMisticos" ? "Poder mistico" : "Ritual",
     efecto: entry.efectoResumen,
-    nivel: "novato",
+    nivel: "principiante",
     fuente: entry.libro,
     pagina: entry.pagina,
     notas: entry.efectoResumen,
@@ -270,14 +270,14 @@ function getSectionCostLabel(section: RatedSection): string {
 }
 
 function getNextLevel(level: SkillLevel): SkillLevel | null {
-  if (level === "novato") return "adepto";
+  if (level === "principiante") return "adepto";
   if (level === "adepto") return "maestro";
   return null;
 }
 
 function getPreviousLevel(level: SkillLevel): SkillLevel | null {
   if (level === "maestro") return "adepto";
-  if (level === "adepto") return "novato";
+  if (level === "adepto") return "principiante";
   return null;
 }
 
@@ -285,7 +285,7 @@ function getUpgradeCost(section: RatedSection, currentLevel: SkillLevel): number
   if (section === "rituales") {
     return 0;
   }
-  if (currentLevel === "novato") {
+  if (currentLevel === "principiante") {
     return 20;
   }
   if (currentLevel === "adepto") {
@@ -300,12 +300,12 @@ function parseCapabilityTiers(detail: string, section: RatedSection): Capability
     return [];
   }
   const labels = section === "rasgosMonstruosos" ? ["I", "II", "III"] : ["Principiante", "Adepto", "Maestro"];
-  const labelPattern = section === "rasgosMonstruosos" ? "I|II|III" : "Principiante|Novato|Adepto|Maestro";
+  const labelPattern = section === "rasgosMonstruosos" ? "I|II|III" : "Principiante|Adepto|Maestro";
   const matches = [...text.matchAll(new RegExp(`(${labelPattern}):\\s*([\\s\\S]*?)(?=(?:${labelPattern}):|$)`, "gi"))];
   const mapped = new Map<string, CapabilityTier>();
   for (const match of matches) {
     const parsedLabel = String(match[1] ?? "").trim();
-    const rawLabel = normalizeName(parsedLabel) === "novato" ? "Principiante" : parsedLabel;
+    const rawLabel = normalizeName(parsedLabel) === "principiante" ? "Principiante" : parsedLabel;
     const content = match[2]?.trim();
     if (!content) continue;
     const label = labels.find((entry) => normalizeName(entry) === normalizeName(rawLabel)) ?? null;
@@ -645,7 +645,7 @@ export function CharacterBuilderView({
     setError(null);
     setDraft((current) => {
       const next = replaceRatedEntriesForSection(current, section, [...getRatedEntriesForSection(current, section), buildRatedEntry(entry, section)]);
-      return { ...next, capabilitySelections: upsertCapabilitySelection(next, section, entry, "novato", activeProfessionIds) };
+      return { ...next, capabilitySelections: upsertCapabilitySelection(next, section, entry, "principiante", activeProfessionIds) };
     });
     setAcquisitionModal(null);
   }
@@ -671,10 +671,10 @@ export function CharacterBuilderView({
       section: acquisitionModal.section,
       name: selectedAcquisitionEntry.nombre,
       sourceLabel: `${selectedAcquisitionEntry.libro}${selectedAcquisitionEntry.pagina ? ` p. ${selectedAcquisitionEntry.pagina}` : ""}`,
-      targetLevel: "novato",
+      targetLevel: "principiante",
       cost,
       previewSummary: selectedAcquisitionEntry.efectoResumen,
-      targetTier: getCapabilityTierForLevel(acquisitionPreviewTiers, "novato", acquisitionModal.section),
+      targetTier: getCapabilityTierForLevel(acquisitionPreviewTiers, "principiante", acquisitionModal.section),
       confirmLabel: `Confirmar ${cost} PX`,
       onConfirm: () => {
         applyAcquisition();

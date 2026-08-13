@@ -155,7 +155,7 @@ test("conserva los niveles publicados de todas las capacidades de los 168 perfil
   for (const { monster, capability } of ratedCapabilities) {
     assert.match(
       capability.legacyData ?? "",
-      /\b(?:principiante|novato|adept[oa]|maestr[oa]|i{1,3})\b/i,
+      /\b(?:principiante|adept[oa]|maestr[oa]|i{1,3})\b/i,
       `${monster}: ${capability.name} no conserva su nivel publicado`
     );
     assert.doesNotMatch(
@@ -172,7 +172,7 @@ test("conserva los niveles publicados de todas las capacidades de los 168 perfil
       .filter((capability) => capability.kind === "habilidad")
       .map(({ name, level, attributeKey }) => [name, level, attributeKey]),
     [
-      ["Alquimista", "novato", undefined],
+      ["Alquimista", "principiante", undefined],
       ["Atributo excepcional", "maestro", "strong"],
       ["Berserker", "maestro", undefined],
       ["Combate sin armas", "maestro", undefined]

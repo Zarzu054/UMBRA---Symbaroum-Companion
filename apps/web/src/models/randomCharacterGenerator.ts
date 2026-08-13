@@ -99,7 +99,7 @@ function buildRandomCharacter(): CreateCharacterInput {
   sheet.progreso.experienciaTotal = 10;
   sheet.progreso.experienciaGastada = 0;
 
-  const startingPattern = Math.random() < 0.5 ? "2novato_1adepto" : "5novato";
+  const startingPattern = Math.random() < 0.5 ? "2principiante_1adepto" : "5principiante";
   const generatedCapabilities = generateStartingCapabilities(archetype, startingPattern);
   sheet.habilidades = generatedCapabilities.habilidades;
   sheet.poderesMisticos = generatedCapabilities.poderesMisticos;
@@ -160,11 +160,11 @@ function generateAttributeBlock(): Record<(typeof ATTRIBUTE_KEYS)[number], numbe
 
 function generateStartingCapabilities(
   archetype: (typeof SYMBAROUM_ARCHETYPES)[number],
-  pattern: "2novato_1adepto" | "5novato"
+  pattern: "2principiante_1adepto" | "5principiante"
 ): { habilidades: RatedEntry[]; poderesMisticos: RatedEntry[] } {
-  const slotCount = pattern === "2novato_1adepto" ? 3 : 5;
-  const noviceCount = pattern === "2novato_1adepto" ? 2 : 5;
-  const adeptCount = pattern === "2novato_1adepto" ? 1 : 0;
+  const slotCount = pattern === "2principiante_1adepto" ? 3 : 5;
+  const noviceCount = pattern === "2principiante_1adepto" ? 2 : 5;
+  const adeptCount = pattern === "2principiante_1adepto" ? 1 : 0;
 
   const abilityCatalog = new Map(SYMBAROUM_ABILITIES.map((entry) => [entry.nombre, entry]));
   const powerCatalog = new Map(SYMBAROUM_MYSTIC_POWERS.map((entry) => [entry.nombre, entry]));
@@ -188,7 +188,7 @@ function generateStartingCapabilities(
   const orderedEntries = [...selectedAbilities.map((name) => ({ type: "ability" as const, name })), ...selectedPowers.map((name) => ({ type: "power" as const, name }))].slice(0, slotCount);
 
   orderedEntries.forEach((entry, index) => {
-    const level = levels[index] ?? "novato";
+    const level = levels[index] ?? "principiante";
     if (entry.type === "ability") {
       const fromCatalog = abilityCatalog.get(entry.name);
       habilidades.push(buildRatedEntry(entry.name, level, "Habilidad", fromCatalog));
@@ -208,7 +208,7 @@ function buildLevels(noviceCount: number, adeptCount: number): SkillLevel[] {
     levels.push("adepto");
   }
   for (let index = 0; index < noviceCount; index += 1) {
-    levels.push("novato");
+    levels.push("principiante");
   }
   return shuffle(levels);
 }

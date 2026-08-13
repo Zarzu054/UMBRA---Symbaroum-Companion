@@ -241,19 +241,19 @@ function buildCapabilities(character) {
         nombre: item,
         tipo: "Bendición",
         efecto: "",
-        nivel: "novato"
+        nivel: "principiante"
     }));
     const fromBurdens = (character.sheet.cargas ?? []).map((item) => ({
         nombre: item,
         tipo: "Carga",
         efecto: "",
-        nivel: "novato"
+        nivel: "principiante"
     }));
     const fromTraits = (character.sheet.rasgos ?? []).map((item) => ({
         nombre: item,
         tipo: "Rasgo",
         efecto: "",
-        nivel: "novato"
+        nivel: "principiante"
     }));
     return [...fromHabilidades, ...fromPowers, ...fromRituals, ...fromBlessings, ...fromBurdens, ...fromTraits];
 }
@@ -261,15 +261,15 @@ function selectCapabilityLevelEffect(effect, level) {
     const text = String(effect ?? "").trim();
     if (!text)
         return "";
-    const levelHeading = /\b(Principiante|Novato|Adepto|Maestro)\s*:/giu;
+    const levelHeading = /\b(Principiante|Adepto|Maestro)\s*:/giu;
     const matches = [...text.matchAll(levelHeading)];
     if (matches.length === 0) {
         return text;
     }
-    const targetLevel = level === "novato" ? "principiante" : level.toLocaleLowerCase("es");
+    const targetLevel = level === "principiante" ? "principiante" : level.toLocaleLowerCase("es");
     const targetIndex = matches.findIndex((match) => {
         const parsedLevel = match[1]?.toLocaleLowerCase("es");
-        return (parsedLevel === "novato" ? "principiante" : parsedLevel) === targetLevel;
+        return (parsedLevel === "principiante" ? "principiante" : parsedLevel) === targetLevel;
     });
     if (targetIndex < 0) {
         return text;
@@ -459,7 +459,7 @@ function readLevel(fields, row, col) {
         return "maestro";
     if (readChecked(fields, `P${row}${col}2`))
         return "adepto";
-    return "novato";
+    return "principiante";
 }
 function normalizeCapabilityType(value) {
     const normalized = normalizeCapabilityName(value);
@@ -487,7 +487,7 @@ function normalizeCapabilityName(value) {
         .trim();
 }
 function checkLevel(form, fieldNames, row, col, level) {
-    const suffix = level === "novato" ? "1" : level === "adepto" ? "2" : "3";
+    const suffix = level === "principiante" ? "1" : level === "adepto" ? "2" : "3";
     const checkboxName = resolveFieldName(fieldNames, `P${row}${col}${suffix}`);
     if (!checkboxName)
         return 0;

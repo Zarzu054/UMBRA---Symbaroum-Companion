@@ -17,7 +17,7 @@ const artifact: MysticArtifact = {
   bindingCosts: [{ paymentType: "xp", amount: 1 }],
   weapon: { attackAttribute: "diestro", attackFormula: "1D20", damageFormula: "1D6+1D4", tags: ["thrown"], qualities: ["Regreso"], requiresBinding: false },
   abilities: [{
-    id: "ability-a", name: "Hoja de lava", description: "El ataque arrojado ignora por completo la armadura.", activation: "active", actionCost: "combat", corruptionFormula: "1D4", requiresBinding: true, perSceneNote: "", rolls: [], requirements: [], resourceCosts: [], locked: false, lockReason: ""
+    id: "ability-a", name: "Hoja de lava", description: "El ataque arrojado ignora por completo la armadura.", activation: "active", actionCost: "combat", corruptionFormula: "1D4", requiresBinding: true, perSceneNote: "", rolls: [], requirements: [{ type: "capability", capabilityName: "Herrero", minimumLevel: "principiante", description: "" }], resourceCosts: [], locked: false, lockReason: ""
   }],
   resources: [],
   ownerType: null,
@@ -40,8 +40,8 @@ describe("MysticArtifactDetailsModal", () => {
     render(<MysticArtifactDetailsModal artifact={artifact} onClose={vi.fn()} onOpenSource={onOpenSource} />);
     expect(screen.getByText(/espíritus de fuego/i)).toBeInTheDocument();
     expect(screen.getByText("Hoja de lava")).toBeInTheDocument();
+    expect(screen.getByText("Requisitos: Herrero (Principiante)")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Abrir fuente · La corona de cobre p.68" }));
     expect(onOpenSource).toHaveBeenCalledWith(artifact);
   });
 });
-

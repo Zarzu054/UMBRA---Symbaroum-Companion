@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createEmptyCharacterSheet } from "@umbra/shared";
 import { projectActiveProfessionBenefits, validateProfessionBenefitAcquisitionWithMemberships } from "./ProfessionModel.js";
 
-function addAbility(sheet: ReturnType<typeof createEmptyCharacterSheet>, name: string, level: "novato" | "adepto" | "maestro" = "novato") {
+function addAbility(sheet: ReturnType<typeof createEmptyCharacterSheet>, name: string, level: "principiante" | "adepto" | "maestro" = "principiante") {
   return { ...sheet, habilidades: [...sheet.habilidades, { nombre: name, tipo: "Habilidad", efecto: "", nivel: level, fuente: "Guía Avanzada del Jugador", pagina: 1, notas: "", acciones: [] }] };
 }
 
@@ -30,7 +30,7 @@ describe("profession benefit policy", () => {
     before = addAbility(before, "Aura impía");
     before = addAbility(before, "Rito de profanación");
     before = addAbility(before, "Estudioso");
-    const after = { ...before, rituales: [{ nombre: "Siervo demoníaco", tipo: "Ritual", efecto: "", nivel: "novato" as const, fuente: "Guía Avanzada del Jugador", pagina: 1, notas: "", acciones: [] }] };
+    const after = { ...before, rituales: [{ nombre: "Siervo demoníaco", tipo: "Ritual", efecto: "", nivel: "principiante" as const, fuente: "Guía Avanzada del Jugador", pagina: 1, notas: "", acciones: [] }] };
     expect(() => validateProfessionBenefitAcquisitionWithMemberships(before, after, [{ professionId: "demonologo", state: "active" }])).toThrow("PROFESSION_BASE_RITUAL_REQUIRED:Siervo demoníaco:Invocar demonio");
   });
 

@@ -13,7 +13,7 @@ function getRatedEntryXpCost(level) {
             return 60;
         case "adepto":
             return 30;
-        case "novato":
+        case "principiante":
         default:
             return 10;
     }

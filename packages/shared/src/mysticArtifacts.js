@@ -1,6 +1,6 @@
 import { z } from "zod";
 const attributeSchema = z.enum(["agil", "atento", "diestro", "discreto", "fuerte", "inteligente", "persuasivo", "tenaz"]);
-const skillLevelSchema = z.enum(["novato", "adepto", "maestro"]);
+const skillLevelSchema = z.enum(["principiante", "adepto", "maestro"]);
 const actionCostSchema = z.enum(["free", "movement", "combat", "reaction"]);
 export const mysticArtifactKindSchema = z.enum(["weapon", "armor", "object"]);
 export const mysticArtifactPaymentTypeSchema = z.enum(["xp", "permanent_corruption"]);

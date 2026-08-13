@@ -7,7 +7,7 @@ import {
   getHigherRitualBase
 } from "../dist/index.js";
 
-const capability = (name, level = "novato", kind = "habilidad") => ({ name, level, kind });
+const capability = (name, level = "principiante", kind = "habilidad") => ({ name, level, kind });
 const context = (capabilities, overrides = {}) => ({
   race: "Humano",
   culture: "Ambriano",
@@ -34,7 +34,7 @@ test("aplica las alternativas corregidas y la regla de una capacidad requerida e
   assert.equal(evaluateProfession("juramentado-de-hierro", context([...base, capability("Armas de asta")])).eligible, true);
   assert.equal(evaluateProfession("juramentado-de-hierro", context([...base, capability("Ataque con dos armas")])).eligible, true);
   assert.equal(evaluateProfession("juramentado-de-hierro", context(base)).eligible, false);
-  assert.equal(evaluateProfession("juramentado-de-hierro", context([...base.map((entry) => ({ ...entry, level: "novato" })), capability("Armas de asta")])).masterRequirementMet, false);
+  assert.equal(evaluateProfession("juramentado-de-hierro", context([...base.map((entry) => ({ ...entry, level: "principiante" })), capability("Armas de asta")])).masterRequirementMet, false);
 });
 
 test("un ritual o una capacidad opcional en maestro no satisfacen la regla de maestro", () => {

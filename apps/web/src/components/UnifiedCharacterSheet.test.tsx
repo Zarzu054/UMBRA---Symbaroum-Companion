@@ -210,6 +210,31 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(within(mechanicalReader).getByRole("navigation", { name: "Tipos de capacidades" })).toBeInTheDocument();
   });
 
+  it("muestra Principiante como nivel inicial de las capacidades", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.habilidades = [{
+      nombre: "Robusto",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "principiante",
+      fuente: "Códice de monstruos",
+      pagina: 1,
+      notas: "",
+      acciones: []
+    }];
+
+    render(<UnifiedCharacterSheet title="Arold" subtitle="Guerrero" sheet={sheet} editable={false} />);
+    const mechanicalNavigation = screen.getByRole("navigation", { name: "Acciones, inventario y capacidades" });
+    fireEvent.click(within(mechanicalNavigation).getByRole("button", { name: "Capacidades" }));
+    const capabilityNavigation = screen.getByRole("navigation", { name: "Tipos de capacidades" });
+    fireEvent.click(within(capabilityNavigation).getByRole("button", { name: "Habilidades" }));
+
+    const capability = screen.getByText("Robusto").closest("article") as HTMLElement;
+    expect(within(capability).getByText("Principiante")).toBeInTheDocument();
+    expect(capability).toHaveTextContent("Códice de monstruos p. 1");
+    expect(capability).not.toHaveTextContent(/novato/i);
+  });
+
   it("muestra una sola vez la descripcion del arma en el detalle de su ataque", () => {
     const sheet = createEmptyCharacterSheet();
     const description = "Descripcion unica del arma para comprobar el detalle.";
@@ -312,7 +337,7 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
       nombre: "Adivinacion",
       tipo: "Ritual",
       efecto: "",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "Manual",
       notas: "",
       acciones: []

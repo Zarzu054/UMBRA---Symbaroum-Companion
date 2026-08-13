@@ -5,11 +5,11 @@ import { createCharacterSchema, createEmptyCharacterSheet, importCharacterSchema
 function buildPayload() {
   const sheet = createEmptyCharacterSheet();
   sheet.habilidades = makeAbilities([
-    ["Acróbata", "novato"],
-    ["Alquimista", "novato"],
-    ["Armas a dos manos", "novato"],
-    ["Combate con escudo", "novato"],
-    ["Táctico", "novato"]
+    ["Acróbata", "principiante"],
+    ["Alquimista", "principiante"],
+    ["Armas a dos manos", "principiante"],
+    ["Combate con escudo", "principiante"],
+    ["Táctico", "principiante"]
   ]);
 
   return {
@@ -44,7 +44,7 @@ function expectIssue(payload, expectedText) {
   assert.ok(messages.some((message) => message.includes(expectedText)));
 }
 
-test("acepta personaje nivel 1 con patron 5 novato", () => {
+test("acepta personaje nivel 1 con patron 5 principiante", () => {
   const payload = buildPayload();
   const parsed = createCharacterSchema.safeParse(payload);
   assert.equal(parsed.success, true);
@@ -59,11 +59,11 @@ test("acepta una raza libre no jugable como texto plano", () => {
   assert.equal(parsed.success, true);
 });
 
-test("acepta personaje nivel 1 con patron 2 novato + 1 adepto", () => {
+test("acepta personaje nivel 1 con patron 2 principiante + 1 adepto", () => {
   const payload = buildPayload();
   payload.sheet.habilidades = makeAbilities([
-    ["Acróbata", "novato"],
-    ["Alquimista", "novato"],
+    ["Acróbata", "principiante"],
+    ["Alquimista", "principiante"],
     ["Armas a dos manos", "adepto"]
   ]);
   const parsed = createCharacterSchema.safeParse(payload);
@@ -73,10 +73,10 @@ test("acepta personaje nivel 1 con patron 2 novato + 1 adepto", () => {
 test("acepta cualquier reparto de capacidades mientras respete la bolsa de PX", () => {
   const payload = buildPayload();
   payload.sheet.habilidades = makeAbilities([
-    ["Acróbata", "novato"],
-    ["Alquimista", "novato"],
-    ["Armas a dos manos", "novato"],
-    ["Combate con escudo", "novato"]
+    ["Acróbata", "principiante"],
+    ["Alquimista", "principiante"],
+    ["Armas a dos manos", "principiante"],
+    ["Combate con escudo", "principiante"]
   ]);
   const parsed = createCharacterSchema.safeParse(payload);
   assert.equal(parsed.success, true);
@@ -95,8 +95,8 @@ test("valida el límite de 15 sobre los atributos base y admite varios valores f
     tenaz: 5
   };
   payload.sheet.capabilitySelections = [
-    { catalogId: "atributo-excepcional", name: "Atributo excepcional", kind: "habilidad", level: "novato", origin: "comprada", source: "Libro Básico", attributeKey: "agil" },
-    { catalogId: "atributo-excepcional", name: "Atributo excepcional", kind: "habilidad", level: "novato", origin: "comprada", source: "Libro Básico", attributeKey: "atento" }
+    { catalogId: "atributo-excepcional", name: "Atributo excepcional", kind: "habilidad", level: "principiante", origin: "comprada", source: "Libro Básico", attributeKey: "agil" },
+    { catalogId: "atributo-excepcional", name: "Atributo excepcional", kind: "habilidad", level: "principiante", origin: "comprada", source: "Libro Básico", attributeKey: "atento" }
   ];
 
   assert.equal(createCharacterSchema.safeParse(payload).success, true);
@@ -105,7 +105,7 @@ test("valida el límite de 15 sobre los atributos base y admite varios valores f
 test("rechaza dos adquisiciones de Atributo excepcional para el mismo atributo", () => {
   const payload = buildPayload();
   payload.sheet.capabilitySelections = [
-    { catalogId: "atributo-excepcional", name: "Atributo excepcional", kind: "habilidad", level: "novato", origin: "comprada", source: "Libro Básico", attributeKey: "agil" },
+    { catalogId: "atributo-excepcional", name: "Atributo excepcional", kind: "habilidad", level: "principiante", origin: "comprada", source: "Libro Básico", attributeKey: "agil" },
     { catalogId: "atributo-excepcional", name: "Atributo excepcional", kind: "habilidad", level: "adepto", origin: "comprada", source: "Libro Básico", attributeKey: "agil" }
   ];
   payload.sheet.atributos.agil = 13;
@@ -116,8 +116,8 @@ test("rechaza dos adquisiciones de Atributo excepcional para el mismo atributo",
 test("acepta capacidades de maestro cuando caben en la bolsa de PX", () => {
   const payload = buildPayload();
   payload.sheet.habilidades = makeAbilities([
-    ["Acróbata", "novato"],
-    ["Alquimista", "novato"],
+    ["Acróbata", "principiante"],
+    ["Alquimista", "principiante"],
     ["Armas a dos manos", "maestro"]
   ]);
   payload.sheet.progreso.experienciaTotal = 60;
@@ -157,7 +157,7 @@ test("acepta poderes misticos sin habilidad mistica base", () => {
       nombre: "Confusión",
       tipo: "Poder místico",
       efecto: "",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "Guía Avanzada del Jugador",
       pagina: 81,
       notas: ""
@@ -174,7 +174,7 @@ test("importCharacterSchema acepta poderes misticos sin habilidad mistica base",
       nombre: "Confusión",
       tipo: "Poder místico",
       efecto: "",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "Guía Avanzada del Jugador",
       pagina: 81,
       notas: ""
@@ -200,7 +200,7 @@ test("importCharacterSchema acepta habilidades importadas sin descripcion valida
       nombre: "Berserker",
       tipo: "Habilidad",
       efecto: null,
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "",
       pagina: undefined,
       notas: null
@@ -217,7 +217,7 @@ test("synchronizeCharacterSheet hidrata efecto y acciones canonicas cuando una h
       nombre: "Berserker",
       tipo: "Habilidad",
       efecto: null,
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "",
       pagina: undefined,
       notas: null
@@ -238,7 +238,7 @@ test("synchronizeCharacterSheet reemplaza el texto importado por el canon intern
       nombre: "Berserker",
       tipo: "Texto importado",
       efecto: "DESCRIPCION PDF ERRONEA",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "PDF",
       pagina: 999,
       notas: "NOTA ERRONEA",
@@ -259,7 +259,7 @@ test("synchronizeCharacterSheet migra rasgos monstruosos del PDF a habilidades c
 
   const normalized = synchronizeCharacterSheet(sheet);
   assert.deepEqual(normalized.rasgos, ["Contactos"]);
-  assert.equal(normalized.habilidades.some((entry) => entry.nombre === "Arma natural" && entry.nivel === "novato"), true);
+  assert.equal(normalized.habilidades.some((entry) => entry.nombre === "Arma natural" && entry.nivel === "principiante"), true);
   assert.equal(normalized.habilidades.some((entry) => entry.nombre === "Duro" && entry.nivel === "adepto"), true);
   assert.match(normalized.habilidades.find((entry) => entry.nombre === "Arma natural")?.efecto ?? "", /1D6/i);
   assert.match(normalized.habilidades.find((entry) => entry.nombre === "Duro")?.efecto ?? "", /1D6/i);
@@ -272,7 +272,7 @@ test("acepta rituales sin habilidad Rituales", () => {
       nombre: "Adivinación",
       tipo: "Ritual",
       efecto: "",
-      nivel: "novato",
+      nivel: "principiante",
       fuente: "Guía Avanzada del Jugador",
       pagina: 91,
       notas: ""
@@ -291,7 +291,7 @@ test("rechaza experiencia gastada superior a experiencia total", () => {
 
 test("la actualizacion de campana acepta compras posteriores a la creacion", () => {
   const sheet = buildPayload().sheet;
-  sheet.habilidades.push(...makeAbilities([["Sexta habilidad", "novato"]]));
+  sheet.habilidades.push(...makeAbilities([["Sexta habilidad", "principiante"]]));
   sheet.progreso.experienciaTotal = 60;
   sheet.progreso.experienciaGastada = 60;
 
@@ -341,11 +341,11 @@ test("completa con defaults los nuevos campos del PDF al parsear hojas antiguas"
     },
     rasgos: [],
     habilidades: makeAbilities([
-      ["Acróbata", "novato"],
-      ["Alquimista", "novato"],
-      ["Armas a dos manos", "novato"],
-      ["Combate con escudo", "novato"],
-      ["Táctico", "novato"]
+      ["Acróbata", "principiante"],
+      ["Alquimista", "principiante"],
+      ["Armas a dos manos", "principiante"],
+      ["Combate con escudo", "principiante"],
+      ["Táctico", "principiante"]
     ]),
     poderesMisticos: [],
     rituales: [],

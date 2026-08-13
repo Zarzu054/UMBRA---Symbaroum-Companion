@@ -73,7 +73,7 @@ export function useNpcController(ensureAccessToken: () => Promise<string>) {
           catalogId: `legacy-trait-${index}-${trait.toLocaleLowerCase("es").replace(/[^a-z0-9]+/g, "-")}`,
           name: trait.replace(/\s*\(?(?:i{1,3}|[1-3])\)?\s*$/i, "").trim() || trait,
           kind: "rasgo_monstruoso",
-          level: /(?:iii|3)\)?$/i.test(trait) ? "maestro" : /(?:ii|2)\)?$/i.test(trait) ? "adepto" : "novato",
+          level: /(?:iii|3)\)?$/i.test(trait) ? "maestro" : /(?:ii|2)\)?$/i.test(trait) ? "adepto" : "principiante",
           origin: "legado",
           source: "Bloque rápido original",
           legacyData: trait

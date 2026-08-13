@@ -48,7 +48,7 @@ function normalizeName(value: string): string {
 function levelRank(level: string | null | undefined): number {
   if (level === "maestro") return 3;
   if (level === "adepto") return 2;
-  if (level === "novato") return 1;
+  if (level === "principiante") return 1;
   return 0;
 }
 
@@ -145,7 +145,7 @@ export function mapMysticArtifact(
           id: requirement.id,
           type: requirement.type,
           capabilityName: requirement.capabilityName,
-          minimumLevel: (requirement.minimumLevel || undefined) as "novato" | "adepto" | "maestro" | undefined,
+          minimumLevel: (requirement.minimumLevel || undefined) as "principiante" | "adepto" | "maestro" | undefined,
           description: requirement.description
         })),
         resourceCosts: ability.resourceCosts.map((cost) => ({

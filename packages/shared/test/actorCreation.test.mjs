@@ -63,7 +63,7 @@ test("Atributo excepcional se aplica después del reparto base y puede repetirse
   const base = { agil: 15, atento: 10, discreto: 10, diestro: 10, fuerte: 10, inteligente: 10, persuasivo: 10, tenaz: 5 };
   const selections = [
     { catalogId: "atributo-excepcional", name: "Atributo excepcional", kind: "habilidad", level: "maestro", origin: "comprada", source: "Libro Básico", attributeKey: "agil" },
-    { catalogId: "atributo-excepcional", name: "Atributo excepcional", kind: "habilidad", level: "novato", origin: "comprada", source: "Libro Básico", attributeKey: "atento" }
+    { catalogId: "atributo-excepcional", name: "Atributo excepcional", kind: "habilidad", level: "principiante", origin: "comprada", source: "Libro Básico", attributeKey: "atento" }
   ];
   const finalValues = applyExceptionalAttributeBonuses(base, selections);
   assert.equal(finalValues.agil, 18);

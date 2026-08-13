@@ -157,7 +157,7 @@ function resolveInitiativeAttribute(sheet) {
     if (hasCapabilityAtLevel(sheet, "Sexto sentido", "adepto")) {
         candidates.push(sheet.atributos.atento);
     }
-    if (hasCapabilityAtLevel(sheet, "Tactico", "novato")) {
+    if (hasCapabilityAtLevel(sheet, "Tactico", "principiante")) {
         candidates.push(sheet.atributos.inteligente);
     }
     return Math.max(...candidates);
@@ -184,7 +184,7 @@ function capabilityRank(level) {
             return 3;
         case "adepto":
             return 2;
-        case "novato":
+        case "principiante":
         default:
             return 1;
     }

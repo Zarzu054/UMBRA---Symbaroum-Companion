@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { CharacterChangeDiff, CharacterChangeEvent } from "@umbra/shared";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { fetchCharacterChangeLog, markCharacterChangeLogRead } from "../services/characterService";
@@ -144,11 +145,11 @@ export function CharacterChangeLogModal({ characterId, characterName, ensureAcce
   }, [onClose]);
   const sessions = useMemo(() => groupEvents(events), [events]);
 
-  return (
-    <section className="modal-backdrop" onClick={onClose} aria-label={`Historial de cambios de ${characterName}`}>
-      <div className="panel modal-panel character-change-log-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+  return createPortal(
+    <section className="modal-backdrop character-change-log-backdrop" onClick={onClose}>
+      <div className="modal-panel character-change-log-modal" role="dialog" aria-modal="true" aria-labelledby="character-change-log-title" onClick={(event) => event.stopPropagation()}>
         <header className="row-actions character-change-log-header">
-          <div><h2>Historial de {characterName}</h2><p className="section-help">Cambios realizados por el jugador y el director de juego.</p></div>
+          <div><h2 id="character-change-log-title">Historial de {characterName}</h2><p className="section-help">Cambios realizados por el jugador y el director de juego.</p></div>
           <button ref={closeButtonRef} type="button" onClick={onClose}>Cerrar</button>
         </header>
         <div className="character-change-log-body">
@@ -180,6 +181,7 @@ export function CharacterChangeLogModal({ characterId, characterName, ensureAcce
           {nextCursor ? <button type="button" className="subtle-button character-change-load-more" disabled={loadingMore} onClick={() => void load(nextCursor)}>{loadingMore ? "Cargando..." : "Cargar cambios anteriores"}</button> : null}
         </div>
       </div>
-    </section>
+    </section>,
+    document.body
   );
 }

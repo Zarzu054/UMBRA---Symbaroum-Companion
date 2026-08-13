@@ -4,7 +4,7 @@ export type SymbaroumCapabilityAction = {
   id: string;
   label: string;
   cost: "free" | "movement" | "combat" | "reaction";
-  requiredLevel?: "novato" | "adepto" | "maestro";
+  requiredLevel?: "principiante" | "adepto" | "maestro";
   rollAttribute?: "agil" | "atento" | "discreto" | "diestro" | "fuerte" | "inteligente" | "persuasivo" | "tenaz";
   fixedTarget?: number;
   damageFormula?: string;
@@ -144,7 +144,7 @@ function inferCapabilityActions(
 }
 
 function splitLevelSegments(summary: string): Array<{ level: string; text: string }> {
-  const regex = /(Principiante|Novato|Adepto|Maestro):/g;
+  const regex = /(Principiante|Adepto|Maestro):/g;
   const matches = [...summary.matchAll(regex)];
   if (matches.length === 0) {
     return [{ level: "general", text: summary }];
@@ -217,7 +217,7 @@ function inferDamageFormula(text: string): string | undefined {
 }
 
 function buildActionLabel(tipo: SymbaroumCapabilityType, nombre: string, level: string): string {
-  const displayLevel = /^(?:principiante|novato)$/i.test(level) ? "Principiante" : level;
+  const displayLevel = /^principiante$/i.test(level) ? "Principiante" : level;
   const suffix = displayLevel.toLowerCase() === "general" ? "" : ` (${displayLevel})`;
   if (tipo === "habilidad") return `Usar ${nombre}${suffix}`;
   if (tipo === "poder_mistico") return `Lanzar ${nombre}${suffix}`;
@@ -230,7 +230,7 @@ function stripAccents(value: string): string {
 
 function normalizeSkillLevel(level: string): SymbaroumCapabilityAction["requiredLevel"] {
   const normalized = stripAccents(level).toLowerCase();
-  if (normalized === "novato" || normalized === "principiante") return "novato";
+  if (normalized === "principiante") return "principiante";
   if (normalized === "adepto") return "adepto";
   if (normalized === "maestro") return "maestro";
   return undefined;
@@ -285,7 +285,7 @@ const ARMAS_A_DOS_MANOS_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const ATAQUE_TRAICIONERO_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-ataque-traicionero",
+    "principiante-ataque-traicionero",
     "Usar Ataque traicionero (Principiante)",
     "reaction",
     "Una vez por turno, al atacar con ventaja o sorpresa, puedes usar Discreto en vez de Diestro y causar +1D4 de daño adicional.",
@@ -380,7 +380,7 @@ const TIRADOR_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const ALIENTO_NEGRO_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-aliento-negro",
+    "principiante-aliento-negro",
     "Lanzar Aliento negro (Principiante)",
     "combat",
     "Golpea a una criatura y tira 1D4 contra su corrupción total. Si el resultado es igual o inferior, la criatura se cura esa cantidad; si es superior, sufre esa cantidad como corrupción temporal.",
@@ -404,7 +404,7 @@ const ALIENTO_NEGRO_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const CONFUSION_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-confusion",
+    "principiante-confusion",
     "Lanzar Confusión (Principiante)",
     "combat",
     "Supera [Tenaz←Tenaz] para confundir a un enemigo mientras mantengas la concentración. Cada turno tira 1D6: 1-2 queda inmóvil, 3-4 ataca al aliado más cercano, 5-6 ataca al enemigo más cercano.",
@@ -428,7 +428,7 @@ const CONFUSION_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const ESCUDO_BENDITO_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-escudo-bendito",
+    "principiante-escudo-bendito",
     "Lanzar Escudo bendito (Principiante)",
     "combat",
     "Supera una tirada de Tenaz para obtener +1D4 de armadura hasta el final de la escena; además, cada abominación o muerto viviente que te ataque cuerpo a cuerpo sufre 1D4 de daño ignorando armadura.",
@@ -452,14 +452,14 @@ const ESCUDO_BENDITO_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const GOLPE_ESPECTRAL_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-golpe-espectral",
+    "principiante-golpe-espectral",
     "Lanzar Golpe espectral (Principiante)",
     "combat",
     "Imbuye tu arma cuerpo a cuerpo con una llama maligna hasta el final de la escena para causar +1D4 de daño adicional en cada impacto.",
     { damageFormula: "+1d4" }
   ),
   capabilityAction(
-    "novato-golpe-psiquico-espectral",
+    "principiante-golpe-psiquico-espectral",
     "Usar Golpe psíquico espectral (Principiante)",
     "reaction",
     "Combina tu ataque cuerpo a cuerpo con un golpe psíquico dirigido a la defensa del oponente y gana una segunda oportunidad de éxito en la prueba de ataque."
@@ -496,7 +496,7 @@ const GOLPE_ESPECTRAL_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const IMPOSICION_DE_MANOS_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-imposicion-de-manos",
+    "principiante-imposicion-de-manos",
     "Lanzar Imposición de manos (Principiante)",
     "combat",
     "Supera una tirada de Tenaz para curar 1D6 de Resistencia a un objetivo o a ti mismo.",
@@ -520,7 +520,7 @@ const IMPOSICION_DE_MANOS_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const MURO_DE_LLAMAS_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-muro-de-llamas",
+    "principiante-muro-de-llamas",
     "Lanzar Muro de llamas (Principiante)",
     "combat",
     "Supera una tirada de Tenaz para invocar un muro de fuego delante de ti. Cruzarlo inflige 1D12 de daño por fuego y puedes colocarlo sobre enemigos en línea frente a ti para herirlos automáticamente. Debes sostenerlo con una tirada de Tenaz cada turno.",
@@ -544,7 +544,7 @@ const MURO_DE_LLAMAS_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const RAYO_NEGRO_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-rayo-negro",
+    "principiante-rayo-negro",
     "Lanzar Rayo negro (Principiante)",
     "combat",
     "Supera una tirada de [Tenaz←Ágil] para impactar a un objetivo con un rayo negro. Si impacta, sufre 1D6 de daño ignorando armadura y queda atrapado hasta escapar con Tenaz o hasta que pierdas la concentración.",
@@ -568,7 +568,7 @@ const RAYO_NEGRO_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const SOMETER_VOLUNTAD_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-someter-voluntad",
+    "principiante-someter-voluntad",
     "Lanzar Someter voluntad (Principiante)",
     "combat",
     "Supera [Tenaz←Tenaz] para controlar a una criatura mientras mantengas la concentración. El objetivo solo puede realizar una acción por turno y no puede usar poderes ni habilidades activas.",
@@ -591,97 +591,97 @@ const SOMETER_VOLUNTAD_ACTIONS: SymbaroumCapabilityAction[] = [
 ];
 
 const ANATEMA_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-anatema", "Lanzar Anatema (Principiante)", "combat", "Supera [Tenaz←Tenaz] para disipar un efecto continuo sobre una criatura o sobre ti mismo.", { rollAttribute: "tenaz" }),
+  capabilityAction("principiante-anatema", "Lanzar Anatema (Principiante)", "combat", "Supera [Tenaz←Tenaz] para disipar un efecto continuo sobre una criatura o sobre ti mismo.", { rollAttribute: "tenaz" }),
   capabilityAction("adepto-anatema", "Lanzar Anatema (Adepto)", "combat", "Disipa efectos continuos sobre varios objetivos en cadena; cada tirada afecta a un objetivo por orden.", { rollAttribute: "tenaz" }),
   capabilityAction("maestro-anatema", "Lanzar Anatema (Maestro)", "combat", "Supera una tirada de Tenaz para disipar cualquier efecto místico, incluyendo criaturas y efectos invocados.", { rollAttribute: "tenaz" })
 ];
 
 const ARMA_DANZANTE_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-arma-danzante", "Activar Arma danzante (Principiante)", "combat", "Activa un arma danzante que usa Tenaz para atacar y defender; mientras lucha, no puedes usar otros poderes ni habilidades.", { rollAttribute: "tenaz" }),
+  capabilityAction("principiante-arma-danzante", "Activar Arma danzante (Principiante)", "combat", "Activa un arma danzante que usa Tenaz para atacar y defender; mientras lucha, no puedes usar otros poderes ni habilidades.", { rollAttribute: "tenaz" }),
   capabilityAction("adepto-arma-danzante", "Activar Arma danzante (Adepto)", "combat", "Activa el arma danzante con una acción de combate; después luchará por sí sola usando Tenaz, dejándote libre para otras acciones.", { rollAttribute: "tenaz" }),
   capabilityAction("maestro-arma-danzante", "Activar Arma danzante (Maestro)", "free", "El arma sale de la vaina por sí sola, ataca una vez por turno y te defiende usando Tenaz.", { rollAttribute: "tenaz" })
 ];
 
 const AURA_IMPIA_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-aura-impia", "Lanzar Aura impía (Principiante)", "combat", "Supera una tirada de Tenaz para emitir un aura que causa 1D6 de daño ignorando armadura a bestias y seres civilizados alrededor de ti.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
+  capabilityAction("principiante-aura-impia", "Lanzar Aura impía (Principiante)", "combat", "Supera una tirada de Tenaz para emitir un aura que causa 1D6 de daño ignorando armadura a bestias y seres civilizados alrededor de ti.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
   capabilityAction("adepto-aura-impia", "Lanzar Aura impía (Adepto)", "combat", "Como a nivel principiante, pero puedes excluir a tus aliados vivos del efecto.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
   capabilityAction("maestro-aura-impia", "Lanzar Aura impía (Maestro)", "combat", "Como a nivel adepto, pero el aura causa 1D8 de daño ignorando armadura y además cura 1D8 a muertos vivientes y abominaciones aliados.", { rollAttribute: "tenaz", damageFormula: "1d8" })
 ];
 
 const AURA_SAGRADA_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-aura-sagrada", "Lanzar Aura sagrada (Principiante)", "combat", "Supera una tirada de Tenaz para emitir un aura que causa 1D6 de daño ignorando armadura a abominaciones y muertos vivientes en tu línea de visión.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
+  capabilityAction("principiante-aura-sagrada", "Lanzar Aura sagrada (Principiante)", "combat", "Supera una tirada de Tenaz para emitir un aura que causa 1D6 de daño ignorando armadura a abominaciones y muertos vivientes en tu línea de visión.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
   capabilityAction("adepto-aura-sagrada", "Lanzar Aura sagrada (Adepto)", "combat", "El aura causa 1D8 a abominaciones y muertos vivientes y las criaturas vivas pueden recuperar 1D4 de Resistencia por turno.", { rollAttribute: "tenaz", damageFormula: "1d8" }),
   capabilityAction("maestro-aura-sagrada", "Lanzar Aura sagrada (Maestro)", "combat", "El aura causa 1D10 a abominaciones y muertos vivientes y las criaturas vivas pueden recuperar 1D6 de Resistencia por turno.", { rollAttribute: "tenaz", damageFormula: "1d10" })
 ];
 
 const BACULO_ARROJADIZO_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-baculo-arrojadizo", "Lanzar Báculo arrojadizo (Principiante)", "combat", "Lanza tu báculo usando Tenaz en vez de Diestro para acertar; inflige 1D8 de daño y puede añadir una runa elemental activa.", { rollAttribute: "tenaz", damageFormula: "1d8" }),
+  capabilityAction("principiante-baculo-arrojadizo", "Lanzar Báculo arrojadizo (Principiante)", "combat", "Lanza tu báculo usando Tenaz en vez de Diestro para acertar; inflige 1D8 de daño y puede añadir una runa elemental activa.", { rollAttribute: "tenaz", damageFormula: "1d8" }),
   capabilityAction("adepto-baculo-arrojadizo", "Lanzar Báculo arrojadizo (Adepto)", "combat", "Como a nivel principiante, pero causa 1D10 y puede alcanzar objetivos más allá de obstáculos sin línea de visión limpia.", { rollAttribute: "tenaz", damageFormula: "1d10" }),
   capabilityAction("maestro-baculo-arrojadizo", "Lanzar Báculo arrojadizo (Maestro)", "combat", "Lanza una cadena de hasta cinco golpes con tu báculo usando Tenaz; el daño baja de 1D12 a 1D4 con cada objetivo sucesivo.", { rollAttribute: "tenaz", damageFormula: "1d12" })
 ];
 
 const CACERIA_SALVAJE_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-cacería-salvaje", "Invocar Cacería salvaje (Principiante)", "combat", "Invoca una bestia de desafío sencillo para ayudarte en combate."),
+  capabilityAction("principiante-cacería-salvaje", "Invocar Cacería salvaje (Principiante)", "combat", "Invoca una bestia de desafío sencillo para ayudarte en combate."),
   capabilityAction("adepto-cacería-salvaje", "Invocar Cacería salvaje (Adepto)", "combat", "Invoca una bestia de desafío normal o 1D4 bestias sencillas para ayudarte en combate.", { damageFormula: "1d4" }),
   capabilityAction("maestro-cacería-salvaje", "Invocar Cacería salvaje (Maestro)", "combat", "Invoca una bestia de desafío complicado o 1D6 bestias normales para ayudarte en combate.", { damageFormula: "1d6" })
 ];
 
 const CAMBIAFORMAS_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-cambiaformas", "Usar Cambiaformas (Principiante)", "combat", "Supera una tirada de Tenaz para asumir la forma de una pequeña bestia útil para escapar o explorar; para volver a tu forma normal también debes superar Tenaz.", { rollAttribute: "tenaz" }),
+  capabilityAction("principiante-cambiaformas", "Usar Cambiaformas (Principiante)", "combat", "Supera una tirada de Tenaz para asumir la forma de una pequeña bestia útil para escapar o explorar; para volver a tu forma normal también debes superar Tenaz.", { rollAttribute: "tenaz" }),
   capabilityAction("adepto-cambiaformas", "Usar Cambiaformas (Adepto)", "combat", "Supera una tirada de Tenaz para adoptar la forma de un animal capaz de luchar, ganando Duro (I) y Arma natural (I).", { rollAttribute: "tenaz" }),
   capabilityAction("maestro-cambiaformas", "Usar Cambiaformas (Maestro)", "combat", "Supera una tirada de Tenaz para adoptar la forma de un animal imponente, ganando además Regeneración (I) y Robusto (I).", { rollAttribute: "tenaz" })
 ];
 
 const CASCADA_DE_AZUFRE_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-cascada-de-azufre", "Lanzar Cascada de azufre (Principiante)", "combat", "Supera [Tenaz←Ágil] para causar 1D12 de daño; si fallas, la cascada aún causa 1D6.", { rollAttribute: "tenaz", damageFormula: "1d12" }),
+  capabilityAction("principiante-cascada-de-azufre", "Lanzar Cascada de azufre (Principiante)", "combat", "Supera [Tenaz←Ágil] para causar 1D12 de daño; si fallas, la cascada aún causa 1D6.", { rollAttribute: "tenaz", damageFormula: "1d12" }),
   capabilityAction("adepto-cascada-de-azufre", "Lanzar Cascada de azufre (Adepto)", "combat", "Como a nivel principiante, pero si el primer objetivo recibe 1D12 puedes encadenar la cascada a enemigos adicionales hasta fallar.", { rollAttribute: "tenaz", damageFormula: "1d12" }),
   capabilityAction("maestro-cascada-de-azufre", "Lanzar Cascada de azufre (Maestro)", "combat", "Como a nivel adepto, pero la cadena solo se desvanece tras dos fallos en [Tenaz←Ágil].", { rollAttribute: "tenaz", damageFormula: "1d12" })
 ];
 
 const EMPUJE_MENTAL_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-empuje-mental", "Usar Empuje mental (Principiante)", "combat", "Haz una tirada de [Tenaz←Ágil] para lanzar objetos como proyectiles y causar 1D8 de daño. También puedes usar objetos como escudo improvisado.", { rollAttribute: "tenaz", damageFormula: "1d8" }),
+  capabilityAction("principiante-empuje-mental", "Usar Empuje mental (Principiante)", "combat", "Haz una tirada de [Tenaz←Ágil] para lanzar objetos como proyectiles y causar 1D8 de daño. También puedes usar objetos como escudo improvisado.", { rollAttribute: "tenaz", damageFormula: "1d8" }),
   capabilityAction("adepto-empuje-mental", "Usar Empuje mental (Adepto)", "combat", "Supera [Tenaz←Fuerte] para levantar y lanzar a un enemigo a una acción de movimiento; sufre 1D8 y puede quedar derribado si no supera Ágil.", { rollAttribute: "tenaz", damageFormula: "1d8" }),
   capabilityAction("maestro-empuje-mental", "Usar Empuje mental (Maestro)", "combat", "Encadena el lanzamiento de enemigos con una serie de tiradas de [Tenaz←Fuerte]; cada uno sufre 1D8 y puede quedar derribado.", { rollAttribute: "tenaz", damageFormula: "1d8" })
 ];
 
 const ENREDADERA_VELOZ_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-enredadera-veloz", "Lanzar Enredadera veloz (Principiante)", "combat", "Supera una tirada de Tenaz para inmovilizar a un objetivo con raíces o enredaderas; debes mantenerlo con tiradas posteriores de [Tenaz←Fuerte].", { rollAttribute: "tenaz" }),
+  capabilityAction("principiante-enredadera-veloz", "Lanzar Enredadera veloz (Principiante)", "combat", "Supera una tirada de Tenaz para inmovilizar a un objetivo con raíces o enredaderas; debes mantenerlo con tiradas posteriores de [Tenaz←Fuerte].", { rollAttribute: "tenaz" }),
   capabilityAction("adepto-enredadera-veloz", "Lanzar Enredadera veloz (Adepto)", "combat", "Encadena la inmovilización a varios objetivos; en turnos posteriores haces una tirada de [Tenaz←Fuerte] por cada uno.", { rollAttribute: "tenaz" }),
   capabilityAction("maestro-enredadera-veloz", "Lanzar Enredadera veloz (Maestro)", "combat", "Como a nivel adepto, pero las enredaderas espinosas causan 1D6 por turno ignorando armadura a cada objetivo atrapado.", { rollAttribute: "tenaz", damageFormula: "1d6" })
 ];
 
 const ERUPCION_DE_LARVAS_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-erupcion-de-larvas", "Lanzar Erupción de larvas (Principiante)", "combat", "Planta larvas en el cuerpo del objetivo; sufre 1D4 por turno ignorando armadura hasta que falles [Tenaz←Fuerte].", { rollAttribute: "tenaz", damageFormula: "1d4" }),
+  capabilityAction("principiante-erupcion-de-larvas", "Lanzar Erupción de larvas (Principiante)", "combat", "Planta larvas en el cuerpo del objetivo; sufre 1D4 por turno ignorando armadura hasta que falles [Tenaz←Fuerte].", { rollAttribute: "tenaz", damageFormula: "1d4" }),
   capabilityAction("adepto-erupcion-de-larvas", "Lanzar Erupción de larvas (Adepto)", "combat", "Como a nivel principiante, pero el daño por turno sube a 1D6.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
   capabilityAction("maestro-erupcion-de-larvas", "Lanzar Erupción de larvas (Maestro)", "combat", "Como a nivel principiante, pero el daño por turno sube a 1D8.", { rollAttribute: "tenaz", damageFormula: "1d8" })
 ];
 
 const ESFERA_DE_PROTECCION_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-esfera-de-proteccion", "Lanzar Esfera de protección (Principiante)", "combat", "Crea una esfera que te permite defenderte con Tenaz en vez de Ágil y te protege de ataques físicos mientras permanezcas dentro.", { rollAttribute: "tenaz" }),
+  capabilityAction("principiante-esfera-de-proteccion", "Lanzar Esfera de protección (Principiante)", "combat", "Crea una esfera que te permite defenderte con Tenaz en vez de Ágil y te protege de ataques físicos mientras permanezcas dentro.", { rollAttribute: "tenaz" }),
   capabilityAction("adepto-esfera-de-proteccion", "Lanzar Esfera de protección (Adepto)", "combat", "La esfera bloquea automáticamente un número ilimitado de ataques cuerpo a cuerpo o a distancia, pero no protege contra poderes místicos o áreas.", { rollAttribute: "tenaz" }),
   capabilityAction("maestro-esfera-de-proteccion", "Lanzar Esfera de protección (Maestro)", "combat", "Puedes formar la esfera sin tocar el arma, incluir a un aliado y mantener dentro acciones que normalmente sustituyen movimiento.", { rollAttribute: "tenaz" })
 ];
 
 const ESPIRITU_IGNEO_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-espiritu-igneo", "Lanzar Espíritu ígneo (Principiante)", "combat", "Cuando te hieren en cuerpo a cuerpo, las llamas contraatacan por 1D6 y además ganas +1D6 de armadura contra fuego.", { damageFormula: "1d6" }),
+  capabilityAction("principiante-espiritu-igneo", "Lanzar Espíritu ígneo (Principiante)", "combat", "Cuando te hieren en cuerpo a cuerpo, las llamas contraatacan por 1D6 y además ganas +1D6 de armadura contra fuego.", { damageFormula: "1d6" }),
   capabilityAction("adepto-espiritu-igneo", "Lanzar Espíritu ígneo (Adepto)", "combat", "Como a nivel principiante, pero el contraataque y la protección contra fuego suben a 1D10.", { damageFormula: "1d10" }),
   capabilityAction("maestro-espiritu-igneo", "Lanzar Espíritu ígneo (Maestro)", "combat", "No sufres daño por fuego, te curas con él y tus llamas contraatacan también a distancia por 1D10.", { damageFormula: "1d10" })
 ];
 
 const ESPIRITUS_ATORMENTADORES_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-espiritus-atormentadores", "Lanzar Espíritus atormentadores (Principiante)", "combat", "Invoca espíritus que fuerzan al objetivo a tener una segunda oportunidad de fallar cualquier prueba y a fallar automáticamente sus concentraciones.", { rollAttribute: "tenaz" }),
+  capabilityAction("principiante-espiritus-atormentadores", "Lanzar Espíritus atormentadores (Principiante)", "combat", "Invoca espíritus que fuerzan al objetivo a tener una segunda oportunidad de fallar cualquier prueba y a fallar automáticamente sus concentraciones.", { rollAttribute: "tenaz" }),
   capabilityAction("adepto-espiritus-atormentadores", "Lanzar Espíritus atormentadores (Adepto)", "combat", "Además del efecto base, los espíritus infligen 1D4 de daño a Tenaz por turno ignorando armadura.", { rollAttribute: "tenaz", damageFormula: "1d4" }),
   capabilityAction("maestro-espiritus-atormentadores", "Lanzar Espíritus atormentadores (Maestro)", "combat", "Como a nivel adepto, pero el daño a Tenaz por turno sube a 1D6.", { rollAttribute: "tenaz", damageFormula: "1d6" })
 ];
 
 const EXPULSAR_A_LOS_ABISMOS_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-expulsar-a-los-abismos", "Lanzar Expulsar a los abismos (Principiante)", "combat", "Supera [Tenaz←Tenaz] para enviar a un oponente fuera del mundo durante un turno; al volver sufre 1D4 de daño y 1D4 de corrupción temporal.", { rollAttribute: "tenaz", damageFormula: "1d4" }),
+  capabilityAction("principiante-expulsar-a-los-abismos", "Lanzar Expulsar a los abismos (Principiante)", "combat", "Supera [Tenaz←Tenaz] para enviar a un oponente fuera del mundo durante un turno; al volver sufre 1D4 de daño y 1D4 de corrupción temporal.", { rollAttribute: "tenaz", damageFormula: "1d4" }),
   capabilityAction("adepto-expulsar-a-los-abismos", "Lanzar Expulsar a los abismos (Adepto)", "combat", "Envía a un oponente al Ultramundo; cada turno atrapado sufre 1D4 de daño y 1D4 de corrupción temporal hasta volver o desaparecer.", { rollAttribute: "tenaz", damageFormula: "1d4" }),
   capabilityAction("maestro-expulsar-a-los-abismos", "Lanzar Expulsar a los abismos (Maestro)", "reaction", "Una vez por turno, el enemigo que te ataque en cuerpo a cuerpo puede ser expulsado al Ultramundo con [Tenaz←Tenaz], sufriendo el efecto del nivel principiante.", { rollAttribute: "tenaz", damageFormula: "1d4" })
 ];
 
 const FORMA_ESPIRITUAL_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-forma-espiritual", "Usar Forma espiritual (Principiante)", "movement", "Supera una tirada de Tenaz para asumir forma espiritual durante una acción de movimiento y atravesar paredes u oponentes; solo puedes moverte ese turno.", { rollAttribute: "tenaz" }),
+  capabilityAction("principiante-forma-espiritual", "Usar Forma espiritual (Principiante)", "movement", "Supera una tirada de Tenaz para asumir forma espiritual durante una acción de movimiento y atravesar paredes u oponentes; solo puedes moverte ese turno.", { rollAttribute: "tenaz" }),
   capabilityAction("adepto-forma-espiritual", "Usar Forma espiritual (Adepto)", "reaction", "En vez de una Defensa, puedes hacer [Tenaz←Daño] para dejar que un ataque te atraviese sin daño; poderes y artefactos solo hacen la mitad.", { rollAttribute: "tenaz" }),
   capabilityAction("maestro-forma-espiritual", "Usar Forma espiritual (Maestro)", "reaction", "Supera una tirada de Tenaz para dejar que un ataque o poder dañino comience atravesando tu forma espiritual antes de resolver su efecto.", { rollAttribute: "tenaz" })
 ];
@@ -695,13 +695,13 @@ const GLIFO_VAMPIRICO_ACTIONS: SymbaroumCapabilityAction[] = [
 ];
 
 const HERIDA_COMPARTIDA_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-herida-compartida", "Lanzar Herida compartida (Principiante)", "free", "Supera una tirada de Tenaz para curar 1D6 de Resistencia a otra criatura y sufrir tú la misma cantidad de daño.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
+  capabilityAction("principiante-herida-compartida", "Lanzar Herida compartida (Principiante)", "free", "Supera una tirada de Tenaz para curar 1D6 de Resistencia a otra criatura y sufrir tú la misma cantidad de daño.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
   capabilityAction("adepto-herida-compartida", "Lanzar Herida compartida (Adepto)", "free", "Cura 1D8 y además elimina venenos o hemorragias; tú sufres solo la mitad del daño de esas heridas y efectos.", { rollAttribute: "tenaz", damageFormula: "1d8" }),
   capabilityAction("maestro-herida-compartida", "Lanzar Herida compartida (Maestro)", "combat", "Como a nivel adepto, pero tú solo sufres la mitad y puedes transferir la otra mitad a una criatura en línea de visión ignorando armadura.", { rollAttribute: "tenaz" })
 ];
 
 const HIMNO_DE_BATALLA_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-himno-de-batalla", "Cantar Himno de batalla (Principiante)", "free", "Otorga a todos tus aliados y a ti mismo +1 a Ágil, Fuerte o Diestro mientras mantengas el canto."),
+  capabilityAction("principiante-himno-de-batalla", "Cantar Himno de batalla (Principiante)", "free", "Otorga a todos tus aliados y a ti mismo +1 a Ágil, Fuerte o Diestro mientras mantengas el canto."),
   capabilityAction("adepto-himno-de-batalla", "Cantar Himno de batalla (Adepto)", "free", "Otorga a todos tus aliados y a ti mismo +1 a Ágil, Fuerte y Diestro mientras mantengas el canto."),
   capabilityAction("maestro-himno-de-batalla", "Cantar Himno de batalla (Maestro)", "free", "Como a nivel adepto, y además todos recuperan 1D6 de Resistencia al inicio del canto una vez por escena.", { damageFormula: "1d6" })
 ];
@@ -723,49 +723,49 @@ const IMPERCEPTIBLE_ACTIONS: SymbaroumCapabilityAction[] = [
 ];
 
 const LEVITACION_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-levitacion", "Lanzar Levitación (Principiante)", "combat", "Supera una tirada de Tenaz para levitar a velocidad de una zancada por turno; si pierdes la concentración, caes y sufres 1D6 ignorando armadura.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
+  capabilityAction("principiante-levitacion", "Lanzar Levitación (Principiante)", "combat", "Supera una tirada de Tenaz para levitar a velocidad de una zancada por turno; si pierdes la concentración, caes y sufres 1D6 ignorando armadura.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
   capabilityAction("adepto-levitacion", "Lanzar Levitación (Adepto)", "combat", "Supera [Tenaz←Fuerte] para hacer levitar a un aliado; si pierdes la concentración, cae y sufre 1D6 ignorando armadura.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
   capabilityAction("maestro-levitacion", "Lanzar Levitación (Maestro)", "combat", "Encadena la levitación sobre ti y varios aliados con [Tenaz←Fuerte]; si pierdes la concentración, descienden sin daño.", { rollAttribute: "tenaz" })
 ];
 
 const MALDICION_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-maldicion", "Usar Maldición (Principiante)", "free", "Una vez por turno, obliga a un enemigo que te ataque a doblar sus posibilidades de fallo mientras mantengas el efecto con Tenaz.", { rollAttribute: "tenaz" }),
+  capabilityAction("principiante-maldicion", "Usar Maldición (Principiante)", "free", "Una vez por turno, obliga a un enemigo que te ataque a doblar sus posibilidades de fallo mientras mantengas el efecto con Tenaz.", { rollAttribute: "tenaz" }),
   capabilityAction("adepto-maldicion", "Usar Maldición (Adepto)", "free", "Como a nivel principiante, pero el enemigo dobla sus posibilidades de fallo con independencia del objetivo.", { rollAttribute: "tenaz" }),
   capabilityAction("maestro-maldicion", "Lanzar Maldición (Maestro)", "combat", "Lanza una maldición que inflige 1D6 ignorando armadura por cada acción que intente realizar el objetivo mientras mantengas el efecto con Tenaz.", { rollAttribute: "tenaz", damageFormula: "1d6" })
 ];
 
 const MANANTIAL_DE_VIDA_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-manantial-de-vida", "Lanzar Manantial de vida (Principiante)", "combat", "Elimina 1D4 de corrupción temporal de una criatura a la vista; los puntos sobrantes curan Resistencia.", { damageFormula: "1d4" }),
+  capabilityAction("principiante-manantial-de-vida", "Lanzar Manantial de vida (Principiante)", "combat", "Elimina 1D4 de corrupción temporal de una criatura a la vista; los puntos sobrantes curan Resistencia.", { damageFormula: "1d4" }),
   capabilityAction("adepto-manantial-de-vida", "Lanzar Manantial de vida (Adepto)", "combat", "Elimina 1D4 de corrupción temporal de ti y de todos los aliados a la vista; los puntos sobrantes curan Resistencia.", { damageFormula: "1d4" }),
   capabilityAction("maestro-manantial-de-vida", "Usar Manantial de vida (Maestro)", "reaction", "Cuando un aliado a la vista sufre corrupción temporal por un poder o artefacto, reduces esa cantidad en 1D4.", { damageFormula: "1d4" })
 ];
 
 const MANTO_DE_ESPINAS_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-manto-de-espinas", "Lanzar Manto de espinas (Principiante)", "combat", "Ganas +1D4 de armadura, o +1D6 si no te mueves en todo el turno.", { damageFormula: "1d4" }),
+  capabilityAction("principiante-manto-de-espinas", "Lanzar Manto de espinas (Principiante)", "combat", "Ganas +1D4 de armadura, o +1D6 si no te mueves en todo el turno.", { damageFormula: "1d4" }),
   capabilityAction("adepto-manto-de-espinas", "Lanzar Manto de espinas (Adepto)", "combat", "Como a nivel principiante, pero también proteges a aliados cercanos con +1D4 de armadura mientras permanezcan junto a ti.", { damageFormula: "1d4" }),
   capabilityAction("maestro-manto-de-espinas", "Lanzar Manto de espinas (Maestro)", "combat", "Como a nivel adepto, y además cada ataque cuerpo a cuerpo exitoso contra un protegido desencadena un contraataque de espinas por 1D10 ignorando armadura.", { damageFormula: "1d10" })
 ];
 
 const MARTILLO_DE_MONSTRUOS_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-martillo-de-monstruos", "Invocar Martillo de monstruos (Principiante)", "free", "Envuelve tu arma cuerpo a cuerpo en una llama sagrada que añade 1D4 de daño, o 1D6 contra abominaciones y muertos vivientes, hasta el final de la escena.", { damageFormula: "1d4" }),
+  capabilityAction("principiante-martillo-de-monstruos", "Invocar Martillo de monstruos (Principiante)", "free", "Envuelve tu arma cuerpo a cuerpo en una llama sagrada que añade 1D4 de daño, o 1D6 contra abominaciones y muertos vivientes, hasta el final de la escena.", { damageFormula: "1d4" }),
   capabilityAction("adepto-martillo-de-monstruos", "Invocar Martillo de monstruos (Adepto)", "free", "Como a nivel principiante, pero el daño contra abominaciones y muertos vivientes sube a 1D8.", { damageFormula: "1d8" }),
   capabilityAction("maestro-martillo-de-monstruos", "Invocar Martillo de monstruos (Maestro)", "free", "Como a nivel principiante, pero el daño contra abominaciones y muertos vivientes sube a 1D10.", { damageFormula: "1d10" })
 ];
 
 const MODIFICACION_ILUSORIA_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-modificacion-ilusoria", "Usar Modificación ilusoria (Principiante)", "reaction", "Haz una tirada de Tenaz para repetir una tirada fallida de Defensa.", { rollAttribute: "tenaz" }),
+  capabilityAction("principiante-modificacion-ilusoria", "Usar Modificación ilusoria (Principiante)", "reaction", "Haz una tirada de Tenaz para repetir una tirada fallida de Defensa.", { rollAttribute: "tenaz" }),
   capabilityAction("adepto-modificacion-ilusoria", "Usar Modificación ilusoria (Adepto)", "reaction", "Haz una tirada de Tenaz para forzar la repetición de cualquier tirada que te haya afectado este turno.", { rollAttribute: "tenaz" }),
   capabilityAction("maestro-modificacion-ilusoria", "Usar Modificación ilusoria (Maestro)", "reaction", "Haz una tirada de Tenaz para forzar la repetición de cualquier tirada que afecte a otro objetivo.", { rollAttribute: "tenaz" })
 ];
 
 const NUBE_DE_VENGANZA_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-nube-de-venganza", "Lanzar Nube de venganza (Principiante)", "combat", "Supera [Tenaz←Tenaz] para marcar a un objetivo de modo que cualquiera que lo ataque tenga una segunda oportunidad de éxito durante la escena.", { rollAttribute: "tenaz" }),
+  capabilityAction("principiante-nube-de-venganza", "Lanzar Nube de venganza (Principiante)", "combat", "Supera [Tenaz←Tenaz] para marcar a un objetivo de modo que cualquiera que lo ataque tenga una segunda oportunidad de éxito durante la escena.", { rollAttribute: "tenaz" }),
   capabilityAction("adepto-nube-de-venganza", "Usar Nube de venganza (Adepto)", "reaction", "Cuando sufres daño y superas [Tenaz←Tenaz], enlazas al atacante con un vínculo mortal que le transfiere todo el daño que recibas.", { rollAttribute: "tenaz" }),
   capabilityAction("maestro-nube-de-venganza", "Usar Nube de venganza (Maestro)", "reaction", "Como a nivel adepto, pero puedes mantener vínculos mortales con un número ilimitado de atacantes.", { rollAttribute: "tenaz" })
 ];
 
 const PRISMA_ARDIENTE_DE_PRIOS_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-prisma-ardiente-de-prios", "Lanzar Prisma ardiente de Prios (Principiante)", "combat", "Supera una tirada de Tenaz para infligir 1D6 de daño, o 1D8 contra abominaciones y muertos vivientes.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
+  capabilityAction("principiante-prisma-ardiente-de-prios", "Lanzar Prisma ardiente de Prios (Principiante)", "combat", "Supera una tirada de Tenaz para infligir 1D6 de daño, o 1D8 contra abominaciones y muertos vivientes.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
   capabilityAction("adepto-prisma-ardiente-de-prios", "Lanzar Prisma ardiente de Prios (Adepto)", "combat", "Supera una tirada de Tenaz para dañar a todos los enemigos cercanos por 1D8, o 1D12 si son abominaciones o muertos vivientes.", { rollAttribute: "tenaz", damageFormula: "1d8" }),
   capabilityAction("maestro-prisma-ardiente-de-prios", "Lanzar Prisma ardiente de Prios (Maestro)", "combat", "Como a nivel adepto, y además puedes superar [Tenaz←Tenaz] para aturdir durante un turno a muertos vivientes o criaturas consumidas por la Corrupción.", { rollAttribute: "tenaz", damageFormula: "1d8" })
 ];
@@ -776,43 +776,43 @@ const PURGATORIO_ACTIONS: SymbaroumCapabilityAction[] = [
 ];
 
 const REFUGIO_TERRESTRE_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-refugio-terrestre", "Lanzar Refugio terrestre (Principiante)", "combat", "Supera una tirada de Tenaz para hundirte en la tierra y volverte invulnerable mientras no hagas nada más; debes repetir Tenaz cada turno para permanecer dentro.", { rollAttribute: "tenaz" }),
+  capabilityAction("principiante-refugio-terrestre", "Lanzar Refugio terrestre (Principiante)", "combat", "Supera una tirada de Tenaz para hundirte en la tierra y volverte invulnerable mientras no hagas nada más; debes repetir Tenaz cada turno para permanecer dentro.", { rollAttribute: "tenaz" }),
   capabilityAction("adepto-refugio-terrestre", "Lanzar Refugio terrestre (Adepto)", "combat", "Como a nivel principiante, pero puedes usar poderes místicos sobre ti mismo y no necesitas repetir Tenaz para mantenerte.", { rollAttribute: "tenaz" }),
   capabilityAction("maestro-refugio-terrestre", "Lanzar Refugio terrestre (Maestro)", "combat", "Como a nivel adepto, pero puedes moverte bajo tierra con tus acciones de movimiento y aparecer en otro punto.", { rollAttribute: "tenaz" })
 ];
 
 const RUNAS_DE_PROTECCION_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-runas-de-proteccion", "Lanzar Runas de protección (Principiante)", "combat", "Otorga +1D4 de armadura hasta que falles Tenaz o pierdas la concentración.", { rollAttribute: "tenaz", damageFormula: "1d4" }),
+  capabilityAction("principiante-runas-de-proteccion", "Lanzar Runas de protección (Principiante)", "combat", "Otorga +1D4 de armadura hasta que falles Tenaz o pierdas la concentración.", { rollAttribute: "tenaz", damageFormula: "1d4" }),
   capabilityAction("adepto-runas-de-proteccion", "Lanzar Runas de protección (Adepto)", "combat", "Como a nivel principiante, y además cada atacante que dañe al protegido sufre 1D4 ignorando armadura.", { rollAttribute: "tenaz", damageFormula: "1d4" }),
   capabilityAction("maestro-runas-de-proteccion", "Lanzar Runas de protección (Maestro)", "combat", "La protección y la represalia se resuelven con 1D6 en vez de 1D4.", { rollAttribute: "tenaz", damageFormula: "1d6" })
 ];
 
 const SELLO_DE_EXPULSION_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-sello-de-expulsion", "Activar Sello de expulsión (Principiante)", "combat", "Supera [Tenaz←Tenaz] para expulsar al objetivo más cercano y seguir intentándolo con el siguiente hasta fallar.", { rollAttribute: "tenaz" }),
+  capabilityAction("principiante-sello-de-expulsion", "Activar Sello de expulsión (Principiante)", "combat", "Supera [Tenaz←Tenaz] para expulsar al objetivo más cercano y seguir intentándolo con el siguiente hasta fallar.", { rollAttribute: "tenaz" }),
   capabilityAction("adepto-sello-de-expulsion", "Activar Sello de expulsión (Adepto)", "combat", "Como a nivel principiante, pero quienes resistan el destierro sufren 1D4 ignorando armadura o pueden huir para evitarlo.", { rollAttribute: "tenaz", damageFormula: "1d4" }),
   capabilityAction("maestro-sello-de-expulsion", "Activar Sello de expulsión (Maestro)", "combat", "Como a nivel adepto, pero quienes no sean desterrados sufren 1D8 ignorando armadura, o 1D4 si huyen.", { rollAttribute: "tenaz", damageFormula: "1d8" })
 ];
 
 const SIMBOLO_CEGADOR_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-simbolo-cegador", "Activar Símbolo cegador (Principiante)", "combat", "Supera [Tenaz←Tenaz] para cegar al objetivo más cercano y encadenar el efecto a otros hasta fallar.", { rollAttribute: "tenaz" }),
+  capabilityAction("principiante-simbolo-cegador", "Activar Símbolo cegador (Principiante)", "combat", "Supera [Tenaz←Tenaz] para cegar al objetivo más cercano y encadenar el efecto a otros hasta fallar.", { rollAttribute: "tenaz" }),
   capabilityAction("adepto-simbolo-cegador", "Activar Símbolo cegador (Adepto)", "combat", "Como a nivel principiante, pero la ceguera dura hasta que falles Tenaz o pierdas la concentración.", { rollAttribute: "tenaz" }),
   capabilityAction("maestro-simbolo-cegador", "Activar Símbolo cegador (Maestro)", "combat", "Como a nivel principiante, pero la ceguera dura hasta que los afectados recuperen Resistencia por curación o elixires.", { rollAttribute: "tenaz" })
 ];
 
 const TELETRANSPORTACION_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-teletransportacion", "Lanzar Teletransportación (Principiante)", "combat", "Supera una tirada de Tenaz para desaparecer y reaparecer hasta dos acciones de movimiento más lejos; sufres 1D4 ignorando armadura por el viaje.", { rollAttribute: "tenaz", damageFormula: "1d4" }),
+  capabilityAction("principiante-teletransportacion", "Lanzar Teletransportación (Principiante)", "combat", "Supera una tirada de Tenaz para desaparecer y reaparecer hasta dos acciones de movimiento más lejos; sufres 1D4 ignorando armadura por el viaje.", { rollAttribute: "tenaz", damageFormula: "1d4" }),
   capabilityAction("adepto-teletransportacion", "Lanzar Teletransportación (Adepto)", "combat", "Como a nivel principiante, pero no sufres daño en el viaje al Ultramundo.", { rollAttribute: "tenaz" }),
   capabilityAction("maestro-teletransportacion", "Lanzar Teletransportación (Maestro)", "combat", "Como a nivel adepto, pero puedes llevar contigo a otra criatura; si no coopera debes superar [Tenaz←Tenaz].", { rollAttribute: "tenaz" })
 ];
 
 const TORMENTA_DE_FLECHAS_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-tormenta-de-flechas", "Lanzar Tormenta de flechas (Principiante)", "combat", "Encanta hasta cinco flechas; puedes disparar una por turno como acción gratuita y cada una impacta automáticamente por 1D6 más sus cualidades.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
+  capabilityAction("principiante-tormenta-de-flechas", "Lanzar Tormenta de flechas (Principiante)", "combat", "Encanta hasta cinco flechas; puedes disparar una por turno como acción gratuita y cada una impacta automáticamente por 1D6 más sus cualidades.", { rollAttribute: "tenaz", damageFormula: "1d6" }),
   capabilityAction("adepto-tormenta-de-flechas", "Lanzar Tormenta de flechas (Adepto)", "combat", "Como a nivel principiante, pero cada flecha causa 1D8 y puedes usar una acción de combate para disparar dos proyectiles a uno o varios objetivos.", { rollAttribute: "tenaz", damageFormula: "1d8" }),
   capabilityAction("maestro-tormenta-de-flechas", "Lanzar Tormenta de flechas (Maestro)", "combat", "Como a nivel adepto, pero una acción de combate te permite disparar tres flechas.", { rollAttribute: "tenaz", damageFormula: "1d8" })
 ];
 
 const TRANSFORMACION_REGRESIVA_ACTIONS: SymbaroumCapabilityAction[] = [
-  capabilityAction("novato-transformacion-regresiva", "Lanzar Transformación regresiva (Principiante)", "combat", "Supera una tirada de Tenaz para transformar a un objetivo en una bestia indefensa mientras mantengas la concentración y tus tiradas posteriores de [Tenaz←Tenaz].", { rollAttribute: "tenaz" }),
+  capabilityAction("principiante-transformacion-regresiva", "Lanzar Transformación regresiva (Principiante)", "combat", "Supera una tirada de Tenaz para transformar a un objetivo en una bestia indefensa mientras mantengas la concentración y tus tiradas posteriores de [Tenaz←Tenaz].", { rollAttribute: "tenaz" }),
   capabilityAction("adepto-transformacion-regresiva", "Lanzar Transformación regresiva (Adepto)", "combat", "Como a nivel principiante, pero ya no necesitas concentración; el efecto dura hasta que falles una tirada posterior de [Tenaz←Tenaz].", { rollAttribute: "tenaz" }),
   capabilityAction("maestro-transformacion-regresiva", "Lanzar Transformación regresiva (Maestro)", "combat", "Encadena la transformación sobre varios objetivos sucesivos hasta fallar, manteniendo una tirada de Tenaz por turno y por objetivo.", { rollAttribute: "tenaz" })
 ];
@@ -884,7 +884,7 @@ function resolveMysticPowerActions(nombre: string, resumen: string): SymbaroumCa
 
 const ARCO_VELOZ_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-arco-veloz",
+    "principiante-arco-veloz",
     "Usar Arco veloz (Principiante)",
     "combat",
     "Sacrifica tu acción de movimiento para disparar una segunda flecha este turno. Ambas flechas se resuelven por separado y pueden dirigirse al mismo objetivo o a dos distintos.",
@@ -908,7 +908,7 @@ const ARCO_VELOZ_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const ATAQUE_CON_DOS_ARMAS_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-ataque-con-dos-armas",
+    "principiante-ataque-con-dos-armas",
     "Usar Ataque con dos armas (Principiante)",
     "combat",
     "Haz dos ataques contra el mismo objetivo: el arma principal causa 1D8 y la secundaria 1D6. El enemigo debe defenderse por separado de cada ataque.",
@@ -932,14 +932,14 @@ const ATAQUE_CON_DOS_ARMAS_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const BERSERKER_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-berserker",
+    "principiante-berserker",
     "Entrar en frenesí (Principiante)",
     "free",
     "Entra en frenesí homicida para causar +1D6 de daño en combate cuerpo a cuerpo. Mientras dure, tu Defensa se calcula como si tuvieras Ágil 5.",
     { damageFormula: "+1d6" }
   ),
   capabilityAction(
-    "novato-berserker-defensa",
+    "principiante-berserker-defensa",
     "Defender con Berserker (Principiante)",
     "reaction",
     "Mientras estés en frenesí, tu Defensa se resuelve como si tuvieras Ágil 5.",
@@ -996,7 +996,7 @@ const CUCHILLO_RAPIDO_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const LUCHA_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-lucha",
+    "principiante-lucha",
     "Usar Lucha (Principiante)",
     "combat",
     "Haz un ataque normal y, si impactas, atrapa al oponente. Después puedes intentar lanzarlo o mantenerlo preso con [Fuerte←Fuerte]. El lanzamiento causa 1D4 ignorando armadura y lo deja boca arriba.",
@@ -1020,7 +1020,7 @@ const LUCHA_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const PIROTECNIA_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-pirotecnia",
+    "principiante-pirotecnia",
     "Usar polvo cegador (Principiante)",
     "combat",
     "Haz una tirada de [Diestro←Ágil] para deslumbrar a un oponente en cuerpo a cuerpo. Si impactas, causas 1D4 de daño ignorando armadura y lo dejas cegado durante 1D4 turnos.",
@@ -1044,7 +1044,7 @@ const PIROTECNIA_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const PUNO_DE_FLECHA_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-puno-de-flecha",
+    "principiante-puno-de-flecha",
     "Usar Puño de flecha (Principiante)",
     "reaction",
     "Responde a un ataque cuerpo a cuerpo clavando una flecha o virote al rival con una tirada de ataque normal. Si impactas, causas 1D6 y aplicas las cualidades del proyectil.",
@@ -1068,7 +1068,7 @@ const PUNO_DE_FLECHA_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const RECUPERACION_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-recuperacion",
+    "principiante-recuperacion",
     "Usar Recuperación (Principiante)",
     "combat",
     "Supera una tirada de Tenaz para recuperar 1D4 de Resistencia. Solo puedes tener un éxito por día.",
@@ -1107,7 +1107,7 @@ const VIENTO_DE_ACERO_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const ACROBATA_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-acrobata",
+    "principiante-acrobata",
     "Usar Acróbata (Principiante)",
     "combat",
     "Supera una tirada de Ágil para evitar los ataques gratuitos provocados al retirarte de un combate cuerpo a cuerpo o al pasar junto a un enemigo.",
@@ -1146,7 +1146,7 @@ const ARMAS_DE_ASTA_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const ARMAS_DE_PRESA_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-armas-de-presa",
+    "principiante-armas-de-presa",
     "Usar Armas de presa (Principiante)",
     "combat",
     "Al atacar con un arma con la cualidad Presa, ganas una segunda oportunidad para inmovilizar al objetivo."
@@ -1226,7 +1226,7 @@ const COMBATE_CON_ARMAS_DE_CADENA_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const COMBATE_SANGRIENTO_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-combate-sangriento",
+    "principiante-combate-sangriento",
     "Usar Combate sangriento (Principiante)",
     "reaction",
     "Cuando tu Resistencia cae hasta la mitad, obtienes una segunda oportunidad en todas tus tiradas de ataque cuerpo a cuerpo."
@@ -1248,7 +1248,7 @@ const COMBATE_SANGRIENTO_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const DANZA_DE_BATALLA_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-danza-de-batalla",
+    "principiante-danza-de-batalla",
     "Usar Danza de batalla (Principiante)",
     "reaction",
     "Divide tu acción de movimiento para hacer una parte antes de la acción de combate y otra después."
@@ -1269,7 +1269,7 @@ const DANZA_DE_BATALLA_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const DISPARO_MAGISTRAL_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-disparo-magistral",
+    "principiante-disparo-magistral",
     "Usar Disparo magistral (Principiante)",
     "combat",
     "Invierte turno completo en apuntar para desarmar, clavar o cegar al objetivo. Si impactas e infliges daño, además aplica el efecto elegido y el objetivo pierde una acción de combate.",
@@ -1293,7 +1293,7 @@ const DISPARO_MAGISTRAL_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const GOLPE_BAJO_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-golpe-bajo",
+    "principiante-golpe-bajo",
     "Usar Golpe bajo (Principiante)",
     "combat",
     "Haz un golpe bajo que causa 1D6 de daño y, si hiere al oponente, te concede un ataque gratuito contra él.",
@@ -1317,7 +1317,7 @@ const GOLPE_BAJO_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const GUARDAESPALDAS_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-guardaespaldas",
+    "principiante-guardaespaldas",
     "Usar Guardaespaldas (Principiante)",
     "reaction",
     "Supera una tirada de Tenaz para recibir tú un golpe dirigido contra un aliado. No puedes defenderte de ese ataque.",
@@ -1339,7 +1339,7 @@ const GUARDAESPALDAS_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const JINETE_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-jinete",
+    "principiante-jinete",
     "Cargar con Jinete (Principiante)",
     "reaction",
     "Si tu montura se mueve antes de atacar, puedes causar +1D6 de daño adicional en un ataque cuerpo a cuerpo.",
@@ -1379,7 +1379,7 @@ const LIDER_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const MEDICUS_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-medicus",
+    "principiante-medicus",
     "Usar Medicus (Principiante)",
     "combat",
     "Haz una tirada de Inteligente para curar 1D4 de Resistencia a un objetivo, o 1D6 si usas hierbas curativas. Solo una vez al día por paciente.",
@@ -1403,7 +1403,7 @@ const MEDICUS_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const OPORTUNISTA_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-oportunista",
+    "principiante-oportunista",
     "Usar Oportunista (Principiante)",
     "reaction",
     "Obtienes una segunda oportunidad para acertar ataques gratuitos contra un oponente que se retira del combate cuerpo a cuerpo."
@@ -1424,7 +1424,7 @@ const OPORTUNISTA_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const REFLEJOS_RAPIDOS_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-reflejos-rapidos",
+    "principiante-reflejos-rapidos",
     "Usar Reflejos rápidos (Principiante)",
     "reaction",
     "Frente a efectos de área o similares que infligen daño completo o mitad, pasas a sufrir mitad o ningún daño respectivamente."
@@ -1439,7 +1439,7 @@ const REFLEJOS_RAPIDOS_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const TRAMPERO_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-trampero",
+    "principiante-trampero",
     "Usar Trampero (Principiante)",
     "combat",
     "Haz una tirada de Inteligente para desplegar o desarmar una trampa mecánica. También puedes construir una trampa improvisada que causa 1D6 de daño.",
@@ -1463,7 +1463,7 @@ const TRAMPERO_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const VENENOS_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-venenos",
+    "principiante-venenos",
     "Aplicar veneno (Principiante)",
     "free",
     "Aplica una dosis de veneno a un arma para un solo golpe. La víctima queda envenenada si superas [Inteligente←Fuerte].",
@@ -1486,7 +1486,7 @@ const VENENOS_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const VERSADO_EN_CRIATURAS_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-versado-en-criaturas",
+    "principiante-versado-en-criaturas",
     "Analizar criatura (Principiante)",
     "free",
     "Haz una tirada de Inteligente para reconocer o recordar puntos débiles y fuertes de un monstruo.",
@@ -1510,7 +1510,7 @@ const VERSADO_EN_CRIATURAS_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const CANALIZACION_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-canalizacion",
+    "principiante-canalizacion",
     "Usar Canalización (Principiante)",
     "reaction",
     "Recibe sobre ti la corrupción temporal que iba a sufrir otra criatura a la vista."
@@ -1581,7 +1581,7 @@ const ESPIRITU_COMBATIVO_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const ESTRANGULADOR_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-estrangulador",
+    "principiante-estrangulador",
     "Usar Estrangulador (Principiante)",
     "combat",
     "Si tienes Ventaja, realiza un ataque que, si impacta, causa 1D6 por turno ignorando armadura e inmoviliza al objetivo hasta que falles la presa.",
@@ -1605,7 +1605,7 @@ const ESTRANGULADOR_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const EXPERTO_EN_ASEDIOS_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-experto-en-asedios",
+    "principiante-experto-en-asedios",
     "Usar arma de asedio o granada (Principiante)",
     "combat",
     "Maneja balistas y granadas alquímicas de forma segura, sin riesgo de detonación accidental."
@@ -1626,7 +1626,7 @@ const EXPERTO_EN_ASEDIOS_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const MANO_VELOZ_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-mano-veloz",
+    "principiante-mano-veloz",
     "Usar Mano veloz (Principiante)",
     "free",
     "Supera una tirada de Ágil para desenvainar y empuñar un arma, o para recargar una ballesta, como acción gratuita.",
@@ -1650,7 +1650,7 @@ const MANO_VELOZ_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const MARTILLO_ARIETE_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-martillo-ariete",
+    "principiante-martillo-ariete",
     "Usar Martillo ariete (Principiante)",
     "reaction",
     "Si un escudo desvía tu ataque de martillo, supera [Fuerte←Ágil] para romper un escudo de madera o arrancar uno metálico, causando además 1D6 al portador.",
@@ -1673,7 +1673,7 @@ const MARTILLO_ARIETE_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const MAESTRO_DEL_HACHA_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-maestro-del-hacha",
+    "principiante-maestro-del-hacha",
     "Usar Maestro del hacha (Principiante)",
     "combat",
     "Golpea con el extremo corto del hacha para causar 1D6 de daño y, si superas [Diestro←Tenaz], aturdir al objetivo y ganar un ataque gratuito inmediato.",
@@ -1697,7 +1697,7 @@ const MAESTRO_DEL_HACHA_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const OJO_MISTICO_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-ojo-mistico",
+    "principiante-ojo-mistico",
     "Usar Ojo místico (Principiante)",
     "free",
     "Supera [Atento←Discreto] para ver la Sombra dominante de una criatura, lugar u objeto. Cada intento te causa 1D4 de corrupción temporal.",
@@ -1721,7 +1721,7 @@ const OJO_MISTICO_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const SIMBOLISMO_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-simbolismo",
+    "principiante-simbolismo",
     "Activar símbolo preparado (Principiante)",
     "combat",
     "Activa un símbolo preparado a la vista o en contacto pronunciando su frase de activación."
@@ -1742,7 +1742,7 @@ const SIMBOLISMO_ACTIONS: SymbaroumCapabilityAction[] = [
 
 const TATUAJE_RUNICO_ACTIONS: SymbaroumCapabilityAction[] = [
   capabilityAction(
-    "novato-tatuaje-runico",
+    "principiante-tatuaje-runico",
     "Activar Tatuaje rúnico (Principiante)",
     "reaction",
     "Activa la runa antes de tirar protección para obtener +1D4 a la armadura contra ese ataque, al coste de 1 punto de corrupción temporal.",
