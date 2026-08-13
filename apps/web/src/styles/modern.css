@@ -5827,6 +5827,10 @@ button[disabled] {
   max-height: calc(100dvh - 32px);
   padding: 0;
   overflow: hidden;
+  border: 1px solid var(--ui-metal);
+  border-radius: var(--ui-radius-lg);
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow-overlay);
 }
 
 .character-change-log-header {
@@ -5864,6 +5868,7 @@ button[disabled] {
     max-height: 100dvh;
     border: 0;
     border-radius: 0;
+    box-shadow: none;
   }
 
   .character-change-log-header {
