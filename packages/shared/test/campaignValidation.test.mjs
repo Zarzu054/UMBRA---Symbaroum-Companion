@@ -14,6 +14,7 @@ import {
   grantCampaignExperienceSchema,
   getEffectiveCharacterRobustezMax,
   getCharacterMonsterTraitEffects,
+  parseCharacterSheet,
   synchronizeCharacterSheet,
   SYMBAROUM_ABILITIES
 } from "../dist/index.js";
@@ -44,6 +45,69 @@ test("las entradas de notas Markdown no tienen un limite artificial de caractere
   assert.equal(parsed.dmNoteEntries?.[0]?.content, longMarkdown);
   assert.equal(parsed.sharedNoteEntries?.[0]?.content, longMarkdown);
   assert.ok(longMarkdown.length > 12000);
+});
+
+test("las fichas conservan textos extensos en capacidades, acciones, inventario y condiciones", () => {
+  const longText = "Una explicación extensa con reglas y contexto. ".repeat(400);
+  const sheet = createEmptyCharacterSheet();
+  sheet.identidad.trasfondo = longText;
+  sheet.noteSections.general = longText;
+  sheet.notas = longText;
+  sheet.habilidades = [{
+    nombre: "Capacidad personalizada",
+    tipo: "Habilidad",
+    efecto: longText,
+    nivel: "principiante",
+    fuente: "",
+    notas: longText,
+    acciones: []
+  }];
+  sheet.actions = [{
+    id: "utility:long-note",
+    label: "Consultar reglas",
+    sourceType: "utility",
+    sourceName: "Notas de prueba",
+    cost: "free",
+    effectSummary: longText,
+    category: "utility",
+    notes: longText,
+    linkedItemId: ""
+  }];
+  sheet.inventoryItems = [{
+    id: "item-long-note",
+    name: "Cuaderno",
+    category: "gear",
+    quantity: 1,
+    stackable: false,
+    isCustom: true,
+    description: longText,
+    weight: "",
+    value: "",
+    equipped: false,
+    slot: "none",
+    damageFormula: "",
+    protectionFormula: "",
+    qualities: "",
+    notes: longText,
+    grantedActions: [],
+    modifiers: []
+  }];
+  sheet.conditions = [{
+    id: "condition-long-note",
+    name: "Condición personalizada",
+    category: "custom",
+    active: true,
+    severity: "minor",
+    summary: longText,
+    notes: longText
+  }];
+
+  const parsed = parseCharacterSheet(sheet);
+  assert.equal(parsed.identidad.trasfondo, longText);
+  assert.equal(parsed.habilidades[0].notas, longText);
+  assert.equal(parsed.actions[0].notes, longText);
+  assert.equal(parsed.inventoryItems[0].description, longText);
+  assert.equal(parsed.conditions[0].summary, longText);
 });
 
 test("las notas privadas del DJ conservan entradas Markdown y migran el texto antiguo", () => {

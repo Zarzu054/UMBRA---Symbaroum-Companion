@@ -33,6 +33,27 @@ function runPrisma(args, options = {}) {
   });
 }
 
+function runSheetRepair() {
+  return new Promise((resolve) => {
+    const child = spawn("npx", ["tsx", "scripts/repair-character-sheets.ts"], {
+      cwd: apiRoot,
+      env: process.env,
+      shell: true,
+      stdio: "inherit"
+    });
+    child.on("close", (code) => resolve(code ?? 1));
+  });
+}
+
+async function finishWithSheetRepair() {
+  output("Revisando y normalizando las fichas existentes...");
+  const repairCode = await runSheetRepair();
+  if (repairCode !== 0) {
+    fail("Las migraciones se aplicaron, pero la reparación de fichas no pudo completarse.");
+  }
+  process.exit(0);
+}
+
 async function getMigrationNames() {
   const entries = await readdir(migrationsDir, { withFileTypes: true });
   return entries
@@ -58,7 +79,7 @@ const deploy = await runPrisma(["migrate", "deploy"]);
 if (deploy.code === 0) {
   process.stdout.write(deploy.stdout);
   process.stderr.write(deploy.stderr);
-  process.exit(0);
+  await finishWithSheetRepair();
 }
 
 const deployOutput = `${deploy.stdout}\n${deploy.stderr}`;
@@ -106,3 +127,5 @@ const secondDeploy = await runPrisma(["migrate", "deploy"], { inherit: true });
 if (secondDeploy.code !== 0) {
   fail("El despliegue de migraciones fallo incluso despues del baseline automatico.");
 }
+
+await finishWithSheetRepair();

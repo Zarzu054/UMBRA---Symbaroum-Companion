@@ -2000,6 +2000,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                       <span>{entry.ownerEmail}</span>
                       <span>PX total: {entry.experienceTotal} | Gastada: {entry.experienceSpent} | Disponible: {Math.max(0, entry.experienceTotal - entry.experienceSpent)}</span>
                       <span>Actualizado: {formatDate(entry.updatedAt)}</span>
+                      {entry.sheetLoadError ? <span className="error-text">La ficha necesita reparación, pero la campaña sigue disponible.</span> : null}
                       <div className="card-actions">
                         {isDirector && entry.sheet ? (
                           <button

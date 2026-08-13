@@ -112,6 +112,14 @@ type CampaignChatMessageRow = Prisma.CampaignChatMessageGetPayload<{
   };
 }>;
 
+export function parseCampaignSheetSafely(input: unknown): CharacterSheet | null {
+  try {
+    return synchronizeCharacterSheet(parseCharacterSheet(input));
+  } catch {
+    return null;
+  }
+}
+
 async function removeCombatParticipants(
   tx: Prisma.TransactionClient,
   campaignId: string,
@@ -228,7 +236,8 @@ function mapCampaign(
       createdAt: invitation.createdAt.toISOString()
     })) : [],
     pendingProfessionRequests: isDirector ? row.characters.flatMap((entry) => {
-      const sheet = parseCharacterSheet(entry.character.sheet);
+      const sheet = parseCampaignSheetSafely(entry.character.sheet);
+      if (!sheet) return [];
       return entry.character.professionMemberships
         .filter((membership) => membership.state === "pending" && membership.campaignId === row.id)
         .map((membership) => ({
@@ -240,19 +249,23 @@ function mapCampaign(
     characters: row.characters.map((entry) => {
       let experienceTotal = 0;
       let experienceSpent = 0;
-      const baseSheet = parseCharacterSheet(entry.character.sheet);
-      try {
+      const baseSheet = parseCampaignSheetSafely(entry.character.sheet);
+      if (baseSheet) {
         experienceTotal = baseSheet.progreso.experienciaTotal;
         experienceSpent = getEffectiveCharacterExperienceSpent(baseSheet);
-      } catch {
-        experienceTotal = 0;
-        experienceSpent = 0;
       }
 
-      const ownedArtifacts = row.mysticArtifacts
-        .filter((artifact) => artifact.ownerCharacterId === entry.id)
-        .map((artifact) => mapMysticArtifact(artifact, { characterSheet: baseSheet, concealForOwner: !isDirector }) as OwnedMysticArtifact);
-      const visibleSheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(baseSheet, ownedArtifacts));
+      let visibleSheet: CharacterSheet | null = null;
+      if (baseSheet) {
+        try {
+          const ownedArtifacts = row.mysticArtifacts
+            .filter((artifact) => artifact.ownerCharacterId === entry.id)
+            .map((artifact) => mapMysticArtifact(artifact, { characterSheet: baseSheet, concealForOwner: !isDirector }) as OwnedMysticArtifact);
+          visibleSheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(baseSheet, ownedArtifacts));
+        } catch {
+          visibleSheet = null;
+        }
+      }
       return {
         id: entry.id,
         characterId: entry.characterId,
@@ -262,32 +275,52 @@ function mapCampaign(
         experienceTotal,
         experienceSpent,
         sheet: isDirector || entry.character.ownerId === viewerId ? visibleSheet : null,
+        sheetLoadError: visibleSheet === null,
         unreadChangeCount: unreadCounts.get(entry.characterId) ?? 0,
-        professionMemberships: entry.character.professionMemberships.map((membership) => mapProfessionMembership(membership, visibleSheet)),
+        professionMemberships: visibleSheet
+          ? entry.character.professionMemberships.flatMap((membership) => {
+              try {
+                return [mapProfessionMembership(membership, visibleSheet)];
+              } catch {
+                return [];
+              }
+            })
+          : [],
         updatedAt: entry.character.updatedAt.toISOString()
       };
     }),
     availableCharacters: availableRows.map((availableRow) => mapAvailableCharacter(availableRow, linkedIds)),
-    npcs: row.npcs.map((npc) => ({
-      id: npc.id,
-      name: npc.name,
-      race: npc.race,
-      archetype: npc.archetype,
-      occupation: npc.occupation,
-      threat: npc.threat,
-      summary: npc.summary,
-      notes: npc.notes,
-      statBlock: npc.statBlock,
-      sheet: npc.sheet ? synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(
-        parseCharacterSheet(npc.sheet),
-        row.mysticArtifacts
-          .filter((artifact) => artifact.ownerNpcId === npc.id)
-          .map((artifact) => mapMysticArtifact(artifact, { characterSheet: parseCharacterSheet(npc.sheet), concealForOwner: false }) as OwnedMysticArtifact)
-      )) : null,
-      isGenerated: npc.isGenerated,
-      createdAt: npc.createdAt.toISOString(),
-      updatedAt: npc.updatedAt.toISOString()
-    })),
+    npcs: row.npcs.map((npc) => {
+      const baseSheet = npc.sheet ? parseCampaignSheetSafely(npc.sheet) : null;
+      let visibleSheet: CharacterSheet | null = null;
+      if (baseSheet) {
+        try {
+          visibleSheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(
+            baseSheet,
+            row.mysticArtifacts
+              .filter((artifact) => artifact.ownerNpcId === npc.id)
+              .map((artifact) => mapMysticArtifact(artifact, { characterSheet: baseSheet, concealForOwner: false }) as OwnedMysticArtifact)
+          ));
+        } catch {
+          visibleSheet = null;
+        }
+      }
+      return {
+        id: npc.id,
+        name: npc.name,
+        race: npc.race,
+        archetype: npc.archetype,
+        occupation: npc.occupation,
+        threat: npc.threat,
+        summary: npc.summary,
+        notes: npc.notes,
+        statBlock: npc.statBlock,
+        sheet: visibleSheet,
+        isGenerated: npc.isGenerated,
+        createdAt: npc.createdAt.toISOString(),
+        updatedAt: npc.updatedAt.toISOString()
+      };
+    }),
     experienceLog: row.experienceLog.map((entry) => ({
       id: entry.id,
       sessionId: entry.sessionId,

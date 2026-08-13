@@ -435,6 +435,29 @@ describe("CampaignDashboardView experience grants", () => {
     expect(within(modal).queryByText("Recompensa de Alda")).not.toBeInTheDocument();
   });
 
+  it("mantiene el listado disponible cuando una ficha vinculada no puede cargarse", async () => {
+    const campaign = buildCampaign();
+    campaign.characters[0] = {
+      ...campaign.characters[0],
+      sheet: null,
+      sheetLoadError: true
+    };
+    campaign.characters.push({
+      ...buildCampaign().characters[0],
+      id: "link-b",
+      characterId: "00000000-0000-4000-8000-000000000002",
+      name: "Beremo"
+    });
+    serviceMocks.fetchCampaigns.mockResolvedValue([campaign]);
+
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+
+    const invalidCard = await screen.findByRole("article", { name: "Personaje Alda" });
+    expect(within(invalidCard).getByText("La ficha necesita reparación, pero la campaña sigue disponible.")).toBeInTheDocument();
+    expect(within(invalidCard).queryByRole("button", { name: "Abrir hoja" })).not.toBeInTheDocument();
+    expect(screen.getByRole("article", { name: "Personaje Beremo" })).toBeInTheDocument();
+  });
+
   it("shows private GM notes as Markdown entries instead of an always-visible form", async () => {
     const campaign = buildCampaign();
     campaign.dmNoteEntries = [{

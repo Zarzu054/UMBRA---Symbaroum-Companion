@@ -8,5 +8,5 @@
       ]
     }
   },
-  "include": ["src"]
+  "include": ["src", "scripts/**/*.ts"]
 }

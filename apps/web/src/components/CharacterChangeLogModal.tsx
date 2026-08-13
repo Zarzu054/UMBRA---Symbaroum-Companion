@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { CharacterChangeDiff, CharacterChangeEvent } from "@umbra/shared";
+import type { CharacterChangeEvent } from "@umbra/shared";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { presentCharacterChanges, type PresentedCharacterChange } from "../models/characterChangePresentation";
 import { fetchCharacterChangeLog, markCharacterChangeLogRead } from "../services/characterService";
 
 type Props = {
@@ -69,31 +70,21 @@ function sourceLabel(source: string): string {
   return labels[source] ?? "Ficha";
 }
 
-function formatValue(value: unknown): string {
-  if (value === null) return "Vacío";
-  if (typeof value === "string") return value || "Vacío";
-  if (typeof value === "boolean") return value ? "Sí" : "No";
-  if (typeof value === "number") return String(value);
-  return JSON.stringify(value, null, 2);
-}
-
-function ChangeValue({ value }: { value: unknown }) {
-  const rendered = formatValue(value);
-  if (rendered.length > 180 || rendered.includes("\n")) {
-    return <details className="character-change-value"><summary>Mostrar contenido</summary><pre>{rendered}</pre></details>;
-  }
-  return <span className="character-change-value-inline">{rendered}</span>;
-}
-
-function ChangeRow({ change }: { change: CharacterChangeDiff }) {
+function ChangeRow({ change }: { change: PresentedCharacterChange }) {
   return (
     <li className={`character-change-row is-${change.operation}`}>
-      <strong>{change.label}</strong>
-      <span className="character-change-section">{change.section}</span>
-      <div className="character-change-values">
-        {change.operation !== "added" ? <><ChangeValue value={change.before} /><span aria-hidden="true">→</span></> : null}
-        {change.operation !== "removed" ? <ChangeValue value={change.after} /> : <span>Eliminado</span>}
+      <div className="character-change-summary">
+        <span className="character-change-section">{change.section}</span>
+        <strong>{change.title}</strong>
+        {change.description ? <span className="character-change-description">{change.description}</span> : null}
       </div>
+      {change.before !== undefined || change.after !== undefined ? (
+        <div className="character-change-values">
+          {change.before !== undefined ? <span>{change.before}</span> : null}
+          {change.before !== undefined && change.after !== undefined ? <span aria-hidden="true">→</span> : null}
+          {change.after !== undefined ? <span>{change.after}</span> : null}
+        </div>
+      ) : null}
     </li>
   );
 }
@@ -143,7 +134,14 @@ export function CharacterChangeLogModal({ characterId, characterName, ensureAcce
       openerRef.current?.focus();
     };
   }, [onClose]);
-  const sessions = useMemo(() => groupEvents(events), [events]);
+  const sessions = useMemo(() => groupEvents(events)
+    .map((session) => ({
+      ...session,
+      events: session.events
+        .map((event) => ({ ...event, presentedChanges: presentCharacterChanges(event.changes) }))
+        .filter((event) => event.presentedChanges.length > 0)
+    }))
+    .filter((session) => session.events.length > 0), [events]);
 
   return createPortal(
     <section className="modal-backdrop character-change-log-backdrop" onClick={onClose}>
@@ -173,7 +171,7 @@ export function CharacterChangeLogModal({ characterId, characterName, ensureAcce
                     </div>
                     <time>{new Date(event.createdAt).toLocaleTimeString()}</time>
                   </div>
-                  <ul>{event.changes.map((change, index) => <ChangeRow key={`${event.id}-${change.path}-${index}`} change={change} />)}</ul>
+                  <ul>{event.presentedChanges.map((change) => <ChangeRow key={`${event.id}-${change.key}`} change={change} />)}</ul>
                 </section>
               ))}
             </article>

@@ -344,10 +344,10 @@ function importCapabilities(fields) {
                 rasgos.push(resolveImportedTraitName(nombre, traitCatalog));
                 continue;
             }
-            const canonicalEffect = truncateImportedCapabilityText(fromCatalog?.efectoResumen || "", 1200);
-            const canonicalNotes = truncateImportedCapabilityText(fromCatalog?.efectoResumen || "", 800);
-            const importedEffect = truncateImportedCapabilityText(efecto, 1200);
-            const importedNotes = truncateImportedCapabilityText(efecto, 800);
+            const canonicalEffect = normalizeImportedCapabilityText(fromCatalog?.efectoResumen || "");
+            const canonicalNotes = normalizeImportedCapabilityText(fromCatalog?.efectoResumen || "");
+            const importedEffect = normalizeImportedCapabilityText(efecto);
+            const importedNotes = normalizeImportedCapabilityText(efecto);
             const entry = {
                 nombre: fromCatalog?.nombre ?? nombre,
                 tipo: resolvedType === "poder_mistico" ? "Poder místico" : resolvedType === "ritual" ? "Ritual" : "Habilidad",
@@ -371,17 +371,14 @@ function importCapabilities(fields) {
     }
     return { habilidades, poderesMisticos, rituales, bendiciones, cargas, rasgos };
 }
-function truncateImportedCapabilityText(value, maxLength) {
-    const text = String(value ?? "").trim();
-    if (!text)
-        return "";
-    return text.length > maxLength ? text.slice(0, maxLength) : text;
+function normalizeImportedCapabilityText(value) {
+    return String(value ?? "").trim();
 }
 function sanitizeImportSheetForValidation(sheet) {
     const sanitizeEntries = (entries) => entries.map((entry) => ({
         ...entry,
-        efecto: truncateImportedCapabilityText(entry.efecto ?? "", 1200),
-        notas: truncateImportedCapabilityText(entry.notas ?? "", 800)
+        efecto: normalizeImportedCapabilityText(entry.efecto ?? ""),
+        notas: normalizeImportedCapabilityText(entry.notas ?? "")
     }));
     return {
         ...sheet,
