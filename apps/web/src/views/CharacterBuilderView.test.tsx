@@ -37,6 +37,9 @@ it("uses the persisted XP total without adding burden bonuses a second time", ()
 
   const availableCard = screen.getByText("PX disponible").closest("article");
   expect(availableCard).toHaveTextContent("12");
+  const persistentControls = screen.getByRole("heading", { name: "Urmak" }).closest(".character-builder-sticky-controls");
+  expect(persistentControls).toContainElement(screen.getByRole("button", { name: "Guardar constructor" }));
+  expect(persistentControls).toContainElement(screen.getByRole("button", { name: "Compras PX" }));
 });
 
 it("lets the player choose a configured artifact binding payment", async () => {
@@ -59,7 +62,7 @@ it("lets the player choose a configured artifact binding payment", async () => {
   await waitFor(() => expect(onBind).toHaveBeenCalledWith("artifact-a", "xp"));
 });
 
-it("shows all profession goals with live requirement progress and creates an aspiration", async () => {
+it("shows a compact profession list and opens live requirement details on demand", async () => {
   const sheet = createEmptyCharacterSheet();
   sheet.habilidades = [
     { nombre: "Estudioso", tipo: "Habilidad", efecto: "", nivel: "maestro", fuente: "Libro Básico", pagina: 1, notas: "", acciones: [] },
@@ -71,10 +74,16 @@ it("shows all profession goals with live requirement progress and creates an asp
   const onAspire = vi.fn().mockResolvedValue(undefined);
   render(<CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={vi.fn()} onAspireProfession={onAspire} />);
   fireEvent.click(screen.getByRole("button", { name: "Profesiones" }));
-  expect(screen.getByRole("heading", { name: "Juramentado de hierro" })).toBeInTheDocument();
-  expect(screen.getAllByRole("heading", { level: 4 })).toHaveLength(17);
+  const professionButtons = screen.getAllByRole("button", { name: /Ver detalles de/i });
+  expect(professionButtons).toHaveLength(17);
+  expect(screen.queryByText("Una capacidad requerida en maestro")).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Ver detalles de Juramentado de hierro" }));
+  const dialog = screen.getByRole("dialog", { name: "Juramentado de hierro" });
+  expect(dialog).toBeInTheDocument();
+  expect(screen.getByText("Una capacidad requerida en maestro")).toBeInTheDocument();
   expect(screen.getAllByText("Armas de asta").length).toBeGreaterThan(0);
-  fireEvent.click(screen.getAllByRole("button", { name: "Marcar como objetivo" })[0]);
+  fireEvent.click(screen.getByRole("button", { name: "Marcar como objetivo" }));
   await waitFor(() => expect(onAspire).toHaveBeenCalledWith("juramentado-de-hierro"));
 });
 

@@ -184,9 +184,13 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     const mechanicalReader = workspace.querySelector(".unified-sheet-reader-mechanical") as HTMLElement;
     const narrativeNavigation = within(narrativeReader).getByRole("navigation", { name: "Trasfondo y notas" });
     const mechanicalNavigation = within(mechanicalReader).getByRole("navigation", { name: "Acciones, inventario y capacidades" });
+    const narrativeContent = within(narrativeReader).getByRole("region", { name: "Trasfondo y notas: contenido" });
+    const mechanicalContent = within(mechanicalReader).getByRole("region", { name: "Acciones, inventario y capacidades: contenido" });
 
     expect(workspace.children[0]).toBe(narrativeReader);
     expect(workspace.children[1]).toBe(mechanicalReader);
+    expect(narrativeContent).toHaveAttribute("tabindex", "0");
+    expect(mechanicalContent).toHaveAttribute("tabindex", "0");
     expect(within(narrativeReader).getByRole("heading", { name: "Trasfondo" })).toBeInTheDocument();
     expect(within(mechanicalReader).getByRole("heading", { name: "Acciones disponibles" })).toBeInTheDocument();
     const actionSubNavigation = within(mechanicalReader).getByRole("navigation", { name: "Filtros de acciones" });

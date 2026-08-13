@@ -16,7 +16,7 @@ export function computeDerivedStats(sheet) {
     const defensaTotal = combatSummary.defense;
     const iniciativaTotal = combatSummary.initiative;
     const armaduraNatural = monsterTraitEffects.armorFormula;
-    const armaduraActiva = sheet.combate.armaduraProteccion || armaduraNatural;
+    const armaduraActiva = combatSummary.armor || armaduraNatural;
     const armaduraNaturalBreakdown = [
         monsterTraitEffects.duroLevel > 0
             ? {

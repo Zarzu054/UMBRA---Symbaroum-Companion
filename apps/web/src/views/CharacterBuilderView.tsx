@@ -353,6 +353,7 @@ export function CharacterBuilderView({
   const [bindingArtifactId, setBindingArtifactId] = useState<string | null>(null);
   const [professionBusyId, setProfessionBusyId] = useState<string | null>(null);
   const [selectedProfessionGoalId, setSelectedProfessionGoalId] = useState(SYMBAROUM_PROFESSIONS[0]?.id ?? "");
+  const [selectedProfessionDetailsId, setSelectedProfessionDetailsId] = useState<string | null>(null);
   const artifactBindingXpSpent = character.artifactBindingXpSpent ?? 0;
 
   useEffect(() => {
@@ -370,6 +371,7 @@ export function CharacterBuilderView({
     setActiveTab("resumen");
     setAcquisitionModal(null);
     setCapabilityConfirmationModal(null);
+    setSelectedProfessionDetailsId(null);
     setSelectedProfessionGoalId(SYMBAROUM_PROFESSIONS.find((profession) => !(character.professionMemberships ?? []).some((membership) => membership.professionId === profession.id))?.id ?? "");
   }, [character]);
 
@@ -401,6 +403,28 @@ export function CharacterBuilderView({
   const professionProgress = useMemo(() => new Map(
     SYMBAROUM_PROFESSIONS.map((profession) => [profession.id, evaluateProfession(profession, professionContext)])
   ), [professionContext]);
+  const selectedProfessionDetails = useMemo(
+    () => SYMBAROUM_PROFESSIONS.find((profession) => profession.id === selectedProfessionDetailsId) ?? null,
+    [selectedProfessionDetailsId]
+  );
+  const selectedProfessionMembership = selectedProfessionDetails
+    ? (character.professionMemberships ?? []).find((entry) => entry.professionId === selectedProfessionDetails.id) ?? null
+    : null;
+  const selectedProfessionEligibility = selectedProfessionDetails
+    ? professionProgress.get(selectedProfessionDetails.id) ?? null
+    : null;
+  const selectedProfessionState = selectedProfessionMembership?.effectiveState ?? selectedProfessionMembership?.state ?? null;
+  const selectedProfessionStateLabel = selectedProfessionState === "active"
+    ? "Activa"
+    : selectedProfessionState === "suspended"
+      ? "Suspendida"
+      : selectedProfessionState === "pending"
+        ? "Pendiente"
+        : selectedProfessionState === "rejected"
+          ? "Rechazada"
+          : selectedProfessionMembership
+            ? "Objetivo"
+            : "Disponible";
   const activeProfessionIds = useMemo(() => new Set(
     (character.professionMemberships ?? [])
       .filter((membership) => membership.state === "active" && evaluateProfession(membership.professionId, professionContext, { includeAdmissionOnly: false }).eligible)
@@ -786,33 +810,27 @@ export function CharacterBuilderView({
   return (
     <section className="character-builder-page unified-sheet">
       <section className="character-builder-shell campaign-sheet-card">
-        <header className="character-builder-header-band module-sticky-header module-sticky-header--single-row">
-          <div className="unified-sheet-portrait">
-            <div className="unified-sheet-portrait-ring" />
-            <div className="unified-sheet-portrait-content">
-              <span>{String(draft.identidad.arquetipo || character.archetype || "C").slice(0, 1)}</span>
+        <div className="character-builder-sticky-controls">
+          <header className="character-builder-header-band module-sticky-header module-sticky-header--single-row">
+            <div className="unified-sheet-portrait">
+              <div className="unified-sheet-portrait-ring" />
+              <div className="unified-sheet-portrait-content">
+                <span>{String(draft.identidad.arquetipo || character.archetype || "C").slice(0, 1)}</span>
+              </div>
             </div>
-          </div>
-          <div className="character-builder-identity">
-            <h2 className="unified-sheet-title">{draft.identidad.nombrePersonaje || character.name}</h2>
-            <p className="unified-sheet-inline-subtitle">{subtitle}</p>
-          </div>
-          <div className="toolbar character-builder-toolbar">
-            <button type="button" className="subtle-button" onClick={onBackToCharacters}>{backLabel}</button>
-            <button type="button" className="subtle-button" onClick={onOpenSheet}>{sheetLabel}</button>
-            <button type="button" onClick={() => void handleSave()} disabled={busy || isSaving}>
-              {isSaving ? "Guardando..." : saveLabel}
-            </button>
-          </div>
-        </header>
+            <div className="character-builder-identity">
+              <h2 className="unified-sheet-title">{draft.identidad.nombrePersonaje || character.name}</h2>
+              <p className="unified-sheet-inline-subtitle">{subtitle}</p>
+            </div>
+            <div className="toolbar character-builder-toolbar">
+              <button type="button" className="subtle-button" onClick={onBackToCharacters}>{backLabel}</button>
+              <button type="button" className="subtle-button" onClick={onOpenSheet}>{sheetLabel}</button>
+              <button type="button" onClick={() => void handleSave()} disabled={busy || isSaving}>
+                {isSaving ? "Guardando..." : saveLabel}
+              </button>
+            </div>
+          </header>
 
-        {error ? (
-          <section className="panel error-list">
-            <p>{error}</p>
-          </section>
-        ) : null}
-
-        <section className="character-builder-stage">
           <div className="unified-sheet-tabs character-builder-tabs">
             {BUILDER_TABS.map((tab) => (
               <button
@@ -825,7 +843,15 @@ export function CharacterBuilderView({
               </button>
             ))}
           </div>
+        </div>
 
+        {error ? (
+          <section className="panel error-list">
+            <p>{error}</p>
+          </section>
+        ) : null}
+
+        <section className="character-builder-stage">
           <section className="character-builder-layout">
             {activeTab === "resumen" ? (
               <section className="character-builder-panel campaign-sheet-card">
@@ -950,69 +976,25 @@ export function CharacterBuilderView({
                 <div className="profession-builder-list">
                   {SYMBAROUM_PROFESSIONS.map((profession) => {
                     const membership = (character.professionMemberships ?? []).find((entry) => entry.professionId === profession.id);
-                    const eligibility = professionProgress.get(profession.id)!;
                     const state = membership?.effectiveState ?? membership?.state ?? null;
                     const stateLabel = state === "active" ? "Activa" : state === "suspended" ? "Suspendida" : state === "pending" ? "Pendiente" : state === "rejected" ? "Rechazada" : membership ? "Objetivo" : "Disponible";
                     return (
-                      <article key={profession.id} className={`profession-progress-card profession-progress-card--${state ?? "available"}`}>
-                        <div className="row-actions">
-                          <div>
-                            <span className="eyebrow">{profession.archetype} · Guía Avanzada p. {profession.page}</span>
-                            <h4>{profession.name}</h4>
-                          </div>
+                      <button
+                        key={profession.id}
+                        type="button"
+                        className={`profession-list-item profession-list-item--${state ?? "available"}`}
+                        onClick={() => setSelectedProfessionDetailsId(profession.id)}
+                        aria-label={`Ver detalles de ${profession.name}`}
+                      >
+                        <div className="profession-list-item-copy">
+                          <h4>{profession.name}</h4>
+                          <span>{profession.archetype} · Guía Avanzada p. {profession.page}</span>
+                        </div>
+                        <div className="profession-list-item-status">
                           <span className={`profession-state profession-state--${state ?? "available"}`}>{stateLabel}</span>
+                          <span className="profession-list-item-chevron" aria-hidden="true">›</span>
                         </div>
-                        <p>{profession.summary}</p>
-                        <div className="profession-requirement-list">
-                          {eligibility.requirementResults.map((requirement) => (
-                            <div key={requirement.id} className={requirement.met ? "is-met" : "is-pending"}>
-                              <span aria-hidden="true">{requirement.met ? "✓" : "○"}</span>
-                              <span>{requirement.label}</span>
-                              <strong>{requirement.matchedNames.length > 0 ? requirement.matchedNames.join(" / ") : "Pendiente"}{requirement.hasMaster ? " · Maestro" : ""}</strong>
-                            </div>
-                          ))}
-                          <div className={eligibility.masterRequirementMet ? "is-met" : "is-pending"}>
-                            <span aria-hidden="true">{eligibility.masterRequirementMet ? "✓" : "○"}</span>
-                            <span>Una capacidad requerida en maestro</span>
-                          </div>
-                          {profession.otherRequirement ? (
-                            <div className={eligibility.otherRequirementMet ? "is-met" : "is-pending"}>
-                              <span aria-hidden="true">{eligibility.otherRequirementMet ? "✓" : "○"}</span>
-                              <span>{profession.otherRequirement.label}</span>
-                            </div>
-                          ) : null}
-                        </div>
-                        <div className="profession-benefit-list">
-                          <strong>Beneficios desbloqueables</strong>
-                          <div className="toolbar">
-                            {profession.benefits.map((benefit) => onOpenCompendiumCapability && benefit.kind !== "rasgo_monstruoso" ? (
-                              <button key={benefit.name} type="button" className="link-button" onClick={() => onOpenCompendiumCapability(benefit.kind as "habilidad" | "poder_mistico" | "ritual", benefit.name)}>{benefit.name}</button>
-                            ) : <span key={benefit.name}>{benefit.name}</span>)}
-                          </div>
-                        </div>
-                        <div className="toolbar profession-actions">
-                          {!membership && onAspireProfession ? (
-                            <button type="button" disabled={professionBusyId === profession.id} onClick={() => void runProfessionAction(profession.id, () => onAspireProfession(profession.id))}>Marcar como objetivo</button>
-                          ) : null}
-                          {membership && ["aspiration", "rejected"].includes(membership.state) && onRemoveProfessionAspiration ? (
-                            <button type="button" className="subtle-button" disabled={professionBusyId === profession.id} onClick={() => void runProfessionAction(profession.id, () => onRemoveProfessionAspiration(profession.id))}>Retirar objetivo</button>
-                          ) : null}
-                          {membership && ["aspiration", "rejected"].includes(membership.state) && eligibility.eligible && onRequestProfession ? (
-                            <button type="button" disabled={professionBusyId === profession.id} onClick={() => {
-                              if (window.confirm("Se comprobarán de nuevo todos los requisitos. Si el personaje está en campaña, la solicitud quedará pendiente de aprobación del DJ; si no lo está, el ingreso se activará directamente. ¿Continuar?")) {
-                                void runProfessionAction(profession.id, () => onRequestProfession(profession.id));
-                              }
-                            }}>Solicitar ingreso</button>
-                          ) : null}
-                          {membership?.state === "active" && onLeaveProfession ? (
-                            <button type="button" className="destructive-button" disabled={professionBusyId === profession.id} onClick={() => {
-                              if (window.confirm(`¿Abandonar ${profession.name}? Las capacidades compradas no se borrarán ni reembolsarán.`)) {
-                                void runProfessionAction(profession.id, () => onLeaveProfession(profession.id));
-                              }
-                            }}>{professionRemovalLabel}</button>
-                          ) : null}
-                        </div>
-                      </article>
+                      </button>
                     );
                   })}
                 </div>
@@ -1229,6 +1211,84 @@ export function CharacterBuilderView({
           </section>
         </section>
       </section>
+
+      {selectedProfessionDetails && selectedProfessionEligibility ? (
+        <section className="modal-backdrop" onClick={() => setSelectedProfessionDetailsId(null)}>
+          <div
+            className="modal-panel profession-detail-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profession-detail-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="profession-detail-header">
+              <div>
+                <span className="eyebrow">{selectedProfessionDetails.archetype} · Guía Avanzada p. {selectedProfessionDetails.page}</span>
+                <h3 id="profession-detail-title">{selectedProfessionDetails.name}</h3>
+              </div>
+              <div className="profession-detail-header-actions">
+                <span className={`profession-state profession-state--${selectedProfessionState ?? "available"}`}>{selectedProfessionStateLabel}</span>
+                <button type="button" className="subtle-button" onClick={() => setSelectedProfessionDetailsId(null)}>Cerrar</button>
+              </div>
+            </header>
+            <div className="profession-detail-content">
+              <p>{selectedProfessionDetails.summary}</p>
+              <section>
+                <h4>Requisitos</h4>
+                <div className="profession-requirement-list">
+                  {selectedProfessionEligibility.requirementResults.map((requirement) => (
+                    <div key={requirement.id} className={requirement.met ? "is-met" : "is-pending"}>
+                      <span aria-hidden="true">{requirement.met ? "✓" : "○"}</span>
+                      <span>{requirement.label}</span>
+                      <strong>{requirement.matchedNames.length > 0 ? requirement.matchedNames.join(" / ") : "Pendiente"}{requirement.hasMaster ? " · Maestro" : ""}</strong>
+                    </div>
+                  ))}
+                  <div className={selectedProfessionEligibility.masterRequirementMet ? "is-met" : "is-pending"}>
+                    <span aria-hidden="true">{selectedProfessionEligibility.masterRequirementMet ? "✓" : "○"}</span>
+                    <span>Una capacidad requerida en maestro</span>
+                  </div>
+                  {selectedProfessionDetails.otherRequirement ? (
+                    <div className={selectedProfessionEligibility.otherRequirementMet ? "is-met" : "is-pending"}>
+                      <span aria-hidden="true">{selectedProfessionEligibility.otherRequirementMet ? "✓" : "○"}</span>
+                      <span>{selectedProfessionDetails.otherRequirement.label}</span>
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+              <section className="profession-benefit-list">
+                <h4>Beneficios desbloqueables</h4>
+                <div className="toolbar">
+                  {selectedProfessionDetails.benefits.map((benefit) => onOpenCompendiumCapability && benefit.kind !== "rasgo_monstruoso" ? (
+                    <button key={benefit.name} type="button" className="link-button" onClick={() => onOpenCompendiumCapability(benefit.kind as "habilidad" | "poder_mistico" | "ritual", benefit.name)}>{benefit.name}</button>
+                  ) : <span key={benefit.name}>{benefit.name}</span>)}
+                </div>
+              </section>
+            </div>
+            <footer className="toolbar profession-actions profession-detail-actions">
+              {!selectedProfessionMembership && onAspireProfession ? (
+                <button type="button" disabled={professionBusyId === selectedProfessionDetails.id} onClick={() => void runProfessionAction(selectedProfessionDetails.id, () => onAspireProfession(selectedProfessionDetails.id))}>Marcar como objetivo</button>
+              ) : null}
+              {selectedProfessionMembership && ["aspiration", "rejected"].includes(selectedProfessionMembership.state) && onRemoveProfessionAspiration ? (
+                <button type="button" className="subtle-button" disabled={professionBusyId === selectedProfessionDetails.id} onClick={() => void runProfessionAction(selectedProfessionDetails.id, () => onRemoveProfessionAspiration(selectedProfessionDetails.id))}>Retirar objetivo</button>
+              ) : null}
+              {selectedProfessionMembership && ["aspiration", "rejected"].includes(selectedProfessionMembership.state) && selectedProfessionEligibility.eligible && onRequestProfession ? (
+                <button type="button" disabled={professionBusyId === selectedProfessionDetails.id} onClick={() => {
+                  if (window.confirm("Se comprobarán de nuevo todos los requisitos. Si el personaje está en campaña, la solicitud quedará pendiente de aprobación del DJ; si no lo está, el ingreso se activará directamente. ¿Continuar?")) {
+                    void runProfessionAction(selectedProfessionDetails.id, () => onRequestProfession(selectedProfessionDetails.id));
+                  }
+                }}>Solicitar ingreso</button>
+              ) : null}
+              {selectedProfessionMembership?.state === "active" && onLeaveProfession ? (
+                <button type="button" className="destructive-button" disabled={professionBusyId === selectedProfessionDetails.id} onClick={() => {
+                  if (window.confirm(`¿Abandonar ${selectedProfessionDetails.name}? Las capacidades compradas no se borrarán ni reembolsarán.`)) {
+                    void runProfessionAction(selectedProfessionDetails.id, () => onLeaveProfession(selectedProfessionDetails.id));
+                  }
+                }}>{professionRemovalLabel}</button>
+              ) : null}
+            </footer>
+          </div>
+        </section>
+      ) : null}
 
       {acquisitionModal ? (
         <section className="modal-backdrop" onClick={() => setAcquisitionModal(null)}>

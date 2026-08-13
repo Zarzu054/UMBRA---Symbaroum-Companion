@@ -99,6 +99,39 @@ test("projects a managed weapon and all roll metadata into artifact actions", ()
   assert.equal(action.rolls.length, 2);
 });
 
+test("Viento de acero mejora el dado base de cualquier artefacto arrojadizo y conserva sus dados adicionales", () => {
+  for (const [publishedFormula, expectedFormula] of [
+    ["1D4+1D4", "1d6+1d4"],
+    ["1D6+1D4", "1d8+1d4"],
+    ["1D8+1D4", "1d10+1d4"],
+    ["1D10+1D4", "1d12+1d4"],
+    ["1D12+1D4", "1d12+1d4+1"]
+  ]) {
+    const artifact = makeArtifact(true);
+    artifact.name = "Artefacto arrojadizo futuro";
+    artifact.weapon.damageFormula = publishedFormula;
+
+    const baseSheet = createEmptyCharacterSheet();
+    baseSheet.habilidades = [{
+      nombre: "Viento de acero",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "principiante",
+      fuente: "Libro Básico",
+      pagina: 1,
+      notas: "",
+      acciones: []
+    }];
+
+    const sheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(baseSheet, [artifact]));
+    const attack = deriveCharacterActions(sheet).find((entry) => entry.label === "Atacar con Artefacto arrojadizo futuro");
+
+    assert.ok(attack);
+    assert.equal(attack.damageFormula, expectedFormula);
+    assert.ok(attack.damageBreakdown.some((entry) => entry.label === "Viento de acero"));
+  }
+});
+
 test("removes client copies while preserving safe slot references and legacy artifacts", () => {
   const current = createEmptyCharacterSheet();
   current.inventoryItems.push({

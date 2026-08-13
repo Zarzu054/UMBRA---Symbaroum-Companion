@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MONSTER_ATTRIBUTE_KEYS, MONSTER_ATTRIBUTE_LABELS, SYMBAROUM_ABILITIES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS, WEAPON_TEMPLATES, averageDiceFormula, getActorCapabilityXpDelta, getDerivedMonsterSheetStats, getMonsterCreationXp, getMonsterTraitLevel } from "@umbra/shared";
+import { MONSTER_ATTRIBUTE_KEYS, MONSTER_ATTRIBUTE_LABELS, SYMBAROUM_ABILITIES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RITUALS, WEAPON_TEMPLATES, averageDiceFormula, getActorCapabilityXpDelta, getDerivedMonsterSheetStats, getMonsterCreationXp, getMonsterTraitLevel, increaseEffectDieFormula } from "@umbra/shared";
 import { findCompendiumEntryByTypeAndName, getCompendiumSourcePdfUrl } from "../models/compendiumEntries";
 import { buildPdfViewerUrl } from "../services/pdfViewer";
 import { SourceReferenceLink } from "./SourceReferenceLink";
@@ -311,19 +311,6 @@ function formulaAverage(formula) {
 function formulaWithAverage(formula, prefix = "") {
     const average = formulaAverage(formula);
     return average === null ? `${prefix}${formula.toUpperCase()}` : `${prefix}${formula.toUpperCase()} → ${prefix}${average}`;
-}
-function increaseDamageDieFormula(formula) {
-    const normalized = formula.trim().toLowerCase();
-    const match = normalized.match(/^(\d+)d(4|6|8|10|12)([+-]\d+)?$/);
-    if (!match)
-        return null;
-    const count = Number(match[1]);
-    const sides = Number(match[2]);
-    const modifier = Number(match[3] ?? 0);
-    if (sides >= 12)
-        return `${count}d12${modifier + 1 > 0 ? `+${modifier + 1}` : ""}`;
-    const nextSides = sides === 4 ? 6 : sides === 6 ? 8 : sides === 8 ? 10 : 12;
-    return `${count}d${nextSides}${modifier > 0 ? `+${modifier}` : modifier < 0 ? modifier : ""}`;
 }
 function normalizeWeaponName(value) {
     return normalizeCapability(value)
@@ -697,12 +684,13 @@ function buildArmorCalculation(sheet, result) {
         "Armadura media": "1d6",
         "Armadura pesada": "1d8"
     };
-    let armorFormula = armorTemplateName ? armorFormulaByName[armorTemplateName] : undefined;
+    const structuredArmor = (sheet.equipment ?? []).find((item) => item.category === "armor" && item.protectionFormula);
+    let armorFormula = structuredArmor?.protectionFormula || (armorTemplateName ? armorFormulaByName[armorTemplateName] : undefined);
     if (armorFormula) {
         hasKnownBase = true;
         const originalFormula = armorFormula;
         if (armoredCombatLevel >= 1)
-            armorFormula = increaseDamageDieFormula(armorFormula) ?? armorFormula;
+            armorFormula = increaseEffectDieFormula(armorFormula) ?? armorFormula;
         const armorAverage = formulaAverage(armorFormula) ?? 0;
         calculated += armorAverage;
         rows.push({
@@ -711,7 +699,7 @@ function buildArmorCalculation(sheet, result) {
             explanation: armoredCombatLevel >= 1 && originalFormula !== armorFormula
                 ? `La protección base ${originalFormula.toUpperCase()} sube un nivel de dado.`
                 : undefined,
-            source: armoredCombatLevel >= 1 ? capabilitySource("Combate con armadura", armoredCombatLevel) : armorTemplateName ?? undefined,
+            source: armoredCombatLevel >= 1 ? capabilitySource("Combate con armadura", armoredCombatLevel) : structuredArmor?.name ?? armorTemplateName ?? undefined,
             kind: armoredCombatLevel >= 1 ? "capability" : "base"
         });
         if (/\+1$/.test(originalFormula))
@@ -862,6 +850,7 @@ function buildWeaponCalculation(sheet, weapon, index) {
     const long = Boolean(template?.qualities.some((quality) => normalizeCapability(quality) === "larga")) || /\blarga\b/.test(weaponText(weapon));
     const short = Boolean(template?.qualities.some((quality) => normalizeCapability(quality) === "corta")) || /\bcorta\b/.test(weaponText(weapon));
     const bowOrCrossbow = /\b(arco|ballesta|arbalesta)\b/.test(weaponText(weapon));
+    const marksmanEligible = (bowOrCrossbow || ranged) && !isThrownWeapon(weapon);
     const rows = [];
     const sixthSenseLevel = capabilityLevel(sheet, ["sexto sentido"]);
     const tacticianLevel = capabilityLevel(sheet, ["tactico"]);
@@ -939,7 +928,7 @@ function buildWeaponCalculation(sheet, weapon, index) {
     const applyDieUpgrade = (name, level, explanation) => {
         if (!baseFormula || level <= 0)
             return;
-        const upgraded = increaseDamageDieFormula(baseFormula);
+        const upgraded = increaseEffectDieFormula(baseFormula);
         if (!upgraded || upgraded === baseFormula)
             return;
         const previous = baseFormula;
@@ -965,8 +954,8 @@ function buildWeaponCalculation(sheet, weapon, index) {
             applyDieUpgrade("Esgrima sagrada", sacredFencingLevel, "El nivel Maestro aumenta de nuevo el dado de la espada Precisa.");
     }
     const marksmanLevel = capabilityLevel(sheet, ["tirador"]);
-    if (bowOrCrossbow && marksmanLevel > 0)
-        applyDieUpgrade("Tirador", marksmanLevel, "Aumenta un nivel el dado base de arcos y ballestas.");
+    if (marksmanEligible && marksmanLevel > 0)
+        applyDieUpgrade("Tirador", marksmanLevel, "Aumenta un nivel el dado base del arma a distancia.");
     const polearmLevel = capabilityLevel(sheet, ["armas de asta"]);
     if (long && polearmLevel > 0)
         applyDieUpgrade("Armas de asta", polearmLevel, "Aumenta un nivel el dado de las armas Largas.");

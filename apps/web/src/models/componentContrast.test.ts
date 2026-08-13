@@ -91,6 +91,8 @@ describe("component contrast contracts", () => {
   it("keeps compact module controls below the persistent global navigation", () => {
     expect(stylesheet).toMatch(/--app-top-navigation-height: 64px/);
     expect(stylesheet).toMatch(/\.module-sticky-header\s*\{[\s\S]*?position: sticky;[\s\S]*?top: var\(--app-top-navigation-height\);[\s\S]*?z-index: 90/);
+    expect(stylesheet).toMatch(/\.character-builder-sticky-controls\s*\{[\s\S]*?position: sticky;[\s\S]*?top: var\(--app-top-navigation-height\);[\s\S]*?z-index: 90/);
+    expect(stylesheet).toMatch(/\.character-builder-sticky-controls > \.character-builder-tabs\s*\{[\s\S]*?overflow-x: auto/);
     expect(stylesheet).toMatch(/\.campaign-module-header:not\(\.module-sticky-header--single-row\)[\s\S]*?--campaign-module-header-height/);
     expect(stylesheet).toMatch(/\.campaign-module-header \.campaign-section-nav\s*\{[\s\S]*?overflow-x: auto/);
     expect(stylesheet).toMatch(/@media \(width <= 900px\)[\s\S]*?--app-top-navigation-height: 58px/);
