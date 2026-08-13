@@ -856,8 +856,12 @@ function applyIntegratedCombatStyles(sheet, actions) {
         const steelWindLevel = getRatedEntryLevel(sheet, "Viento de acero");
         if (steelWindLevel && isThrownWeaponAction(next)) {
             if (next.damageFormula) {
-                next.damageFormula = normalizeFormula(increaseDamageDie(next.damageFormula) ?? next.damageFormula);
-                appendDamageBreakdownDetail(next, "Viento de acero", `Mejora el dado base (${capitalizeSkillLevel(steelWindLevel)}).`);
+                const originalFormula = normalizeFormula(next.damageFormula);
+                const adjustedFormula = ensureMinimumDamageDie(next.damageFormula, 8);
+                next.damageFormula = normalizeFormula(adjustedFormula ?? next.damageFormula);
+                if (next.damageFormula !== originalFormula) {
+                    appendDamageBreakdownDetail(next, "Viento de acero", `Establece el dado base del arma arrojadiza en 1D8 (${capitalizeSkillLevel(steelWindLevel)}).`);
+                }
             }
             next.effectSummary = appendSummary(next.effectSummary, buildSteelWindSummary(steelWindLevel));
         }
@@ -877,22 +881,42 @@ function appendSummary(base, extra) {
     return `${trimmedBase} ${trimmedExtra}`;
 }
 function increaseDamageDie(formula) {
-    const normalized = formula.trim().toLowerCase();
-    const match = normalized.match(/^(\d+)d(4|6|8|10|12)([+-]\d+)?$/);
+    const normalized = formula.trim().toLowerCase().replace(/\s+/g, "");
+    const match = normalized.match(/^(\d+)d(4|6|8|10|12)(.*)$/);
     if (!match)
         return null;
     const count = Number(match[1]);
     const sides = Number(match[2]);
-    const modifier = Number(match[3] ?? 0);
+    const remainder = match[3] ?? "";
+    if (remainder && !/^(?:[+-](?:\d+d\d+|\d+))+$/.test(remainder)) {
+        return null;
+    }
     if (sides >= 12) {
         if (count === 1) {
-            const nextModifier = modifier + 1;
-            return `1d12${nextModifier > 0 ? `+${nextModifier}` : nextModifier < 0 ? String(nextModifier) : ""}`;
+            const flatModifier = remainder.match(/^[+-]\d+$/);
+            if (flatModifier) {
+                const nextModifier = Number(flatModifier[0]) + 1;
+                return `1d12${nextModifier > 0 ? `+${nextModifier}` : nextModifier < 0 ? String(nextModifier) : ""}`;
+            }
+            return `1d12+1${remainder}`;
         }
-        return `${count}d12${modifier > 0 ? `+${modifier}` : modifier < 0 ? String(modifier) : ""}`;
+        return `${count}d12${remainder}`;
     }
     const nextSides = sides === 4 ? 6 : sides === 6 ? 8 : sides === 8 ? 10 : 12;
-    return `${count}d${nextSides}${modifier > 0 ? `+${modifier}` : modifier < 0 ? String(modifier) : ""}`;
+    return `${count}d${nextSides}${remainder}`;
+}
+function ensureMinimumDamageDie(formula, minimumSides) {
+    const normalized = formula.trim().toLowerCase().replace(/\s+/g, "");
+    const match = normalized.match(/^(\d+)d(4|6|8|10|12)(.*)$/);
+    if (!match)
+        return null;
+    const count = Number(match[1]);
+    const sides = Number(match[2]);
+    const remainder = match[3] ?? "";
+    if (remainder && !/^(?:[+-](?:\d+d\d+|\d+))+$/.test(remainder)) {
+        return null;
+    }
+    return `${count}d${Math.max(sides, minimumSides)}${remainder}`;
 }
 function appendDamageBreakdownDetail(action, label, detail) {
     if (!action.damageBreakdown) {

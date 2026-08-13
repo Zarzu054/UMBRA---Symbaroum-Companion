@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createEmptyCharacterSheet, type CharacterActionDefinition } from "@umbra/shared";
+import { createEmptyCharacterSheet, deriveCharacterActions, synchronizeCharacterSheet, type CharacterActionDefinition } from "@umbra/shared";
 import { getCharacterActionRollPresentation } from "./actionPresentation";
 
 function buildAction(overrides: Partial<CharacterActionDefinition> = {}): CharacterActionDefinition {
@@ -54,5 +54,49 @@ describe("getCharacterActionRollPresentation", () => {
 
     expect(getCharacterActionRollPresentation(buildAction(), sheet).hasRoll).toBe(false);
     expect(getCharacterActionRollPresentation(buildAction({ damageFormula: "+1d4" }), sheet).hasRoll).toBe(false);
+  });
+
+  it("shows Parcabrasa with its thrown base improved by Viento de acero", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.inventoryItems = [{
+      id: "managed-artifact:parcabrasa",
+      name: "Parcabrasa",
+      category: "weapon",
+      quantity: 1,
+      stackable: false,
+      isCustom: false,
+      description: "Hacha arrojadiza habitada por espíritus de fuego.",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "mainHand",
+      attackAttribute: "diestro",
+      damageFormula: "1D6+1D4",
+      protectionFormula: "",
+      qualities: "Arrojadiza, Regreso, Místico",
+      notes: "",
+      managedArtifactId: "parcabrasa",
+      artifactBound: true,
+      artifactBindingCostLabel: "1 PX",
+      artifactResources: [],
+      grantedActions: [],
+      modifiers: []
+    }];
+    sheet.habilidades = [{
+      nombre: "Viento de acero",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "principiante",
+      fuente: "Libro Básico",
+      pagina: 28,
+      notas: "",
+      acciones: []
+    }];
+
+    const action = deriveCharacterActions(synchronizeCharacterSheet(sheet))
+      .find((entry) => entry.label === "Atacar con Parcabrasa");
+
+    expect(action?.damageFormula).toBe("1d8+1d4");
+    expect(getCharacterActionRollPresentation(action!, sheet).damageFormula).toBe("1d8+1d4");
   });
 });

@@ -4468,12 +4468,27 @@ button[disabled] {
 }
 
 .unified-sheet-reader.unified-sheet-stage {
+  display: grid;
   width: 100%;
-  height: clamp(620px, calc(100dvh - 96px), 840px);
-  min-height: 620px;
+  height: clamp(420px, calc(100dvh - 96px), 840px);
+  min-height: min(420px, calc(100dvh - 96px));
   grid-template-rows: auto minmax(0, 1fr);
   align-self: start;
   overflow: hidden;
+}
+
+.unified-sheet .unified-sheet-reader.unified-sheet-stage.campaign-sheet-card {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.unified-sheet .unified-sheet-reader.unified-sheet-stage.campaign-sheet-card::before,
+.unified-sheet .unified-sheet-reader.unified-sheet-stage.campaign-sheet-card::after {
+  display: none;
 }
 
 .unified-sheet-reader.unified-sheet-stage.has-stage-subtabs {
@@ -4544,9 +4559,28 @@ button[disabled] {
   height: 100%;
   padding: 12px 4px 2px 0;
   overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: auto;
+  overflow-y: scroll;
+  overscroll-behavior-y: auto;
   scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ui-brand) 48%, var(--ui-border)) transparent;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.unified-sheet-reader .unified-sheet-tab-content::-webkit-scrollbar {
+  width: 9px;
+}
+
+.unified-sheet-reader .unified-sheet-tab-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.unified-sheet-reader .unified-sheet-tab-content::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ui-brand) 48%, var(--ui-border));
+  background-clip: padding-box;
 }
 
 .unified-sheet-reader .unified-sheet-panel {
@@ -4593,6 +4627,12 @@ button[disabled] {
 
 :root[data-character-sheet-background] .unified-sheet-resources-module .unified-sheet-module-title::after {
   background: linear-gradient(90deg, rgba(247, 243, 232, 0.82), transparent);
+}
+
+:root[data-character-sheet-background] .unified-sheet .unified-sheet-reader.unified-sheet-stage,
+:root[data-character-sheet-background] .unified-sheet .unified-sheet-reader .unified-sheet-tab-content {
+  background: transparent;
+  backdrop-filter: none;
 }
 
 :root[data-character-sheet-background][data-theme="light"] .unified-sheet-status-grid :is(
@@ -5220,6 +5260,110 @@ button[disabled] {
   gap: 0.8rem;
 }
 
+.profession-list-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  min-height: 64px;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--ui-border);
+  border-left: 4px solid var(--ui-brand);
+  border-radius: 12px;
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  text-align: left;
+  box-shadow: none;
+}
+
+.profession-list-item:hover,
+.profession-list-item:focus-visible {
+  border-color: var(--ui-border-strong, var(--ui-brand));
+  background: var(--ui-surface-muted);
+  color: var(--ui-text);
+  transform: none;
+}
+
+.profession-list-item-copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.profession-list-item-copy h4 {
+  margin: 0;
+  color: var(--ui-text);
+}
+
+.profession-list-item-copy > span {
+  overflow: hidden;
+  color: var(--ui-text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profession-list-item-status,
+.profession-detail-header-actions {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.profession-list-item-chevron {
+  color: var(--ui-text-muted);
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.profession-detail-modal {
+  width: min(720px, calc(100vw - 36px));
+  max-height: min(86dvh, 820px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.profession-detail-header,
+.profession-detail-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+}
+
+.profession-detail-header {
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.profession-detail-header h3,
+.profession-detail-content h4 {
+  margin: 0.2rem 0 0;
+}
+
+.profession-detail-content {
+  min-height: 0;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.profession-detail-content > p,
+.profession-detail-content > section {
+  margin: 0;
+}
+
+.profession-detail-actions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--ui-border);
+}
+
 .profession-progress-card,
 .profession-request-card {
   padding: 1rem;
@@ -5282,6 +5426,33 @@ button[disabled] {
 .profession-goal-picker h4 { margin: 0; }
 
 @media (max-width: 720px) {
+  .profession-list-item {
+    gap: 0.6rem;
+    padding: 0.7rem;
+  }
+
+  .profession-list-item-status {
+    gap: 0.35rem;
+  }
+
+  .profession-detail-modal {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+
+  .profession-detail-header {
+    align-items: flex-start;
+  }
+
+  .profession-detail-header-actions {
+    align-items: flex-end;
+    flex-direction: column-reverse;
+  }
+
+  .profession-detail-actions {
+    padding: 0.75rem;
+  }
+
   .profession-requirement-list > div { grid-template-columns: auto 1fr; }
   .profession-requirement-list > div strong { grid-column: 2; }
 }
@@ -5407,6 +5578,36 @@ button[disabled] {
 
 .module-theme .character-builder-shell.campaign-sheet-card {
   overflow: visible;
+}
+
+.character-builder-sticky-controls {
+  position: sticky;
+  top: var(--app-top-navigation-height);
+  z-index: 90;
+  width: 100%;
+  background: color-mix(in srgb, var(--ui-surface) 95%, transparent);
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--ui-text) 9%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.character-builder-sticky-controls > .character-builder-header-band.module-sticky-header {
+  position: static;
+  top: auto;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.character-builder-sticky-controls > .character-builder-tabs {
+  min-width: 0;
+  padding-inline: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: color-mix(in srgb, var(--ui-surface) 95%, transparent);
+  scrollbar-width: thin;
+}
+
+.character-builder-sticky-controls > .character-builder-tabs button {
+  min-width: max-content;
 }
 
 .character-directory-header-band.module-sticky-header,
@@ -5796,6 +5997,10 @@ button[disabled] {
   .character-directory-header-band.module-sticky-header,
   .character-builder-header-band.module-sticky-header {
     grid-template-columns: minmax(110px, 0.65fr) minmax(0, 1fr);
+  }
+
+  .character-builder-sticky-controls > .character-builder-tabs {
+    padding-inline: 8px;
   }
 
   .character-directory-header-actions,

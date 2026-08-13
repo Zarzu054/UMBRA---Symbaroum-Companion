@@ -32,6 +32,13 @@ describe("mystic artifact preset catalog", () => {
     expect(incomplete).toEqual([]);
   });
 
+  it("catalogs Parcabrasa as a thrown weapon with separate base and fire damage", () => {
+    const parcabrasa = MYSTIC_ARTIFACT_PRESETS.find((preset) => preset.slug === "parcabrasa");
+    expect(parcabrasa?.artifact.kind).toBe("weapon");
+    expect(parcabrasa?.artifact.weapon?.tags).toContain("thrown");
+    expect(parcabrasa?.artifact.weapon?.damageFormula).toBe("1D6+1D4");
+  });
+
   it("only refreshes campaign copies whose artifact and abilities still contain legacy placeholders", () => {
     expect(isUntouchedLegacyArtifactCopy(
       "Artefacto místico vinculable descrito en La corona de cobre, página 68.",

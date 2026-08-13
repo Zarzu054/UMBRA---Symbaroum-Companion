@@ -2943,7 +2943,12 @@ export function UnifiedCharacterSheet({
           </nav>
         ) : null}
 
-        <div className="unified-sheet-tab-content">
+        <div
+          className="unified-sheet-tab-content"
+          role="region"
+          aria-label={`${navigationLabel}: contenido`}
+          tabIndex={0}
+        >
           {stageActiveTab === "actions" ? (
             <section className="unified-sheet-panel">
               <article className="campaign-sheet-card">
