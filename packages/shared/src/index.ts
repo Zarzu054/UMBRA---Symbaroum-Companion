@@ -319,7 +319,7 @@ const noteSectionsSchema = z.object({
 const structuredNoteEntrySchema = z.object({
   id: z.string().min(1).max(120),
   title: z.string().min(1).max(160),
-  content: z.string().max(12000).default(""),
+  content: z.string().default(""),
   createdAt: z.string().max(80).default(""),
   updatedAt: z.string().max(80).default("")
 });
@@ -2088,7 +2088,7 @@ export const createCampaignSchema = z.object({
   setting: z.string().max(200).default(""),
   notes: z.string().max(4000).default(""),
   dmNoteEntries: z.array(campaignSharedNoteEntrySchema).max(200).default([]),
-  sharedNotes: z.string().max(6000).default(""),
+  sharedNotes: z.string().default(""),
   sharedNoteEntries: z.array(campaignSharedNoteEntrySchema).max(200).default([])
 });
 
