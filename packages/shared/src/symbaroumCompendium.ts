@@ -4,6 +4,7 @@ export type SymbaroumCapabilityAction = {
   id: string;
   label: string;
   cost: "free" | "movement" | "combat" | "reaction";
+  categories?: Array<"attack" | "powers" | "artifacts" | "combat" | "movement" | "free" | "reaction" | "other">;
   requiredLevel?: "principiante" | "adepto" | "maestro";
   rollAttribute?: "agil" | "atento" | "discreto" | "diestro" | "fuerte" | "inteligente" | "persuasivo" | "tenaz";
   fixedTarget?: number;

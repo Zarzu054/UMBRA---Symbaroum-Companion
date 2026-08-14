@@ -11,7 +11,7 @@ describe("modular character sheet layout", () => {
     expect(stylesheet).toMatch(/\.character-actions-page > \.unified-sheet\s*\{[\s\S]*?gap: 20px/);
     expect(stylesheet).toMatch(/\.unified-sheet-workspace\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
     expect(stylesheet).toMatch(/\.unified-sheet-reader\.unified-sheet-stage\s*\{[\s\S]*?height: clamp\(420px,[\s\S]*?overflow: hidden/);
-    expect(stylesheet).toMatch(/\.unified-sheet-reader \.unified-sheet-tab-content\s*\{[\s\S]*?overflow-y: scroll;[\s\S]*?overscroll-behavior-y: auto;[\s\S]*?touch-action: pan-y/);
+    expect(stylesheet).toMatch(/\.unified-sheet-reader \.unified-sheet-tab-content\s*\{[\s\S]*?height: 100%;[\s\S]*?max-height: 100%;[\s\S]*?align-self: stretch;[\s\S]*?overflow-y: auto;[\s\S]*?overscroll-behavior-y: auto;[\s\S]*?touch-action: pan-y/);
     expect(component).toMatch(/className="unified-sheet-tab-content"[\s\S]*?role="region"[\s\S]*?tabIndex=\{0\}/);
   });
 
@@ -76,14 +76,17 @@ describe("modular character sheet layout", () => {
     expect(component).not.toContain("unified-sheet-combat-derived");
   });
 
-  it("removes the status, resources and outer reader frames while preserving the inner cards", () => {
+  it("removes status and resource frames while preserving the outer reader cards and their inner cards", () => {
     expect(stylesheet).toMatch(/\.unified-sheet \.unified-sheet-status-grid > \.unified-sheet-module\.campaign-sheet-card\s*\{[\s\S]*?border: 0;[\s\S]*?box-shadow: none/);
     expect(stylesheet).toMatch(/:root\[data-character-sheet-background\] \.unified-sheet \.unified-sheet-status-grid > \.unified-sheet-module\.campaign-sheet-card\s*\{[\s\S]*?background: transparent/);
     expect(stylesheet).toMatch(/:root \.unified-sheet \.unified-sheet-top-grid > \.unified-sheet-resources-module\.campaign-sheet-card\s*\{[\s\S]*?border: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none/);
     expect(stylesheet).toMatch(/\.unified-sheet-resources-module\.campaign-sheet-card::before,[\s\S]*?\.unified-sheet-resources-module\.campaign-sheet-card::after\s*\{[\s\S]*?display: none/);
-    expect(stylesheet).toMatch(/\.unified-sheet \.unified-sheet-reader\.unified-sheet-stage\.campaign-sheet-card\s*\{[\s\S]*?border: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none/);
-    expect(stylesheet).toMatch(/\.unified-sheet-reader\.unified-sheet-stage\.campaign-sheet-card::before,[\s\S]*?::after\s*\{[\s\S]*?display: none/);
-    expect(stylesheet).toMatch(/:root\[data-character-sheet-background\] \.unified-sheet \.unified-sheet-reader\.unified-sheet-stage,[\s\S]*?\.unified-sheet-tab-content\s*\{[\s\S]*?background: transparent;[\s\S]*?backdrop-filter: none/);
+    expect(stylesheet).not.toContain(`.unified-sheet .unified-sheet-reader.unified-sheet-stage.campaign-sheet-card {
+  padding: 0;
+  border: 0;`);
+    expect(stylesheet).toMatch(/:root\[data-character-sheet-background\]\[data-theme="light"\] \.unified-sheet \.unified-sheet-reader\.unified-sheet-stage\.campaign-sheet-card\s*\{[\s\S]*?background: color-mix\(in srgb, var\(--ui-surface\) 93%, transparent\)/);
+    expect(stylesheet).toMatch(/:root\[data-character-sheet-background\]\[data-theme="dark"\] \.unified-sheet \.unified-sheet-reader\.unified-sheet-stage\.campaign-sheet-card\s*\{[\s\S]*?background: color-mix\(in srgb, var\(--ui-surface\) 90%, transparent\)/);
+    expect(stylesheet).toMatch(/:root\[data-character-sheet-background\] \.unified-sheet \.unified-sheet-reader \.unified-sheet-tab-content\s*\{[\s\S]*?background: transparent;[\s\S]*?backdrop-filter: none/);
     expect(stylesheet).toMatch(/:root\[data-character-sheet-background\]\[data-theme="light"\] \.unified-sheet-resources-module \.unified-sheet-vital-card\s*\{[\s\S]*?background: color-mix\(in srgb, var\(--ui-surface\) 96%, transparent\)/);
     expect(stylesheet).toMatch(/:root\[data-character-sheet-background\]\[data-theme="dark"\] \.unified-sheet-resources-module \.unified-sheet-vital-card\s*\{[\s\S]*?background: color-mix\(in srgb, var\(--ui-surface\) 94%, transparent\)/);
     expect(stylesheet).toMatch(/:root\[data-character-sheet-background\]\[data-theme="dark"\] \.unified-sheet-status-grid :is\([\s\S]*?background: color-mix\(in srgb, var\(--ui-surface\) 94%, transparent\)/);
@@ -95,6 +98,7 @@ describe("modular character sheet layout", () => {
     const mobileRules = stylesheet.slice(mobileStart, mobileEnd);
     expect(mobileRules).toContain(".unified-sheet-reader.unified-sheet-stage");
     expect(mobileRules).toMatch(/height: auto;[\s\S]*?overflow: visible/);
+    expect(mobileRules).toMatch(/\.unified-sheet-reader \.unified-sheet-tab-content\s*\{[\s\S]*?height: auto;[\s\S]*?max-height: none;[\s\S]*?overflow: visible/);
     expect(mobileRules).toContain(".unified-sheet.is-mobile-tab-attributes .unified-sheet-reader");
   });
 
@@ -103,6 +107,11 @@ describe("modular character sheet layout", () => {
     expect(stylesheet).toMatch(/> \.unified-sheet-stage-subtabs\s*\{[\s\S]*?padding: 6px;[\s\S]*?border: 1px solid var\(--ui-border\);[\s\S]*?border-radius: var\(--ui-radius-md\);[\s\S]*?background: color-mix\(in srgb, var\(--ui-surface-muted\)/);
     expect(stylesheet).toMatch(/> \.unified-sheet-stage-subtabs button\s*\{[\s\S]*?border-radius: 999px;[\s\S]*?background: var\(--ui-surface\)/);
     expect(stylesheet).toMatch(/> \.unified-sheet-stage-subtabs button\.is-active\s*\{[\s\S]*?color: var\(--ui-on-brand\);[\s\S]*?background: var\(--ui-brand\)/);
+    expect(stylesheet).toMatch(/> \.unified-sheet-stage-subtabs\.is-actions\s*\{[\s\S]*?display: flex;[\s\S]*?flex-wrap: nowrap;[\s\S]*?overflow-x: auto/);
+    expect(component).toContain('["combat", "Acciones de combate"]');
+    expect(component).toContain('["movement", "Acciones de movimiento"]');
+    expect(component).toContain('["feats", "Hazañas"]');
+    expect(component).toContain('["maneuvers", "Maniobras de combate"]');
   });
 
   it("keeps inactive conditions neutral and gives active toggles semantic colors", () => {

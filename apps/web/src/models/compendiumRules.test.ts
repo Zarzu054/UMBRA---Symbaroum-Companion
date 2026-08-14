@@ -96,4 +96,19 @@ describe("catálogo de reglas del compendio", () => {
       "Crónica de monstruos"
     ]));
   });
+
+  it("conserva como variantes canónicas las acciones propias de la guía rápida de combate", () => {
+    const actions = rules.find((entry) => entry.id === "regla-basica-acciones-de-combate")!;
+    expect(actions.references).toContainEqual({ source: "Libro Básico", page: 161 });
+    expect(actions.variants).toHaveLength(7);
+    expect(actions.variants?.map((variant) => variant.label)).toEqual(expect.arrayContaining([
+      "Trabarse en cuerpo a cuerpo",
+      "Moverse alrededor de un enemigo",
+      "Desenvainar un arma",
+      "Cambiar de arma",
+      "Atacar",
+      "Usar una habilidad activa",
+      "Acción de movimiento adicional"
+    ]));
+  });
 });

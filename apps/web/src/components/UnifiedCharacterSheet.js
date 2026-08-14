@@ -13,7 +13,7 @@ import { dispatchRoll20Request, setRollDestination as persistRollDestination } f
 const TAB_IDS = ["actions", "inventory", "abilities", "background", "notes"];
 const MECHANICAL_TAB_IDS = ["actions", "inventory", "abilities"];
 const NARRATIVE_TAB_IDS = ["background", "notes"];
-const ACTION_TAB_IDS = ["all", "favorites", "attacks", "powers", "artifacts", "actions", "free", "reactions", "other", "special"];
+const ACTION_TAB_IDS = ["all", "favorites", "attacks", "combat", "movement", "free", "reactions", "powers", "artifacts", "feats", "maneuvers", "special", "other"];
 const CAPABILITY_TAB_IDS = ["traits", "blessings", "burdens", "abilities", "powers", "rituals"];
 const INVENTORY_TAB_IDS = ["money", "weapons", "armors", "artifacts", "items"];
 const CHARACTER_CONDITION_DEFINITIONS = [
@@ -80,25 +80,119 @@ const DEFAULT_SHEET_TAB_STATE = {
     activeCapabilityTab: "abilities",
     activeInventoryTab: "weapons"
 };
-const SPECIAL_ACTION_RULE_NAMES = [
-    "Apuntar con cuidado",
-    "Embestir",
-    "Retrasar la iniciativa",
-    "Desarmar",
-    "Defensa completa",
-    "Ofensiva total",
-    "Presa",
-    "Dejar inconsciente",
-    "Veneno en las armas",
-    "Hacer retroceder",
-    "Placaje",
-    "Tomar la iniciativa",
+const STANDALONE_INFORMATIONAL_ACTION_RULE_NAMES = [
     "Luchar a ciegas",
     "Destrabarse del combate",
     "Usar/aplicar un elixir",
     "Primeros auxilios",
-    "Levantarse"
+    "Levantarse",
+    "Línea de visión",
+    "Flanquear"
 ];
+const INFORMATIONAL_ACTION_CATEGORIES = {
+    "regla-resumen-40-golpe-limpio": ["feats", "combat", "attacks"],
+    "regla-resumen-41-sin-miedo": ["feats", "free"],
+    "regla-resumen-42-ignorar-la-corrupcion": ["feats", "free"],
+    "regla-resumen-43-defensa-perfecta": ["feats", "reactions"],
+    "regla-resumen-44-golpe-rapido": ["feats", "free"],
+    "regla-resumen-45-resistencia": ["feats", "free"],
+    "regla-resumen-46-mirada-de-acero": ["feats", "free"],
+    "regla-resumen-47-ataque-torbellino": ["feats", "combat", "attacks"],
+    "regla-resumen-62-apuntar-con-cuidado": ["maneuvers", "movement"],
+    "regla-resumen-63-embestir": ["maneuvers", "movement", "combat", "attacks"],
+    "regla-resumen-64-retrasar-la-iniciativa": ["maneuvers", "free"],
+    "regla-resumen-65-desarmar": ["maneuvers", "combat", "attacks"],
+    "regla-resumen-66-defensa-completa": ["maneuvers", "combat"],
+    "regla-resumen-67-ofensiva-total": ["maneuvers", "combat", "attacks"],
+    "regla-resumen-68-presa": ["maneuvers", "combat", "attacks"],
+    "regla-resumen-69-dejar-inconsciente": ["maneuvers", "combat", "attacks"],
+    "regla-resumen-70-veneno-en-las-armas": ["maneuvers", "combat"],
+    "regla-resumen-71-hacer-retroceder": ["maneuvers", "movement", "combat", "attacks"],
+    "regla-resumen-72-placaje": ["maneuvers", "combat", "attacks"],
+    "regla-resumen-73-tomar-la-iniciativa": ["maneuvers", "free"],
+    "regla-resumen-2-luchar-a-ciegas": ["special"],
+    "regla-resumen-3-destrabarse-del-combate": ["special", "movement"],
+    "regla-resumen-4-usar-aplicar-un-elixir": ["special", "movement", "combat"],
+    "regla-resumen-5-primeros-auxilios": ["special", "combat"],
+    "regla-resumen-6-levantarse": ["special", "movement"],
+    "regla-resumen-7-linea-de-vision": ["movement"],
+    "regla-resumen-9-flanquear": ["movement"],
+    "guia-rapida-trabarse-cuerpo-a-cuerpo": ["movement"],
+    "guia-rapida-moverse-alrededor-enemigo": ["movement"],
+    "guia-rapida-desenvainar-arma": ["movement"],
+    "guia-rapida-cambiar-arma": ["movement"],
+    "guia-rapida-atacar": ["combat", "attacks"],
+    "guia-rapida-habilidad-activa": ["combat"],
+    "guia-rapida-movimiento-adicional": ["combat"]
+};
+function buildVariantInformationalActions(parentId, familyCategory) {
+    const parent = ALL_ENTRIES.find((entry) => entry.id === parentId);
+    if (!parent)
+        return [];
+    return (parent.variants ?? [])
+        .filter((variant) => {
+        const categories = INFORMATIONAL_ACTION_CATEGORIES[variant.id];
+        return Boolean(categories && (!familyCategory || categories.includes(familyCategory)));
+    })
+        .map((variant) => ({
+        id: `rule:${variant.id}`,
+        label: variant.label,
+        familyLabel: parent.nombre,
+        familyDetail: parent.detalle,
+        detail: variant.detail ?? "Sin detalles adicionales.",
+        facts: variant.facts,
+        sourceEntry: parent,
+        categories: INFORMATIONAL_ACTION_CATEGORIES[variant.id] ?? [familyCategory],
+        optional: parent.ruleCategory === "official_optional"
+    }));
+}
+function buildStandaloneInformationalActions() {
+    const order = new Map(STANDALONE_INFORMATIONAL_ACTION_RULE_NAMES.map((name, index) => [normalizeCapabilityText(name), index]));
+    return ALL_ENTRIES
+        .filter((entry) => entry.tipo === "regla" && order.has(normalizeCapabilityText(entry.nombre)))
+        .sort((left, right) => (order.get(normalizeCapabilityText(left.nombre)) ?? 999) - (order.get(normalizeCapabilityText(right.nombre)) ?? 999))
+        .map((entry) => ({
+        id: `rule:${entry.id}`,
+        label: entry.nombre,
+        familyLabel: INFORMATIONAL_ACTION_CATEGORIES[entry.id]?.includes("special") ? "Acciones especiales" : "Guía rápida de combate",
+        familyDetail: "",
+        detail: entry.detalle,
+        facts: [],
+        sourceEntry: entry,
+        categories: INFORMATIONAL_ACTION_CATEGORIES[entry.id] ?? ["special"],
+        optional: entry.ruleCategory === "official_optional"
+    }));
+}
+function handleHorizontalActionTabWheel(event) {
+    const element = event.currentTarget;
+    if (element.scrollWidth <= element.clientWidth || Math.abs(event.deltaY) <= Math.abs(event.deltaX))
+        return;
+    const previous = element.scrollLeft;
+    element.scrollLeft += event.deltaY;
+    if (element.scrollLeft !== previous)
+        event.preventDefault();
+}
+function handleActionTabKeyDown(event) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
+        return;
+    const buttons = Array.from(event.currentTarget.querySelectorAll("button:not(:disabled)"));
+    if (buttons.length === 0)
+        return;
+    const currentIndex = Math.max(0, buttons.indexOf(document.activeElement));
+    const nextIndex = event.key === "Home"
+        ? 0
+        : event.key === "End"
+            ? buttons.length - 1
+            : event.key === "ArrowLeft"
+                ? Math.max(0, currentIndex - 1)
+                : Math.min(buttons.length - 1, currentIndex + 1);
+    const target = buttons[nextIndex];
+    if (!target)
+        return;
+    event.preventDefault();
+    target.focus();
+    target.scrollIntoView?.({ behavior: "smooth", block: "nearest", inline: "nearest" });
+}
 function buildSheetNoteId() {
     return `sheet-note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -575,12 +669,6 @@ function isDefenseAlternativeAction(action) {
 function isDefenseModifierOnlyAction(action) {
     return isDefenseAlternativeAction(action) && Boolean(action.fixedTarget);
 }
-function isOtherAction(action) {
-    if (action.sourceType === "weapon" || action.sourceType === "power" || action.sourceType === "ritual") {
-        return false;
-    }
-    return Boolean(action.fixedTarget);
-}
 function parseCapabilityTiers(text) {
     const source = String(text ?? "").trim();
     if (!source) {
@@ -941,35 +1029,42 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
             case "favorites":
                 return visibleActions.filter((action) => favoriteActionIds.has(action.id));
             case "attacks":
-                return visibleActions.filter((action) => action.sourceType === "weapon");
+                return visibleActions.filter((action) => action.categories?.includes("attack"));
+            case "combat":
+                return visibleActions.filter((action) => action.categories?.includes("combat"));
+            case "movement":
+                return visibleActions.filter((action) => action.categories?.includes("movement"));
             case "powers":
-                return visibleActions.filter((action) => action.sourceType === "power" || action.sourceType === "ritual");
+                return visibleActions.filter((action) => action.categories?.includes("powers"));
             case "artifacts":
-                return visibleActions.filter((action) => action.sourceType === "artifact");
+                return visibleActions.filter((action) => action.categories?.includes("artifacts"));
             case "other":
-                return visibleActions.filter((action) => isOtherAction(action));
+                return visibleActions.filter((action) => action.categories?.includes("other"));
             case "free":
-                return visibleActions.filter((action) => action.cost === "free" && !isOtherAction(action));
+                return visibleActions.filter((action) => action.categories?.includes("free"));
             case "reactions":
-                return visibleActions.filter((action) => action.cost === "reaction" && !isOtherAction(action));
+                return visibleActions.filter((action) => action.categories?.includes("reaction"));
+            case "feats":
+            case "maneuvers":
             case "special":
-                return [];
-            case "actions":
             default:
-                return visibleActions.filter((action) => action.sourceType !== "weapon" &&
-                    action.sourceType !== "power" &&
-                    action.sourceType !== "ritual" &&
-                    !isOtherAction(action) &&
-                    action.cost !== "free" &&
-                    action.cost !== "reaction");
+                return [];
         }
     }, [visibleActions, activeActionTab, favoriteActionIds]);
-    const specialActionEntries = useMemo(() => {
-        const order = new Map(SPECIAL_ACTION_RULE_NAMES.map((name, index) => [normalizeCapabilityText(name), index]));
-        return ALL_ENTRIES
-            .filter((entry) => entry.tipo === "regla" && order.has(normalizeCapabilityText(entry.nombre)))
-            .sort((a, b) => (order.get(normalizeCapabilityText(a.nombre)) ?? 999) - (order.get(normalizeCapabilityText(b.nombre)) ?? 999));
-    }, []);
+    const informationalActions = useMemo(() => [
+        ...buildVariantInformationalActions("regla-resumen-39-hazanas", "feats"),
+        ...buildVariantInformationalActions("regla-resumen-61-maniobras-de-combate-combates-mas-tacticos", "maneuvers"),
+        ...buildVariantInformationalActions("regla-basica-acciones-de-combate"),
+        ...buildStandaloneInformationalActions()
+    ], []);
+    const filteredInformationalActions = useMemo(() => {
+        if (activeActionTab === "all")
+            return informationalActions;
+        if (activeActionTab === "favorites") {
+            return informationalActions.filter((entry) => favoriteActionIds.has(entry.id));
+        }
+        return informationalActions.filter((entry) => entry.categories.includes(activeActionTab));
+    }, [activeActionTab, favoriteActionIds, informationalActions]);
     const pendingAttackModifiers = useMemo(() => (pendingRollConfirmation
         ? getCheckRollModifiers(pendingRollConfirmation.action, pendingRollConfirmation.request, normalizedSheet)
         : []), [pendingRollConfirmation, normalizedSheet]);
@@ -1041,6 +1136,9 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
                 const persistedActiveTab = persistedTabs.activeTab && TAB_IDS.includes(persistedTabs.activeTab)
                     ? persistedTabs.activeTab
                     : DEFAULT_SHEET_TAB_STATE.activeTab;
+                const persistedActionTab = persistedTabs.activeActionTab === "actions"
+                    ? "combat"
+                    : persistedTabs.activeActionTab;
                 nextState = {
                     activeTab: persistedActiveTab,
                     activeMechanicalTab: persistedTabs.activeMechanicalTab && MECHANICAL_TAB_IDS.includes(persistedTabs.activeMechanicalTab)
@@ -1053,7 +1151,7 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
                         : NARRATIVE_TAB_IDS.includes(persistedActiveTab)
                             ? persistedActiveTab
                             : DEFAULT_SHEET_TAB_STATE.activeNarrativeTab,
-                    activeActionTab: persistedTabs.activeActionTab && ACTION_TAB_IDS.includes(persistedTabs.activeActionTab) ? persistedTabs.activeActionTab : DEFAULT_SHEET_TAB_STATE.activeActionTab,
+                    activeActionTab: persistedActionTab && ACTION_TAB_IDS.includes(persistedActionTab) ? persistedActionTab : DEFAULT_SHEET_TAB_STATE.activeActionTab,
                     activeCapabilityTab: persistedTabs.activeCapabilityTab && CAPABILITY_TAB_IDS.includes(persistedTabs.activeCapabilityTab) ? persistedTabs.activeCapabilityTab : DEFAULT_SHEET_TAB_STATE.activeCapabilityTab,
                     activeInventoryTab: persistedTabs.activeInventoryTab && INVENTORY_TAB_IDS.includes(persistedTabs.activeInventoryTab) ? persistedTabs.activeInventoryTab : DEFAULT_SHEET_TAB_STATE.activeInventoryTab
                 };
@@ -1423,22 +1521,32 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
             references
         });
     }
-    function openRuleCompendiumDetail(entry) {
-        const summaryLink = getCompendiumSummaryLink(entry);
-        const references = [
-            getCompendiumSourcePdfUrl(entry.fuente, entry.pagina, entry.nombre),
-            summaryLink?.url
-        ]
-            .filter((url) => Boolean(url))
-            .map((url) => ({
-            url,
-            label: url === summaryLink?.url ? `${summaryLink.documentLabel} - ${summaryLink.sectionLabel}` : `${entry.fuente}${entry.pagina ? ` p. ${entry.pagina}` : ""}`
-        }));
+    function openInformationalActionDetail(entry) {
+        const sourceEntry = entry.sourceEntry;
+        const summaryLink = getCompendiumSummaryLink(sourceEntry);
+        const sourceReferences = [
+            { source: sourceEntry.fuente, page: sourceEntry.pagina },
+            ...(sourceEntry.references ?? [])
+        ];
+        const references = sourceReferences
+            .map((reference) => ({
+            url: getCompendiumSourcePdfUrl(reference.source, reference.page, entry.label),
+            label: `${reference.source}${reference.page ? ` p. ${reference.page}` : ""}`
+        }))
+            .filter((reference) => Boolean(reference.url));
+        if (summaryLink) {
+            references.push({
+                url: summaryLink.url,
+                label: `${summaryLink.documentLabel} - ${summaryLink.sectionLabel}`
+            });
+        }
+        const uniqueReferences = references.filter((reference, index, collection) => (collection.findIndex((candidate) => candidate.url === reference.url) === index));
+        const facts = entry.facts.map((fact) => `${fact.label}: ${fact.value}`).join("\n");
         setActionDetailModal({
-            title: entry.nombre,
-            sourceLabel: `Accion especial · ${entry.fuente}${entry.pagina ? ` p. ${entry.pagina}` : ""}`,
-            detail: entry.detalle,
-            references
+            title: entry.label,
+            sourceLabel: `${entry.familyLabel}${entry.optional ? " · Regla opcional" : ""} · ${sourceEntry.fuente}${sourceEntry.pagina ? ` p. ${sourceEntry.pagina}` : ""}`,
+            detail: [entry.familyDetail, facts, entry.detail].filter(Boolean).join("\n\n"),
+            references: uniqueReferences
         });
     }
     function queueRoll20Request(requestOrAction, phaseOrTitle, requestTitle, selectedAttackModifierIds = [], selectedDamageModifierIds = []) {
@@ -2289,16 +2397,19 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
     }
     function renderTabStage(tabs, stageActiveTab, onTabChange, navigationLabel, className = "unified-sheet-stage campaign-sheet-card") {
         const hasStageSubtabs = stageActiveTab === "actions" || stageActiveTab === "inventory" || stageActiveTab === "abilities";
-        return (_jsxs("section", { className: `${className}${hasStageSubtabs ? " has-stage-subtabs" : ""}`, children: [_jsx("nav", { className: "unified-sheet-tabs", "aria-label": navigationLabel, children: tabs.map(([tab, label]) => (_jsx("button", { type: "button", className: stageActiveTab === tab ? "is-active" : "", onClick: () => onTabChange(tab), children: label }, tab))) }), stageActiveTab === "actions" ? (_jsx("nav", { className: "unified-sheet-subtabs unified-sheet-action-subtabs unified-sheet-stage-subtabs is-actions", "aria-label": "Filtros de acciones", children: [
+        return (_jsxs("section", { className: `${className}${hasStageSubtabs ? " has-stage-subtabs" : ""}`, children: [_jsx("nav", { className: "unified-sheet-tabs", "aria-label": navigationLabel, children: tabs.map(([tab, label]) => (_jsx("button", { type: "button", className: stageActiveTab === tab ? "is-active" : "", onClick: () => onTabChange(tab), children: label }, tab))) }), stageActiveTab === "actions" ? (_jsx("nav", { className: "unified-sheet-subtabs unified-sheet-action-subtabs unified-sheet-stage-subtabs is-actions", "aria-label": "Filtros de acciones", onWheel: handleHorizontalActionTabWheel, onKeyDown: handleActionTabKeyDown, children: [
                         ["all", "Todas"],
                         ["favorites", "Favoritas"],
                         ["attacks", "Ataques"],
-                        ["powers", "Poderes y rituales"],
-                        ["artifacts", "Artefactos"],
-                        ["special", "Acciones especiales"],
-                        ["actions", "Acciones"],
+                        ["combat", "Acciones de combate"],
+                        ["movement", "Acciones de movimiento"],
                         ["free", "Acciones gratuitas"],
                         ["reactions", "Reacciones"],
+                        ["powers", "Poderes y rituales"],
+                        ["artifacts", "Artefactos"],
+                        ["feats", "Hazañas"],
+                        ["maneuvers", "Maniobras de combate"],
+                        ["special", "Acciones especiales"],
                         ["other", "Otras"]
                     ].map(([tab, label]) => (_jsx("button", { type: "button", className: activeActionTab === tab ? "is-active" : "", onClick: () => setActiveActionTab(tab), children: label }, tab))) })) : null, stageActiveTab === "inventory" ? (_jsx("nav", { className: "unified-sheet-subtabs unified-sheet-stage-subtabs is-inventory", "aria-label": "Secciones del inventario", children: [
                         ["money", "Dinero"],
@@ -2313,7 +2424,9 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
                         ["abilities", "Habilidades"],
                         ["powers", "Poderes"],
                         ["rituals", "Rituales"]
-                    ].map(([tab, label]) => (_jsx("button", { type: "button", className: activeCapabilityTab === tab ? "is-active" : "", onClick: () => setActiveCapabilityTab(tab), children: label }, tab))) })) : null, _jsxs("div", { className: "unified-sheet-tab-content", role: "region", "aria-label": `${navigationLabel}: contenido`, tabIndex: 0, children: [stageActiveTab === "actions" ? (_jsx("section", { className: "unified-sheet-panel", children: _jsxs("article", { className: "campaign-sheet-card", children: [_jsx("div", { className: "row-actions", children: _jsx("h3", { children: "Acciones disponibles" }) }), artifactUseError ? _jsx("p", { className: "error-text", children: artifactUseError }) : null, _jsxs("div", { className: "campaign-sheet-actions", children: [activeActionTab === "special" ? (_jsxs(_Fragment, { children: [specialActionEntries.map((entry) => (_jsxs("div", { className: "campaign-action-button campaign-action-button--row", children: [_jsxs("div", { className: "campaign-action-main", children: [_jsx("div", { className: "campaign-action-title-row", children: _jsx("button", { type: "button", className: "campaign-action-name-button", onClick: () => openRuleCompendiumDetail(entry), children: entry.nombre }) }), _jsxs("span", { className: "campaign-action-source-note", children: [entry.fuente, entry.pagina ? ` p. ${entry.pagina}` : ""] })] }), _jsx("div", { className: "campaign-action-slot", children: _jsx("span", { className: "compendium-chip", children: "Regla" }) }), _jsx("div", { className: "campaign-action-slot is-damage", children: _jsx("span", { "aria-hidden": "true", className: "campaign-action-slot-placeholder" }) })] }, entry.id))), specialActionEntries.length === 0 ? _jsx("p", { className: "section-help", children: "Sin acciones especiales registradas." }) : null] })) : null, activeActionTab !== "special" ? (_jsxs(_Fragment, { children: [filteredActions.map((action) => (_jsxs("div", { className: "campaign-action-button campaign-action-button--row", children: [_jsxs("div", { className: "campaign-action-main", children: [_jsxs("div", { className: "campaign-action-title-row", children: [_jsx("button", { type: "button", className: `campaign-action-favorite-toggle${favoriteActionIds.has(action.id) ? " is-active" : ""}`, onClick: () => toggleFavoriteAction(action.id), "aria-label": favoriteActionIds.has(action.id) ? "Quitar de favoritas" : "Guardar en favoritas", title: favoriteActionIds.has(action.id) ? "Quitar de favoritas" : "Guardar en favoritas", children: "\u2605" }), _jsx("button", { type: "button", className: "campaign-action-name-button", onClick: () => openActionDetail(action), children: formatActionDisplayLabel(action.label) })] }), _jsx("span", { className: "campaign-action-source-note", children: getActionSourceLabel(action) })] }), renderActionRollControls(action)] }, action.id))), filteredActions.length === 0 ? _jsx("p", { className: "section-help", children: "Sin acciones registradas en esta categoria." }) : null] })) : null] }), _jsxs("div", { className: "unified-sheet-action-history", "aria-live": "polite", children: [_jsx("h4", { children: "Historial de acciones" }), history.length > 0 ? (_jsx("div", { className: "roll-log", children: history.map((entry, index) => (_jsxs("div", { className: "character-action-history-entry", children: [_jsx("strong", { children: entry.title }), entry.rolls.map((roll, rollIndex) => (_jsxs("span", { children: [roll.label, ": ", roll.formula, " = ", roll.total, roll.success == null ? "" : roll.success ? " · Éxito" : " · Fallo"] }, `${roll.kind}-${rollIndex}`))), entry.detail ? _jsx("p", { children: entry.detail }) : null] }, `${entry.title}-${index}`))) })) : (_jsx("p", { className: "section-help", children: "A\u00FAn no hay acciones resueltas desde esta hoja." }))] })] }) })) : null, stageActiveTab === "inventory" ? (_jsx("section", { className: "unified-sheet-panel", children: _jsxs("article", { className: "campaign-sheet-card", children: [_jsx("div", { className: "row-actions", children: _jsx("h3", { children: "Inventario y equipo" }) }), activeInventoryTab === "money" ? (_jsx("div", { className: "unified-sheet-money-grid", children: [
+                    ].map(([tab, label]) => (_jsx("button", { type: "button", className: activeCapabilityTab === tab ? "is-active" : "", onClick: () => setActiveCapabilityTab(tab), children: label }, tab))) })) : null, _jsxs("div", { className: "unified-sheet-tab-content", role: "region", "aria-label": `${navigationLabel}: contenido`, tabIndex: 0, children: [stageActiveTab === "actions" ? (_jsx("section", { className: "unified-sheet-panel", children: _jsxs("article", { className: "campaign-sheet-card", children: [_jsx("div", { className: "row-actions", children: _jsx("h3", { children: "Acciones disponibles" }) }), artifactUseError ? _jsx("p", { className: "error-text", children: artifactUseError }) : null, _jsxs("div", { className: "campaign-sheet-actions", children: [filteredActions.map((action) => (_jsxs("div", { className: "campaign-action-button campaign-action-button--row", children: [_jsxs("div", { className: "campaign-action-main", children: [_jsxs("div", { className: "campaign-action-title-row", children: [_jsx("button", { type: "button", className: `campaign-action-favorite-toggle${favoriteActionIds.has(action.id) ? " is-active" : ""}`, onClick: () => toggleFavoriteAction(action.id), "aria-label": favoriteActionIds.has(action.id) ? "Quitar de favoritas" : "Guardar en favoritas", title: favoriteActionIds.has(action.id) ? "Quitar de favoritas" : "Guardar en favoritas", children: "\u2605" }), _jsx("button", { type: "button", className: "campaign-action-name-button", onClick: () => openActionDetail(action), children: formatActionDisplayLabel(action.label) })] }), _jsx("span", { className: "campaign-action-source-note", children: getActionSourceLabel(action) })] }), renderActionRollControls(action)] }, action.id))), filteredInformationalActions.map((entry) => (_jsxs("div", { className: "campaign-action-button campaign-action-button--row is-informational", children: [_jsxs("div", { className: "campaign-action-main", children: [_jsxs("div", { className: "campaign-action-title-row", children: [_jsx("button", { type: "button", className: `campaign-action-favorite-toggle${favoriteActionIds.has(entry.id) ? " is-active" : ""}`, onClick: () => toggleFavoriteAction(entry.id), "aria-label": favoriteActionIds.has(entry.id) ? "Quitar de favoritas" : "Guardar en favoritas", title: favoriteActionIds.has(entry.id) ? "Quitar de favoritas" : "Guardar en favoritas", children: "\u2605" }), _jsx("button", { type: "button", className: "campaign-action-name-button", onClick: () => openInformationalActionDetail(entry), children: entry.label })] }), _jsxs("span", { className: "campaign-action-source-note", children: [entry.familyLabel, entry.optional ? " · Regla opcional" : ""] })] }), _jsx("div", { className: "campaign-action-information", children: _jsx("span", { className: "compendium-chip", children: "Ver detalles" }) })] }, entry.id))), filteredActions.length === 0 && filteredInformationalActions.length === 0
+                                                ? _jsx("p", { className: "section-help", children: "Sin acciones registradas en esta categor\u00EDa." })
+                                                : null] }), _jsxs("div", { className: "unified-sheet-action-history", "aria-live": "polite", children: [_jsx("h4", { children: "Historial de acciones" }), history.length > 0 ? (_jsx("div", { className: "roll-log", children: history.map((entry, index) => (_jsxs("div", { className: "character-action-history-entry", children: [_jsx("strong", { children: entry.title }), entry.rolls.map((roll, rollIndex) => (_jsxs("span", { children: [roll.label, ": ", roll.formula, " = ", roll.total, roll.success == null ? "" : roll.success ? " · Éxito" : " · Fallo"] }, `${roll.kind}-${rollIndex}`))), entry.detail ? _jsx("p", { children: entry.detail }) : null] }, `${entry.title}-${index}`))) })) : (_jsx("p", { className: "section-help", children: "A\u00FAn no hay acciones resueltas desde esta hoja." }))] })] }) })) : null, stageActiveTab === "inventory" ? (_jsx("section", { className: "unified-sheet-panel", children: _jsxs("article", { className: "campaign-sheet-card", children: [_jsx("div", { className: "row-actions", children: _jsx("h3", { children: "Inventario y equipo" }) }), activeInventoryTab === "money" ? (_jsx("div", { className: "unified-sheet-money-grid", children: [
                                             ["taleros", "Taleros"],
                                             ["chelines", "Chelines"],
                                             ["ortegs", "Ortegs"]

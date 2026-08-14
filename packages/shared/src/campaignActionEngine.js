@@ -37,6 +37,7 @@ export function deriveCharacterActions(sheet) {
             sourceName: action.sourceName,
             linkedItemId: action.linkedItemId || undefined,
             cost: action.cost,
+            categories: action.categories,
             requiredLevel: action.requiredLevel ?? inferActionLevel(action.id, action.label, action.sourceName),
             rollAttribute: action.rollAttribute,
             opponentAttribute: action.opponentAttribute,
@@ -55,9 +56,40 @@ export function deriveCharacterActions(sheet) {
         const derivedActions = deriveLegacyCharacterActions(sheet);
         const filteredStoredActions = storedActions.filter((action) => !hasDerivedCombatOverride(action, derivedActions));
         const filteredDerivedActions = derivedActions.filter((action) => !hasStoredWeaponEquivalent(action, filteredStoredActions));
-        return applyPassiveActionRules(sheet, dedupeActions([...filteredStoredActions, ...filteredDerivedActions]));
+        return categorizeCharacterActions(applyPassiveActionRules(sheet, dedupeActions([...filteredStoredActions, ...filteredDerivedActions])));
     }
-    return deriveLegacyCharacterActions(sheet);
+    return categorizeCharacterActions(deriveLegacyCharacterActions(sheet));
+}
+function categorizeCharacterActions(actions) {
+    return actions.map((action) => {
+        const categories = new Set(action.categories ?? []);
+        categories.add(action.cost);
+        if (isLikelyAttackAction(action))
+            categories.add("attack");
+        if (action.sourceType === "power" || action.sourceType === "ritual")
+            categories.add("powers");
+        if (action.sourceType === "artifact")
+            categories.add("artifacts");
+        if (action.sourceType !== "weapon"
+            && action.sourceType !== "power"
+            && action.sourceType !== "ritual"
+            && action.sourceType !== "artifact"
+            && typeof action.fixedTarget === "number") {
+            categories.add("other");
+        }
+        return { ...action, categories: [...categories] };
+    });
+}
+function isLikelyAttackAction(action) {
+    if (action.rolls?.some((roll) => roll.kind === "attack"))
+        return true;
+    if (action.rollAttribute && action.damageFormula)
+        return true;
+    const searchable = `${action.label} ${action.effectSummary}`
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+    return /\b(ataque|atacar|disparar|disparo|golpear|golpe|embestir|placaje|lanzar)\b/.test(searchable);
 }
 function isStoredSheetActionStillLinked(sheet, action) {
     const inventoryItemIds = new Set(sheet.inventoryItems.map((item) => item.id));
@@ -214,6 +246,7 @@ function mapRatedEntryActions(sourceType, sourceName, entryLevel, configuredActi
             sourceType,
             sourceName,
             cost: action.cost,
+            categories: action.categories,
             requiredLevel: action.requiredLevel ?? inferActionLevel(action.id, action.label),
             rollAttribute: action.rollAttribute,
             fixedTarget: action.fixedTarget,
