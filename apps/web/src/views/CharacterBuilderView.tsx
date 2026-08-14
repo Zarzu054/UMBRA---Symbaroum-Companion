@@ -13,6 +13,7 @@ import {
   synchronizeCharacterSheet,
   type Character,
   type CharacterSheet,
+  type MysticArtifact,
   type MysticArtifactPaymentType,
   type SkillLevel,
   type SymbaroumCapability
@@ -20,6 +21,7 @@ import {
 import { getCharacterExperienceSummary } from "../models/characterExperience";
 import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS, type CompendiumEntry } from "../models/compendiumEntries";
 import { useConfirmationDialog } from "../components/ConfirmationDialogProvider";
+import { MysticArtifactDetailsModal } from "../components/MysticArtifactDetailsModal";
 
 type RatedSection = "habilidades" | "rasgosMonstruosos" | "poderesMisticos" | "rituales";
 type StoredRatedSection = "habilidades" | "poderesMisticos" | "rituales";
@@ -58,6 +60,7 @@ type Props = {
   sheetLabel?: string;
   saveLabel?: string;
   onBindMysticArtifact?: (artifactId: string, paymentType: MysticArtifactPaymentType) => Promise<void>;
+  onOpenMysticArtifactSource?: (artifact: MysticArtifact) => Promise<void>;
   onAspireProfession?: (professionId: string) => Promise<void>;
   onRemoveProfessionAspiration?: (professionId: string) => Promise<void>;
   onRequestProfession?: (professionId: string) => Promise<void>;
@@ -80,6 +83,14 @@ type CapabilityTier = {
   label: string;
   content: string;
 };
+
+const BUILDER_ARTIFACT_KIND_LABELS = { weapon: "Arma", armor: "Armadura", object: "Objeto" } as const;
+
+function formatBuilderArtifactBindingCosts(bindingCosts: MysticArtifact["bindingCosts"]): string {
+  return bindingCosts
+    .map((cost) => cost.paymentType === "xp" ? `${cost.amount} PX` : `${cost.amount} Corrupción permanente`)
+    .join(" o ");
+}
 
 const BUILDER_ABILITIES = SYMBAROUM_ABILITIES.filter((entry) => normalizeName(entry.nombre) !== "rituales");
 const BUILDER_MONSTER_TRAITS: SymbaroumCapability[] = ALL_ENTRIES
@@ -343,6 +354,7 @@ export function CharacterBuilderView({
   sheetLabel = "Abrir hoja",
   saveLabel = "Guardar constructor",
   onBindMysticArtifact,
+  onOpenMysticArtifactSource,
   onAspireProfession,
   onRemoveProfessionAspiration,
   onRequestProfession,
@@ -366,6 +378,7 @@ export function CharacterBuilderView({
   const [capabilityConfirmationModal, setCapabilityConfirmationModal] = useState<BuilderCapabilityConfirmationModal | null>(null);
   const [capabilityDetailsSelection, setCapabilityDetailsSelection] = useState<BuilderCapabilityDetailsSelection | null>(null);
   const [bindingArtifactId, setBindingArtifactId] = useState<string | null>(null);
+  const [selectedMysticArtifactId, setSelectedMysticArtifactId] = useState<string | null>(null);
   const [professionBusyId, setProfessionBusyId] = useState<string | null>(null);
   const [selectedProfessionDetailsId, setSelectedProfessionDetailsId] = useState<string | null>(null);
   const [isXpDetailsOpen, setIsXpDetailsOpen] = useState(false);
@@ -385,6 +398,9 @@ export function CharacterBuilderView({
     const nextArtifactBindingXpSpent = character.artifactBindingXpSpent ?? 0;
     const derivedHistoricalRerollSpent = Math.max(0, parsedSheet.progreso.experienciaGastada - experience.computedSpent - nextArtifactBindingXpSpent);
     const previousCharacter = loadedCharacterRef.current;
+    if (previousCharacter && previousCharacter.id !== character.id) {
+      setSelectedMysticArtifactId(null);
+    }
     setHistoricalRerollSpent((currentHistoricalRerollSpent) => {
       const receivedNewBinding = previousCharacter?.id === character.id
         && nextArtifactBindingXpSpent > previousCharacter.artifactBindingXpSpent;
@@ -404,6 +420,15 @@ export function CharacterBuilderView({
   const experience = useMemo(() => getCharacterExperienceSummary(draft), [draft]);
   const rerollSpentTotal = experience.spentFromRerolls + historicalRerollSpent;
   const featSpentTotal = experience.spentFromFeats;
+  const selectedMysticArtifact = useMemo(
+    () => (character.mysticArtifacts ?? []).find((artifact) => artifact.id === selectedMysticArtifactId) ?? null,
+    [character.mysticArtifacts, selectedMysticArtifactId]
+  );
+  useEffect(() => {
+    if (selectedMysticArtifactId && !selectedMysticArtifact) {
+      setSelectedMysticArtifactId(null);
+    }
+  }, [selectedMysticArtifact, selectedMysticArtifactId]);
   const artifactBindingXpExpenses = character.artifactBindingXpExpenses ?? [];
   const rerollExpenseDetails = [
     ...experience.rerollExpenses,
@@ -897,6 +922,7 @@ export function CharacterBuilderView({
     setError(null);
     try {
       await onBindMysticArtifact(artifactId, paymentType);
+      setActiveTab("artefactos");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo completar el vinculo.");
     } finally {
@@ -1234,50 +1260,24 @@ export function CharacterBuilderView({
                   </div>
                   <span className="meta-text">PX disponibles: {effectiveAvailable}</span>
                 </div>
-                <div className="character-builder-purchase-stack">
+                <div className="character-builder-artifact-list">
                   {(character.mysticArtifacts ?? []).map((artifact) => (
-                    <article key={artifact.id} className="character-builder-block">
-                      <div className="row-actions">
-                        <div>
-                          <h4>{artifact.name}</h4>
-                          <p className="meta-text">{artifact.campaignName} · {artifact.isBound ? "Vinculado" : "Sin vincular"}</p>
-                        </div>
-                        {!artifact.isBound ? (
-                          <div className="toolbar">
-                            {artifact.bindingCosts.map((cost) => (
-                              <button
-                                key={cost.paymentType}
-                                type="button"
-                                disabled={bindingArtifactId === artifact.id || (cost.paymentType === "xp" && cost.amount > effectiveAvailable)}
-                                onClick={() => void handleBindArtifact(artifact.id, cost.paymentType)}
-                              >
-                                {bindingArtifactId === artifact.id
-                                  ? "Vinculando..."
-                                  : cost.paymentType === "xp" ? `Vincular por ${cost.amount} PX` : `Vincular por ${cost.amount} Corrupcion permanente`}
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
+                    <button
+                      key={artifact.id}
+                      type="button"
+                      className="character-builder-artifact-row"
+                      aria-label={`Ver detalles de ${artifact.name}`}
+                      onClick={() => setSelectedMysticArtifactId(artifact.id)}
+                    >
+                      <div className="character-builder-artifact-row__identity">
+                        <strong>{artifact.name}</strong>
+                        <span>{BUILDER_ARTIFACT_KIND_LABELS[artifact.kind]} · {artifact.campaignName}</span>
                       </div>
-                      {artifact.description ? <p className="section-help">{artifact.description}</p> : null}
-                      {artifact.resources.map((resource) => resource.maximum !== undefined && resource.current !== undefined ? (
-                        <div key={resource.id} className="info-box"><span>{resource.name}</span><strong>{resource.current}/{resource.maximum}</strong></div>
-                      ) : null)}
-                      {artifact.abilities.length > 0 ? (
-                        <div className="character-builder-entry-list">
-                          {artifact.abilities.map((ability) => (
-                            <article key={ability.id} className="character-builder-entry-card">
-                              <div className="character-builder-entry-head">
-                                <strong>{ability.name}</strong>
-                                <span className="meta-text">{ability.locked ? ability.lockReason : ability.activation === "active" ? "Disponible" : ability.activation}</span>
-                              </div>
-                              <p className="section-help">{ability.description}</p>
-                              <p className="meta-text">Corrupcion: {ability.corruptionFormula || "Ninguna"}{ability.perSceneLimit ? ` · ${ability.perSceneLimit} vez/veces por escena` : ""}</p>
-                            </article>
-                          ))}
-                        </div>
-                      ) : !artifact.isBound ? <p className="section-help">Sus capacidades se revelaran al completar el vinculo.</p> : null}
-                    </article>
+                      <div className="character-builder-artifact-row__status">
+                        <span className={`compendium-chip${artifact.isBound ? " is-active" : ""}`}>{artifact.isBound ? "Vinculado" : "Sin vincular"}</span>
+                        <span>{formatBuilderArtifactBindingCosts(artifact.bindingCosts) || "Sin coste configurado"}</span>
+                      </div>
+                    </button>
                   ))}
                   {(character.mysticArtifacts ?? []).length === 0 ? <p className="section-help">Este personaje no posee artefactos de campaña.</p> : null}
                 </div>
@@ -1286,6 +1286,18 @@ export function CharacterBuilderView({
           </section>
         </section>
       </section>
+
+      {selectedMysticArtifact ? (
+        <MysticArtifactDetailsModal
+          artifact={selectedMysticArtifact}
+          campaignName={selectedMysticArtifact.campaignName}
+          availableExperience={effectiveAvailable}
+          busy={busy || bindingArtifactId === selectedMysticArtifact.id}
+          onClose={() => setSelectedMysticArtifactId(null)}
+          onBind={onBindMysticArtifact ? handleBindArtifact : undefined}
+          onOpenSource={onOpenMysticArtifactSource}
+        />
+      ) : null}
 
       {isXpDetailsOpen ? (
         <section className="modal-backdrop" onClick={() => setIsXpDetailsOpen(false)}>

@@ -1544,10 +1544,11 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
         }
         const uniqueReferences = references.filter((reference, index, collection) => (collection.findIndex((candidate) => candidate.url === reference.url) === index));
         const facts = entry.facts.map((fact) => `${fact.label}: ${fact.value}`).join("\n");
+        const isIndividualFeatOrManeuver = entry.categories.includes("feats") || entry.categories.includes("maneuvers");
         setActionDetailModal({
             title: entry.label,
             sourceLabel: `${entry.familyLabel}${entry.optional ? " · Regla opcional" : ""} · ${sourceEntry.fuente}${sourceEntry.pagina ? ` p. ${sourceEntry.pagina}` : ""}`,
-            detail: [entry.familyDetail, facts, entry.detail].filter(Boolean).join("\n\n"),
+            detail: [isIndividualFeatOrManeuver ? "" : entry.familyDetail, facts, entry.detail].filter(Boolean).join("\n\n"),
             references: uniqueReferences
         });
     }

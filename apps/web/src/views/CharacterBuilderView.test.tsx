@@ -21,6 +21,45 @@ function makeArtifact(): OwnedMysticArtifact {
   };
 }
 
+function makeRevealedArtifact(): OwnedMysticArtifact {
+  return {
+    ...makeArtifact(),
+    description: "Una piedra cálida que almacena la luz del amanecer.",
+    kind: "weapon",
+    sourceTitle: "Artefactos de Davokar",
+    sourcePage: 41,
+    weapon: {
+      attackAttribute: "atento",
+      attackFormula: "1D20",
+      damageFormula: "1D8",
+      tags: ["ranged"],
+      qualities: ["Precisa"],
+      requiresBinding: true
+    },
+    abilities: [{
+      id: "ability-solar",
+      name: "Destello solar",
+      description: "Ciega al objetivo durante un turno.",
+      activation: "active",
+      actionCost: "combat",
+      corruptionFormula: "1D4",
+      requiresBinding: true,
+      perSceneLimit: 1,
+      perSceneNote: "Solo una vez por escena.",
+      rolls: [{ id: "roll-solar", kind: "attack", label: "Impacto luminoso", formula: "1D20", actorAttribute: "atento", opponentAttribute: "agil" }],
+      requirements: [{ id: "requirement-solar", type: "narrative", capabilityName: "", description: "Estar bajo la luz del sol." }],
+      resourceCosts: [{ resourceKey: "luz", amount: 1 }],
+      locked: false,
+      lockReason: ""
+    }],
+    resources: [{ id: "resource-solar", key: "luz", name: "Cargas de luz", suggestedMaxFormula: "Atento", maximum: 3, current: 2 }],
+    isBound: true,
+    boundAt: "2026-08-14T12:00:00.000Z",
+    bindingPaymentType: "xp",
+    bindingPaymentAmount: 1
+  };
+}
+
 it("uses the persisted XP total without adding burden bonuses a second time", () => {
   const sheet = createEmptyCharacterSheet();
   sheet.progreso.experienciaTotal = 102;
@@ -296,7 +335,7 @@ it("organizes identity and preserves the creation-only familiar marker when savi
   expect(onSave.mock.calls[0][0].identidad.esFamiliar).toBe(true);
 });
 
-it("lets the player choose a configured artifact binding payment", async () => {
+it("keeps artifacts compact and updates the open detail after binding", async () => {
   const sheet = createEmptyCharacterSheet();
   sheet.progreso.experienciaTotal = 5;
   const character: Character = {
@@ -306,14 +345,99 @@ it("lets the player choose a configured artifact binding payment", async () => {
   };
   const onBind = vi.fn().mockResolvedValue(undefined);
 
-  render(<ConfirmationDialogProvider><CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={vi.fn()} onBindMysticArtifact={onBind} /></ConfirmationDialogProvider>);
+  const renderBuilder = (currentCharacter: Character) => (
+    <ConfirmationDialogProvider>
+      <CharacterBuilderView
+        character={currentCharacter}
+        onBackToCharacters={vi.fn()}
+        onOpenSheet={vi.fn()}
+        onSave={vi.fn()}
+        onBindMysticArtifact={onBind}
+      />
+    </ConfirmationDialogProvider>
+  );
+  const view = render(renderBuilder(character));
   fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
-  expect(screen.getByText("Piedra Solar")).toBeInTheDocument();
-  expect(screen.getByText(/capacidades se revelaran/i)).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Vincular por 1 PX" }));
-  fireEvent.click(screen.getByRole("button", { name: "Vincular artefacto" }));
 
+  const artifactRow = screen.getByRole("button", { name: "Ver detalles de Piedra Solar" });
+  expect(artifactRow).toHaveTextContent("Piedra Solar");
+  expect(artifactRow).toHaveTextContent("Objeto · Davokar");
+  expect(artifactRow).toHaveTextContent("Sin vincular");
+  expect(artifactRow).toHaveTextContent("1 PX o 1 Corrupción permanente");
+  expect(screen.queryByText(/capacidades protegidas se revelarán/i)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Vincular por 1 PX" })).not.toBeInTheDocument();
+
+  artifactRow.focus();
+  fireEvent.keyDown(artifactRow, { key: "Enter" });
+  fireEvent.click(artifactRow);
+  let dialog = screen.getByRole("dialog", { name: "Piedra Solar" });
+  expect(dialog).toHaveTextContent(/detalles protegidos.*revelarán/i);
+
+  fireEvent.click(within(dialog).getByRole("button", { name: "Vincular por 1 PX" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+  expect(onBind).not.toHaveBeenCalled();
+  expect(screen.getByRole("dialog", { name: "Piedra Solar" })).toBeInTheDocument();
+
+  fireEvent.click(within(screen.getByRole("dialog", { name: "Piedra Solar" })).getByRole("button", { name: "Vincular por 1 PX" }));
+  fireEvent.click(screen.getByRole("button", { name: "Vincular artefacto" }));
   await waitFor(() => expect(onBind).toHaveBeenCalledWith("artifact-a", "xp"));
+
+  view.rerender(renderBuilder({ ...character, mysticArtifacts: [makeRevealedArtifact()], artifactBindingXpSpent: 1 }));
+  dialog = screen.getByRole("dialog", { name: "Piedra Solar" });
+  expect(dialog).toHaveTextContent("Vinculado");
+  expect(dialog).toHaveTextContent("Una piedra cálida que almacena la luz del amanecer.");
+  expect(dialog).toHaveTextContent("Destello solar");
+  expect(dialog).toHaveTextContent("Cargas de luz");
+  expect(dialog).toHaveTextContent("1D20 con Atento");
+  expect(within(dialog).queryByRole("button", { name: /Vincular por/ })).not.toBeInTheDocument();
+});
+
+it("keeps descriptions, resources, abilities and binding controls out of artifact rows", () => {
+  const sheet = createEmptyCharacterSheet();
+  const character: Character = {
+    id: "character-artifact-list", name: "Alda", archetype: "Guerrera", race: "Humana", culture: "Ambria", profession: "",
+    level: 1, sheet, mysticArtifacts: [makeRevealedArtifact()],
+    createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+  };
+  render(<CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
+
+  const artifactRow = screen.getByRole("button", { name: "Ver detalles de Piedra Solar" });
+  expect(artifactRow.tagName).toBe("BUTTON");
+  expect(artifactRow).toHaveTextContent("Arma · Davokar");
+  expect(artifactRow).toHaveTextContent("Vinculado");
+  expect(screen.queryByText("Una piedra cálida que almacena la luz del amanecer.")).not.toBeInTheDocument();
+  expect(screen.queryByText("Destello solar")).not.toBeInTheDocument();
+  expect(screen.queryByText("Cargas de luz")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Vincular por/ })).not.toBeInTheDocument();
+
+  artifactRow.focus();
+  expect(artifactRow).toHaveFocus();
+  fireEvent.click(artifactRow);
+  const dialog = screen.getByRole("dialog", { name: "Piedra Solar" });
+  expect(dialog).toHaveTextContent("Una piedra cálida que almacena la luz del amanecer.");
+  expect(dialog).toHaveTextContent("Destello solar");
+  expect(dialog).toHaveTextContent("Cargas de luz");
+});
+
+it("removes the artifact detail if its assignment disappears", () => {
+  const sheet = createEmptyCharacterSheet();
+  const character: Character = {
+    id: "character-artifact-removal", name: "Alda", archetype: "Guerrera", race: "Humana", culture: "Ambria", profession: "",
+    level: 1, sheet, mysticArtifacts: [makeRevealedArtifact()],
+    createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+  };
+  const props = { onBackToCharacters: vi.fn(), onOpenSheet: vi.fn(), onSave: vi.fn() };
+  const view = render(<CharacterBuilderView character={character} {...props} />);
+  fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
+  fireEvent.click(screen.getByRole("button", { name: "Ver detalles de Piedra Solar" }));
+  expect(screen.getByRole("dialog", { name: "Piedra Solar" })).toBeInTheDocument();
+
+  view.rerender(<CharacterBuilderView character={{ ...character, mysticArtifacts: [] }} {...props} />);
+  expect(screen.queryByRole("dialog", { name: "Piedra Solar" })).not.toBeInTheDocument();
+
+  view.rerender(<CharacterBuilderView character={character} {...props} />);
+  expect(screen.queryByRole("dialog", { name: "Piedra Solar" })).not.toBeInTheDocument();
 });
 
 it("shows a compact profession list and opens live requirement details on demand", async () => {
