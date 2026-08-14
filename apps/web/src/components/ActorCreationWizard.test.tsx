@@ -46,6 +46,10 @@ describe("ActorCreationWizard", () => {
   it("impide saltar fases si la identidad actual no es válida", () => {
     render(<CharacterWizardHarness />);
 
+    const activeStep = screen.getByRole("button", { name: /1 Identidad/ });
+    expect(activeStep).toHaveClass("is-active");
+    expect(activeStep).toHaveAttribute("aria-current", "step");
+
     fireEvent.click(screen.getByRole("button", { name: /5 Trasfondo/ }));
 
     expect(screen.getByText("El personaje necesita un nombre de al menos dos caracteres.")).toBeInTheDocument();

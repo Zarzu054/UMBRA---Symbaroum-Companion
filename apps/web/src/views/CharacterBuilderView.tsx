@@ -352,7 +352,6 @@ export function CharacterBuilderView({
   const [capabilityConfirmationModal, setCapabilityConfirmationModal] = useState<BuilderCapabilityConfirmationModal | null>(null);
   const [bindingArtifactId, setBindingArtifactId] = useState<string | null>(null);
   const [professionBusyId, setProfessionBusyId] = useState<string | null>(null);
-  const [selectedProfessionGoalId, setSelectedProfessionGoalId] = useState(SYMBAROUM_PROFESSIONS[0]?.id ?? "");
   const [selectedProfessionDetailsId, setSelectedProfessionDetailsId] = useState<string | null>(null);
   const [isXpDetailsOpen, setIsXpDetailsOpen] = useState(false);
   const artifactBindingXpSpent = character.artifactBindingXpSpent ?? 0;
@@ -384,7 +383,6 @@ export function CharacterBuilderView({
     setAcquisitionModal(null);
     setCapabilityConfirmationModal(null);
     setSelectedProfessionDetailsId(null);
-    setSelectedProfessionGoalId(SYMBAROUM_PROFESSIONS.find((profession) => !(character.professionMemberships ?? []).some((membership) => membership.professionId === profession.id))?.id ?? "");
   }, [character]);
 
   const experience = useMemo(() => getCharacterExperienceSummary(draft), [draft]);
@@ -923,81 +921,65 @@ export function CharacterBuilderView({
                 <div className="row-actions">
                   <h3>Identidad</h3>
                 </div>
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Nombre del personaje</span>
-                    <input value={draft.identidad.nombrePersonaje} onChange={(event) => updateIdentityField("nombrePersonaje", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Nombre del jugador</span>
-                    <input value={draft.identidad.nombreJugador} onChange={(event) => updateIdentityField("nombreJugador", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Marcador especial</span>
-                    <label className="checkbox-row">
-                      <input
-                        type="checkbox"
-                        checked={draft.identidad.esFamiliar}
-                        onChange={(event) => updateIdentityField("esFamiliar", event.target.checked)}
-                      />
-                      <span>Es familiar (empieza con 20 PX)</span>
-                    </label>
-                  </label>
-                  <label className="field">
-                    <span>Raza</span>
-                    <input value={draft.identidad.raza} onChange={(event) => updateIdentityField("raza", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Cultura</span>
-                    <input value={draft.identidad.cultura} onChange={(event) => updateIdentityField("cultura", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Arquetipo</span>
-                    <input value={draft.identidad.arquetipo} onChange={(event) => updateIdentityField("arquetipo", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Ocupación descriptiva</span>
-                    <input value={draft.identidad.profesion} onChange={(event) => updateIdentityField("profesion", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Edad</span>
-                    <input value={draft.identidad.edad} onChange={(event) => updateIdentityField("edad", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Apariencia</span>
-                    <input value={draft.identidad.apariencia} onChange={(event) => updateIdentityField("apariencia", event.target.value)} />
-                  </label>
-                  <label className="field field-span-2">
-                    <span>Objetivo personal</span>
-                    <input value={draft.identidad.objetivoPersonal} onChange={(event) => updateIdentityField("objetivoPersonal", event.target.value)} />
-                  </label>
-                  <label className="field field-span-2">
-                    <span>Trasfondo</span>
-                    <textarea rows={6} value={draft.identidad.trasfondo} onChange={(event) => updateIdentityField("trasfondo", event.target.value)} />
-                  </label>
-                </div>
-                <section className="profession-goal-picker">
-                  <div>
-                    <h4>Objetivos profesionales</h4>
-                    <p className="section-help">Puedes aspirar a varias profesiones. Consulta la pestaña Profesiones para ver el progreso de cada requisito.</p>
-                  </div>
-                  {(character.professionMemberships ?? []).length > 0 ? (
-                    <div className="toolbar">
-                      {(character.professionMemberships ?? []).map((membership) => <span key={membership.id} className={`profession-state profession-state--${membership.effectiveState}`}>{membership.professionName}</span>)}
-                    </div>
-                  ) : null}
-                  {onAspireProfession ? (
-                    <div className="inline-row">
+                <div className="character-builder-identity-form">
+                  <section className="character-builder-identity-section" aria-labelledby="character-builder-personal-title">
+                    <h4 id="character-builder-personal-title">Datos personales</h4>
+                    <div className="character-builder-identity-grid is-personal">
                       <label className="field">
-                        <span>Nueva aspiración</span>
-                        <select value={selectedProfessionGoalId} onChange={(event) => setSelectedProfessionGoalId(event.target.value)}>
-                          {SYMBAROUM_PROFESSIONS.filter((profession) => !(character.professionMemberships ?? []).some((membership) => membership.professionId === profession.id)).map((profession) => <option key={profession.id} value={profession.id}>{profession.name}</option>)}
-                        </select>
+                        <span>Nombre del personaje</span>
+                        <input value={draft.identidad.nombrePersonaje} onChange={(event) => updateIdentityField("nombrePersonaje", event.target.value)} />
                       </label>
-                      <button type="button" disabled={!selectedProfessionGoalId || professionBusyId === selectedProfessionGoalId} onClick={() => void runProfessionAction(selectedProfessionGoalId, () => onAspireProfession(selectedProfessionGoalId))}>Marcar objetivo</button>
+                      <label className="field">
+                        <span>Nombre del jugador</span>
+                        <input value={draft.identidad.nombreJugador} onChange={(event) => updateIdentityField("nombreJugador", event.target.value)} />
+                      </label>
+                      <label className="field">
+                        <span>Edad</span>
+                        <input value={draft.identidad.edad} onChange={(event) => updateIdentityField("edad", event.target.value)} />
+                      </label>
+                      <label className="field">
+                        <span>Ocupación descriptiva</span>
+                        <input value={draft.identidad.profesion} onChange={(event) => updateIdentityField("profesion", event.target.value)} />
+                      </label>
                     </div>
-                  ) : null}
-                </section>
+                  </section>
+
+                  <section className="character-builder-identity-section" aria-labelledby="character-builder-origin-title">
+                    <h4 id="character-builder-origin-title">Origen</h4>
+                    <div className="character-builder-identity-grid is-origin">
+                      <label className="field">
+                        <span>Raza</span>
+                        <input value={draft.identidad.raza} onChange={(event) => updateIdentityField("raza", event.target.value)} />
+                      </label>
+                      <label className="field">
+                        <span>Cultura</span>
+                        <input value={draft.identidad.cultura} onChange={(event) => updateIdentityField("cultura", event.target.value)} />
+                      </label>
+                      <label className="field">
+                        <span>Arquetipo</span>
+                        <input value={draft.identidad.arquetipo} onChange={(event) => updateIdentityField("arquetipo", event.target.value)} />
+                      </label>
+                    </div>
+                  </section>
+
+                  <section className="character-builder-identity-section" aria-labelledby="character-builder-description-title">
+                    <h4 id="character-builder-description-title">Descripción</h4>
+                    <div className="character-builder-identity-grid is-description">
+                      <label className="field">
+                        <span>Apariencia</span>
+                        <input value={draft.identidad.apariencia} onChange={(event) => updateIdentityField("apariencia", event.target.value)} />
+                      </label>
+                      <label className="field is-wide">
+                        <span>Objetivo personal</span>
+                        <input value={draft.identidad.objetivoPersonal} onChange={(event) => updateIdentityField("objetivoPersonal", event.target.value)} />
+                      </label>
+                      <label className="field is-full">
+                        <span>Trasfondo</span>
+                        <textarea rows={6} value={draft.identidad.trasfondo} onChange={(event) => updateIdentityField("trasfondo", event.target.value)} />
+                      </label>
+                    </div>
+                  </section>
+                </div>
               </section>
             ) : null}
 
@@ -1006,7 +988,7 @@ export function CharacterBuilderView({
                 <div className="row-actions">
                   <div>
                     <h3>Profesiones avanzadas</h3>
-                    <p className="section-help">Marca varios objetivos y completa todos sus requisitos. Para solicitar el ingreso, al menos una capacidad requerida debe estar en maestro.</p>
+                    <p className="section-help">Abre una profesión para consultar sus requisitos, marcarla como objetivo o gestionar su ingreso. Puedes aspirar a varias profesiones.</p>
                   </div>
                 </div>
                 <div className="profession-builder-list">

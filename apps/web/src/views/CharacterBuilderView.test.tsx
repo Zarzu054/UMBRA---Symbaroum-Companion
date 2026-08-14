@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { createEmptyCharacterSheet, type Character, type OwnedMysticArtifact } from "@umbra/shared";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CharacterBuilderView } from "./CharacterBuilderView";
 
@@ -148,6 +148,49 @@ it("opens an auditable XP expense detail with capabilities, artifacts and dated 
   expect(dialog).toHaveTextContent("2026");
 });
 
+it("organizes identity and preserves the creation-only familiar marker when saving", async () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.identidad.esFamiliar = true;
+  sheet.identidad.nombrePersonaje = "Urmak";
+  sheet.identidad.nombreJugador = "Carlos";
+  sheet.identidad.edad = "18";
+  sheet.identidad.profesion = "Cazatesoros";
+  sheet.identidad.raza = "Humano";
+  sheet.identidad.cultura = "Ambriano";
+  sheet.identidad.arquetipo = "Místico";
+  const character: Character = {
+    id: "character-identity", name: "Urmak", archetype: "Místico", race: "Humano", culture: "Ambriano", profession: "Cazatesoros",
+    level: 1, sheet, createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+  };
+  const onSave = vi.fn().mockResolvedValue(undefined);
+
+  render(<CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={onSave} />);
+  fireEvent.click(screen.getByRole("button", { name: "Identidad" }));
+
+  const personal = screen.getByRole("region", { name: "Datos personales" });
+  const origin = screen.getByRole("region", { name: "Origen" });
+  const description = screen.getByRole("region", { name: "Descripción" });
+  expect(within(personal).getByLabelText("Nombre del personaje")).toHaveValue("Urmak");
+  expect(within(personal).getByLabelText("Nombre del jugador")).toHaveValue("Carlos");
+  expect(within(personal).getByLabelText("Edad")).toHaveValue("18");
+  expect(within(personal).getByLabelText("Ocupación descriptiva")).toHaveValue("Cazatesoros");
+  expect(within(origin).getByLabelText("Raza")).toHaveValue("Humano");
+  expect(within(origin).getByLabelText("Cultura")).toHaveValue("Ambriano");
+  expect(within(origin).getByLabelText("Arquetipo")).toHaveValue("Místico");
+  expect(within(description).getByLabelText("Apariencia")).toBeInTheDocument();
+  expect(within(description).getByLabelText("Objetivo personal")).toBeInTheDocument();
+  expect(within(description).getByLabelText("Trasfondo")).toBeInTheDocument();
+  expect(screen.queryByText(/Es familiar/i)).not.toBeInTheDocument();
+  expect(screen.queryByText("Objetivos profesionales")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Nueva aspiración")).not.toBeInTheDocument();
+
+  fireEvent.change(within(personal).getByLabelText("Edad"), { target: { value: "19" } });
+  fireEvent.click(screen.getByRole("button", { name: "Guardar constructor" }));
+  await waitFor(() => expect(onSave).toHaveBeenCalled());
+  expect(onSave.mock.calls[0][0].identidad.edad).toBe("19");
+  expect(onSave.mock.calls[0][0].identidad.esFamiliar).toBe(true);
+});
+
 it("lets the player choose a configured artifact binding payment", async () => {
   const sheet = createEmptyCharacterSheet();
   sheet.progreso.experienciaTotal = 5;
@@ -180,6 +223,8 @@ it("shows a compact profession list and opens live requirement details on demand
   const onAspire = vi.fn().mockResolvedValue(undefined);
   render(<CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={vi.fn()} onAspireProfession={onAspire} />);
   fireEvent.click(screen.getByRole("button", { name: "Profesiones" }));
+  expect(screen.getByText(/Abre una profesión para consultar sus requisitos/i)).toBeInTheDocument();
+  expect(screen.queryByLabelText("Nueva aspiración")).not.toBeInTheDocument();
   const professionButtons = screen.getAllByRole("button", { name: /Ver detalles de/i });
   expect(professionButtons).toHaveLength(17);
   expect(screen.queryByText("Una capacidad requerida en maestro")).not.toBeInTheDocument();
@@ -191,6 +236,31 @@ it("shows a compact profession list and opens live requirement details on demand
   expect(screen.getAllByText("Armas de asta").length).toBeGreaterThan(0);
   fireEvent.click(screen.getByRole("button", { name: "Marcar como objetivo" }));
   await waitFor(() => expect(onAspire).toHaveBeenCalledWith("juramentado-de-hierro"));
+});
+
+it("removes an aspiration from the profession detail instead of a duplicate identity selector", async () => {
+  const sheet = createEmptyCharacterSheet();
+  const character: Character = {
+    id: "character-prof-remove", name: "Alda", archetype: "Cazador", race: "Humano", culture: "Ambriano", profession: "", level: 1, sheet,
+    professionMemberships: [{
+      id: "membership-a",
+      characterId: "character-prof-remove",
+      professionId: "juramentado-de-hierro",
+      professionName: "Juramentado de hierro",
+      state: "aspiration",
+      effectiveState: "aspiration"
+    } as never],
+    createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+  };
+  const onRemove = vi.fn().mockResolvedValue(undefined);
+
+  render(<CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={vi.fn()} onRemoveProfessionAspiration={onRemove} />);
+  fireEvent.click(screen.getByRole("button", { name: "Profesiones" }));
+  expect(screen.queryByLabelText("Nueva aspiración")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Ver detalles de Juramentado de hierro" }));
+  fireEvent.click(screen.getByRole("button", { name: "Retirar objetivo" }));
+
+  await waitFor(() => expect(onRemove).toHaveBeenCalledWith("juramentado-de-hierro"));
 });
 
 it("keeps exclusive benefits visible but locked until their profession is active", () => {

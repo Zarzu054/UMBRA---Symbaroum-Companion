@@ -1151,6 +1151,67 @@ button[disabled] {
   border-radius: var(--ui-radius-md);
 }
 
+/* Character action menus must escape short lists and the directory panel. */
+.module-theme .character-directory-panel.campaign-sheet-card,
+.character-record-grid {
+  overflow: visible;
+}
+
+.character-builder-identity-form {
+  display: grid;
+  gap: 18px;
+}
+
+.character-builder-identity-section {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--ui-border);
+}
+
+.character-builder-identity-section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.character-builder-identity-section h4 {
+  margin: 0;
+  color: var(--ui-brand-strong);
+  font-family: var(--font-title);
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.character-builder-identity-grid {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.character-builder-identity-grid > * {
+  min-width: 0;
+}
+
+.character-builder-identity-grid.is-personal {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(100px, 0.55fr) minmax(0, 1.15fr);
+}
+
+.character-builder-identity-grid.is-origin,
+.character-builder-identity-grid.is-description {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.character-builder-identity-grid.is-description > .is-wide {
+  grid-column: span 2;
+}
+
+.character-builder-identity-grid > .is-full {
+  grid-column: 1 / -1;
+}
+
 .character-record-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -1173,6 +1234,18 @@ button[disabled] {
 
 .character-record-card:last-child {
   border-bottom: 0;
+}
+
+.character-record-card:first-child {
+  border-radius: var(--ui-radius-md) var(--ui-radius-md) 0 0;
+}
+
+.character-record-card:last-child {
+  border-radius: 0 0 var(--ui-radius-md) var(--ui-radius-md);
+}
+
+.character-record-card:only-child {
+  border-radius: var(--ui-radius-md);
 }
 
 .character-record-card:hover {
@@ -1215,6 +1288,10 @@ button[disabled] {
 
 .character-record-actions-menu {
   position: relative;
+}
+
+.character-record-actions-menu[open] {
+  z-index: 50;
 }
 
 .character-record-actions-menu > summary {
@@ -1274,6 +1351,33 @@ button[disabled] {
 .character-record-secondary-actions button.danger {
   color: var(--ui-danger);
   background: transparent;
+}
+
+.actor-wizard__steps button {
+  color: var(--ui-text-muted);
+  border-color: var(--ui-border);
+  background: var(--ui-surface);
+}
+
+.actor-wizard__steps button:hover {
+  color: var(--ui-text);
+  border-color: var(--ui-border-strong);
+  background: var(--ui-surface-hover);
+}
+
+.actor-wizard__steps button.is-complete {
+  color: var(--ui-brand-strong);
+  border-color: var(--ui-border-strong);
+  background: var(--ui-brand-soft);
+}
+
+.actor-wizard__steps button.is-active,
+.actor-wizard__steps button.is-active:hover {
+  color: var(--ui-on-brand);
+  border-color: var(--ui-brand);
+  background: var(--ui-brand);
+  box-shadow: inset 0 -3px 0 var(--ui-brand-strong), 0 3px 10px color-mix(in srgb, var(--ui-brand) 28%, transparent);
+  font-weight: 800;
 }
 
 /* Builder */
@@ -5482,10 +5586,11 @@ button[disabled] {
 .sheet-profession-summary { margin-bottom: 1rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--ui-border); }
 .profession-request-modal { width: min(760px, calc(100vw - 2rem)); max-height: min(82vh, 760px); overflow: auto; }
 .profession-request-card > div:first-child { display: grid; gap: 0.2rem; }
-.profession-goal-picker { display: grid; gap: 0.65rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--ui-border); }
-.profession-goal-picker h4 { margin: 0; }
-
 @media (max-width: 720px) {
+  .character-builder-identity-grid.is-personal {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .profession-list-item {
     gap: 0.6rem;
     padding: 0.7rem;
@@ -6041,6 +6146,17 @@ button[disabled] {
 }
 
 @media (width <= 600px) {
+  .character-builder-identity-grid.is-personal,
+  .character-builder-identity-grid.is-origin,
+  .character-builder-identity-grid.is-description {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .character-builder-identity-grid.is-description > .is-wide,
+  .character-builder-identity-grid > .is-full {
+    grid-column: auto;
+  }
+
   .module-sticky-header--single-row,
   .module-sticky-header--single-row > .row-actions {
     min-height: 54px;

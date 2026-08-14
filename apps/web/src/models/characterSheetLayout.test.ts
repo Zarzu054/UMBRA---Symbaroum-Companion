@@ -6,6 +6,7 @@ describe("modular character sheet layout", () => {
   const baseStylesheet = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
   const stylesheet = readFileSync(resolve(process.cwd(), "src/styles/modern.css"), "utf8");
   const component = readFileSync(resolve(process.cwd(), "src/components/UnifiedCharacterSheet.tsx"), "utf8");
+  const builderComponent = readFileSync(resolve(process.cwd(), "src/views/CharacterBuilderView.tsx"), "utf8");
 
   it("keeps separated desktop modules and a real internally scrolling reader", () => {
     expect(stylesheet).toMatch(/\.character-actions-page > \.unified-sheet\s*\{[\s\S]*?gap: 20px/);
@@ -30,6 +31,15 @@ describe("modular character sheet layout", () => {
     expect(stylesheet).toMatch(/\.unified-sheet-identity-module \.unified-sheet-hero-main\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) auto/);
     expect(stylesheet).toMatch(/\.unified-sheet-experience-module \.unified-sheet-builder-icon\s*\{[\s\S]*?width: 46px;[\s\S]*?height: 46px/);
     expect(baseStylesheet).toMatch(/\.unified-sheet-xp-controls\s*\{[\s\S]*?flex-direction: column;[\s\S]*?align-items: flex-end/);
+  });
+
+  it("groups builder identity fields and stacks every group on mobile", () => {
+    expect(builderComponent).toMatch(/Datos personales[\s\S]*?Nombre del personaje[\s\S]*?Nombre del jugador[\s\S]*?Edad[\s\S]*?Ocupación descriptiva/);
+    expect(builderComponent).toMatch(/Origen[\s\S]*?Raza[\s\S]*?Cultura[\s\S]*?Arquetipo/);
+    expect(builderComponent).toMatch(/Descripción[\s\S]*?Apariencia[\s\S]*?Objetivo personal[\s\S]*?Trasfondo/);
+    expect(builderComponent).not.toContain("selectedProfessionGoalId");
+    expect(stylesheet).toMatch(/\.character-builder-identity-grid\.is-personal\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1\.2fr\)/);
+    expect(stylesheet).toMatch(/@media \(width <= 600px\)[\s\S]*?\.character-builder-identity-grid\.is-personal,[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
   });
 
   it("gives the content modules and reader sections independent ornamental frames", () => {

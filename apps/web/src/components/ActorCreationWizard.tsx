@@ -73,6 +73,7 @@ function WizardShell(props: WizardShellProps) {
             key={item.id}
             type="button"
             className={index === props.step ? "is-active" : index < props.step ? "is-complete" : ""}
+            aria-current={index === props.step ? "step" : undefined}
             onClick={() => props.onStep(index)}
           >
             <span>{index + 1}</span>{item.label}
