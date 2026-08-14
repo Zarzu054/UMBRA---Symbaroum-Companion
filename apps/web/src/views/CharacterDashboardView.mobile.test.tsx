@@ -125,7 +125,9 @@ describe("CharacterDashboardView mobile navigation", () => {
     );
 
     expect(screen.getByText("Hoja de personaje")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Volver" }));
+    const backButton = screen.getByRole("button", { name: "Volver" });
+    expect(backButton).toHaveClass("character-sheet-back-button");
+    fireEvent.click(backButton);
 
     expect(await screen.findByRole("heading", { name: "Archivo de personajes" })).toBeInTheDocument();
     expect(window.location.hash).toBe("#characters");

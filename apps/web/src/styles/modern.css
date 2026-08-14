@@ -2336,6 +2336,23 @@ button[disabled] {
     display: none;
   }
 
+  .app-context-navigation .character-sheet-back-button,
+  :root[data-theme][data-palette] .app-context-navigation .character-sheet-back-button {
+    min-height: 44px;
+    padding-inline: 12px 14px;
+    color: #fffaf5;
+    border: 1px solid rgba(255, 250, 245, 0.42);
+    background: #4d2023;
+    box-shadow: 0 3px 10px rgba(24, 14, 12, 0.28);
+  }
+
+  .app-context-navigation .character-sheet-back-button:hover,
+  :root[data-theme][data-palette] .app-context-navigation .character-sheet-back-button:hover {
+    color: #fffaf5;
+    border-color: rgba(255, 250, 245, 0.68);
+    background: #351417;
+  }
+
   .auth-page {
     padding: 70px 16px 20px;
   }
@@ -2395,6 +2412,8 @@ button[disabled] {
 
   .unified-sheet-mobile-tabs {
     top: 58px;
+    width: calc(100% + 20px);
+    max-width: none;
     margin-inline: -10px;
     padding-inline: 10px;
     border-color: var(--ui-border);

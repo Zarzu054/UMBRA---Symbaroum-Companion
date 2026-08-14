@@ -50,6 +50,11 @@ describe("component contrast contracts", () => {
     expect(stylesheet).toMatch(/\.vital-action\.subtle[\s\S]*?color: var\(--ui-brand-strong\)/);
   });
 
+  it("keeps the mobile character-sheet back button legible over illustrated backgrounds", () => {
+    expect(stylesheet).toMatch(/\.app-context-navigation \.character-sheet-back-button[\s\S]*?color: #fffaf5;[\s\S]*?background: #4d2023/);
+    expect(contrast("#fffaf5", "#4d2023")).toBeGreaterThanOrEqual(4.5);
+  });
+
   it("keeps inactive monster tabs readable in every theme", () => {
     expect(stylesheet).toMatch(/\.monster-catalog-tabs button\s*\{[\s\S]*?color: var\(--ui-text-muted\);[\s\S]*?background: transparent/);
     expect(stylesheet).toMatch(/\.monster-catalog-tabs button:hover\s*\{[\s\S]*?color: var\(--ui-text\);[\s\S]*?background: var\(--ui-surface-hover\)/);

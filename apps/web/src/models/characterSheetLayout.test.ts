@@ -102,6 +102,16 @@ describe("modular character sheet layout", () => {
     expect(mobileRules).toContain(".unified-sheet.is-mobile-tab-attributes .unified-sheet-reader");
   });
 
+  it("keeps the mobile section bar edge-to-edge without clipping its horizontal navigation", () => {
+    const compactMobileStart = stylesheet.indexOf("@media (max-width: 600px)");
+    const compactMobileEnd = stylesheet.indexOf("@media", compactMobileStart + 1);
+    const compactMobileRules = stylesheet.slice(compactMobileStart, compactMobileEnd);
+
+    expect(compactMobileRules).toMatch(/\.app-content\s*\{[\s\S]*?padding: 12px 10px 28px/);
+    expect(compactMobileRules).toMatch(/\.unified-sheet-mobile-tabs\s*\{[\s\S]*?width: calc\(100% \+ 20px\);[\s\S]*?max-width: none;[\s\S]*?margin-inline: -10px/);
+    expect(baseStylesheet).toMatch(/\.unified-sheet-mobile-tabs\s*\{[\s\S]*?overflow-x: auto/);
+  });
+
   it("differentiates the secondary navigation without moving it away from the main tabs", () => {
     expect(component).toMatch(/<nav className="unified-sheet-tabs"[\s\S]*?stageActiveTab === "actions"[\s\S]*?unified-sheet-stage-subtabs is-actions/);
     expect(stylesheet).toMatch(/> \.unified-sheet-stage-subtabs\s*\{[\s\S]*?padding: 6px;[\s\S]*?border: 1px solid var\(--ui-border\);[\s\S]*?border-radius: var\(--ui-radius-md\);[\s\S]*?background: color-mix\(in srgb, var\(--ui-surface-muted\)/);

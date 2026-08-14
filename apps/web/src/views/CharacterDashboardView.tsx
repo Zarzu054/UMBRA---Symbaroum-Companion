@@ -328,7 +328,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
       <section className={`app-content module-theme module-theme--${activeModule}`}>
           {selectedCharacterSheet && activeModule === "characters" && selectedCharacterPageMode === "sheet" ? (
             <div className="app-context-navigation">
-              <button type="button" className="text-button" onClick={closeCharacterSheet}>
+              <button type="button" className="text-button character-sheet-back-button" onClick={closeCharacterSheet}>
                 <AppIcon name="arrow-left" />
                 Volver
               </button>
