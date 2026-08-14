@@ -227,7 +227,8 @@ it("opens an auditable XP expense detail with capabilities, artifacts and dated 
     { nombre: "Acrobacia", tipo: "Habilidad", efecto: "", nivel: "principiante", fuente: "Libro Básico", notas: "", acciones: [] }
   ];
   sheet.progreso.gastosExperiencia = [
-    { id: "reroll-a", tipo: "repeticion_tirada", cantidad: 1, fecha: "2026-08-14T10:00:00.000Z" }
+    { id: "reroll-a", tipo: "repeticion_tirada", cantidad: 1, fecha: "2026-08-14T10:00:00.000Z" },
+    { id: "feat-a", tipo: "hazana", cantidad: 1, fecha: "2026-08-14T11:00:00.000Z", motivo: "Golpe limpio" }
   ];
   const character: Character = {
     id: "character-xp-details", name: "Alda", archetype: "Guerrera", race: "Humana", culture: "Ambria", profession: "",
@@ -246,6 +247,9 @@ it("opens an auditable XP expense detail with capabilities, artifacts and dated 
   expect(dialog).toHaveTextContent("Habilidad · Principiante");
   expect(dialog).toHaveTextContent("Piedra Solar");
   expect(dialog).toHaveTextContent("Repetición de dado");
+  expect(dialog).toHaveTextContent("Hazañas");
+  expect(dialog).toHaveTextContent("Golpe limpio");
+  expect(dialog).toHaveTextContent("Hazaña ·");
   expect(dialog).toHaveTextContent("2026");
 });
 

@@ -134,4 +134,23 @@ describe("character ritual experience", () => {
     expect(experience.computedSpent).toBe(3);
     expect(experience.effectiveAvailable).toBe(9);
   });
+
+  it("accounts for feat expenses separately and in total spent XP", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.progreso.experienciaTotal = 12;
+    sheet.progreso.experienciaGastada = 2;
+    sheet.progreso.gastosExperiencia = [
+      { id: "reroll-a", tipo: "repeticion_tirada", cantidad: 1, fecha: "2026-08-14T10:00:00.000Z" },
+      { id: "feat-a", tipo: "hazana", cantidad: 1, fecha: "2026-08-14T11:00:00.000Z", motivo: "Golpe limpio" }
+    ];
+
+    const experience = getCharacterExperienceSummary(sheet);
+
+    expect(experience.spentFromRerolls).toBe(1);
+    expect(experience.spentFromFeats).toBe(1);
+    expect(experience.rerollExpenses).toHaveLength(1);
+    expect(experience.featExpenses).toEqual([expect.objectContaining({ motivo: "Golpe limpio" })]);
+    expect(experience.computedSpent).toBe(2);
+    expect(experience.effectiveAvailable).toBe(10);
+  });
 });

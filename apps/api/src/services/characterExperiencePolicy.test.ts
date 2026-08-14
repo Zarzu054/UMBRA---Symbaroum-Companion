@@ -1,6 +1,7 @@
 import { createEmptyCharacterSheet, type CharacterSheet } from "@umbra/shared";
 import { describe, expect, it } from "vitest";
 import {
+  getComputedCharacterExperienceSpent,
   getEffectiveCharacterExperienceSpent,
   protectGrantedCharacterExperience
 } from "./characterExperiencePolicy.js";
@@ -96,5 +97,24 @@ describe("character experience policy", () => {
     const protectedSheet = protectGrantedCharacterExperience(current, requested);
 
     expect(protectedSheet.progreso.experienciaGastada).toBe(5);
+  });
+
+  it("counts dated feat expenses as non-refundable spent experience", () => {
+    const current = createEmptyCharacterSheet();
+    current.progreso.experienciaTotal = 10;
+    const requested = structuredClone(current);
+    requested.progreso.experienciaGastada = 1;
+    requested.progreso.gastosExperiencia = [{
+      id: "feat-clean-strike",
+      tipo: "hazana",
+      cantidad: 1,
+      fecha: "2026-08-14T12:00:00.000Z",
+      motivo: "Golpe limpio"
+    }];
+
+    const protectedSheet = protectGrantedCharacterExperience(current, requested);
+
+    expect(getComputedCharacterExperienceSpent(protectedSheet)).toBe(1);
+    expect(protectedSheet.progreso.experienciaGastada).toBe(1);
   });
 });

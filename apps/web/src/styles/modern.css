@@ -4744,6 +4744,13 @@ button[disabled] {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.campaign-action-feat-expense {
+  min-width: max-content;
+  padding-inline: 0.75rem;
 }
 
 .unified-sheet-reader .unified-sheet-tab-content {

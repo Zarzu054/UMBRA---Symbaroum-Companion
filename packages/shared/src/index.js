@@ -461,9 +461,10 @@ const characterSheetObjectSchema = z.object({
         experienciaGastada: z.number().int().min(0).max(100000).default(0),
         gastosExperiencia: z.array(z.object({
             id: z.string().min(1).max(120),
-            tipo: z.enum(["repeticion_tirada"]),
+            tipo: z.enum(["repeticion_tirada", "hazana"]),
             cantidad: z.number().int().min(1).max(100000),
-            fecha: z.string().max(80).default("")
+            fecha: z.string().max(80).default(""),
+            motivo: z.string().max(240).optional()
         })).max(10000).default([])
     }),
     combate: z.object({

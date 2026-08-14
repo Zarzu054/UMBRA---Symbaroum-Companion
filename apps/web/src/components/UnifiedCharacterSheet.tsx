@@ -1221,6 +1221,7 @@ export function UnifiedCharacterSheet({
   const [isEditingBackground, setIsEditingBackground] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [isExperienceRerollConfirmationOpen, setIsExperienceRerollConfirmationOpen] = useState(false);
+  const [pendingFeatExpense, setPendingFeatExpense] = useState<InformationalActionEntry | null>(null);
   const [artifactUseError, setArtifactUseError] = useState<string | null>(null);
   const pendingArtifactDamageRef = useRef<Set<string>>(new Set());
   const [weaponEditorModal, setWeaponEditorModal] = useState<WeaponEditorModal | null>(null);
@@ -1234,6 +1235,7 @@ export function UnifiedCharacterSheet({
     || selectedPersonalNoteId
     || personalNoteEditor
     || isExperienceRerollConfirmationOpen
+    || pendingFeatExpense
     || weaponEditorModal
     || armorEditorModal
     || itemEditorModal
@@ -1910,11 +1912,12 @@ export function UnifiedCharacterSheet({
     ));
 
     const facts = entry.facts.map((fact) => `${fact.label}: ${fact.value}`).join("\n");
+    const isIndividualFeatOrManeuver = entry.categories.includes("feats") || entry.categories.includes("maneuvers");
 
     setActionDetailModal({
       title: entry.label,
       sourceLabel: `${entry.familyLabel}${entry.optional ? " · Regla opcional" : ""} · ${sourceEntry.fuente}${sourceEntry.pagina ? ` p. ${sourceEntry.pagina}` : ""}`,
-      detail: [entry.familyDetail, facts, entry.detail].filter(Boolean).join("\n\n"),
+      detail: [isIndividualFeatOrManeuver ? "" : entry.familyDetail, facts, entry.detail].filter(Boolean).join("\n\n"),
       references: uniqueReferences
     });
   }
@@ -2966,6 +2969,31 @@ export function UnifiedCharacterSheet({
     setIsExperienceRerollConfirmationOpen(false);
   }
 
+  function spendExperienceForFeat(): void {
+    if (!pendingFeatExpense || !editable || experience.effectiveAvailable < 1) {
+      setPendingFeatExpense(null);
+      return;
+    }
+    setDraft({
+      ...normalizedSheet,
+      progreso: {
+        ...normalizedSheet.progreso,
+        experienciaGastada: displayedSpentExperience + 1,
+        gastosExperiencia: [
+          ...normalizedSheet.progreso.gastosExperiencia,
+          {
+            id: globalThis.crypto?.randomUUID?.() ?? `xp-feat-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            tipo: "hazana",
+            cantidad: 1,
+            fecha: new Date().toISOString(),
+            motivo: pendingFeatExpense.label
+          }
+        ]
+      }
+    });
+    setPendingFeatExpense(null);
+  }
+
   function renderActionRollControls(action: CharacterActionDefinition, allowRoll = true): ReactNode {
     const presentation = getCharacterActionRollPresentation(action, normalizedSheet);
     const hasOptionalModifiers = presentation.hasDamageModifiers
@@ -3150,6 +3178,16 @@ export function UnifiedCharacterSheet({
                       </div>
                       <div className="campaign-action-information">
                         <span className="compendium-chip">Ver detalles</span>
+                        {editable && entry.categories.includes("feats") ? (
+                          <button
+                            type="button"
+                            className="vital-action loss campaign-action-feat-expense"
+                            aria-label={`Gastar 1 PX en ${entry.label}`}
+                            title={`Gastar 1 PX para realizar ${entry.label}`}
+                            disabled={experience.effectiveAvailable < 1 || busy || isSavingLocal}
+                            onClick={() => setPendingFeatExpense(entry)}
+                          >Gastar 1 PX</button>
+                        ) : null}
                       </div>
                     </div>
                   ))}
@@ -3779,6 +3817,31 @@ export function UnifiedCharacterSheet({
                 onClick={spendExperienceForReroll}
               >Gastar 1 PX</button>
               <button type="button" className="subtle-button" onClick={() => setIsExperienceRerollConfirmationOpen(false)}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {pendingFeatExpense ? (
+        <div className="modal-backdrop" onClick={() => setPendingFeatExpense(null)}>
+          <div
+            className="panel modal-panel character-roll-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="feat-expense-confirmation-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="feat-expense-confirmation-title">Gastar PX en una hazaña</h3>
+            <p className="section-help">
+              Gastarás 1 PX disponible para realizar «{pendingFeatExpense.label}». El gasto quedará registrado con su fecha y motivo y no puede recuperarse.
+            </p>
+            <div className="row-actions character-roll-confirm-actions">
+              <button
+                type="button"
+                className="destructive-button"
+                disabled={experience.effectiveAvailable < 1 || busy || isSavingLocal}
+                onClick={spendExperienceForFeat}
+              >Gastar 1 PX</button>
+              <button type="button" className="subtle-button" onClick={() => setPendingFeatExpense(null)}>Cancelar</button>
             </div>
           </div>
         </div>

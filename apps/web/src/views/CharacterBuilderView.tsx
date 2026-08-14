@@ -403,6 +403,7 @@ export function CharacterBuilderView({
 
   const experience = useMemo(() => getCharacterExperienceSummary(draft), [draft]);
   const rerollSpentTotal = experience.spentFromRerolls + historicalRerollSpent;
+  const featSpentTotal = experience.spentFromFeats;
   const artifactBindingXpExpenses = character.artifactBindingXpExpenses ?? [];
   const rerollExpenseDetails = [
     ...experience.rerollExpenses,
@@ -981,7 +982,7 @@ export function CharacterBuilderView({
 
                 <div className="character-builder-summary-notes">
                   <p><strong>PX concedidos:</strong> el total lo gestiona el director de juego desde la campaña. El constructor solo permite invertir los puntos disponibles.</p>
-                  <p><strong>Origen del PX gastado:</strong> {experience.spentFromCapabilities} en capacidades y poderes + {experience.spentFromRituals} en rituales + {experience.spentFromBlessings} en bendiciones{artifactBindingXpSpent > 0 ? ` + ${artifactBindingXpSpent} en vínculos de artefactos` : ""}{rerollSpentTotal > 0 ? ` + ${rerollSpentTotal} en repeticiones de dados` : ""}.</p>
+                  <p><strong>Origen del PX gastado:</strong> {experience.spentFromCapabilities} en capacidades y poderes + {experience.spentFromRituals} en rituales + {experience.spentFromBlessings} en bendiciones{artifactBindingXpSpent > 0 ? ` + ${artifactBindingXpSpent} en vínculos de artefactos` : ""}{rerollSpentTotal > 0 ? ` + ${rerollSpentTotal} en repeticiones de dados` : ""}{featSpentTotal > 0 ? ` + ${featSpentTotal} en hazañas` : ""}.</p>
                   <p><strong>Rituales y rasgos:</strong> los rituales cuestan 10 PX cada uno; los rasgos y las cargas no modifican automáticamente el total concedido.</p>
                 </div>
               </section>
@@ -1305,7 +1306,7 @@ export function CharacterBuilderView({
 
             <div className="character-builder-xp-details-body">
               <section className="character-builder-xp-details-section">
-                <div className="row-actions"><h4>Capacidades, poderes, rituales y bendiciones</h4><strong>{experience.computedSpent - experience.spentFromRerolls} PX</strong></div>
+                <div className="row-actions"><h4>Capacidades, poderes, rituales y bendiciones</h4><strong>{experience.computedSpent - experience.spentFromRerolls - experience.spentFromFeats} PX</strong></div>
                 <div className="character-builder-xp-expense-list">
                   {experience.capabilityExpenses.map((expense, index) => (
                     <article key={`${expense.kind}-${expense.name}-${index}`} className="character-builder-xp-expense-row">
@@ -1350,6 +1351,22 @@ export function CharacterBuilderView({
                     </article>
                   ))}
                   {rerollExpenseDetails.length === 0 ? <p className="section-help">No se ha gastado PX en repeticiones.</p> : null}
+                </div>
+              </section>
+
+              <section className="character-builder-xp-details-section">
+                <div className="row-actions"><h4>Hazañas</h4><strong>{featSpentTotal} PX</strong></div>
+                <div className="character-builder-xp-expense-list">
+                  {experience.featExpenses.map((expense) => (
+                    <article key={expense.id} className="character-builder-xp-expense-row">
+                      <div>
+                        <strong>{expense.motivo || "Hazaña sin motivo registrado"}</strong>
+                        <span>Hazaña · {expense.fecha ? new Date(expense.fecha).toLocaleString("es-ES") : "Fecha no disponible"}</span>
+                      </div>
+                      <strong>{expense.cantidad} PX</strong>
+                    </article>
+                  ))}
+                  {experience.featExpenses.length === 0 ? <p className="section-help">No se ha gastado PX en hazañas.</p> : null}
                 </div>
               </section>
             </div>
