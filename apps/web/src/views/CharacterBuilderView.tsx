@@ -19,6 +19,7 @@ import {
 } from "@umbra/shared";
 import { getCharacterExperienceSummary } from "../models/characterExperience";
 import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS, type CompendiumEntry } from "../models/compendiumEntries";
+import { useConfirmationDialog } from "../components/ConfirmationDialogProvider";
 
 type RatedSection = "habilidades" | "rasgosMonstruosos" | "poderesMisticos" | "rituales";
 type StoredRatedSection = "habilidades" | "poderesMisticos" | "rituales";
@@ -36,10 +37,15 @@ type BuilderCapabilityConfirmationModal = {
   sourceLabel: string;
   targetLevel: SkillLevel;
   cost: number;
+  xpLabel: string;
   previewSummary: string;
   targetTier: CapabilityTier | null;
   confirmLabel: string;
   onConfirm: () => void;
+};
+type BuilderCapabilityDetailsSelection = {
+  section: RatedSection;
+  name: string;
 };
 
 type Props = {
@@ -232,6 +238,13 @@ function getSectionTitle(section: RatedSection): string {
   return "Rituales";
 }
 
+function getSectionItemLabel(section: RatedSection): string {
+  if (section === "habilidades") return "Habilidad";
+  if (section === "rasgosMonstruosos") return "Rasgo monstruoso";
+  if (section === "poderesMisticos") return "Poder místico";
+  return "Ritual";
+}
+
 function getAcquireButtonLabel(section: RatedSection): string {
   if (section === "habilidades") return "Obtener nueva habilidad";
   if (section === "rasgosMonstruosos") return "Obtener nuevo rasgo";
@@ -337,6 +350,7 @@ export function CharacterBuilderView({
   onOpenCompendiumCapability,
   professionRemovalLabel = "Abandonar profesión"
 }: Props) {
+  const confirm = useConfirmationDialog();
   const [draft, setDraft] = useState<CharacterSheet>(() => parseCharacterSheet(character.sheet));
   const [catalogSelections, setCatalogSelections] = useState<CatalogSelections>(INITIAL_CATALOG_SELECTIONS);
   const [simpleInputs, setSimpleInputs] = useState<SimpleInputs>({
@@ -350,6 +364,7 @@ export function CharacterBuilderView({
   const [activeTab, setActiveTab] = useState<BuilderTabId>("resumen");
   const [acquisitionModal, setAcquisitionModal] = useState<BuilderAcquisitionModal | null>(null);
   const [capabilityConfirmationModal, setCapabilityConfirmationModal] = useState<BuilderCapabilityConfirmationModal | null>(null);
+  const [capabilityDetailsSelection, setCapabilityDetailsSelection] = useState<BuilderCapabilityDetailsSelection | null>(null);
   const [bindingArtifactId, setBindingArtifactId] = useState<string | null>(null);
   const [professionBusyId, setProfessionBusyId] = useState<string | null>(null);
   const [selectedProfessionDetailsId, setSelectedProfessionDetailsId] = useState<string | null>(null);
@@ -382,6 +397,7 @@ export function CharacterBuilderView({
     setActiveTab("resumen");
     setAcquisitionModal(null);
     setCapabilityConfirmationModal(null);
+    setCapabilityDetailsSelection(null);
     setSelectedProfessionDetailsId(null);
   }, [character]);
 
@@ -503,6 +519,37 @@ export function CharacterBuilderView({
     return getCatalogEntries(section).find((entry) => normalizeName(entry.nombre) === normalizeName(name)) ?? null;
   }
 
+  const capabilityDetails = (() => {
+    if (!capabilityDetailsSelection) return null;
+    const entries = getRatedEntriesForSection(draft, capabilityDetailsSelection.section);
+    const index = entries.findIndex((entry) => normalizeName(entry.nombre) === normalizeName(capabilityDetailsSelection.name));
+    const entry = entries[index];
+    if (!entry) return null;
+    const catalogEntry = findCatalogEntryByName(capabilityDetailsSelection.section, entry.nombre);
+    const description = catalogEntry?.efectoResumen ?? entry.efecto ?? entry.notas ?? "";
+    const tiers = parseCapabilityTiers(description, capabilityDetailsSelection.section);
+    return {
+      section: capabilityDetailsSelection.section,
+      index,
+      entry,
+      description,
+      tiers,
+      sourceLabel: catalogEntry?.libro
+        ? `${catalogEntry.libro}${catalogEntry.pagina ? ` p. ${catalogEntry.pagina}` : ""}`
+        : entry.fuente
+          ? `${entry.fuente}${entry.pagina ? ` p. ${entry.pagina}` : ""}`
+          : ""
+    };
+  })();
+
+  function openCapabilityDetails(section: RatedSection, name: string): void {
+    setCapabilityDetailsSelection({ section, name });
+  }
+
+  function closeCapabilityDetails(): void {
+    setCapabilityDetailsSelection(null);
+  }
+
   function closeCapabilityConfirmationModal(): void {
     setCapabilityConfirmationModal(null);
   }
@@ -569,6 +616,7 @@ export function CharacterBuilderView({
           : "",
       targetLevel,
       cost,
+      xpLabel: `Gastar ${cost} PX`,
       previewSummary: previewSource,
       targetTier: getCapabilityTierForLevel(previewTiers, targetLevel, section),
       confirmLabel: section === "rituales" ? `Subir a ${getLevelLabel(section, targetLevel)}` : `Gastar ${cost} PX`,
@@ -608,6 +656,7 @@ export function CharacterBuilderView({
     const catalogEntry = findCatalogEntryByName(section, entry.nombre);
     const previewSource = catalogEntry?.efectoResumen ?? entry.efecto ?? entry.notas ?? "";
     const previewTiers = parseCapabilityTiers(previewSource, section);
+    const releasedXp = getRatedEntryCost(entry.nivel) - getRatedEntryCost(targetLevel);
     setError(null);
     setCapabilityConfirmationModal({
       mode: "downgrade",
@@ -619,7 +668,8 @@ export function CharacterBuilderView({
           ? `${entry.fuente}${entry.pagina ? ` p. ${entry.pagina}` : ""}`
           : "",
       targetLevel,
-      cost: 0,
+      cost: releasedXp,
+      xpLabel: `Liberar ${releasedXp} PX`,
       previewSummary: previewSource,
       targetTier: getCapabilityTierForLevel(previewTiers, targetLevel, section),
       confirmLabel: `Confirmar bajada a ${getLevelLabel(section, targetLevel)}`,
@@ -641,6 +691,21 @@ export function CharacterBuilderView({
       section,
       getRatedEntriesForSection(current, section).filter((_, entryIndex) => entryIndex !== index)
     ));
+  }
+
+  async function confirmRemoveRatedEntry(section: RatedSection, index: number): Promise<void> {
+    const entry = getRatedEntriesForSection(draft, section)[index];
+    if (!entry) return;
+    const releasedXp = section === "rituales" ? 10 : getRatedEntryCost(entry.nivel);
+    const accepted = await confirm({
+      title: `Quitar ${entry.nombre}`,
+      message: `Se quitará ${entry.nombre} del personaje y se liberarán ${releasedXp} PX en el constructor.`,
+      confirmLabel: `Quitar y liberar ${releasedXp} PX`,
+      tone: "danger"
+    });
+    if (!accepted) return;
+    removeRatedEntry(section, index);
+    setCapabilityDetailsSelection(null);
   }
 
   function openAcquisitionModal(section: RatedSection): void {
@@ -711,6 +776,7 @@ export function CharacterBuilderView({
       sourceLabel: `${selectedAcquisitionEntry.libro}${selectedAcquisitionEntry.pagina ? ` p. ${selectedAcquisitionEntry.pagina}` : ""}`,
       targetLevel: "principiante",
       cost,
+      xpLabel: `Gastar ${cost} PX`,
       previewSummary: selectedAcquisitionEntry.efectoResumen,
       targetTier: getCapabilityTierForLevel(acquisitionPreviewTiers, "principiante", acquisitionModal.section),
       confirmLabel: `Confirmar ${cost} PX`,
@@ -820,7 +886,12 @@ export function CharacterBuilderView({
     const consequence = paymentType === "xp"
       ? `${cost?.amount ?? 0} PX pasarán a experiencia gastada`
       : `ganarás ${cost?.amount ?? 0} punto(s) de Corrupción permanente; esto puede superar tus umbrales, aunque la ficha no te convertirá automáticamente en PNJ`;
-    if (!window.confirm(`Vincular ${artifact?.name ?? "este artefacto"}: ${consequence}. Romper el vínculo no devuelve el pago. ¿Confirmar?`)) return;
+    if (!await confirm({
+      title: "Vincular artefacto",
+      message: `Vincular ${artifact?.name ?? "este artefacto"}: ${consequence}. Romper el vínculo no devuelve el pago.`,
+      confirmLabel: "Vincular artefacto",
+      tone: "danger"
+    })) return;
     setBindingArtifactId(artifactId);
     setError(null);
     try {
@@ -1041,55 +1112,40 @@ export function CharacterBuilderView({
                           </div>
                         </div>
                         <div className="character-builder-entry-list">
-                          {sectionEntries.length > 0 ? sectionEntries.map((entry, index) => (
-                            <article key={`${section}-${entry.nombre}-${index}`} className={`character-builder-entry-card character-builder-entry-card--${section}`}>
-                              <div className="character-builder-entry-head">
-                                <div className="character-builder-entry-copy">
+                          {sectionEntries.length > 0 ? sectionEntries.map((entry, index) => {
+                            const nextLevel = section === "rituales" ? null : getNextLevel(entry.nivel);
+                            const investedXp = section === "rituales" ? 10 : getRatedEntryCost(entry.nivel);
+                            return (
+                              <button
+                                key={`${section}-${entry.nombre}-${index}`}
+                                type="button"
+                                className={`character-builder-entry-card character-builder-entry-card--${section} character-builder-entry-trigger`}
+                                aria-label={`Ver detalles de ${entry.nombre}`}
+                                onClick={() => openCapabilityDetails(section, entry.nombre)}
+                              >
+                                <span className="character-builder-entry-copy">
                                   <strong>{entry.nombre}</strong>
-                                  <div className="character-builder-entry-meta meta-text">
-                                    {section === "rituales" ? "10 PX invertidos" : `${getRatedEntryCost(entry.nivel)} PX invertidos`}{entry.fuente ? ` · ${entry.fuente}` : ""}
-                                  </div>
-                                </div>
-                                <div className="card-actions character-builder-entry-actions">
-                                  {section !== "rituales" ? (
-                                    <>
-                                      <span className="meta-text">Nivel actual: {getLevelLabel(section, entry.nivel)}</span>
-                                      {getPreviousLevel(entry.nivel) ? (
-                                        <button
-                                          type="button"
-                                          className="subtle-button"
-                                          onClick={() => openDowngradeConfirmation(section, index)}
-                                        >
-                                          <span aria-hidden="true">↓</span>{" "}
-                                          Bajar a {getLevelLabel(section, getPreviousLevel(entry.nivel)!)}
-                                        </button>
-                                      ) : null}
-                                      {getNextLevel(entry.nivel) ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => openUpgradeConfirmation(section, index)}
-                                          disabled={getUpgradeCost(section, entry.nivel) > effectiveAvailable}
-                                        >
-                                          <span aria-hidden="true">↑</span>{" "}
-                                          Subir a {getLevelLabel(section, getNextLevel(entry.nivel)!)} ({getUpgradeCost(section, entry.nivel)} PX)
-                                        </button>
-                                      ) : (
-                                        <span className="meta-text">Nivel maximo</span>
-                                      )}
-                                    </>
-                                  ) : null}
-                                  <button
-                                    type="button"
-                                    className="destructive-button"
-                                    onClick={() => removeRatedEntry(section, index)}
-                                  >
-                                    Quitar
-                                  </button>
-                                </div>
-                              </div>
-                              {entry.efecto ? <p className="section-help">{entry.efecto}</p> : null}
-                            </article>
-                          )) : (
+                                  <span className="character-builder-entry-level">
+                                    {section === "rituales" ? "Nivel único" : `Nivel ${getLevelLabel(section, entry.nivel)}`}
+                                  </span>
+                                </span>
+                                <span className="character-builder-entry-metric">
+                                  <span>Invertidos</span>
+                                  <strong>{investedXp} PX</strong>
+                                </span>
+                                <span className="character-builder-entry-metric is-next">
+                                  <span>{section === "rituales" ? "Progresión" : nextLevel ? "Siguiente nivel" : "Progresión"}</span>
+                                  <strong>
+                                    {section === "rituales"
+                                      ? "Sin niveles"
+                                      : nextLevel
+                                        ? `${getLevelLabel(section, nextLevel)} · ${getUpgradeCost(section, entry.nivel)} PX`
+                                        : "Nivel máximo"}
+                                  </strong>
+                                </span>
+                              </button>
+                            );
+                          }) : (
                             <p className="section-help">Sin entradas registradas.</p>
                           )}
                         </div>
@@ -1361,23 +1417,124 @@ export function CharacterBuilderView({
                 <button type="button" className="subtle-button" disabled={professionBusyId === selectedProfessionDetails.id} onClick={() => void runProfessionAction(selectedProfessionDetails.id, () => onRemoveProfessionAspiration(selectedProfessionDetails.id))}>Retirar objetivo</button>
               ) : null}
               {selectedProfessionMembership && ["aspiration", "rejected"].includes(selectedProfessionMembership.state) && selectedProfessionEligibility.eligible && onRequestProfession ? (
-                <button type="button" disabled={professionBusyId === selectedProfessionDetails.id} onClick={() => {
-                  if (window.confirm("Se comprobarán de nuevo todos los requisitos. Si el personaje está en campaña, la solicitud quedará pendiente de aprobación del DJ; si no lo está, el ingreso se activará directamente. ¿Continuar?")) {
-                    void runProfessionAction(selectedProfessionDetails.id, () => onRequestProfession(selectedProfessionDetails.id));
-                  }
+                <button type="button" disabled={professionBusyId === selectedProfessionDetails.id} onClick={async () => {
+                  if (!await confirm({
+                    title: "Solicitar ingreso",
+                    message: "Se comprobarán de nuevo todos los requisitos. Si el personaje está en campaña, la solicitud quedará pendiente de aprobación del DJ; si no lo está, el ingreso se activará directamente.",
+                    confirmLabel: "Continuar"
+                  })) return;
+                  void runProfessionAction(selectedProfessionDetails.id, () => onRequestProfession(selectedProfessionDetails.id));
                 }}>Solicitar ingreso</button>
               ) : null}
               {selectedProfessionMembership?.state === "active" && onLeaveProfession ? (
-                <button type="button" className="destructive-button" disabled={professionBusyId === selectedProfessionDetails.id} onClick={() => {
-                  if (window.confirm(`¿Abandonar ${selectedProfessionDetails.name}? Las capacidades compradas no se borrarán ni reembolsarán.`)) {
-                    void runProfessionAction(selectedProfessionDetails.id, () => onLeaveProfession(selectedProfessionDetails.id));
-                  }
+                <button type="button" className="destructive-button" disabled={professionBusyId === selectedProfessionDetails.id} onClick={async () => {
+                  if (!await confirm({
+                    title: "Abandonar profesión",
+                    message: `¿Abandonar ${selectedProfessionDetails.name}? Las capacidades compradas no se borrarán ni reembolsarán.`,
+                    confirmLabel: professionRemovalLabel,
+                    tone: "danger"
+                  })) return;
+                  void runProfessionAction(selectedProfessionDetails.id, () => onLeaveProfession(selectedProfessionDetails.id));
                 }}>{professionRemovalLabel}</button>
               ) : null}
             </footer>
           </div>
         </section>
       ) : null}
+
+      {capabilityDetails ? (() => {
+        const { section, entry, index, description, tiers, sourceLabel } = capabilityDetails;
+        const isRitual = section === "rituales";
+        const investedXp = isRitual ? 10 : getRatedEntryCost(entry.nivel);
+        const previousLevel = isRitual ? null : getPreviousLevel(entry.nivel);
+        const nextLevel = isRitual ? null : getNextLevel(entry.nivel);
+        const upgradeCost = nextLevel ? getUpgradeCost(section, entry.nivel) : 0;
+        const currentLevelLabel = isRitual ? "Nivel único" : getLevelLabel(section, entry.nivel);
+        const hasCompleteTierBreakdown = !isRitual && tiers.length === 3;
+        return (
+          <section className="modal-backdrop" onClick={closeCapabilityDetails}>
+            <div
+              className="panel modal-panel character-builder-capability-detail-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="character-builder-capability-detail-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <header className="character-builder-capability-detail-header">
+                <div>
+                  <span className="eyebrow">{getSectionItemLabel(section)}</span>
+                  <h3 id="character-builder-capability-detail-title">{entry.nombre}</h3>
+                  <p className="section-help">{sourceLabel || "Fuente no registrada"}</p>
+                </div>
+                <button type="button" className="subtle-button" onClick={closeCapabilityDetails}>Cerrar</button>
+              </header>
+
+              <div className="character-builder-capability-detail-summary">
+                <article>
+                  <span>Nivel actual</span>
+                  <strong>{currentLevelLabel}</strong>
+                </article>
+                <article>
+                  <span>PX invertidos</span>
+                  <strong>{investedXp} PX</strong>
+                </article>
+                <article>
+                  <span>PX disponibles</span>
+                  <strong>{effectiveAvailable}</strong>
+                </article>
+              </div>
+
+              <div className="character-builder-capability-detail-body">
+                {hasCompleteTierBreakdown ? (
+                  <div className="character-builder-capability-tier-list" aria-label="Descripción por niveles">
+                    {tiers.map((tier) => {
+                      const isCurrent = tier.label === currentLevelLabel;
+                      return (
+                        <section key={tier.label} className={`character-builder-capability-tier${isCurrent ? " is-current" : ""}`}>
+                          <div className="row-actions">
+                            <h4>{tier.label}</h4>
+                            {isCurrent ? <span className="character-builder-current-level-badge">Nivel actual</span> : null}
+                          </div>
+                          <p>{tier.content}</p>
+                        </section>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <section className="character-builder-capability-description">
+                    <h4>Descripción</h4>
+                    <p>{description || "No hay una descripción detallada registrada."}</p>
+                  </section>
+                )}
+              </div>
+
+              <footer className="character-builder-capability-detail-actions">
+                <div className="toolbar">
+                  {previousLevel ? (
+                    <button type="button" className="subtle-button" onClick={() => openDowngradeConfirmation(section, index)}>
+                      Bajar a {getLevelLabel(section, previousLevel)} · liberar {investedXp - getRatedEntryCost(previousLevel)} PX
+                    </button>
+                  ) : null}
+                  {nextLevel ? (
+                    <button
+                      type="button"
+                      disabled={upgradeCost > effectiveAvailable}
+                      title={upgradeCost > effectiveAvailable ? `Faltan ${upgradeCost - effectiveAvailable} PX` : undefined}
+                      onClick={() => openUpgradeConfirmation(section, index)}
+                    >
+                      Subir a {getLevelLabel(section, nextLevel)} · {upgradeCost} PX
+                    </button>
+                  ) : !isRitual ? <span className="meta-text">Nivel máximo alcanzado</span> : null}
+                  <button type="button" className="destructive-button" onClick={() => void confirmRemoveRatedEntry(section, index)}>
+                    Quitar · liberar {investedXp} PX
+                  </button>
+                </div>
+                <button type="button" className="subtle-button" onClick={closeCapabilityDetails}>Cerrar</button>
+              </footer>
+            </div>
+          </section>
+        );
+      })() : null}
 
       {acquisitionModal ? (
         <section className="modal-backdrop" onClick={() => setAcquisitionModal(null)}>
@@ -1478,7 +1635,7 @@ export function CharacterBuilderView({
                 {capabilityConfirmationModal.sourceLabel
                   ? `${capabilityConfirmationModal.sourceLabel} · `
                   : ""}
-                {`${capabilityConfirmationModal.cost} PX`}
+                {capabilityConfirmationModal.xpLabel}
               </span>
             </div>
             {capabilityConfirmationModal.targetTier ? (

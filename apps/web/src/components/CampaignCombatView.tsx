@@ -14,6 +14,7 @@ import { fetchCustomMonsters, fetchMonsterCodex } from "../services/monsterServi
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { MonsterReferenceSheet } from "./MonsterReferenceSheet";
 import { UnifiedCharacterSheet } from "./UnifiedCharacterSheet";
+import { useConfirmationDialog } from "./ConfirmationDialogProvider";
 
 type Props = {
   campaign: Campaign;
@@ -172,6 +173,7 @@ function CombatResourceBar({
 }
 
 export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacter, onCampaignRefresh }: Props) {
+  const confirm = useConfirmationDialog();
   const [combat, setCombat] = useState<CampaignCombat | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -310,8 +312,33 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
         <div className="campaign-combat-toolbar-actions">
           <button type="button" onClick={() => setPickerOpen(true)}>Añadir participante</button>
           <button type="button" className="subtle-button" disabled={busy || combat.participants.length < 2} onClick={() => void reorderByIds([...combat.participants].sort((a, b) => b.initiative - a.initiative).map((entry) => entry.id))}>Ordenar iniciativa</button>
-          <button type="button" className="subtle-button" disabled={busy} onClick={() => { if (window.confirm("¿Reiniciar el combate? Se eliminará el estado actual.")) void mutate((token) => startCampaignCombat(campaign.id, token)); }}>Reiniciar</button>
-          <button type="button" className="danger-button" disabled={busy} onClick={() => { if (window.confirm("¿Finalizar el combate? Este estado no se archivará.")) void (async () => { setBusy(true); try { const token = await ensureAccessToken(); await finishCampaignCombat(campaign.id, token); setCombat(null); } catch (finishError) { setError(finishError instanceof Error ? finishError.message : "No se pudo finalizar"); } finally { setBusy(false); } })(); }}>Finalizar</button>
+          <button type="button" className="subtle-button" disabled={busy} onClick={async () => {
+            if (!await confirm({
+              title: "Reiniciar combate",
+              message: "Se eliminará todo el estado actual del combate.",
+              confirmLabel: "Reiniciar",
+              tone: "danger"
+            })) return;
+            void mutate((token) => startCampaignCombat(campaign.id, token));
+          }}>Reiniciar</button>
+          <button type="button" className="danger-button" disabled={busy} onClick={async () => {
+            if (!await confirm({
+              title: "Finalizar combate",
+              message: "El estado actual se eliminará y no se archivará.",
+              confirmLabel: "Finalizar",
+              tone: "danger"
+            })) return;
+            setBusy(true);
+            try {
+              const token = await ensureAccessToken();
+              await finishCampaignCombat(campaign.id, token);
+              setCombat(null);
+            } catch (finishError) {
+              setError(finishError instanceof Error ? finishError.message : "No se pudo finalizar");
+            } finally {
+              setBusy(false);
+            }
+          }}>Finalizar</button>
         </div>
       </header>
       {error ? <p className="error-text campaign-combat-error">{error}</p> : null}

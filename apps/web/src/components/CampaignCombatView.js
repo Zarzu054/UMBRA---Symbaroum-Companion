@@ -5,6 +5,7 @@ import { fetchCustomMonsters, fetchMonsterCodex } from "../services/monsterServi
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { MonsterReferenceSheet } from "./MonsterReferenceSheet";
 import { UnifiedCharacterSheet } from "./UnifiedCharacterSheet";
+import { useConfirmationDialog } from "./ConfirmationDialogProvider";
 const MANUAL_CONDITIONS = [
     ["condition-burning", "Ardiendo"], ["condition-stunned", "Aturdido"], ["condition-blinded", "Cegado"],
     ["condition-prone", "Derribado"], ["condition-poisoned", "Envenenado"], ["condition-immobilized", "Inmovilizado"],
@@ -68,6 +69,7 @@ function CombatResourceBar({ alias, label, value, maximum, displayValue, tone, d
     return (_jsxs("div", { className: `campaign-combat-resource is-${tone}`, children: [_jsx("span", { children: label }), _jsxs("div", { className: "campaign-combat-resource-controls", children: [_jsx("button", { type: "button", "aria-label": `Restar ${label} a ${alias}`, disabled: disabled || value <= 0, onClick: onDecrease, children: "\u2212" }), _jsxs("div", { className: "campaign-combat-resource-track", role: "progressbar", "aria-label": `${label} de ${alias}`, "aria-valuemin": 0, "aria-valuemax": safeMaximum, "aria-valuenow": progressValue, "aria-valuetext": displayValue, children: [_jsx("div", { className: "campaign-combat-resource-fill", style: { width: `${percentage}%` }, "aria-hidden": "true" }), _jsx("strong", { children: displayValue })] }), _jsx("button", { type: "button", "aria-label": `Sumar ${label} a ${alias}`, disabled: disabled || disableIncrease, onClick: onIncrease, children: "+" })] })] }));
 }
 export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacter, onCampaignRefresh }) {
+    const confirm = useConfirmationDialog();
     const [combat, setCombat] = useState(null);
     const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
@@ -201,9 +203,25 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
         return _jsx("section", { className: "panel campaign-combat-empty", children: _jsx("p", { children: "Cargando combate\u2026" }) });
     if (!combat)
         return (_jsxs("section", { className: "panel campaign-combat-empty", children: [_jsx("h3", { children: "Combate" }), _jsx("p", { className: "section-help", children: "Inicia un encuentro para reunir aqu\u00ED el estado de PJ, PNJ y monstruos." }), error ? _jsx("p", { className: "error-text", children: error }) : null, _jsx("button", { type: "button", disabled: busy, onClick: () => void mutate((token) => startCampaignCombat(campaign.id, token)), children: "Iniciar combate" })] }));
-    return (_jsxs("section", { className: "campaign-combat", "aria-label": "Combate de campa\u00F1a", children: [_jsx("header", { className: "panel campaign-combat-toolbar", children: _jsxs("div", { className: "campaign-combat-toolbar-actions", children: [_jsx("button", { type: "button", onClick: () => setPickerOpen(true), children: "A\u00F1adir participante" }), _jsx("button", { type: "button", className: "subtle-button", disabled: busy || combat.participants.length < 2, onClick: () => void reorderByIds([...combat.participants].sort((a, b) => b.initiative - a.initiative).map((entry) => entry.id)), children: "Ordenar iniciativa" }), _jsx("button", { type: "button", className: "subtle-button", disabled: busy, onClick: () => { if (window.confirm("¿Reiniciar el combate? Se eliminará el estado actual."))
-                                void mutate((token) => startCampaignCombat(campaign.id, token)); }, children: "Reiniciar" }), _jsx("button", { type: "button", className: "danger-button", disabled: busy, onClick: () => { if (window.confirm("¿Finalizar el combate? Este estado no se archivará."))
-                                void (async () => { setBusy(true); try {
+    return (_jsxs("section", { className: "campaign-combat", "aria-label": "Combate de campa\u00F1a", children: [_jsx("header", { className: "panel campaign-combat-toolbar", children: _jsxs("div", { className: "campaign-combat-toolbar-actions", children: [_jsx("button", { type: "button", onClick: () => setPickerOpen(true), children: "A\u00F1adir participante" }), _jsx("button", { type: "button", className: "subtle-button", disabled: busy || combat.participants.length < 2, onClick: () => void reorderByIds([...combat.participants].sort((a, b) => b.initiative - a.initiative).map((entry) => entry.id)), children: "Ordenar iniciativa" }), _jsx("button", { type: "button", className: "subtle-button", disabled: busy, onClick: async () => {
+                                if (!await confirm({
+                                    title: "Reiniciar combate",
+                                    message: "Se eliminará todo el estado actual del combate.",
+                                    confirmLabel: "Reiniciar",
+                                    tone: "danger"
+                                }))
+                                    return;
+                                void mutate((token) => startCampaignCombat(campaign.id, token));
+                            }, children: "Reiniciar" }), _jsx("button", { type: "button", className: "danger-button", disabled: busy, onClick: async () => {
+                                if (!await confirm({
+                                    title: "Finalizar combate",
+                                    message: "El estado actual se eliminará y no se archivará.",
+                                    confirmLabel: "Finalizar",
+                                    tone: "danger"
+                                }))
+                                    return;
+                                setBusy(true);
+                                try {
                                     const token = await ensureAccessToken();
                                     await finishCampaignCombat(campaign.id, token);
                                     setCombat(null);
@@ -213,7 +231,8 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
                                 }
                                 finally {
                                     setBusy(false);
-                                } })(); }, children: "Finalizar" })] }) }), error ? _jsx("p", { className: "error-text campaign-combat-error", children: error }) : null, _jsxs("div", { className: "campaign-combat-list", children: [combat.participants.map((participant, index) => {
+                                }
+                            }, children: "Finalizar" })] }) }), error ? _jsx("p", { className: "error-text campaign-combat-error", children: error }) : null, _jsxs("div", { className: "campaign-combat-list", children: [combat.participants.map((participant, index) => {
                         const automaticIds = new Set(["condition-dying", "legacy-dying", "legacy-corruption"]);
                         return (_jsxs("article", { className: "campaign-combat-card", draggable: !busy, onDragStart: () => { draggedId.current = participant.id; }, onDragOver: (event) => event.preventDefault(), onDrop: () => { const sourceId = draggedId.current; if (!sourceId || sourceId === participant.id)
                                 return; const ids = combat.participants.map((entry) => entry.id); const from = ids.indexOf(sourceId); ids.splice(from, 1); ids.splice(index, 0, sourceId); draggedId.current = null; void reorderByIds(ids); }, children: [_jsxs("header", { children: [_jsx("button", { className: "campaign-combat-drag", type: "button", "aria-label": `Mover ${participant.alias}`, children: "\u22EE\u22EE" }), _jsxs("div", { children: [_jsx("span", { children: participantTypeLabel(participant.kind) }), _jsx("strong", { children: participant.alias })] }), _jsx(CombatInitiativeField, { participant: participant, disabled: busy, onCommit: async (initiativeOverride) => { await mutate((token) => updateCampaignCombatParticipant(campaign.id, participant.id, { revision: combat.revision, initiativeOverride }, token)); } }), _jsxs("div", { className: "campaign-combat-card-actions", children: [participant.kind === "monster" ? (_jsx("button", { type: "button", className: "subtle-button", "aria-label": `Renombrar a ${participant.alias}`, disabled: busy, onClick: () => openMonsterRename(participant), children: "Renombrar" })) : null, _jsx("button", { type: "button", className: "subtle-button", onClick: () => { if (participant.kind === "character")

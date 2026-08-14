@@ -5,6 +5,7 @@ import { getCharacterExperienceSummary } from "../models/characterExperience";
 import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS } from "../models/compendiumEntries";
 import { ITEM_CATALOG } from "../models/itemCatalog";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { useConfirmationDialog } from "./ConfirmationDialogProvider";
 function WizardShell(props) {
     useBodyScrollLock(true);
     const isLast = props.step === props.steps.length - 1;
@@ -127,6 +128,7 @@ function updateLegacyCollections(sheet, selections) {
     };
 }
 export function CharacterCreationWizard({ controller, onCancel }) {
+    const confirm = useConfirmationDialog();
     const steps = [
         { id: "identity", label: "Identidad" }, { id: "attributes", label: "Atributos" }, { id: "capabilities", label: "Capacidades" }, { id: "equipment", label: "Equipo" }, { id: "background", label: "Trasfondo" }
     ];
@@ -314,8 +316,13 @@ export function CharacterCreationWizard({ controller, onCancel }) {
         }
         return true;
     }
-    function close() {
-        if (JSON.stringify(controller.form) !== initialRef.current && !window.confirm("Hay cambios sin guardar. ¿Cerrar el creador?"))
+    async function close() {
+        if (JSON.stringify(controller.form) !== initialRef.current && !await confirm({
+            title: "Descartar cambios",
+            message: "Hay cambios sin guardar. Si cierras el creador, se perderán.",
+            confirmLabel: "Cerrar sin guardar",
+            tone: "danger"
+        }))
             return;
         onCancel();
     }
@@ -383,6 +390,7 @@ function AttributeEditor({ values, labels, keys, bonuses, onChange }) {
     return _jsxs("section", { className: "actor-wizard__section", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Atributos base" }), _jsx("p", { className: "section-help", children: "Reparte exactamente 80 puntos. Cada valor base debe estar entre 5 y 15 y solo uno puede alcanzar 15. Atributo excepcional se aplica despu\u00E9s y puede elevar distintos atributos hasta 18." })] }), _jsxs("strong", { className: validation.valid ? "is-valid" : "error", children: [validation.total, " / 80"] })] }), _jsx("div", { className: "actor-wizard__attribute-grid", children: keys.map((key) => { const effective = bonuses?.[key] ?? values[key]; const bonus = effective - values[key]; return _jsxs("label", { className: "field", children: [_jsxs("span", { children: [labels[key], bonus > 0 ? ` · final ${effective} (+${bonus})` : ""] }), _jsx("input", { type: "number", min: 5, max: 15, value: values[key], onChange: (event) => onChange(key, Number(event.target.value)) })] }, key); }) }), !validation.valid ? _jsx("p", { className: "error", children: validation.errors.join(" ") }) : null] });
 }
 export function NpcCreationWizard({ controller, onCancel, onSaved }) {
+    const confirm = useConfirmationDialog();
     const narrative = controller.draft.depth === "notes";
     const steps = narrative ? [{ id: "identity", label: "Identidad" }, { id: "background", label: "Trasfondo" }] : [{ id: "identity", label: "Identidad" }, { id: "attributes", label: "Atributos" }, { id: "capabilities", label: "Capacidades" }, { id: "equipment", label: "Equipo" }, { id: "background", label: "Trasfondo" }];
     const [step, setStep] = useState(0);
@@ -394,8 +402,16 @@ export function NpcCreationWizard({ controller, onCancel, onSaved }) {
     const baseAttributes = sheet ? removeExceptionalAttributeBonuses(sheet.atributos, selections) : null;
     const spent = getActorSpentXp(selections);
     const challenge = getActorChallengeFromXp(spent);
-    function close() { if (JSON.stringify(draft) !== initialRef.current && !window.confirm("Hay cambios sin guardar. ¿Cerrar el creador?"))
-        return; onCancel(); }
+    async function close() {
+        if (JSON.stringify(draft) !== initialRef.current && !await confirm({
+            title: "Descartar cambios",
+            message: "Hay cambios sin guardar. Si cierras el creador, se perderán.",
+            confirmLabel: "Cerrar sin guardar",
+            tone: "danger"
+        }))
+            return;
+        onCancel();
+    }
     function validate(index) {
         setLocalError(null);
         if (index === 0 && draft.name.trim().length < 2) {
@@ -434,6 +450,7 @@ export function NpcCreationWizard({ controller, onCancel, onSaved }) {
             setStep((current) => Math.min(steps.length - 1, current + 1)); }, onCancel: close, onSave: () => void save(), children: [step === 0 ? _jsxs("section", { className: "actor-wizard__section", children: [_jsx("h3", { children: "Identidad" }), _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Tipo de PNJ" }), _jsxs("select", { value: narrative ? "notes" : "full_sheet", onChange: (event) => controller.updateDepth(event.target.value), children: [_jsx("option", { value: "notes", children: "Narrativo" }), _jsx("option", { value: "full_sheet", children: "Completo" })] })] }), ["name", "race", "archetype", "occupation", "faction"].map((field) => _jsxs("label", { className: "field", children: [_jsx("span", { children: { name: "Nombre", race: "Raza", archetype: "Arquetipo", occupation: "Ocupación", faction: "Facción" }[field] }), _jsx("input", { value: draft[field], onChange: (event) => controller.updateField(field, event.target.value) })] }, field)), !narrative && sheet ? _jsxs("label", { className: "field", children: [_jsx("span", { children: "Cultura" }), _jsx("select", { value: sheet.identidad.cultura, onChange: (event) => setCharacterSheet({ ...sheet, identidad: { ...sheet.identidad, cultura: event.target.value } }), children: SYMBAROUM_CULTURES.map((entry) => _jsx("option", { children: entry }, entry)) })] }) : null, _jsxs("label", { className: "field field-span-2", children: [_jsx("span", { children: "Etiquetas" }), _jsx("input", { value: draft.labels.join(", "), onChange: (event) => controller.updateLabels(event.target.value) })] })] })] }) : null, !narrative && step === 1 && sheet && baseAttributes ? _jsx(AttributeEditor, { values: baseAttributes, labels: ATTRIBUTE_LABELS, keys: ATTRIBUTE_KEYS, bonuses: sheet.atributos, onChange: (key, value) => setCharacterSheet({ ...sheet, atributos: applyExceptionalAttributeBonuses({ ...baseAttributes, [key]: value }, selections) }) }) : null, !narrative && step === 2 && sheet ? _jsx(SimpleGmCapabilities, { selections: selections, attributeKeys: ATTRIBUTE_KEYS, attributeLabels: ATTRIBUTE_LABELS, onChange: (next) => setCharacterSheet(updateLegacyCollections({ ...sheet, atributos: synchronizeExceptionalAttributes(sheet.atributos, selections, next) }, next)), includeMonsterTraits: true }) : null, !narrative && step === 3 && sheet ? _jsx(SimpleGmEquipment, { sheet: sheet, onChange: setCharacterSheet, fixed: true }) : null, step === steps.length - 1 ? _jsxs("section", { className: "actor-wizard__section", children: [_jsx("h3", { children: "Trasfondo" }), _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field field-span-2", children: [_jsx("span", { children: "Resumen" }), _jsx("textarea", { rows: 4, value: draft.summary, onChange: (event) => controller.updateField("summary", event.target.value) })] }), _jsxs("label", { className: "field field-span-2", children: [_jsx("span", { children: "Historia, personalidad, conducta y ganchos" }), _jsx("textarea", { rows: 10, value: draft.notes, onChange: (event) => controller.updateField("notes", event.target.value) })] }), !narrative && sheet ? _jsx(_Fragment, { children: ["tactics", "weakness", "loot"].map((field) => _jsxs("label", { className: "field field-span-2", children: [_jsx("span", { children: { tactics: "Tácticas", weakness: "Debilidad", loot: "Botín" }[field] }), _jsx("textarea", { rows: 4, value: sheet.gmBackground[field], onChange: (event) => setCharacterSheet({ ...sheet, gmBackground: { ...sheet.gmBackground, [field]: event.target.value } }) })] }, field)) }) : null] })] }) : null] });
 }
 export function MonsterCreationWizard({ controller, onCancel }) {
+    const confirm = useConfirmationDialog();
     const steps = [{ id: "identity", label: "Identidad" }, { id: "attributes", label: "Atributos" }, { id: "capabilities", label: "Capacidades" }, { id: "equipment", label: "Equipo" }, { id: "background", label: "Trasfondo" }];
     const [step, setStep] = useState(0);
     const [localError, setLocalError] = useState(null);
@@ -460,8 +477,16 @@ export function MonsterCreationWizard({ controller, onCancel }) {
     function validateThrough(index) { for (let current = 0; current <= index; current += 1)
         if (!validate(current))
             return false; return true; }
-    function close() { if (JSON.stringify(draft) !== initialRef.current && !window.confirm("Hay cambios sin guardar. ¿Cerrar el creador?"))
-        return; onCancel(); }
+    async function close() {
+        if (JSON.stringify(draft) !== initialRef.current && !await confirm({
+            title: "Descartar cambios",
+            message: "Hay cambios sin guardar. Si cierras el creador, se perderán.",
+            confirmLabel: "Cerrar sin guardar",
+            tone: "danger"
+        }))
+            return;
+        onCancel();
+    }
     async function save() { if (!validateThrough(steps.length - 1))
         return; if (await controller.saveDraft())
         onCancel(); }

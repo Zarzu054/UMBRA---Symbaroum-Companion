@@ -5,6 +5,7 @@ import { useMonsterController } from "../controllers/monsterController";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { MonsterCreationWizard } from "../components/ActorCreationWizard";
 import { MonsterReferenceSheet } from "../components/MonsterReferenceSheet";
+import { useConfirmationDialog } from "../components/ConfirmationDialogProvider";
 function normalizeSearchValue(value) {
     return value
         .normalize("NFD")
@@ -127,6 +128,7 @@ function useNarrowMonsterLayout() {
     return narrow;
 }
 export function MonsterDashboardView({ user, ensureAccessToken }) {
+    const confirm = useConfirmationDialog();
     const controller = useMonsterController(user, ensureAccessToken);
     const [activeTab, setActiveTab] = useState("codex");
     const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -239,7 +241,12 @@ export function MonsterDashboardView({ user, ensureAccessToken }) {
         setSortMode("alphabetical");
     }
     async function removeCustom(monster) {
-        if (!window.confirm(`¿Eliminar definitivamente a ${monster.name}?`))
+        if (!await confirm({
+            title: "Eliminar monstruo",
+            message: `¿Eliminar definitivamente a ${monster.name}? Esta acción no se puede deshacer.`,
+            confirmLabel: "Eliminar definitivamente",
+            tone: "danger"
+        }))
             return;
         await controller.deleteSelected(monster.id);
         setCustomDetailId(null);

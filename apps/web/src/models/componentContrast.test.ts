@@ -66,6 +66,12 @@ describe("component contrast contracts", () => {
     }
   });
 
+  it("keeps compact PX purchases and the current level theme-aware", () => {
+    expect(stylesheet).toMatch(/\.character-builder-entry-trigger:hover,[\s\S]*?color: var\(--ui-text\);[\s\S]*?background: var\(--ui-surface-hover\);[\s\S]*?box-shadow: inset 0 0 0 2px var\(--ui-focus\)/);
+    expect(stylesheet).toMatch(/\.character-builder-entry-level,[\s\S]*?color: var\(--ui-text-muted\)/);
+    expect(stylesheet).toMatch(/\.character-builder-capability-tier\.is-current\s*\{[\s\S]*?border-color: var\(--ui-brand\);[\s\S]*?background: var\(--ui-brand-soft\)/);
+  });
+
   it("keeps inactive monster tabs readable in every theme", () => {
     expect(stylesheet).toMatch(/\.monster-catalog-tabs button\s*\{[\s\S]*?color: var\(--ui-text-muted\);[\s\S]*?background: transparent/);
     expect(stylesheet).toMatch(/\.monster-catalog-tabs button:hover\s*\{[\s\S]*?color: var\(--ui-text\);[\s\S]*?background: var\(--ui-surface-hover\)/);

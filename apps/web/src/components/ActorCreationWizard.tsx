@@ -37,6 +37,7 @@ import { getCharacterExperienceSummary } from "../models/characterExperience";
 import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS } from "../models/compendiumEntries";
 import { ITEM_CATALOG, type ItemTemplate } from "../models/itemCatalog";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { useConfirmationDialog } from "./ConfirmationDialogProvider";
 
 type WizardStep = { id: string; label: string };
 
@@ -223,6 +224,7 @@ function updateLegacyCollections(sheet: CharacterSheet, selections: ActorCapabil
 type CharacterController = ReturnType<typeof useCharacterController>;
 
 export function CharacterCreationWizard({ controller, onCancel }: { controller: CharacterController; onCancel: () => void }) {
+  const confirm = useConfirmationDialog();
   const steps: WizardStep[] = [
     { id: "identity", label: "Identidad" }, { id: "attributes", label: "Atributos" }, { id: "capabilities", label: "Capacidades" }, { id: "equipment", label: "Equipo" }, { id: "background", label: "Trasfondo" }
   ];
@@ -388,8 +390,13 @@ export function CharacterCreationWizard({ controller, onCancel }: { controller: 
     return true;
   }
 
-  function close() {
-    if (JSON.stringify(controller.form) !== initialRef.current && !window.confirm("Hay cambios sin guardar. ¿Cerrar el creador?")) return;
+  async function close() {
+    if (JSON.stringify(controller.form) !== initialRef.current && !await confirm({
+      title: "Descartar cambios",
+      message: "Hay cambios sin guardar. Si cierras el creador, se perderán.",
+      confirmLabel: "Cerrar sin guardar",
+      tone: "danger"
+    })) return;
     onCancel();
   }
 
@@ -495,6 +502,7 @@ function AttributeEditor<K extends string>({ values, labels, keys, bonuses, onCh
 type NpcController = ReturnType<typeof useNpcController>;
 
 export function NpcCreationWizard({ controller, onCancel, onSaved }: { controller: NpcController; onCancel: () => void; onSaved: (npc: Npc) => void }) {
+  const confirm = useConfirmationDialog();
   const narrative = controller.draft.depth === "notes";
   const steps = narrative ? [{ id: "identity", label: "Identidad" }, { id: "background", label: "Trasfondo" }] : [{ id: "identity", label: "Identidad" }, { id: "attributes", label: "Atributos" }, { id: "capabilities", label: "Capacidades" }, { id: "equipment", label: "Equipo" }, { id: "background", label: "Trasfondo" }];
   const [step, setStep] = useState(0);
@@ -507,7 +515,15 @@ export function NpcCreationWizard({ controller, onCancel, onSaved }: { controlle
   const spent = getActorSpentXp(selections);
   const challenge = getActorChallengeFromXp(spent);
 
-  function close() { if (JSON.stringify(draft) !== initialRef.current && !window.confirm("Hay cambios sin guardar. ¿Cerrar el creador?")) return; onCancel(); }
+  async function close() {
+    if (JSON.stringify(draft) !== initialRef.current && !await confirm({
+      title: "Descartar cambios",
+      message: "Hay cambios sin guardar. Si cierras el creador, se perderán.",
+      confirmLabel: "Cerrar sin guardar",
+      tone: "danger"
+    })) return;
+    onCancel();
+  }
   function validate(index: number): boolean {
     setLocalError(null);
     if (index === 0 && draft.name.trim().length < 2) { setLocalError("El PNJ necesita un nombre."); return false; }
@@ -535,13 +551,22 @@ export function NpcCreationWizard({ controller, onCancel, onSaved }: { controlle
 type MonsterController = ReturnType<typeof useMonsterController>;
 
 export function MonsterCreationWizard({ controller, onCancel }: { controller: MonsterController; onCancel: () => void }) {
+  const confirm = useConfirmationDialog();
   const steps = [{ id: "identity", label: "Identidad" }, { id: "attributes", label: "Atributos" }, { id: "capabilities", label: "Capacidades" }, { id: "equipment", label: "Equipo" }, { id: "background", label: "Trasfondo" }];
   const [step, setStep] = useState(0); const [localError, setLocalError] = useState<string | null>(null); const initialRef = useRef(JSON.stringify(controller.draft));
   const draft = controller.draft; const sheet = draft.sheet;
   const baseAttributes = removeExceptionalAttributeBonuses(sheet.attributes, sheet.capabilities);
   function validate(index: number) { setLocalError(null); if (index === 0 && draft.name.trim().length < 2) { setLocalError("El monstruo necesita un nombre."); return false; } if (index === 1) { const result = validateCreationAttributes(baseAttributes); if (!result.valid) { setLocalError(result.errors.join(" ")); return false; } } if (index === 2) { const errors = validateExceptionalAttributeSelections(sheet.capabilities, MONSTER_ATTRIBUTE_KEYS); if (errors.length > 0) { setLocalError(errors.join(" ")); return false; } } return true; }
   function validateThrough(index: number) { for (let current = 0; current <= index; current += 1) if (!validate(current)) return false; return true; }
-  function close() { if (JSON.stringify(draft) !== initialRef.current && !window.confirm("Hay cambios sin guardar. ¿Cerrar el creador?")) return; onCancel(); }
+  async function close() {
+    if (JSON.stringify(draft) !== initialRef.current && !await confirm({
+      title: "Descartar cambios",
+      message: "Hay cambios sin guardar. Si cierras el creador, se perderán.",
+      confirmLabel: "Cerrar sin guardar",
+      tone: "danger"
+    })) return;
+    onCancel();
+  }
   async function save() { if (!validateThrough(steps.length - 1)) return; if (await controller.saveDraft()) onCancel(); }
   return <WizardShell title={controller.selectedCustomId ? "Editar monstruo" : "Crear monstruo"} steps={steps} step={step} summary={<><span>PX usada <strong>{controller.draftSpentXp}</strong></span><span>Desafío <strong>{controller.draftChallenge}</strong></span><span>Daño medio <strong>{averageDiceFormula(sheet.damage) ?? "-"}</strong></span><span>Armadura media <strong>{averageDiceFormula(sheet.armor) ?? "-"}</strong></span></>} error={localError ?? controller.formError} busy={controller.isSaving} onStep={(index) => { if (index <= step || validateThrough(index - 1)) setStep(index); }} onPrevious={() => setStep((current) => Math.max(0, current - 1))} onNext={() => { if (validate(step)) setStep((current) => Math.min(steps.length - 1, current + 1)); }} onCancel={close} onSave={() => void save()}>
     {step === 0 ? <section className="actor-wizard__section"><h3>Identidad</h3><div className="form-grid"><label className="field"><span>Nombre</span><input value={draft.name} onChange={(event) => controller.updateField("name", event.target.value)} /></label><label className="field"><span>Categoría</span><select value={draft.category} onChange={(event) => controller.updateField("category", event.target.value)}>{["Abominación", "Bestia", "Fenómeno", "Flora", "Muerto viviente", "Ser civilizado"].map((entry) => <option key={entry}>{entry}</option>)}</select></label><label className="field"><span>Fuente</span><input value={draft.source} onChange={(event) => controller.updateField("source", event.target.value)} /></label><label className="field"><span>Desafío calculado</span><input readOnly value={controller.draftChallenge} /></label></div></section> : null}

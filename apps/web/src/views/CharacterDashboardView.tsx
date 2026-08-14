@@ -21,6 +21,7 @@ import { AppTopNavigation, type AppNavigationItem } from "../components/AppTopNa
 import { AppIcon } from "../components/AppIcon";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { CharacterCreationWizard } from "../components/ActorCreationWizard";
+import { useConfirmationDialog } from "../components/ConfirmationDialogProvider";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
 import {
   RULE_CATEGORY_LABELS,
@@ -136,6 +137,7 @@ function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"
 }
 
 export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Props) {
+  const confirm = useConfirmationDialog();
   const controller = useCharacterController(ensureAccessToken);
   const dashboardRef = useRef<HTMLElement | null>(null);
   const isCampaignManagedLock = false;
@@ -514,10 +516,14 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               <button
                 className="danger"
                 disabled={controller.isSaving}
-                onClick={() => {
-                  if (window.confirm("Esta acción eliminará el personaje. ¿Deseas continuar?")) {
-                    void controller.deleteSelected();
-                  }
+                onClick={async () => {
+                  if (!await confirm({
+                    title: "Eliminar personaje",
+                    message: "Esta acción eliminará el personaje de forma permanente.",
+                    confirmLabel: "Eliminar personaje",
+                    tone: "danger"
+                  })) return;
+                  void controller.deleteSelected();
                 }}
               >
                 Eliminar ficha
@@ -1478,10 +1484,14 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                           onExportPdf={() => void exportCharacterSheetPdf(character)}
                           onDuplicate={() => void controller.duplicateSelected(character.id)}
                           onOpenHistory={() => setChangeLogCharacterId(character.id)}
-                          onDelete={() => {
-                            if (window.confirm("Esta acción eliminará el personaje. ¿Deseas continuar?")) {
-                              void controller.deleteSelected(character.id);
-                            }
+                          onDelete={async () => {
+                            if (!await confirm({
+                              title: "Eliminar personaje",
+                              message: `Esta acción eliminará a ${character.name} de forma permanente.`,
+                              confirmLabel: "Eliminar personaje",
+                              tone: "danger"
+                            })) return;
+                            void controller.deleteSelected(character.id);
                           }}
                         />
                       ))}

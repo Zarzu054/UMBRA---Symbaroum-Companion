@@ -1478,6 +1478,26 @@ button[disabled] {
   border-bottom: 0;
 }
 
+.character-builder-entry-trigger:hover,
+.character-builder-entry-trigger:focus-visible {
+  color: var(--ui-text);
+  background: var(--ui-surface-hover);
+  box-shadow: inset 0 0 0 2px var(--ui-focus);
+}
+
+.character-builder-entry-level,
+.character-builder-entry-metric > span {
+  color: var(--ui-text-muted);
+}
+
+.character-builder-entry-metric {
+  border-color: var(--ui-border);
+}
+
+.character-builder-entry-metric > strong {
+  color: var(--ui-text);
+}
+
 /* Unified sheet */
 .unified-sheet {
   color: var(--ui-text);
@@ -3382,6 +3402,9 @@ button[disabled] {
   .character-action-roll-block,
   .character-builder-acquisition-preview,
   .character-builder-acquisition-result,
+  .character-builder-capability-description,
+  .character-builder-capability-detail-summary,
+  .character-builder-capability-tier,
   .character-builder-confirmation-tier,
   .character-builder-tier-preview,
   .character-builder-token,
@@ -3399,6 +3422,27 @@ button[disabled] {
   color: var(--ui-text);
   border-color: var(--ui-border);
   background: var(--ui-surface);
+}
+
+:root[data-theme][data-palette] .character-builder-capability-detail-summary article,
+:root[data-theme][data-palette] .character-builder-capability-detail-actions {
+  border-color: var(--ui-border);
+}
+
+:root[data-theme][data-palette] .character-builder-capability-detail-summary span {
+  color: var(--ui-text-muted);
+}
+
+:root[data-theme][data-palette] .character-builder-capability-tier.is-current {
+  color: var(--ui-text);
+  border-color: var(--ui-brand);
+  background: var(--ui-brand-soft);
+  box-shadow: inset 4px 0 0 var(--ui-brand);
+}
+
+:root[data-theme][data-palette] .character-builder-current-level-badge {
+  color: var(--ui-brand-strong);
+  background: var(--ui-brand-soft);
 }
 
 :root[data-theme][data-palette] .unified-sheet-read-meta > div {

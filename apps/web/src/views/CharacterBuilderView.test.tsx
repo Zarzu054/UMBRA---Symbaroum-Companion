@@ -3,6 +3,7 @@ import { createEmptyCharacterSheet, type Character, type OwnedMysticArtifact } f
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CharacterBuilderView } from "./CharacterBuilderView";
+import { ConfirmationDialogProvider } from "../components/ConfirmationDialogProvider";
 
 afterEach(() => {
   cleanup();
@@ -40,6 +41,106 @@ it("uses the persisted XP total without adding burden bonuses a second time", ()
   const persistentControls = screen.getByRole("heading", { name: "Urmak" }).closest(".character-builder-sticky-controls");
   expect(persistentControls).toContainElement(screen.getByRole("button", { name: "Guardar constructor" }));
   expect(persistentControls).toContainElement(screen.getByRole("button", { name: "Compras PX" }));
+});
+
+it("shows compact PX purchases and manages levels from a persistent detail modal", async () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.progreso.experienciaTotal = 200;
+  sheet.habilidades = [
+    {
+      nombre: "Disciplina de prueba",
+      tipo: "Habilidad",
+      efecto: "Principiante: Efecto inicial breve. Adepto: Efecto intermedio claro. Maestro: Efecto maestro definitivo.",
+      nivel: "principiante",
+      fuente: "Manual de pruebas",
+      pagina: 42,
+      notas: "",
+      acciones: []
+    },
+    { nombre: "Regeneración", tipo: "Rasgo monstruoso", efecto: "Texto extenso del rasgo que no debe aparecer en la fila.", nivel: "maestro", fuente: "Códice de Monstruos", pagina: 10, notas: "", acciones: [] }
+  ];
+  sheet.poderesMisticos = [
+    { nombre: "Poder heredado", tipo: "Poder místico", efecto: "Descripción heredada sin niveles separados.", nivel: "adepto", fuente: "Crónica antigua", pagina: 7, notas: "", acciones: [] }
+  ];
+  sheet.rituales = [
+    { nombre: "Ritual de prueba", tipo: "Ritual", efecto: "Descripción completa del ritual de prueba.", nivel: "principiante", fuente: "Libro ritual", pagina: 9, notas: "", acciones: [] }
+  ];
+  const character: Character = {
+    id: "character-purchases", name: "Alda", archetype: "Mística", race: "Humana", culture: "Ambriana", profession: "",
+    level: 1, sheet, createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+  };
+
+  render(<ConfirmationDialogProvider><CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={vi.fn()} /></ConfirmationDialogProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Compras PX" }));
+
+  const abilityRow = screen.getByRole("button", { name: "Ver detalles de Disciplina de prueba" });
+  expect(abilityRow).toHaveTextContent("Nivel Principiante");
+  expect(abilityRow).toHaveTextContent("10 PX");
+  expect(abilityRow).toHaveTextContent("Adepto · 20 PX");
+  expect(screen.getByRole("button", { name: "Ver detalles de Poder heredado" })).toHaveTextContent("Maestro · 30 PX");
+  expect(screen.getByRole("button", { name: "Ver detalles de Regeneración" })).toHaveTextContent("Nivel máximo");
+  expect(screen.getByRole("button", { name: "Ver detalles de Ritual de prueba" })).toHaveTextContent("Nivel único");
+  expect(screen.queryByText("Efecto inicial breve.")).not.toBeInTheDocument();
+  expect(screen.queryByText("Texto extenso del rasgo que no debe aparecer en la fila.")).not.toBeInTheDocument();
+
+  fireEvent.click(abilityRow);
+  let dialog = screen.getByRole("dialog", { name: "Disciplina de prueba" });
+  expect(dialog).toHaveTextContent("Manual de pruebas p. 42");
+  expect(dialog).toHaveTextContent("Efecto inicial breve.");
+  expect(dialog).toHaveTextContent("Efecto intermedio claro.");
+  expect(dialog).toHaveTextContent("Efecto maestro definitivo.");
+  expect(dialog.querySelector(".character-builder-capability-tier.is-current")).toHaveTextContent("Principiante");
+
+  fireEvent.click(within(dialog).getByRole("button", { name: "Subir a Adepto · 20 PX" }));
+  const upgradeConfirmation = screen.getByRole("heading", { name: "Confirmar mejora" }).closest(".modal-panel") as HTMLElement;
+  fireEvent.click(within(upgradeConfirmation).getByRole("button", { name: "Gastar 20 PX" }));
+  dialog = screen.getByRole("dialog", { name: "Disciplina de prueba" });
+  expect(dialog).toHaveTextContent("Nivel actualAdepto");
+  expect(dialog).toHaveTextContent("PX invertidos30 PX");
+
+  fireEvent.click(within(dialog).getByRole("button", { name: "Bajar a Principiante · liberar 20 PX" }));
+  const downgradeConfirmation = screen.getByRole("heading", { name: "Confirmar bajada" }).closest(".modal-panel") as HTMLElement;
+  expect(downgradeConfirmation).toHaveTextContent("Liberar 20 PX");
+  fireEvent.click(within(downgradeConfirmation).getByRole("button", { name: "Confirmar bajada a Principiante" }));
+  expect(screen.getByRole("dialog", { name: "Disciplina de prueba" })).toHaveTextContent("Nivel actualPrincipiante");
+
+  fireEvent.click(within(screen.getByRole("dialog", { name: "Disciplina de prueba" })).getByRole("button", { name: "Quitar · liberar 10 PX" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+  expect(screen.getByRole("dialog", { name: "Disciplina de prueba" })).toBeInTheDocument();
+  fireEvent.click(within(screen.getByRole("dialog", { name: "Disciplina de prueba" })).getByRole("button", { name: "Quitar · liberar 10 PX" }));
+  fireEvent.click(screen.getByRole("button", { name: "Quitar y liberar 10 PX" }));
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Disciplina de prueba" })).not.toBeInTheDocument());
+  expect(screen.queryByRole("button", { name: "Ver detalles de Disciplina de prueba" })).not.toBeInTheDocument();
+});
+
+it("uses full-description fallback, disables unaffordable upgrades and keeps rituals level-less", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.progreso.experienciaTotal = 50;
+  sheet.habilidades = [
+    { nombre: "Capacidad sin grados", tipo: "Habilidad", efecto: "Descripción antigua sin estructura por niveles.", nivel: "adepto", fuente: "Legado", notas: "", acciones: [] }
+  ];
+  sheet.rituales = [
+    { nombre: "Ritual sin grados", tipo: "Ritual", efecto: "Un ritual conserva una única descripción.", nivel: "principiante", fuente: "Legado", notas: "", acciones: [] }
+  ];
+  const character: Character = {
+    id: "character-purchase-fallback", name: "Alda", archetype: "Mística", race: "Humana", culture: "Ambriana", profession: "",
+    level: 1, sheet, createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+  };
+
+  render(<ConfirmationDialogProvider><CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={vi.fn()} /></ConfirmationDialogProvider>);
+  fireEvent.click(screen.getByRole("button", { name: "Compras PX" }));
+  fireEvent.click(screen.getByRole("button", { name: "Ver detalles de Capacidad sin grados" }));
+  const abilityDialog = screen.getByRole("dialog", { name: "Capacidad sin grados" });
+  expect(abilityDialog).toHaveTextContent("Descripción antigua sin estructura por niveles.");
+  expect(within(abilityDialog).getByRole("button", { name: "Subir a Maestro · 30 PX" })).toBeDisabled();
+  fireEvent.click(within(abilityDialog).getAllByRole("button", { name: "Cerrar" })[0]);
+
+  fireEvent.click(screen.getByRole("button", { name: "Ver detalles de Ritual sin grados" }));
+  const ritualDialog = screen.getByRole("dialog", { name: "Ritual sin grados" });
+  expect(ritualDialog).toHaveTextContent("Nivel único");
+  expect(ritualDialog).toHaveTextContent("Un ritual conserva una única descripción.");
+  expect(within(ritualDialog).queryByRole("button", { name: /Subir|Bajar/ })).not.toBeInTheDocument();
+  expect(within(ritualDialog).getByRole("button", { name: "Quitar · liberar 10 PX" })).toBeInTheDocument();
 });
 
 it("keeps historical reroll spending when an artifact binding arrives", async () => {
@@ -200,13 +301,13 @@ it("lets the player choose a configured artifact binding payment", async () => {
     createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
   };
   const onBind = vi.fn().mockResolvedValue(undefined);
-  vi.spyOn(window, "confirm").mockReturnValue(true);
 
-  render(<CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={vi.fn()} onBindMysticArtifact={onBind} />);
+  render(<ConfirmationDialogProvider><CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={vi.fn()} onBindMysticArtifact={onBind} /></ConfirmationDialogProvider>);
   fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
   expect(screen.getByText("Piedra Solar")).toBeInTheDocument();
   expect(screen.getByText(/capacidades se revelaran/i)).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Vincular por 1 PX" }));
+  fireEvent.click(screen.getByRole("button", { name: "Vincular artefacto" }));
 
   await waitFor(() => expect(onBind).toHaveBeenCalledWith("artifact-a", "xp"));
 });
