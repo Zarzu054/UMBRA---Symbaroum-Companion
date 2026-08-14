@@ -101,7 +101,7 @@ describe("getCharacterActionRollPresentation", () => {
     expect(getCharacterActionRollPresentation(buildAction({ damageFormula: "+1d4" }), sheet).hasRoll).toBe(false);
   });
 
-  it("shows Parcabrasa with its thrown base improved by Viento de acero", () => {
+  it("separates Parcabrasa's melee attack from its ranged throw", () => {
     const sheet = createEmptyCharacterSheet();
     sheet.inventoryItems = [{
       id: "managed-artifact:parcabrasa",
@@ -124,10 +124,26 @@ describe("getCharacterActionRollPresentation", () => {
       artifactBound: true,
       artifactBindingCostLabel: "1 PX",
       artifactResources: [],
-      grantedActions: [],
+      grantedActions: [{
+        id: "legacy-parcabrasa",
+        label: "Parcabrasa",
+        cost: "combat",
+        rollAttribute: "diestro",
+        damageFormula: "1D6+1D4",
+        effectSummary: "Acción de lanzamiento antigua."
+      }],
       modifiers: []
     }];
     sheet.habilidades = [{
+      nombre: "Sexto sentido",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "principiante",
+      fuente: "Libro Básico",
+      pagina: 116,
+      notas: "",
+      acciones: []
+    }, {
       nombre: "Viento de acero",
       tipo: "Habilidad",
       efecto: "",
@@ -138,10 +154,19 @@ describe("getCharacterActionRollPresentation", () => {
       acciones: []
     }];
 
-    const action = deriveCharacterActions(synchronizeCharacterSheet(sheet))
-      .find((entry) => entry.label === "Atacar con Parcabrasa");
+    const actions = deriveCharacterActions(synchronizeCharacterSheet(sheet));
+    const meleeAttack = actions.find((entry) => entry.label === "Atacar con Parcabrasa");
+    const thrownAttack = actions.find((entry) => entry.label === "Lanzar a Parcabrasa");
 
-    expect(action?.damageFormula).toBe("1d8+1d4");
-    expect(getCharacterActionRollPresentation(action!, sheet).damageFormula).toBe("1d8+1d4");
+    expect(actions.filter((entry) => entry.sourceName === "Parcabrasa").map((entry) => entry.label))
+      .toEqual(["Atacar con Parcabrasa", "Lanzar a Parcabrasa"]);
+    expect(meleeAttack).toMatchObject({ rollAttribute: "diestro", damageFormula: "1d6+1d4" });
+    expect(meleeAttack?.effectSummary).not.toContain("Sexto sentido");
+    expect(meleeAttack?.effectSummary).not.toContain("Viento de acero");
+    expect(thrownAttack).toMatchObject({ rollAttribute: "atento", damageFormula: "1d8+1d4" });
+    expect(thrownAttack?.effectSummary).toContain("Sexto sentido");
+    expect(thrownAttack?.effectSummary).toContain("Viento de acero");
+    expect(getCharacterActionRollPresentation(meleeAttack!, sheet).attackFormula).toContain("Diestro");
+    expect(getCharacterActionRollPresentation(thrownAttack!, sheet).attackFormula).toContain("Atento");
   });
 });
