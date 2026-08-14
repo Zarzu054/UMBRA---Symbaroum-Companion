@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEmptyCharacterSheet } from "@umbra/shared";
 import { UnifiedCharacterSheet } from "./UnifiedCharacterSheet";
 
@@ -226,6 +226,39 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(within(mechanicalReader).getByRole("navigation", { name: "Tipos de capacidades" })).toBeInTheDocument();
   });
 
+  it("shows the complete Lanzar a Parcabrasa action name", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.inventoryItems = [{
+      id: "managed-artifact:parcabrasa",
+      name: "Parcabrasa",
+      category: "weapon",
+      quantity: 1,
+      stackable: false,
+      isCustom: false,
+      description: "Hacha arrojadiza habitada por espíritus de fuego.",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "mainHand",
+      attackAttribute: "diestro",
+      damageFormula: "1D6+1D4",
+      protectionFormula: "",
+      qualities: "Arrojadiza, Regreso, Místico",
+      notes: "",
+      managedArtifactId: "parcabrasa",
+      artifactBound: true,
+      artifactBindingCostLabel: "1 PX",
+      artifactResources: [],
+      grantedActions: [],
+      modifiers: []
+    }];
+
+    render(<UnifiedCharacterSheet title="Parcabrasa" sheet={sheet} editable />);
+
+    expect(screen.getByRole("button", { name: "Lanzar a Parcabrasa" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "a Parcabrasa" })).not.toBeInTheDocument();
+  });
+
   it("filters actions by multiple categories and exposes movement actions", () => {
     const sheet = createEmptyCharacterSheet();
     sheet.inventoryItems = [{
@@ -419,17 +452,19 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(document.body.style.overflow).toBe("");
   });
 
-  it("tracks manual rerolls through available XP or permanent corruption", () => {
+  it("tracks manual rerolls through available XP or permanent corruption", async () => {
     const sheet = createEmptyCharacterSheet();
     sheet.progreso.experienciaTotal = 12;
     sheet.progreso.experienciaGastada = 5;
 
+    const onSave = vi.fn().mockResolvedValue(undefined);
     const { container } = render(
       <UnifiedCharacterSheet
         title="Arold"
         subtitle="Guerrero"
         sheet={sheet}
         editable
+        onSave={onSave}
       />
     );
 
@@ -450,6 +485,11 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(xpCard).toHaveTextContent("PX total12");
     expect(xpCard).toHaveTextContent("PX disponible6");
     expect(screen.queryByRole("heading", { name: "Gastar PX para repetir" })).not.toBeInTheDocument();
+    await waitFor(() => expect(onSave).toHaveBeenCalled(), { timeout: 2500 });
+    const savedSheet = onSave.mock.calls.at(-1)?.[0];
+    expect(savedSheet.progreso.gastosExperiencia).toEqual([
+      expect.objectContaining({ tipo: "repeticion_tirada", cantidad: 1 })
+    ]);
 
     const permanentCorruptionCard = container.querySelector(".unified-sheet-vital-card.is-corruption-deep") as HTMLElement;
     expect(within(permanentCorruptionCard).queryByText(/Repetir/i)).not.toBeInTheDocument();

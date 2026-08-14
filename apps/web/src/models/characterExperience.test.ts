@@ -90,4 +90,48 @@ describe("character ritual experience", () => {
     expect(experience.effectiveTotal).toBe(50);
     expect(experience.effectiveAvailable).toBe(10);
   });
+
+  it("fills an incomplete structured selection list from the actual sheet capabilities", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.progreso.experienciaTotal = 102;
+    sheet.progreso.experienciaGastada = 100;
+    sheet.capabilitySelections = [
+      { catalogId: "steel-wind", name: "Viento de acero", kind: "habilidad", level: "principiante", origin: "comprada", source: "Libro Básico" }
+    ];
+    sheet.habilidades = [
+      { nombre: "Sexto sentido", tipo: "Habilidad", efecto: "", nivel: "adepto", fuente: "Libro Básico", notas: "", acciones: [] },
+      { nombre: "Viento de acero", tipo: "Habilidad", efecto: "", nivel: "principiante", fuente: "Libro Básico", notas: "", acciones: [] }
+    ];
+    sheet.poderesMisticos = [
+      { nombre: "Brujería", tipo: "Poder místico", efecto: "", nivel: "adepto", fuente: "Libro Básico", notas: "", acciones: [] },
+      { nombre: "Tormenta de flechas", tipo: "Poder místico", efecto: "", nivel: "principiante", fuente: "Libro Básico", notas: "", acciones: [] },
+      { nombre: "Cambiaformas", tipo: "Poder místico", efecto: "", nivel: "principiante", fuente: "Libro Básico", notas: "", acciones: [] }
+    ];
+    sheet.rituales = [
+      { nombre: "Familiar", tipo: "Ritual", efecto: "", nivel: "principiante", fuente: "Libro Básico", notas: "", acciones: [] }
+    ];
+
+    const experience = getCharacterExperienceSummary(sheet);
+
+    expect(experience.spentFromCapabilities).toBe(90);
+    expect(experience.spentFromRituals).toBe(10);
+    expect(experience.computedSpent).toBe(100);
+    expect(experience.effectiveAvailable).toBe(2);
+  });
+
+  it("accounts for every recorded XP reroll", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.progreso.experienciaTotal = 12;
+    sheet.progreso.experienciaGastada = 3;
+    sheet.progreso.gastosExperiencia = [
+      { id: "reroll-a", tipo: "repeticion_tirada", cantidad: 1, fecha: "2026-08-14T10:00:00.000Z" },
+      { id: "reroll-b", tipo: "repeticion_tirada", cantidad: 2, fecha: "2026-08-14T11:00:00.000Z" }
+    ];
+
+    const experience = getCharacterExperienceSummary(sheet);
+
+    expect(experience.spentFromRerolls).toBe(3);
+    expect(experience.computedSpent).toBe(3);
+    expect(experience.effectiveAvailable).toBe(9);
+  });
 });

@@ -120,15 +120,27 @@ test("elimina una accion antigua con el nombre del artefacto cuando duplica su a
     requirements: [],
     resourceCosts: []
   });
-  const sheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(createEmptyCharacterSheet(), [artifact]));
+  const baseSheet = createEmptyCharacterSheet();
+  baseSheet.habilidades = [{
+    nombre: "Sexto sentido", tipo: "Habilidad", efecto: "", nivel: "principiante",
+    fuente: "Libro Básico", pagina: 116, notas: "", acciones: []
+  }];
+  const sheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(baseSheet, [artifact]));
   const actions = deriveCharacterActions(sheet);
+  const meleeAttack = actions.find((action) => action.label === "Atacar con Parcabrasa");
+  const thrownAttack = actions.find((action) => action.label === "Lanzar a Parcabrasa");
 
-  assert.equal(actions.filter((action) => action.label === "Atacar con Parcabrasa").length, 1);
+  assert.ok(meleeAttack);
+  assert.equal(meleeAttack.rollAttribute, "diestro");
+  assert.doesNotMatch(meleeAttack.effectSummary, /sexto sentido/i);
+  assert.ok(thrownAttack);
+  assert.equal(thrownAttack.rollAttribute, "atento");
+  assert.match(thrownAttack.effectSummary, /sexto sentido/i);
   assert.equal(actions.filter((action) => action.label === "Parcabrasa").length, 0);
   assert.equal(actions.filter((action) => action.label === "Descarga").length, 1);
 });
 
-test("Viento de acero mejora el dado base de cualquier artefacto arrojadizo y conserva sus dados adicionales", () => {
+test("Viento de acero mejora solo el lanzamiento de artefactos arrojadizos y conserva sus dados adicionales", () => {
   for (const [publishedFormula, expectedFormula] of [
     ["1D4+1D4", "1d6+1d4"],
     ["1D6+1D4", "1d8+1d4"],
@@ -153,11 +165,16 @@ test("Viento de acero mejora el dado base de cualquier artefacto arrojadizo y co
     }];
 
     const sheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(baseSheet, [artifact]));
-    const attack = deriveCharacterActions(sheet).find((entry) => entry.label === "Atacar con Artefacto arrojadizo futuro");
+    const actions = deriveCharacterActions(sheet);
+    const meleeAttack = actions.find((entry) => entry.label === "Atacar con Artefacto arrojadizo futuro");
+    const thrownAttack = actions.find((entry) => entry.label === "Lanzar Artefacto arrojadizo futuro");
 
-    assert.ok(attack);
-    assert.equal(attack.damageFormula, expectedFormula);
-    assert.ok(attack.damageBreakdown.some((entry) => entry.label === "Viento de acero"));
+    assert.ok(meleeAttack);
+    assert.equal(meleeAttack.damageFormula, publishedFormula.toLowerCase());
+    assert.ok(!meleeAttack.damageBreakdown.some((entry) => entry.label === "Viento de acero"));
+    assert.ok(thrownAttack);
+    assert.equal(thrownAttack.damageFormula, expectedFormula);
+    assert.ok(thrownAttack.damageBreakdown.some((entry) => entry.label === "Viento de acero"));
   }
 });
 

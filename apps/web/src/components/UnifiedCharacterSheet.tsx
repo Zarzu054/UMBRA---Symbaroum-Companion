@@ -732,7 +732,7 @@ function formatMoneyCounters(counters: MoneyCounters): string {
 
 function formatActionDisplayLabel(label: string): string {
   return String(label ?? "")
-    .replace(/^(Usar|Lanzar)\s+/i, "")
+    .replace(/^(?:Usar\s+|Lanzar\s+(?!a\s+))/i, "")
     .replace(/\s+\((Principiante|Adepto|Maestro)\)\s*$/i, "")
     .trim();
 }
@@ -2947,7 +2947,22 @@ export function UnifiedCharacterSheet({
       setIsExperienceRerollConfirmationOpen(false);
       return;
     }
-    updateField("progreso.experienciaGastada", displayedSpentExperience + 1);
+    setDraft({
+      ...normalizedSheet,
+      progreso: {
+        ...normalizedSheet.progreso,
+        experienciaGastada: displayedSpentExperience + 1,
+        gastosExperiencia: [
+          ...normalizedSheet.progreso.gastosExperiencia,
+          {
+            id: globalThis.crypto?.randomUUID?.() ?? `xp-reroll-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            tipo: "repeticion_tirada",
+            cantidad: 1,
+            fecha: new Date().toISOString()
+          }
+        ]
+      }
+    });
     setIsExperienceRerollConfirmationOpen(false);
   }
 

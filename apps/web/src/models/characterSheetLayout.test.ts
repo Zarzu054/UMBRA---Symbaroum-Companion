@@ -7,11 +7,11 @@ describe("modular character sheet layout", () => {
   const stylesheet = readFileSync(resolve(process.cwd(), "src/styles/modern.css"), "utf8");
   const component = readFileSync(resolve(process.cwd(), "src/components/UnifiedCharacterSheet.tsx"), "utf8");
 
-  it("keeps separated desktop modules and an internally scrolling reader that chains at its edges", () => {
+  it("keeps separated desktop modules and a real internally scrolling reader", () => {
     expect(stylesheet).toMatch(/\.character-actions-page > \.unified-sheet\s*\{[\s\S]*?gap: 20px/);
     expect(stylesheet).toMatch(/\.unified-sheet-workspace\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
     expect(stylesheet).toMatch(/\.unified-sheet-reader\.unified-sheet-stage\s*\{[\s\S]*?height: clamp\(420px,[\s\S]*?overflow: hidden/);
-    expect(stylesheet).toMatch(/\.unified-sheet-reader \.unified-sheet-tab-content\s*\{[\s\S]*?height: 100%;[\s\S]*?max-height: 100%;[\s\S]*?align-self: stretch;[\s\S]*?overflow-y: auto;[\s\S]*?overscroll-behavior-y: auto;[\s\S]*?touch-action: pan-y/);
+    expect(stylesheet).toMatch(/\.unified-sheet-reader \.unified-sheet-tab-content\s*\{[\s\S]*?display: block;[\s\S]*?min-height: 0;[\s\S]*?height: auto;[\s\S]*?max-height: none;[\s\S]*?align-self: stretch;[\s\S]*?overflow-y: scroll;[\s\S]*?overscroll-behavior-y: auto;[\s\S]*?touch-action: pan-y/);
     expect(component).toMatch(/className="unified-sheet-tab-content"[\s\S]*?role="region"[\s\S]*?tabIndex=\{0\}/);
   });
 

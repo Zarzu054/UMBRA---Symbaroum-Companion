@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   SYMBAROUM_ABILITIES,
   SYMBAROUM_MYSTIC_POWERS,
@@ -344,7 +344,7 @@ export function CharacterBuilderView({
     cargas: "",
     rasgos: ""
   });
-  const [manualSpentAdjustment, setManualSpentAdjustment] = useState(0);
+  const [historicalRerollSpent, setHistoricalRerollSpent] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<BuilderTabId>("resumen");
@@ -354,7 +354,9 @@ export function CharacterBuilderView({
   const [professionBusyId, setProfessionBusyId] = useState<string | null>(null);
   const [selectedProfessionGoalId, setSelectedProfessionGoalId] = useState(SYMBAROUM_PROFESSIONS[0]?.id ?? "");
   const [selectedProfessionDetailsId, setSelectedProfessionDetailsId] = useState<string | null>(null);
+  const [isXpDetailsOpen, setIsXpDetailsOpen] = useState(false);
   const artifactBindingXpSpent = character.artifactBindingXpSpent ?? 0;
+  const loadedCharacterRef = useRef<{ id: string; artifactBindingXpSpent: number } | null>(null);
 
   useEffect(() => {
     const parsedSheet = parseCharacterSheet(character.sheet);
@@ -366,7 +368,17 @@ export function CharacterBuilderView({
       cargas: "",
       rasgos: ""
     });
-    setManualSpentAdjustment(Math.max(0, parsedSheet.progreso.experienciaGastada - experience.computedSpent - (character.artifactBindingXpSpent ?? 0)));
+    const nextArtifactBindingXpSpent = character.artifactBindingXpSpent ?? 0;
+    const derivedHistoricalRerollSpent = Math.max(0, parsedSheet.progreso.experienciaGastada - experience.computedSpent - nextArtifactBindingXpSpent);
+    const previousCharacter = loadedCharacterRef.current;
+    setHistoricalRerollSpent((currentHistoricalRerollSpent) => {
+      const receivedNewBinding = previousCharacter?.id === character.id
+        && nextArtifactBindingXpSpent > previousCharacter.artifactBindingXpSpent;
+      return receivedNewBinding
+        ? Math.max(currentHistoricalRerollSpent, derivedHistoricalRerollSpent)
+        : derivedHistoricalRerollSpent;
+    });
+    loadedCharacterRef.current = { id: character.id, artifactBindingXpSpent: nextArtifactBindingXpSpent };
     setError(null);
     setActiveTab("resumen");
     setAcquisitionModal(null);
@@ -376,13 +388,17 @@ export function CharacterBuilderView({
   }, [character]);
 
   const experience = useMemo(() => getCharacterExperienceSummary(draft), [draft]);
-  const manualSpentTotal = useMemo(
-    () => Math.max(0, manualSpentAdjustment),
-    [manualSpentAdjustment]
-  );
+  const rerollSpentTotal = experience.spentFromRerolls + historicalRerollSpent;
+  const artifactBindingXpExpenses = character.artifactBindingXpExpenses ?? [];
+  const rerollExpenseDetails = [
+    ...experience.rerollExpenses,
+    ...(historicalRerollSpent > 0
+      ? [{ id: "historical-rerolls", tipo: "repeticion_tirada" as const, cantidad: historicalRerollSpent, fecha: "" }]
+      : [])
+  ];
   const effectiveSpent = useMemo(
-    () => Math.max(0, experience.computedSpent + artifactBindingXpSpent + manualSpentTotal),
-    [artifactBindingXpSpent, experience.computedSpent, manualSpentTotal]
+    () => Math.max(0, experience.computedSpent + artifactBindingXpSpent + historicalRerollSpent),
+    [artifactBindingXpSpent, experience.computedSpent, historicalRerollSpent]
   );
   const effectiveAvailable = useMemo(
     () => Math.max(0, experience.effectiveTotal - effectiveSpent),
@@ -777,7 +793,18 @@ export function CharacterBuilderView({
         ...draft,
         progreso: {
           ...draft.progreso,
-          experienciaGastada: effectiveSpent
+          experienciaGastada: effectiveSpent,
+          gastosExperiencia: historicalRerollSpent > 0
+            ? [
+                ...draft.progreso.gastosExperiencia,
+                {
+                  id: globalThis.crypto?.randomUUID?.() ?? `xp-reroll-history-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                  tipo: "repeticion_tirada",
+                  cantidad: historicalRerollSpent,
+                  fecha: new Date().toISOString()
+                }
+              ]
+            : draft.progreso.gastosExperiencia
         }
       });
       await onSave(nextSheet);
@@ -825,7 +852,7 @@ export function CharacterBuilderView({
             <div className="toolbar character-builder-toolbar">
               <button type="button" className="subtle-button" onClick={onBackToCharacters}>{backLabel}</button>
               <button type="button" className="subtle-button" onClick={onOpenSheet}>{sheetLabel}</button>
-              <button type="button" onClick={() => void handleSave()} disabled={busy || isSaving}>
+              <button type="button" onClick={() => void handleSave()} disabled={busy || isSaving || bindingArtifactId !== null}>
                 {isSaving ? "Guardando..." : saveLabel}
               </button>
             </div>
@@ -865,7 +892,16 @@ export function CharacterBuilderView({
                     <strong>{draft.progreso.experienciaTotal}</strong>
                   </article>
                   <article className="character-builder-xp-card">
-                    <span>PX gastada</span>
+                    <div className="character-builder-xp-card-heading">
+                      <span>PX gastada</span>
+                      <button
+                        type="button"
+                        className="character-builder-xp-info-button"
+                        aria-label="Ver detalle de PX gastada"
+                        title="Ver detalle de gastos"
+                        onClick={() => setIsXpDetailsOpen(true)}
+                      >i</button>
+                    </div>
                     <strong>{effectiveSpent}</strong>
                   </article>
                   <article className="character-builder-xp-card">
@@ -876,7 +912,7 @@ export function CharacterBuilderView({
 
                 <div className="character-builder-summary-notes">
                   <p><strong>PX concedidos:</strong> el total lo gestiona el director de juego desde la campaña. El constructor solo permite invertir los puntos disponibles.</p>
-                  <p><strong>Origen del PX gastado:</strong> {experience.spentFromCapabilities} en capacidades y poderes + {experience.spentFromRituals} en rituales + {experience.spentFromBlessings} en bendiciones{artifactBindingXpSpent > 0 ? ` + ${artifactBindingXpSpent} en vínculos de artefactos` : ""}{manualSpentTotal > 0 ? ` + ${manualSpentTotal} de ajuste manual` : ""}.</p>
+                  <p><strong>Origen del PX gastado:</strong> {experience.spentFromCapabilities} en capacidades y poderes + {experience.spentFromRituals} en rituales + {experience.spentFromBlessings} en bendiciones{artifactBindingXpSpent > 0 ? ` + ${artifactBindingXpSpent} en vínculos de artefactos` : ""}{rerollSpentTotal > 0 ? ` + ${rerollSpentTotal} en repeticiones de dados` : ""}.</p>
                   <p><strong>Rituales y rasgos:</strong> los rituales cuestan 10 PX cada uno; los rasgos y las cargas no modifican automáticamente el total concedido.</p>
                 </div>
               </section>
@@ -1211,6 +1247,77 @@ export function CharacterBuilderView({
           </section>
         </section>
       </section>
+
+      {isXpDetailsOpen ? (
+        <section className="modal-backdrop" onClick={() => setIsXpDetailsOpen(false)}>
+          <div
+            className="panel modal-panel character-builder-xp-details-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="character-builder-xp-details-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="row-actions">
+              <div>
+                <h3 id="character-builder-xp-details-title">Detalle de PX gastada</h3>
+                <p className="section-help">{effectiveSpent} PX gastados · {effectiveAvailable} PX disponibles</p>
+              </div>
+              <button type="button" className="subtle-button" onClick={() => setIsXpDetailsOpen(false)}>Cerrar</button>
+            </div>
+
+            <div className="character-builder-xp-details-body">
+              <section className="character-builder-xp-details-section">
+                <div className="row-actions"><h4>Capacidades, poderes, rituales y bendiciones</h4><strong>{experience.computedSpent - experience.spentFromRerolls} PX</strong></div>
+                <div className="character-builder-xp-expense-list">
+                  {experience.capabilityExpenses.map((expense, index) => (
+                    <article key={`${expense.kind}-${expense.name}-${index}`} className="character-builder-xp-expense-row">
+                      <div>
+                        <strong>{expense.name}</strong>
+                        <span>{expense.kind === "poder_mistico" ? "Poder místico" : expense.kind === "habilidad" ? "Habilidad" : expense.kind === "ritual" ? "Ritual" : expense.kind === "bendicion" ? "Bendición" : "Capacidad"}{expense.level ? ` · ${expense.level[0].toUpperCase()}${expense.level.slice(1)}` : ""}</span>
+                      </div>
+                      <strong>{expense.cost} PX</strong>
+                    </article>
+                  ))}
+                  {experience.capabilityExpenses.length === 0 ? <p className="section-help">No hay capacidades con coste de PX.</p> : null}
+                </div>
+              </section>
+
+              <section className="character-builder-xp-details-section">
+                <div className="row-actions"><h4>Vínculos de artefactos</h4><strong>{artifactBindingXpSpent} PX</strong></div>
+                <div className="character-builder-xp-expense-list">
+                  {artifactBindingXpExpenses.map((expense) => (
+                    <article key={expense.id} className="character-builder-xp-expense-row">
+                      <div>
+                        <strong>{expense.artifactName}</strong>
+                        <span>Vinculado · {expense.boundAt ? new Date(expense.boundAt).toLocaleString("es-ES") : "Fecha no disponible"}</span>
+                      </div>
+                      <strong>{expense.amount} PX</strong>
+                    </article>
+                  ))}
+                  {artifactBindingXpExpenses.length === 0 && artifactBindingXpSpent > 0 ? <p className="section-help">Hay {artifactBindingXpSpent} PX de vínculos históricos sin detalle nominal disponible.</p> : null}
+                  {artifactBindingXpSpent === 0 ? <p className="section-help">No hay vínculos pagados con PX.</p> : null}
+                </div>
+              </section>
+
+              <section className="character-builder-xp-details-section">
+                <div className="row-actions"><h4>Repeticiones de dados</h4><strong>{rerollSpentTotal} PX</strong></div>
+                <div className="character-builder-xp-expense-list">
+                  {rerollExpenseDetails.map((expense) => (
+                    <article key={expense.id} className="character-builder-xp-expense-row">
+                      <div>
+                        <strong>{expense.cantidad === 1 ? "Repetición de dado" : `${expense.cantidad} repeticiones de dados`}</strong>
+                        <span>{expense.fecha ? new Date(expense.fecha).toLocaleString("es-ES") : "Fecha histórica no disponible"}</span>
+                      </div>
+                      <strong>{expense.cantidad} PX</strong>
+                    </article>
+                  ))}
+                  {rerollExpenseDetails.length === 0 ? <p className="section-help">No se ha gastado PX en repeticiones.</p> : null}
+                </div>
+              </section>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {selectedProfessionDetails && selectedProfessionEligibility ? (
         <section className="modal-backdrop" onClick={() => setSelectedProfessionDetailsId(null)}>

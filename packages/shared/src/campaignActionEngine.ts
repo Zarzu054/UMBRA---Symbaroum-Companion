@@ -258,7 +258,7 @@ function buildWeaponQualityActions(weapon: CharacterSheet["inventoryItems"][numb
     if (definition.grantsAction === "thrown_attack") {
       actions.push({
         id: `weapon:${weapon.id}:thrown`,
-        label: `Lanzar ${weapon.name}`,
+        label: buildThrownWeaponActionLabel(weapon),
         sourceType: "weapon",
         sourceName: weapon.name,
         linkedItemId: weapon.id,
@@ -1286,8 +1286,29 @@ function isBowOrCrossbowAction(action: CharacterActionDefinition): boolean {
 }
 
 function isThrownWeaponAction(sheet: CharacterSheet, action: CharacterActionDefinition): boolean {
-  return actionHasWeaponQuality(sheet, action, "arrojadiza")
-    || isWeaponTextMatch(action, /(arrojadiz|jabalina|venablo|hacha arrojadiza|cuchillo arrojadizo)/);
+  const itemId = resolveActionItemId(sheet, action);
+  if (itemId && action.id === `weapon:${itemId}:thrown`) {
+    return true;
+  }
+
+  if (!/^(lanzar|arrojar)\b/.test(normalizeName(action.label))) {
+    return false;
+  }
+
+  const weapon = findActionWeapon(sheet, action);
+  if (weapon) {
+    return parseWeaponQualities(weapon.qualities)
+      .some((quality) => findWeaponQualityOption(quality)?.id === "arrojadiza");
+  }
+
+  return action.sourceType === "weapon"
+    && isWeaponTextMatch(action, /(arrojadiz|jabalina|venablo|hacha arrojadiza|cuchillo arrojadizo)/);
+}
+
+function buildThrownWeaponActionLabel(weapon: CharacterSheet["inventoryItems"][number]): string {
+  return normalizeName(weapon.name) === "parcabrasa"
+    ? "Lanzar a Parcabrasa"
+    : `Lanzar ${weapon.name}`;
 }
 
 function isPreciseSwordAction(sheet: CharacterSheet, action: CharacterActionDefinition): boolean {
