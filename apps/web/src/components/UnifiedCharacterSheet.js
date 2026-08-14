@@ -529,7 +529,7 @@ function formatMoneyCounters(counters) {
 }
 function formatActionDisplayLabel(label) {
     return String(label ?? "")
-        .replace(/^(Usar|Lanzar)\s+/i, "")
+        .replace(/^(?:Usar\s+|Lanzar\s+(?!a\s+))/i, "")
         .replace(/\s+\((Principiante|Adepto|Maestro)\)\s*$/i, "")
         .trim();
 }

@@ -226,6 +226,39 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(within(mechanicalReader).getByRole("navigation", { name: "Tipos de capacidades" })).toBeInTheDocument();
   });
 
+  it("shows the complete Lanzar a Parcabrasa action name", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.inventoryItems = [{
+      id: "managed-artifact:parcabrasa",
+      name: "Parcabrasa",
+      category: "weapon",
+      quantity: 1,
+      stackable: false,
+      isCustom: false,
+      description: "Hacha arrojadiza habitada por espíritus de fuego.",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "mainHand",
+      attackAttribute: "diestro",
+      damageFormula: "1D6+1D4",
+      protectionFormula: "",
+      qualities: "Arrojadiza, Regreso, Místico",
+      notes: "",
+      managedArtifactId: "parcabrasa",
+      artifactBound: true,
+      artifactBindingCostLabel: "1 PX",
+      artifactResources: [],
+      grantedActions: [],
+      modifiers: []
+    }];
+
+    render(<UnifiedCharacterSheet title="Parcabrasa" sheet={sheet} editable />);
+
+    expect(screen.getByRole("button", { name: "Lanzar a Parcabrasa" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "a Parcabrasa" })).not.toBeInTheDocument();
+  });
+
   it("filters actions by multiple categories and exposes movement actions", () => {
     const sheet = createEmptyCharacterSheet();
     sheet.inventoryItems = [{

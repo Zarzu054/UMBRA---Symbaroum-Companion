@@ -4589,7 +4589,7 @@ button[disabled] {
   padding: 12px 4px 2px 0;
   overflow-x: hidden;
   overflow-y: scroll;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-y: auto;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--ui-brand) 48%, var(--ui-border)) transparent;

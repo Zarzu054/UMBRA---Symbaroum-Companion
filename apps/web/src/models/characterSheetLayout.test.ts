@@ -11,7 +11,7 @@ describe("modular character sheet layout", () => {
     expect(stylesheet).toMatch(/\.character-actions-page > \.unified-sheet\s*\{[\s\S]*?gap: 20px/);
     expect(stylesheet).toMatch(/\.unified-sheet-workspace\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
     expect(stylesheet).toMatch(/\.unified-sheet-reader\.unified-sheet-stage\s*\{[\s\S]*?height: clamp\(420px,[\s\S]*?overflow: hidden/);
-    expect(stylesheet).toMatch(/\.unified-sheet-reader \.unified-sheet-tab-content\s*\{[\s\S]*?display: block;[\s\S]*?min-height: 0;[\s\S]*?height: auto;[\s\S]*?max-height: none;[\s\S]*?align-self: stretch;[\s\S]*?overflow-y: scroll;[\s\S]*?overscroll-behavior-y: contain;[\s\S]*?touch-action: pan-y/);
+    expect(stylesheet).toMatch(/\.unified-sheet-reader \.unified-sheet-tab-content\s*\{[\s\S]*?display: block;[\s\S]*?min-height: 0;[\s\S]*?height: auto;[\s\S]*?max-height: none;[\s\S]*?align-self: stretch;[\s\S]*?overflow-y: scroll;[\s\S]*?overscroll-behavior-y: auto;[\s\S]*?touch-action: pan-y/);
     expect(component).toMatch(/className="unified-sheet-tab-content"[\s\S]*?role="region"[\s\S]*?tabIndex=\{0\}/);
   });
 

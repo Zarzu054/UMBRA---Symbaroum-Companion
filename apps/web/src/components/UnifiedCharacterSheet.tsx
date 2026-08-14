@@ -732,7 +732,7 @@ function formatMoneyCounters(counters: MoneyCounters): string {
 
 function formatActionDisplayLabel(label: string): string {
   return String(label ?? "")
-    .replace(/^(Usar|Lanzar)\s+/i, "")
+    .replace(/^(?:Usar\s+|Lanzar\s+(?!a\s+))/i, "")
     .replace(/\s+\((Principiante|Adepto|Maestro)\)\s*$/i, "")
     .trim();
 }
