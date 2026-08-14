@@ -335,6 +335,88 @@ it("organizes identity and preserves the creation-only familiar marker when savi
   expect(onSave.mock.calls[0][0].identidad.esFamiliar).toBe(true);
 });
 
+it("manages blessings, burdens and character traits only through official catalog modals", async () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.progreso.experienciaTotal = 20;
+  sheet.bendiciones = ["Contactos", "Bendición histórica"];
+  sheet.cargas = ["Paria", "Carga histórica"];
+  sheet.rasgos = ["Longevo", "Rasgo histórico"];
+  const character: Character = {
+    id: "character-simple-catalogs", name: "Alda", archetype: "Guerrera", race: "Humana", culture: "Ambria", profession: "",
+    level: 1, sheet, createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+  };
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  render(
+    <ConfirmationDialogProvider>
+      <CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={onSave} />
+    </ConfirmationDialogProvider>
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Rasgos y cargas" }));
+
+  const blessings = screen.getByRole("heading", { name: "Bendiciones" }).closest("article") as HTMLElement;
+  const burdens = screen.getByRole("heading", { name: "Cargas" }).closest("article") as HTMLElement;
+  const traits = screen.getByRole("heading", { name: "Rasgos" }).closest("article") as HTMLElement;
+  expect(blessings).toHaveTextContent("Contactos");
+  expect(blessings).toHaveTextContent("Bendición histórica");
+  expect(blessings).toHaveTextContent("Entrada histórica fuera del catálogo actual");
+  expect(burdens).toHaveTextContent("Paria");
+  expect(traits).toHaveTextContent("Longevo");
+  expect(screen.queryByText("Personalizada")).not.toBeInTheDocument();
+  expect(screen.queryByRole("textbox", { name: "Añadir" })).not.toBeInTheDocument();
+
+  fireEvent.click(within(blessings).getByRole("button", { name: "Añadir bendición" }));
+  let dialog = screen.getByRole("dialog", { name: "Añadir bendición" });
+  fireEvent.change(within(dialog).getByRole("textbox", { name: "Buscar en el catálogo" }), { target: { value: "Montés" } });
+  fireEvent.click(within(dialog).getByRole("button", { name: /Montés/ }));
+  expect(dialog).toHaveTextContent("Libro Básico · p. 108");
+  expect(dialog).toHaveTextContent("5 PX");
+  fireEvent.click(within(dialog).getByRole("button", { name: "Comprar por 5 PX" }));
+  const purchaseConfirmation = screen.getByRole("heading", { name: "Comprar Montés" }).closest(".modal-panel") as HTMLElement;
+  fireEvent.click(within(purchaseConfirmation).getByRole("button", { name: "Gastar 5 PX" }));
+  await waitFor(() => expect(within(blessings).getByText("Montés")).toBeInTheDocument());
+
+  fireEvent.click(within(burdens).getByRole("button", { name: "Añadir carga" }));
+  dialog = screen.getByRole("dialog", { name: "Añadir carga" });
+  fireEvent.change(within(dialog).getByRole("textbox", { name: "Buscar en el catálogo" }), { target: { value: "Secreto oscuro" } });
+  fireEvent.click(within(dialog).getByRole("button", { name: /Secreto oscuro/ }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Añadir carga" }));
+  expect(within(burdens).getByText("Secreto oscuro")).toBeInTheDocument();
+
+  fireEvent.click(within(traits).getByRole("button", { name: "Añadir rasgo" }));
+  dialog = screen.getByRole("dialog", { name: "Añadir rasgo" });
+  expect(within(dialog).queryByRole("button", { name: /LongevoLibro/ })).not.toBeInTheDocument();
+  fireEvent.change(within(dialog).getByRole("textbox", { name: "Buscar en el catálogo" }), { target: { value: "Poco longevo" } });
+  fireEvent.click(within(dialog).getByRole("button", { name: /Poco longevo/ }));
+  fireEvent.click(within(dialog).getByRole("button", { name: "Añadir rasgo" }));
+  expect(within(traits).getByText("Poco longevo")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Guardar constructor" }));
+  await waitFor(() => expect(onSave).toHaveBeenCalled());
+  expect(onSave.mock.calls[0][0].bendiciones).toEqual(["Contactos", "Bendición histórica", "Montés"]);
+  expect(onSave.mock.calls[0][0].cargas).toEqual(["Paria", "Carga histórica", "Secreto oscuro"]);
+  expect(onSave.mock.calls[0][0].rasgos).toEqual(["Longevo", "Rasgo histórico", "Poco longevo"]);
+  expect(onSave.mock.calls[0][0].capabilitySelections).toEqual(expect.arrayContaining([
+    expect.objectContaining({ catalogId: "bendicion-montes", name: "Montés", kind: "bendicion", origin: "comprada" }),
+    expect.objectContaining({ catalogId: "carga-secreto-oscuro", name: "Secreto oscuro", kind: "carga", origin: "comprada" }),
+    expect.objectContaining({ catalogId: "rasgo-personaje-poco-longevo", name: "Poco longevo", kind: "rasgo_personaje", origin: "comprada" })
+  ]));
+});
+
+it("disables catalog blessing purchases when the character lacks XP", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.progreso.experienciaTotal = 0;
+  const character: Character = {
+    id: "character-no-blessing-xp", name: "Alda", archetype: "Guerrera", race: "Humana", culture: "Ambria", profession: "",
+    level: 1, sheet, createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+  };
+  render(<CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Rasgos y cargas" }));
+  fireEvent.click(screen.getByRole("button", { name: "Añadir bendición" }));
+  const dialog = screen.getByRole("dialog", { name: "Añadir bendición" });
+  expect(within(dialog).getByRole("button", { name: "Comprar por 5 PX" })).toBeDisabled();
+  expect(within(dialog).queryByText("Personalizada")).not.toBeInTheDocument();
+});
+
 it("keeps artifacts compact and updates the open detail after binding", async () => {
   const sheet = createEmptyCharacterSheet();
   sheet.progreso.experienciaTotal = 5;

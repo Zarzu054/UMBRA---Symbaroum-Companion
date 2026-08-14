@@ -19,7 +19,7 @@ import {
   type SymbaroumCapability
 } from "@umbra/shared";
 import { getCharacterExperienceSummary } from "../models/characterExperience";
-import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS, type CompendiumEntry } from "../models/compendiumEntries";
+import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS, SYMBAROUM_CHARACTER_TRAITS, type CompendiumEntry } from "../models/compendiumEntries";
 import { useConfirmationDialog } from "../components/ConfirmationDialogProvider";
 import { MysticArtifactDetailsModal } from "../components/MysticArtifactDetailsModal";
 
@@ -49,6 +49,11 @@ type BuilderCapabilityDetailsSelection = {
   section: RatedSection;
   name: string;
 };
+type BuilderSimpleCatalogModal = {
+  section: SimpleSection;
+  query: string;
+  selectedId: string;
+};
 
 type Props = {
   character: Character;
@@ -74,11 +79,8 @@ type CatalogSelections = {
   rasgosMonstruosos: string;
   poderesMisticos: string;
   rituales: string;
-  bendiciones: string;
-  cargas: string;
 };
 
-type SimpleInputs = Record<SimpleSection, string>;
 type CapabilityTier = {
   label: string;
   content: string;
@@ -94,7 +96,7 @@ function formatBuilderArtifactBindingCosts(bindingCosts: MysticArtifact["binding
 
 const BUILDER_ABILITIES = SYMBAROUM_ABILITIES.filter((entry) => normalizeName(entry.nombre) !== "rituales");
 const BUILDER_MONSTER_TRAITS: SymbaroumCapability[] = ALL_ENTRIES
-  .filter((entry): entry is CompendiumEntry => entry.tipo === "rasgo")
+  .filter((entry): entry is CompendiumEntry => entry.tipo === "rasgo" && !entry.tags.includes("rasgo-personaje"))
   .map((entry) => ({
     id: entry.id,
     nombre: entry.nombre,
@@ -122,9 +124,7 @@ const INITIAL_CATALOG_SELECTIONS: CatalogSelections = {
   habilidades: BUILDER_ABILITIES[0]?.id ?? "",
   rasgosMonstruosos: BUILDER_MONSTER_TRAITS[0]?.id ?? "",
   poderesMisticos: SYMBAROUM_MYSTIC_POWERS[0]?.id ?? "",
-  rituales: SYMBAROUM_RITUALS[0]?.id ?? "",
-  bendiciones: SYMBAROUM_BLESSINGS[0]?.id ?? "",
-  cargas: SYMBAROUM_BURDENS[0]?.id ?? ""
+  rituales: SYMBAROUM_RITUALS[0]?.id ?? ""
 };
 
 const SIMPLE_SECTION_LABELS: Record<SimpleSection, string> = {
@@ -163,9 +163,26 @@ function getRatedEntryCost(level: SkillLevel): number {
   }
 }
 
-function getSimpleEntryDelta(section: SimpleSection): number {
-  if (section === "bendiciones") return -5;
-  return 0;
+function getSimpleCatalogEntries(section: SimpleSection): CompendiumEntry[] {
+  if (section === "bendiciones") return SYMBAROUM_BLESSINGS;
+  if (section === "cargas") return SYMBAROUM_BURDENS;
+  return SYMBAROUM_CHARACTER_TRAITS;
+}
+
+function getSimpleEntryCost(section: SimpleSection): number {
+  return section === "bendiciones" ? 5 : 0;
+}
+
+function getSimpleAddLabel(section: SimpleSection): string {
+  if (section === "bendiciones") return "Añadir bendición";
+  if (section === "cargas") return "Añadir carga";
+  return "Añadir rasgo";
+}
+
+function getSimpleCapabilityKind(section: SimpleSection): "bendicion" | "carga" | "rasgo_personaje" {
+  if (section === "bendiciones") return "bendicion";
+  if (section === "cargas") return "carga";
+  return "rasgo_personaje";
 }
 
 function isMonsterTraitCapability(name: string): boolean {
@@ -365,16 +382,12 @@ export function CharacterBuilderView({
   const confirm = useConfirmationDialog();
   const [draft, setDraft] = useState<CharacterSheet>(() => parseCharacterSheet(character.sheet));
   const [catalogSelections, setCatalogSelections] = useState<CatalogSelections>(INITIAL_CATALOG_SELECTIONS);
-  const [simpleInputs, setSimpleInputs] = useState<SimpleInputs>({
-    bendiciones: "",
-    cargas: "",
-    rasgos: ""
-  });
   const [historicalRerollSpent, setHistoricalRerollSpent] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<BuilderTabId>("resumen");
   const [acquisitionModal, setAcquisitionModal] = useState<BuilderAcquisitionModal | null>(null);
+  const [simpleCatalogModal, setSimpleCatalogModal] = useState<BuilderSimpleCatalogModal | null>(null);
   const [capabilityConfirmationModal, setCapabilityConfirmationModal] = useState<BuilderCapabilityConfirmationModal | null>(null);
   const [capabilityDetailsSelection, setCapabilityDetailsSelection] = useState<BuilderCapabilityDetailsSelection | null>(null);
   const [bindingArtifactId, setBindingArtifactId] = useState<string | null>(null);
@@ -390,11 +403,6 @@ export function CharacterBuilderView({
     const experience = getCharacterExperienceSummary(parsedSheet);
     setDraft(parsedSheet);
     setCatalogSelections(INITIAL_CATALOG_SELECTIONS);
-    setSimpleInputs({
-      bendiciones: "",
-      cargas: "",
-      rasgos: ""
-    });
     const nextArtifactBindingXpSpent = character.artifactBindingXpSpent ?? 0;
     const derivedHistoricalRerollSpent = Math.max(0, parsedSheet.progreso.experienciaGastada - experience.computedSpent - nextArtifactBindingXpSpent);
     const previousCharacter = loadedCharacterRef.current;
@@ -412,6 +420,7 @@ export function CharacterBuilderView({
     setError(null);
     setActiveTab("resumen");
     setAcquisitionModal(null);
+    setSimpleCatalogModal(null);
     setCapabilityConfirmationModal(null);
     setCapabilityDetailsSelection(null);
     setSelectedProfessionDetailsId(null);
@@ -527,6 +536,26 @@ export function CharacterBuilderView({
   const selectedBenefitUnlocked = selectedBenefitProfessionIds.length === 0 || selectedBenefitProfessionIds.some((id) => activeProfessionIds.has(id));
   const selectedHigherRitualBase = selectedAcquisitionEntry ? getHigherRitualBase(selectedAcquisitionEntry.nombre) : undefined;
   const selectedHigherRitualBaseMet = !selectedHigherRitualBase || draft.rituales.some((entry) => normalizeProfessionText(entry.nombre) === normalizeProfessionText(selectedHigherRitualBase));
+  const simpleCatalogEntries = useMemo(
+    () => simpleCatalogModal ? getSimpleCatalogEntries(simpleCatalogModal.section) : [],
+    [simpleCatalogModal]
+  );
+  const filteredSimpleCatalogEntries = useMemo(() => {
+    if (!simpleCatalogModal) return [];
+    const query = normalizeName(simpleCatalogModal.query);
+    return simpleCatalogEntries
+      .filter((entry) => !draft[simpleCatalogModal.section].some((current) => normalizeName(current) === normalizeName(entry.nombre)))
+      .filter((entry) => !query
+        || normalizeName(entry.nombre).includes(query)
+        || normalizeName(entry.resumen).includes(query)
+        || normalizeName(entry.fuente).includes(query));
+  }, [draft, simpleCatalogEntries, simpleCatalogModal]);
+  const selectedSimpleCatalogEntry = useMemo(() => {
+    if (!simpleCatalogModal) return null;
+    return filteredSimpleCatalogEntries.find((entry) => entry.id === simpleCatalogModal.selectedId)
+      ?? filteredSimpleCatalogEntries[0]
+      ?? null;
+  }, [filteredSimpleCatalogEntries, simpleCatalogModal]);
 
   async function runProfessionAction(professionId: string, action: (() => Promise<void>) | undefined): Promise<void> {
     if (!action) return;
@@ -813,62 +842,61 @@ export function CharacterBuilderView({
     });
   }
 
-  function updateSimpleInput(section: SimpleSection, value: string): void {
-    setSimpleInputs((current) => ({
-      ...current,
-      [section]: value
-    }));
-  }
-
-  function addSimpleEntry(section: SimpleSection): void {
-    const value = simpleInputs[section].trim();
-    if (!value) return;
-    if (section === "bendiciones" && effectiveAvailable < 5) {
-      setError(`No hay PX suficientes para obtener ${value}.`);
-      return;
-    }
-    if (draft[section].some((entry) => normalizeName(entry) === normalizeName(value))) {
-      setError(`${value} ya esta en ${SIMPLE_SECTION_LABELS[section].toLowerCase()}.`);
-      return;
-    }
-    setError(null);
-    setDraft((current) => ({
-      ...current,
-      [section]: [...current[section], value]
-    }));
-    setSimpleInputs((current) => ({
-      ...current,
-      [section]: ""
-    }));
-  }
-
   function removeSimpleEntry(section: SimpleSection, index: number): void {
+    const removedName = draft[section][index];
+    const removedKind = getSimpleCapabilityKind(section);
     setDraft((current) => ({
       ...current,
-      [section]: current[section].filter((_, entryIndex) => entryIndex !== index)
+      [section]: current[section].filter((_, entryIndex) => entryIndex !== index),
+      capabilitySelections: current.capabilitySelections.filter((selection) => !(
+        selection.kind === removedKind && normalizeName(selection.name) === normalizeName(removedName ?? "")
+      ))
     }));
   }
 
-  function addCatalogSimpleEntry(section: Extract<SimpleSection, "bendiciones" | "cargas">): void {
-    const sourceEntries = section === "bendiciones" ? SYMBAROUM_BLESSINGS : SYMBAROUM_BURDENS;
-    const selectedId = catalogSelections[section];
-    const entry = sourceEntries.find((candidate) => candidate.id === selectedId);
-    if (!entry) {
+  function openSimpleCatalogModal(section: SimpleSection): void {
+    const availableEntries = getSimpleCatalogEntries(section).filter((entry) =>
+      !draft[section].some((current) => normalizeName(current) === normalizeName(entry.nombre))
+    );
+    setSimpleCatalogModal({ section, query: "", selectedId: availableEntries[0]?.id ?? "" });
+  }
+
+  async function addSelectedSimpleCatalogEntry(): Promise<void> {
+    if (!simpleCatalogModal || !selectedSimpleCatalogEntry) return;
+    const section = simpleCatalogModal.section;
+    const entry = selectedSimpleCatalogEntry;
+    const cost = getSimpleEntryCost(section);
+    if (draft[section].some((current) => normalizeName(current) === normalizeName(entry.nombre))) {
+      setError(`${entry.nombre} ya está en ${SIMPLE_SECTION_LABELS[section].toLowerCase()}.`);
       return;
     }
-    if (section === "bendiciones" && effectiveAvailable < 5) {
+    if (cost > effectiveAvailable) {
       setError(`No hay PX suficientes para obtener ${entry.nombre}.`);
       return;
     }
-    if (draft[section].some((current) => normalizeName(current) === normalizeName(entry.nombre))) {
-      setError(`${entry.nombre} ya esta en ${SIMPLE_SECTION_LABELS[section].toLowerCase()}.`);
-      return;
-    }
+    if (cost > 0 && !await confirm({
+      title: `Comprar ${entry.nombre}`,
+      message: `Añadir ${entry.nombre} a las bendiciones del personaje cuesta ${cost} PX.`,
+      confirmLabel: `Gastar ${cost} PX`,
+      tone: "danger"
+    })) return;
     setError(null);
     setDraft((current) => ({
       ...current,
-      [section]: [...current[section], entry.nombre]
+      [section]: [...current[section], entry.nombre],
+      capabilitySelections: [
+        ...current.capabilitySelections,
+        {
+          catalogId: entry.id,
+          name: entry.nombre,
+          kind: getSimpleCapabilityKind(section),
+          origin: "comprada",
+          source: entry.fuente,
+          page: entry.pagina
+        }
+      ]
     }));
+    setSimpleCatalogModal(null);
   }
 
   async function handleSave(): Promise<void> {
@@ -1189,64 +1217,42 @@ export function CharacterBuilderView({
                   <h3>Bendiciones, cargas y rasgos</h3>
                   <span className="meta-text">Listas simples para progreso y narrativa.</span>
                 </div>
-                <div className="character-builder-purchase-stack">
-                  {(["bendiciones", "cargas", "rasgos"] as SimpleSection[]).map((section) => (
-                    <article key={section} className="character-builder-block">
-                      <div className="row-actions">
-                        <h4>{SIMPLE_SECTION_LABELS[section]}</h4>
-                        <span className="meta-text">
-                          {getSimpleEntryDelta(section) === 0 ? "Sin coste automatico" : getSimpleEntryDelta(section) > 0 ? `+${getSimpleEntryDelta(section)} PX` : `${getSimpleEntryDelta(section)} PX`}
-                        </span>
-                      </div>
-                      {section === "bendiciones" || section === "cargas" ? (
-                        <div className="character-builder-purchase-stack">
-                          <div className="character-builder-inline-form">
-                            <label className="field">
-                              <span>Catalogo</span>
-                              <select
-                                value={catalogSelections[section]}
-                                onChange={(event) => setCatalogSelections((current) => ({ ...current, [section]: event.target.value }))}
-                              >
-                                {(section === "bendiciones" ? SYMBAROUM_BLESSINGS : SYMBAROUM_BURDENS).map((entry) => (
-                                  <option key={entry.id} value={entry.id}>{entry.nombre}</option>
-                                ))}
-                              </select>
-                            </label>
-                            <button type="button" onClick={() => addCatalogSimpleEntry(section)} disabled={section === "bendiciones" && effectiveAvailable < 5}>
-                              {section === "bendiciones" ? "Comprar del catalogo" : "Añadir del catalogo"}
-                            </button>
+                <div className="character-builder-simple-sections">
+                  {(["bendiciones", "cargas", "rasgos"] as SimpleSection[]).map((section) => {
+                    const sectionTitleId = `character-builder-${section}-title`;
+                    return (
+                      <article key={section} className="character-builder-block character-builder-simple-section" aria-labelledby={sectionTitleId}>
+                        <div className="row-actions">
+                          <div>
+                            <h4 id={sectionTitleId}>{SIMPLE_SECTION_LABELS[section]}</h4>
+                            <span className="meta-text">
+                              {section === "bendiciones" ? "5 PX por bendición" : section === "cargas" ? "+5 PX efectivos por carga" : "Sin coste de PX"}
+                            </span>
                           </div>
-                          <div className="character-builder-inline-form">
-                            <label className="field">
-                              <span>Personalizada</span>
-                              <input value={simpleInputs[section]} onChange={(event) => updateSimpleInput(section, event.target.value)} />
-                            </label>
-                            <button type="button" onClick={() => addSimpleEntry(section)} disabled={section === "bendiciones" && effectiveAvailable < 5}>
-                              {section === "bendiciones" ? "Comprar personalizada" : "Añadir personalizada"}
-                            </button>
-                          </div>
+                          <button type="button" onClick={() => openSimpleCatalogModal(section)}>{getSimpleAddLabel(section)}</button>
                         </div>
-                      ) : (
-                        <div className="character-builder-inline-form">
-                          <label className="field">
-                            <span>Añadir</span>
-                            <input value={simpleInputs[section]} onChange={(event) => updateSimpleInput(section, event.target.value)} />
-                          </label>
-                          <button type="button" onClick={() => addSimpleEntry(section)}>Añadir</button>
+                        <div className="character-builder-simple-list">
+                          {draft[section].length > 0 ? draft[section].map((entry, index) => {
+                            const catalogEntry = getSimpleCatalogEntries(section).find((candidate) => normalizeName(candidate.nombre) === normalizeName(entry));
+                            return (
+                              <article key={`${section}-${entry}-${index}`} className="character-builder-simple-row">
+                                <div className="character-builder-simple-row__identity">
+                                  <strong>{entry}</strong>
+                                  <span>{catalogEntry ? `${catalogEntry.fuente}${catalogEntry.pagina ? ` · p. ${catalogEntry.pagina}` : ""}` : "Entrada histórica fuera del catálogo actual"}</span>
+                                </div>
+                                <div className="character-builder-simple-row__actions">
+                                  <span className={`compendium-chip${catalogEntry ? " is-active" : ""}`}>{catalogEntry ? "Catálogo oficial" : "Histórica"}</span>
+                                  <button type="button" className="subtle-button" aria-label={`Quitar ${entry}`} onClick={() => removeSimpleEntry(section, index)}>Quitar</button>
+                                </div>
+                              </article>
+                            );
+                          }) : (
+                            <p className="section-help">Sin entradas registradas.</p>
+                          )}
                         </div>
-                      )}
-                      <div className="character-builder-token-list">
-                        {draft[section].length > 0 ? draft[section].map((entry, index) => (
-                          <span key={`${section}-${entry}-${index}`} className="character-builder-token">
-                            <span>{entry}</span>
-                            <button type="button" onClick={() => removeSimpleEntry(section, index)}>x</button>
-                          </span>
-                        )) : (
-                          <p className="section-help">Sin entradas registradas.</p>
-                        )}
-                      </div>
-                    </article>
-                  ))}
+                      </article>
+                    );
+                  })}
                 </div>
               </section>
             ) : null}
@@ -1564,6 +1570,82 @@ export function CharacterBuilderView({
           </section>
         );
       })() : null}
+
+      {simpleCatalogModal ? (
+        <section className="modal-backdrop" onClick={() => setSimpleCatalogModal(null)}>
+          <div
+            className="panel modal-panel character-builder-acquisition-modal character-builder-simple-catalog-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="character-builder-simple-catalog-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="row-actions">
+              <div>
+                <h3 id="character-builder-simple-catalog-title">{getSimpleAddLabel(simpleCatalogModal.section)}</h3>
+                <span className="meta-text">Solo se muestran entradas del catálogo oficial que el personaje aún no posee.</span>
+              </div>
+              <span className="meta-text">
+                {simpleCatalogModal.section === "bendiciones" ? `PX disponibles: ${effectiveAvailable}` : SIMPLE_SECTION_LABELS[simpleCatalogModal.section]}
+              </span>
+            </div>
+            <div className="character-builder-acquisition-layout">
+              <div className="character-builder-acquisition-search">
+                <label className="field">
+                  <span>Buscar en el catálogo</span>
+                  <input
+                    autoFocus
+                    value={simpleCatalogModal.query}
+                    placeholder={`Buscar ${SIMPLE_SECTION_LABELS[simpleCatalogModal.section].toLowerCase()}...`}
+                    onChange={(event) => setSimpleCatalogModal((current) => current ? ({ ...current, query: event.target.value }) : null)}
+                  />
+                </label>
+                <div className="character-builder-acquisition-results">
+                  {filteredSimpleCatalogEntries.map((entry) => (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      className={`character-builder-acquisition-result${selectedSimpleCatalogEntry?.id === entry.id ? " is-active" : ""}`}
+                      onClick={() => setSimpleCatalogModal((current) => current ? ({ ...current, selectedId: entry.id }) : null)}
+                    >
+                      <strong>{entry.nombre}</strong>
+                      <span>{entry.fuente}{entry.pagina ? ` · p. ${entry.pagina}` : ""}</span>
+                    </button>
+                  ))}
+                  {filteredSimpleCatalogEntries.length === 0 ? <p className="section-help">No hay entradas disponibles con este filtro.</p> : null}
+                </div>
+              </div>
+              <div className="character-builder-acquisition-preview">
+                {selectedSimpleCatalogEntry ? (
+                  <>
+                    <div className="character-builder-acquisition-header">
+                      <strong>{selectedSimpleCatalogEntry.nombre}</strong>
+                      <span className="meta-text">
+                        {selectedSimpleCatalogEntry.fuente}{selectedSimpleCatalogEntry.pagina ? ` · p. ${selectedSimpleCatalogEntry.pagina}` : ""}
+                        {getSimpleEntryCost(simpleCatalogModal.section) > 0 ? ` · ${getSimpleEntryCost(simpleCatalogModal.section)} PX` : " · Sin coste de PX"}
+                      </span>
+                    </div>
+                    <p>{selectedSimpleCatalogEntry.detalle || selectedSimpleCatalogEntry.resumen}</p>
+                  </>
+                ) : (
+                  <p className="section-help">Selecciona una entrada para consultar sus reglas.</p>
+                )}
+              </div>
+            </div>
+            <div className="toolbar">
+              <button type="button" className="subtle-button" onClick={() => setSimpleCatalogModal(null)}>Cancelar</button>
+              <button
+                type="button"
+                disabled={!selectedSimpleCatalogEntry || getSimpleEntryCost(simpleCatalogModal.section) > effectiveAvailable}
+                title={selectedSimpleCatalogEntry && getSimpleEntryCost(simpleCatalogModal.section) > effectiveAvailable ? "No hay PX suficientes" : undefined}
+                onClick={() => void addSelectedSimpleCatalogEntry()}
+              >
+                {simpleCatalogModal.section === "bendiciones" ? "Comprar por 5 PX" : getSimpleAddLabel(simpleCatalogModal.section)}
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {acquisitionModal ? (
         <section className="modal-backdrop" onClick={() => setAcquisitionModal(null)}>

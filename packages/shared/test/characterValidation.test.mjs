@@ -265,6 +265,15 @@ test("synchronizeCharacterSheet migra rasgos monstruosos del PDF a habilidades c
   assert.match(normalized.habilidades.find((entry) => entry.nombre === "Duro")?.efecto ?? "", /1D6/i);
 });
 
+test("synchronizeCharacterSheet conserva los rasgos raciales simples fuera de las habilidades niveladas", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.rasgos = ["Longevo", "Poco longevo", "Vínculo terrenal"];
+
+  const normalized = synchronizeCharacterSheet(sheet);
+  assert.deepEqual(normalized.rasgos, ["Longevo", "Poco longevo", "Vínculo terrenal"]);
+  assert.equal(normalized.habilidades.some((entry) => ["Longevo", "Poco longevo", "Vínculo terrenal"].includes(entry.nombre)), false);
+});
+
 test("acepta rituales sin habilidad Rituales", () => {
   const payload = buildPayload();
   payload.sheet.rituales = [

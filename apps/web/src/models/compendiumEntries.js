@@ -1263,6 +1263,7 @@ const APG_BURDEN_SUPPLEMENTS = [
 ];
 const COMPLETE_BLESSING_OVERRIDES = [
     { id: "bendicion-bushcraft", tipo: "bendicion", nombre: "Supervivencia", resumen: "El personaje esta entrenado para sobrevivir, orientarse y sacar provecho del entorno salvaje.", detalle: "Representa experiencia real en campo abierto. Refuerza escenas de viaje, exploracion, rastreo, comida, refugio y vida en Davokar o regiones agrestes, y define a alguien que se mueve con naturalidad fuera de los caminos seguros.", fuente: "Libro Basico", pagina: 108, tags: ["bendicion", "bushcraft", "supervivencia"] },
+    { id: "bendicion-montes", tipo: "bendicion", nombre: "Montés", resumen: "El personaje conoce la vida salvaje, sus caminos y los recursos que permiten sobrevivir lejos de la civilización.", detalle: "Bendición racial y de trasfondo ligada a la experiencia en bosques, montañas y territorios indómitos. Representa orientación, conocimiento del entorno y familiaridad con los peligros naturales.", fuente: "Libro Básico", pagina: 108, tags: ["bendicion", "montes", "wilderness"] },
     { id: "bendicion-contactos", tipo: "bendicion", nombre: "Contactos", resumen: "El personaje dispone de una red de conocidos que puede abrir puertas, conseguir informacion o facilitar favores.", detalle: "Los contactos pueden representar camaradas, colegas de oficio, informadores, acreedores o amigos en posiciones utiles. La bendicion convierte la vida social del personaje en un recurso estable dentro de la ficcion.", fuente: "Libro Basico", pagina: 108, tags: ["bendicion", "contactos", "contacts"] },
     { id: "bendicion-longevo", tipo: "bendicion", nombre: "Longevo", resumen: "El personaje disfruta de una vida mas larga de lo normal y de una perspectiva marcada por el paso del tiempo.", detalle: "Suele ir asociada a linajes o pueblos cuya existencia se extiende mucho mas alla de lo humano. Afecta la forma de entender memoria, riesgo, legado y compromiso, y puede explicar conocimientos o paciencia fuera de lo comun.", fuente: "Libro Basico", pagina: 108, tags: ["bendicion", "longevo", "long-lived"] },
     { id: "bendicion-privilegiado", tipo: "bendicion", nombre: "Privilegiado", resumen: "El personaje pertenece a un estrato con autoridad social, recursos o trato preferente.", detalle: "Puede proceder de nobleza, apellido, cargo, fortuna o una institucion poderosa. El privilegio no elimina conflictos, pero cambia como reaccionan las personas y que puertas se abren antes incluso de hablar.", fuente: "Libro Basico", pagina: 109, tags: ["bendicion", "privilegiado", "privileged"] },
@@ -3270,8 +3271,40 @@ export const CORE_RULES = consolidateRuleFamilies([
     ...buildMonsterRuleEntries().map(normalizeRuleEntry),
     ...ADDITIONAL_RULE_ENTRIES
 ]);
-export const SYMBAROUM_BLESSINGS = mergeCompendiumEntries(COMPLETE_BLESSING_OVERRIDES, mergeCompendiumEntries(APG_BLESSING_SUPPLEMENTS, buildBlessingEntries()));
+export const SYMBAROUM_BLESSINGS = mergeCompendiumEntries(COMPLETE_BLESSING_OVERRIDES, mergeCompendiumEntries(APG_BLESSING_SUPPLEMENTS, buildBlessingEntries())).filter((entry) => !["robusto", "cambiaformas", "longevo"].includes(normalizeLookup(entry.nombre)));
 export const SYMBAROUM_BURDENS = mergeCompendiumEntries(COMPLETE_BURDEN_OVERRIDES, mergeCompendiumEntries(APG_BURDEN_SUPPLEMENTS, buildBurdenEntries()));
+export const SYMBAROUM_CHARACTER_TRAITS = [
+    {
+        id: "rasgo-personaje-longevo",
+        tipo: "rasgo",
+        nombre: "Longevo",
+        resumen: "El personaje pertenece a un pueblo cuya vida se prolonga mucho más allá de la humana.",
+        detalle: "Rasgo racial sin nivel que modifica la esperanza de vida y la perspectiva del personaje sobre la memoria, el compromiso y el paso del tiempo.",
+        fuente: "Libro Básico",
+        pagina: 107,
+        tags: ["rasgo", "rasgo-personaje", "longevo"]
+    },
+    {
+        id: "rasgo-personaje-poco-longevo",
+        tipo: "rasgo",
+        nombre: "Poco longevo",
+        resumen: "El personaje pertenece a un pueblo de vida breve y maduración acelerada.",
+        detalle: "Rasgo racial sin nivel que condiciona la edad, el ritmo vital y la forma en que el personaje afronta el tiempo y sus decisiones.",
+        fuente: "Libro Básico",
+        pagina: 107,
+        tags: ["rasgo", "rasgo-personaje", "poco-longevo"]
+    },
+    {
+        id: "rasgo-personaje-vinculo-terrenal",
+        tipo: "rasgo",
+        nombre: "Vínculo terrenal",
+        resumen: "El personaje mantiene una relación singular con la materia y el mundo físico.",
+        detalle: "Rasgo racial sin nivel propio de los enanos, ligado a su naturaleza, su memoria y su relación con el mundo material.",
+        fuente: "Guía Avanzada del Jugador",
+        pagina: 48,
+        tags: ["rasgo", "rasgo-personaje", "vinculo-terrenal"]
+    }
+];
 export const SYMBAROUM_EQUIPMENT = [
     ...buildWeaponEntries(),
     ...buildArmorEntries(),
@@ -3281,6 +3314,7 @@ export const SYMBAROUM_EQUIPMENT = [
 export const ALL_ENTRIES = [
     ...CORE_RULES,
     ...buildMonsterTraitEntries(),
+    ...SYMBAROUM_CHARACTER_TRAITS,
     ...SYMBAROUM_BLESSINGS,
     ...SYMBAROUM_BURDENS,
     ...SYMBAROUM_CAPABILITIES.map(buildCapabilityEntry),

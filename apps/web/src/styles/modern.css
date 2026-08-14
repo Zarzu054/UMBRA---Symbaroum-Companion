@@ -1469,6 +1469,21 @@ button[disabled] {
   overflow: hidden;
 }
 
+.character-builder-simple-section {
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface);
+}
+
+.character-builder-simple-row {
+  border-color: var(--ui-border);
+  background: var(--ui-surface-muted);
+}
+
+.character-builder-simple-row__identity span {
+  color: var(--ui-text-muted);
+}
+
 .character-builder-artifact-list {
   display: grid;
   gap: 10px;

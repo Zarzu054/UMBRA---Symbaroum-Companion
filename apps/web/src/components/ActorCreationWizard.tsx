@@ -34,7 +34,7 @@ import type { useCharacterController } from "../controllers/characterController"
 import type { useMonsterController } from "../controllers/monsterController";
 import type { useNpcController } from "../controllers/npcController";
 import { getCharacterExperienceSummary } from "../models/characterExperience";
-import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS } from "../models/compendiumEntries";
+import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS, SYMBAROUM_CHARACTER_TRAITS } from "../models/compendiumEntries";
 import { ITEM_CATALOG, type ItemTemplate } from "../models/itemCatalog";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { useConfirmationDialog } from "./ConfirmationDialogProvider";
@@ -130,14 +130,7 @@ function makeInventoryItem(template: ItemTemplate, origin: "inicial" | "concedid
   };
 }
 
-const FREE_PLAYER_TRAITS = [
-  { id: "rasgo-personaje-longevo", name: "Longevo", source: "Libro Básico", page: 107 },
-  { id: "rasgo-personaje-poco-longevo", name: "Poco longevo", source: "Libro Básico", page: 107 },
-  { id: "rasgo-personaje-vinculo-terrenal", name: "Vínculo terrenal", source: "Guía Avanzada del Jugador", page: 48 }
-] as const;
-
 const RATED_TRAIT_NAMES = new Set(["robusto", "superviviente", "cambiaformas", "memoria racial"]);
-const MISCLASSIFIED_BLESSINGS = new Set(["robusto", "cambiaformas", "longevo"]);
 
 const RACIAL_RECOMMENDATIONS: Record<string, Array<{ name: string; kind: ActorCapabilityKind }>> = {
   humano: [{ name: "Contactos", kind: "bendicion" }, { name: "Privilegiado", kind: "bendicion" }, { name: "Montés", kind: "bendicion" }],
@@ -179,10 +172,9 @@ function getCharacterCatalog(race: string, selections: ActorCapabilitySelection[
     effect: entry.efectoResumen
   }));
   const simple: CatalogChoice[] = [
-    ...SYMBAROUM_BLESSINGS.filter((entry) => !MISCLASSIFIED_BLESSINGS.has(normalize(entry.nombre))).map((entry) => ({ id: entry.id, name: entry.nombre, kind: "bendicion" as const, source: entry.fuente, page: entry.pagina, effect: entry.resumen })),
+    ...SYMBAROUM_BLESSINGS.map((entry) => ({ id: entry.id, name: entry.nombre, kind: "bendicion" as const, source: entry.fuente, page: entry.pagina, effect: entry.resumen })),
     ...SYMBAROUM_BURDENS.map((entry) => ({ id: entry.id, name: entry.nombre, kind: "carga" as const, source: entry.fuente, page: entry.pagina, effect: entry.resumen })),
-    ...FREE_PLAYER_TRAITS.map((entry) => ({ id: entry.id, name: entry.name, kind: "rasgo_personaje" as const, source: entry.source, page: entry.page })),
-    { id: "bendicion-montes", name: "Montés", kind: "bendicion", source: "Libro Básico", page: 108 },
+    ...SYMBAROUM_CHARACTER_TRAITS.map((entry) => ({ id: entry.id, name: entry.nombre, kind: "rasgo_personaje" as const, source: entry.fuente, page: entry.pagina, effect: entry.resumen })),
     { id: "rasgo-nivelado-superviviente", name: "Superviviente", kind: "rasgo_nivelado", source: "Libro Básico", page: 111 },
     { id: "rasgo-nivelado-memoria-racial", name: "Memoria racial", kind: "rasgo_nivelado", source: "Guía Avanzada del Jugador", page: 49 }
   ];

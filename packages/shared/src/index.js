@@ -123,6 +123,7 @@ const SHEET_HIDDEN_ABILITY_NAMES = ["Poder místico"];
 const NORMALIZED_MYSTIC_ABILITY_NAMES = MYSTIC_ABILITY_NAMES.map(normalizeName);
 const NORMALIZED_SHEET_HIDDEN_ABILITY_NAMES = SHEET_HIDDEN_ABILITY_NAMES.map(normalizeName);
 const MONSTER_TRAIT_NAME_SET = buildMonsterTraitNameSet();
+const SIMPLE_CHARACTER_TRAIT_NAME_SET = new Set(["longevo", "poco longevo", "vinculo terrenal"]);
 function nullableDefaultString(maxLength, fallback = "") {
     return z.preprocess((value) => value == null ? fallback : value, z.string().max(maxLength).default(fallback));
 }
@@ -629,7 +630,8 @@ function parseMonsterTraitLevel(value) {
     return "principiante";
 }
 function isCharacterMonsterTrait(value) {
-    return MONSTER_TRAIT_NAME_SET.has(extractMonsterTraitBaseName(value));
+    const baseName = extractMonsterTraitBaseName(value);
+    return !SIMPLE_CHARACTER_TRAIT_NAME_SET.has(baseName) && MONSTER_TRAIT_NAME_SET.has(baseName);
 }
 function buildMonsterTraitAbilityEntries(rasgos, existingAbilities) {
     const existingNames = new Set((existingAbilities ?? []).map((entry) => normalizeName(entry.nombre)));
