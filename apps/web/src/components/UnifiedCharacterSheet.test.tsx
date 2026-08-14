@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEmptyCharacterSheet } from "@umbra/shared";
 import { UnifiedCharacterSheet } from "./UnifiedCharacterSheet";
 
@@ -452,17 +452,19 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(document.body.style.overflow).toBe("");
   });
 
-  it("tracks manual rerolls through available XP or permanent corruption", () => {
+  it("tracks manual rerolls through available XP or permanent corruption", async () => {
     const sheet = createEmptyCharacterSheet();
     sheet.progreso.experienciaTotal = 12;
     sheet.progreso.experienciaGastada = 5;
 
+    const onSave = vi.fn().mockResolvedValue(undefined);
     const { container } = render(
       <UnifiedCharacterSheet
         title="Arold"
         subtitle="Guerrero"
         sheet={sheet}
         editable
+        onSave={onSave}
       />
     );
 
@@ -483,6 +485,11 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(xpCard).toHaveTextContent("PX total12");
     expect(xpCard).toHaveTextContent("PX disponible6");
     expect(screen.queryByRole("heading", { name: "Gastar PX para repetir" })).not.toBeInTheDocument();
+    await waitFor(() => expect(onSave).toHaveBeenCalled(), { timeout: 2500 });
+    const savedSheet = onSave.mock.calls.at(-1)?.[0];
+    expect(savedSheet.progreso.gastosExperiencia).toEqual([
+      expect.objectContaining({ tipo: "repeticion_tirada", cantidad: 1 })
+    ]);
 
     const permanentCorruptionCard = container.querySelector(".unified-sheet-vital-card.is-corruption-deep") as HTMLElement;
     expect(within(permanentCorruptionCard).queryByText(/Repetir/i)).not.toBeInTheDocument();

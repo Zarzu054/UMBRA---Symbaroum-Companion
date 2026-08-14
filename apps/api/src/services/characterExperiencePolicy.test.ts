@@ -56,4 +56,45 @@ describe("character experience policy", () => {
     expect(protectedSheet.progreso.experienciaTotal).toBe(10);
     expect(protectedSheet.identidad.apariencia).toBe("Una cicatriz reciente");
   });
+
+  it("does not let a stale edit absorb already-spent non-capability XP", () => {
+    const current = createEmptyCharacterSheet();
+    current.progreso.experienciaTotal = 102;
+    current.progreso.experienciaGastada = 101;
+    addNoviceAbility(current, "Acrobacia");
+    const requested = structuredClone(current);
+    requested.progreso.experienciaGastada = 100;
+
+    const protectedSheet = protectGrantedCharacterExperience(current, requested);
+
+    expect(protectedSheet.progreso.experienciaGastada).toBe(101);
+  });
+
+  it("still refunds the computed cost of a removed capability", () => {
+    const current = createEmptyCharacterSheet();
+    current.progreso.experienciaTotal = 102;
+    current.progreso.experienciaGastada = 101;
+    addNoviceAbility(current, "Acrobacia");
+    const requested = structuredClone(current);
+    requested.habilidades = [];
+    requested.progreso.experienciaGastada = 91;
+
+    const protectedSheet = protectGrantedCharacterExperience(current, requested);
+
+    expect(protectedSheet.progreso.experienciaGastada).toBe(91);
+  });
+
+  it("can classify historical spending as rerolls without charging it twice", () => {
+    const current = createEmptyCharacterSheet();
+    current.progreso.experienciaTotal = 10;
+    current.progreso.experienciaGastada = 5;
+    const requested = structuredClone(current);
+    requested.progreso.gastosExperiencia = [
+      { id: "historical-rerolls", tipo: "repeticion_tirada", cantidad: 5, fecha: "" }
+    ];
+
+    const protectedSheet = protectGrantedCharacterExperience(current, requested);
+
+    expect(protectedSheet.progreso.experienciaGastada).toBe(5);
+  });
 });

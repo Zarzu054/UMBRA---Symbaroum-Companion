@@ -42,6 +42,112 @@ it("uses the persisted XP total without adding burden bonuses a second time", ()
   expect(persistentControls).toContainElement(screen.getByRole("button", { name: "Compras PX" }));
 });
 
+it("keeps historical reroll spending when an artifact binding arrives", async () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.progreso.experienciaTotal = 102;
+  sheet.progreso.experienciaGastada = 100;
+  sheet.habilidades.push({
+    nombre: "Acrobacia", tipo: "Habilidad", efecto: "", nivel: "principiante",
+    fuente: "Libro Básico", notas: "", acciones: []
+  });
+  const baseCharacter: Character = {
+    id: "character-binding-xp", name: "Urmak", archetype: "Místico", race: "Humano", culture: "Ambriano", profession: "",
+    level: 1, sheet, artifactBindingXpSpent: 0,
+    createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+  };
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  const view = render(<CharacterBuilderView character={baseCharacter} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={onSave} />);
+
+  expect(screen.getByText("PX gastada").closest("article")).toHaveTextContent("100");
+
+  view.rerender(
+    <CharacterBuilderView
+      character={{ ...baseCharacter, artifactBindingXpSpent: 1, updatedAt: new Date(1).toISOString() }}
+      onBackToCharacters={vi.fn()}
+      onOpenSheet={vi.fn()}
+      onSave={onSave}
+    />
+  );
+
+  expect(screen.getByText("PX gastada").closest("article")).toHaveTextContent("101");
+  expect(screen.getByText(/Origen del PX gastado:/).closest("p")).toHaveTextContent("1 en vínculos de artefactos");
+  expect(screen.getByText(/Origen del PX gastado:/).closest("p")).toHaveTextContent("90 en repeticiones de dados");
+  expect(screen.getByText(/Origen del PX gastado:/).closest("p")).not.toHaveTextContent("ajuste manual");
+
+  fireEvent.click(screen.getByRole("button", { name: "Guardar constructor" }));
+  await waitFor(() => expect(onSave).toHaveBeenCalled());
+  expect(onSave.mock.calls[0][0].progreso.experienciaGastada).toBe(101);
+  expect(onSave.mock.calls[0][0].progreso.gastosExperiencia).toEqual([
+    expect.objectContaining({ tipo: "repeticion_tirada", cantidad: 90 })
+  ]);
+});
+
+it("reconstructs Urmak's 101 spent XP from the full sheet and the artifact ledger", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.progreso.experienciaTotal = 102;
+  sheet.progreso.experienciaGastada = 100;
+  sheet.capabilitySelections = [
+    { catalogId: "steel-wind", name: "Viento de acero", kind: "habilidad", level: "principiante", origin: "comprada", source: "Libro Básico" }
+  ];
+  sheet.habilidades = [
+    { nombre: "Sexto sentido", tipo: "Habilidad", efecto: "", nivel: "adepto", fuente: "Libro Básico", notas: "", acciones: [] },
+    { nombre: "Viento de acero", tipo: "Habilidad", efecto: "", nivel: "principiante", fuente: "Libro Básico", notas: "", acciones: [] }
+  ];
+  sheet.poderesMisticos = [
+    { nombre: "Brujería", tipo: "Poder místico", efecto: "", nivel: "adepto", fuente: "Libro Básico", notas: "", acciones: [] },
+    { nombre: "Tormenta de flechas", tipo: "Poder místico", efecto: "", nivel: "principiante", fuente: "Libro Básico", notas: "", acciones: [] },
+    { nombre: "Cambiaformas", tipo: "Poder místico", efecto: "", nivel: "principiante", fuente: "Libro Básico", notas: "", acciones: [] }
+  ];
+  sheet.rituales = [
+    { nombre: "Familiar", tipo: "Ritual", efecto: "", nivel: "principiante", fuente: "Libro Básico", notas: "", acciones: [] }
+  ];
+  const character: Character = {
+    id: "character-urmak", name: "Urmak", archetype: "Místico", race: "Humano", culture: "Ambriano", profession: "",
+    level: 1, sheet, artifactBindingXpSpent: 1,
+    createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+  };
+
+  render(<CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={vi.fn()} />);
+
+  expect(screen.getByText("PX gastada").closest("article")).toHaveTextContent("101");
+  expect(screen.getByText("PX disponible").closest("article")).toHaveTextContent("1");
+  const breakdown = screen.getByText(/Origen del PX gastado:/).closest("p");
+  expect(breakdown).toHaveTextContent("90 en capacidades y poderes");
+  expect(breakdown).toHaveTextContent("10 en rituales");
+  expect(breakdown).toHaveTextContent("1 en vínculos de artefactos");
+  expect(breakdown).not.toHaveTextContent("ajuste manual");
+});
+
+it("opens an auditable XP expense detail with capabilities, artifacts and dated rerolls", () => {
+  const sheet = createEmptyCharacterSheet();
+  sheet.progreso.experienciaTotal = 30;
+  sheet.progreso.experienciaGastada = 12;
+  sheet.habilidades = [
+    { nombre: "Acrobacia", tipo: "Habilidad", efecto: "", nivel: "principiante", fuente: "Libro Básico", notas: "", acciones: [] }
+  ];
+  sheet.progreso.gastosExperiencia = [
+    { id: "reroll-a", tipo: "repeticion_tirada", cantidad: 1, fecha: "2026-08-14T10:00:00.000Z" }
+  ];
+  const character: Character = {
+    id: "character-xp-details", name: "Alda", archetype: "Guerrera", race: "Humana", culture: "Ambria", profession: "",
+    level: 1, sheet, artifactBindingXpSpent: 1,
+    artifactBindingXpExpenses: [{
+      id: "binding-a", artifactId: "artifact-a", artifactName: "Piedra Solar", amount: 1, boundAt: "2026-08-13T09:00:00.000Z"
+    }],
+    createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+  };
+
+  render(<CharacterBuilderView character={character} onBackToCharacters={vi.fn()} onOpenSheet={vi.fn()} onSave={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Ver detalle de PX gastada" }));
+
+  const dialog = screen.getByRole("dialog", { name: "Detalle de PX gastada" });
+  expect(dialog).toHaveTextContent("Acrobacia");
+  expect(dialog).toHaveTextContent("Habilidad · Principiante");
+  expect(dialog).toHaveTextContent("Piedra Solar");
+  expect(dialog).toHaveTextContent("Repetición de dado");
+  expect(dialog).toHaveTextContent("2026");
+});
+
 it("lets the player choose a configured artifact binding payment", async () => {
   const sheet = createEmptyCharacterSheet();
   sheet.progreso.experienciaTotal = 5;

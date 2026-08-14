@@ -747,9 +747,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       mysticArtifacts: (selectedCampaign?.mysticArtifacts ?? [])
         .filter((artifact) => artifact.ownerType === "character" && artifact.ownerId === campaignSheetModalEntry.id)
         .map((artifact) => ({ ...artifact, campaignName: selectedCampaign?.name ?? "Campaña" })),
-      artifactBindingXpSpent: (selectedCampaign?.mysticArtifacts ?? [])
-        .filter((artifact) => artifact.ownerType === "character" && artifact.ownerId === campaignSheetModalEntry.id && artifact.bindingPaymentType === "xp")
-        .reduce((total, artifact) => total + (artifact.bindingPaymentAmount ?? 0), 0),
+      artifactBindingXpSpent: (campaignSheetModalEntry.artifactBindingXpExpenses ?? [])
+        .reduce((total, expense) => total + expense.amount, 0),
+      artifactBindingXpExpenses: campaignSheetModalEntry.artifactBindingXpExpenses ?? [],
       unreadChangeCount: campaignSheetModalEntry.unreadChangeCount ?? 0,
       professionMemberships: campaignSheetModalEntry.professionMemberships,
       createdAt: campaignSheetModalEntry.updatedAt,

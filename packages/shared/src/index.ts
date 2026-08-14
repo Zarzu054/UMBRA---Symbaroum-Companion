@@ -527,7 +527,13 @@ const characterSheetObjectSchema = z.object({
   progreso: z.object({
     nivel: z.literal(1).default(1),
     experienciaTotal: z.number().int().min(0).max(100000).default(0),
-    experienciaGastada: z.number().int().min(0).max(100000).default(0)
+    experienciaGastada: z.number().int().min(0).max(100000).default(0),
+    gastosExperiencia: z.array(z.object({
+      id: z.string().min(1).max(120),
+      tipo: z.enum(["repeticion_tirada"]),
+      cantidad: z.number().int().min(1).max(100000),
+      fecha: z.string().max(80).default("")
+    })).max(10000).default([])
   }),
   combate: z.object({
     robustezMax: z.number().int().min(1).max(999).default(10),
@@ -1906,7 +1912,8 @@ export function createEmptyCharacterSheet(): CharacterSheet {
     progreso: {
       nivel: 1,
       experienciaTotal: 50,
-      experienciaGastada: 0
+      experienciaGastada: 0,
+      gastosExperiencia: []
     },
     combate: {
       robustezMax: 10,
@@ -2110,6 +2117,14 @@ export type CreateCharacterInput = z.infer<typeof createCharacterSchema>;
 export type ImportCharacterInput = z.infer<typeof importCharacterSchema>;
 export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 
+export type ArtifactBindingXpExpense = {
+  id: string;
+  artifactId: string;
+  artifactName: string;
+  amount: number;
+  boundAt: string;
+};
+
 export type Character = {
   id: string;
   name: string;
@@ -2121,6 +2136,7 @@ export type Character = {
   sheet: CharacterSheet;
   mysticArtifacts?: OwnedMysticArtifact[];
   artifactBindingXpSpent?: number;
+  artifactBindingXpExpenses?: ArtifactBindingXpExpense[];
   unreadChangeCount?: number;
   professionMemberships?: CharacterProfessionMembership[];
   createdAt: string;
@@ -2535,6 +2551,7 @@ export type CampaignCharacter = {
   ownerEmail: string;
   experienceTotal: number;
   experienceSpent: number;
+  artifactBindingXpExpenses?: ArtifactBindingXpExpense[];
   sheet: CharacterSheet | null;
   sheetLoadError?: boolean;
   unreadChangeCount?: number;

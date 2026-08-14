@@ -26,7 +26,10 @@ export function getComputedCharacterExperienceSpent(sheet: CharacterSheet): numb
   );
   const rituals = sheet.rituales.length * 10;
   const blessings = sheet.bendiciones.length * 5;
-  return abilities + powers + rituals + blessings;
+  const rerolls = sheet.progreso.gastosExperiencia
+    .filter((entry) => entry.tipo === "repeticion_tirada")
+    .reduce((total, entry) => total + entry.cantidad, 0);
+  return abilities + powers + rituals + blessings + rerolls;
 }
 
 export function getEffectiveCharacterExperienceSpent(sheet: CharacterSheet): number {
@@ -38,8 +41,12 @@ export function protectGrantedCharacterExperience(
   requestedSheet: CharacterSheet
 ): CharacterSheet {
   const experienceTotal = currentSheet.progreso.experienciaTotal;
+  const currentComputedSpent = getComputedCharacterExperienceSpent(currentSheet);
   const currentSpent = getEffectiveCharacterExperienceSpent(currentSheet);
-  const requestedSpent = getEffectiveCharacterExperienceSpent(requestedSheet);
+  const requestedComputedSpent = getComputedCharacterExperienceSpent(requestedSheet);
+  const requestedEffectiveSpent = getEffectiveCharacterExperienceSpent(requestedSheet);
+  const refundableComputedDecrease = Math.max(0, currentComputedSpent - requestedComputedSpent);
+  const requestedSpent = Math.max(requestedEffectiveSpent, currentSpent - refundableComputedDecrease);
 
   if (requestedSpent > experienceTotal && requestedSpent > currentSpent) {
     throw new AppError(
@@ -54,9 +61,7 @@ export function protectGrantedCharacterExperience(
     progreso: {
       ...requestedSheet.progreso,
       experienciaTotal: experienceTotal,
-      experienciaGastada: requestedSpent <= experienceTotal
-        ? requestedSpent
-        : requestedSheet.progreso.experienciaGastada
+      experienciaGastada: requestedSpent
     }
   };
 }

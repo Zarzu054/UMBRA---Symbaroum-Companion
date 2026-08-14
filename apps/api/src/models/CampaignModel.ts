@@ -2,7 +2,7 @@
 import { campaignCombatParticipantSchema, createEmptyCharacterSheet, decodeCampaignDmNotes, decodeCampaignSharedNotes, encodeCampaignDmNotes, encodeCampaignSharedNotes, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CampaignInvitation, type CharacterSheet, type OwnedMysticArtifact, type UserRole } from "@umbra/shared";
 import { Prisma as PrismaRuntime } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
-import { getEffectiveCharacterExperienceSpent } from "../services/characterExperiencePolicy.js";
+import { getEffectiveCharacterExperienceSpent, protectGrantedCharacterExperience } from "../services/characterExperiencePolicy.js";
 import { mapMysticArtifact, mysticArtifactInclude } from "./MysticArtifactModel.js";
 import { buildCharacterChanges, getCharacterAuditActor, getUnreadCharacterChangeCounts, recordCharacterChange } from "./CharacterAuditModel.js";
 import { AppError } from "../utils/AppError.js";
@@ -20,6 +20,11 @@ const campaignInclude = {
   },
   characters: {
     include: {
+      mysticArtifactBindings: {
+        where: { paymentType: "xp" },
+        include: { artifact: { select: { id: true, name: true } } },
+        orderBy: { boundAt: "asc" }
+      },
       character: {
         include: {
           owner: true,
@@ -274,6 +279,13 @@ function mapCampaign(
         ownerEmail: entry.character.owner.email,
         experienceTotal,
         experienceSpent,
+        artifactBindingXpExpenses: entry.mysticArtifactBindings.map((binding) => ({
+          id: binding.id,
+          artifactId: binding.artifact.id,
+          artifactName: binding.artifact.name,
+          amount: binding.amount,
+          boundAt: binding.boundAt.toISOString()
+        })),
         sheet: isDirector || entry.character.ownerId === viewerId ? visibleSheet : null,
         sheetLoadError: visibleSheet === null,
         unreadChangeCount: unreadCounts.get(entry.characterId) ?? 0,
@@ -965,16 +977,17 @@ export class CampaignModel {
       const current = await tx.character.findUnique({ where: { id: characterId }, include: { professionMemberships: true } });
       if (!current) return;
       const beforeSheet = parseCharacterSheet(current.sheet);
+      const protectedSheet = protectGrantedCharacterExperience(beforeSheet, sheet);
       const next = {
-        name: sheet.identidad.nombrePersonaje || current.name,
-        race: String(sheet.identidad.raza),
-        culture: String(sheet.identidad.cultura),
-        archetype: String(sheet.identidad.arquetipo),
-        profession: sheet.identidad.profesion,
+        name: protectedSheet.identidad.nombrePersonaje || current.name,
+        race: String(protectedSheet.identidad.raza),
+        culture: String(protectedSheet.identidad.cultura),
+        archetype: String(protectedSheet.identidad.arquetipo),
+        profession: protectedSheet.identidad.profesion,
         level: current.level,
-        sheet
+        sheet: protectedSheet
       };
-      validateProfessionBenefitAcquisitionWithMemberships(beforeSheet, sheet, current.professionMemberships);
+      validateProfessionBenefitAcquisitionWithMemberships(beforeSheet, protectedSheet, current.professionMemberships);
       await tx.character.update({ where: { id: characterId }, data: next });
       const actor = actorId ? await getCharacterAuditActor(tx, actorId) : null;
       if (actor) {
@@ -986,7 +999,7 @@ export class CampaignModel {
           summary: source === "builder" ? "Actualizó el personaje desde el constructor" : "Actualizó la hoja del personaje",
           changes: buildCharacterChanges(
             { name: current.name, race: current.race, culture: current.culture, archetype: current.archetype, profession: current.profession, level: current.level, sheet: beforeSheet, professionMemberships: current.professionMemberships.map((entry) => ({ id: entry.id, professionId: entry.professionId, state: mapProfessionMembership(entry, beforeSheet).effectiveState })) },
-            { ...next, professionMemberships: current.professionMemberships.map((entry) => ({ id: entry.id, professionId: entry.professionId, state: mapProfessionMembership(entry, sheet).effectiveState })) }
+            { ...next, professionMemberships: current.professionMemberships.map((entry) => ({ id: entry.id, professionId: entry.professionId, state: mapProfessionMembership(entry, protectedSheet).effectiveState })) }
           )
         });
       }

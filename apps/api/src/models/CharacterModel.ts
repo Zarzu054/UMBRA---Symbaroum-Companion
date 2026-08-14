@@ -4,13 +4,18 @@ import { prisma } from "../config/prisma.js";
 import { mapMysticArtifact, mysticArtifactInclude } from "./MysticArtifactModel.js";
 import { buildCharacterChanges, getUnreadCharacterChangeCounts, recordCharacterChange, type CharacterAuditActor } from "./CharacterAuditModel.js";
 import { mapProfessionMembership, validateProfessionBenefitAcquisitionWithMemberships } from "./ProfessionModel.js";
+import { protectGrantedCharacterExperience } from "../services/characterExperiencePolicy.js";
 
 const characterArtifactInclude = {
   professionMemberships: { orderBy: { createdAt: "asc" as const } },
   campaignLinks: {
     include: {
       ownedMysticArtifacts: { include: mysticArtifactInclude },
-      mysticArtifactBindings: { where: { paymentType: "xp" as const } }
+      mysticArtifactBindings: {
+        where: { paymentType: "xp" as const },
+        include: { artifact: { select: { id: true, name: true } } },
+        orderBy: { boundAt: "asc" as const }
+      }
     }
   }
 } satisfies Prisma.CharacterInclude;
@@ -42,6 +47,13 @@ function mapRow(row: CharacterRow, unreadChangeCount = 0): Character {
     sheet: projectedSheet,
     mysticArtifacts,
     artifactBindingXpSpent: row.campaignLinks.flatMap((link) => link.mysticArtifactBindings).reduce((sum, binding) => sum + binding.amount, 0),
+    artifactBindingXpExpenses: row.campaignLinks.flatMap((link) => link.mysticArtifactBindings).map((binding) => ({
+      id: binding.id,
+      artifactId: binding.artifact.id,
+      artifactName: binding.artifact.name,
+      amount: binding.amount,
+      boundAt: binding.boundAt.toISOString()
+    })),
     unreadChangeCount,
     professionMemberships: row.professionMemberships.map((entry) => mapProfessionMembership(entry, projectedSheet)),
     createdAt: row.createdAt.toISOString(),
@@ -119,7 +131,7 @@ export class CharacterModel {
         profession: current.profession,
         level: current.level
       });
-      const mergedSheet = payload.sheet ?? currentSheet;
+      const mergedSheet = protectGrantedCharacterExperience(currentSheet, payload.sheet ?? currentSheet);
       validateProfessionBenefitAcquisitionWithMemberships(currentSheet, mergedSheet, current.professionMemberships);
       const updated = await tx.character.update({
         where: { id: characterId },

@@ -4991,6 +4991,75 @@ td {
   color: #17384b;
 }
 
+.character-builder-xp-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.character-builder-xp-info-button {
+  display: inline-grid;
+  place-items: center;
+  width: 1.55rem;
+  min-width: 1.55rem;
+  height: 1.55rem;
+  min-height: 1.55rem;
+  padding: 0;
+  border-radius: 999px;
+  font-family: Georgia, serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.character-builder-xp-details-modal {
+  width: min(760px, calc(100vw - 2rem));
+  max-height: min(82vh, 760px);
+  overflow-y: auto;
+}
+
+.character-builder-xp-details-body,
+.character-builder-xp-details-section,
+.character-builder-xp-expense-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.character-builder-xp-details-body {
+  margin-top: 1rem;
+}
+
+.character-builder-xp-details-section {
+  padding: 0.85rem;
+  border: 1px solid rgba(150, 118, 83, 0.22);
+  border-radius: 14px;
+  background: rgba(255, 253, 249, 0.58);
+}
+
+.character-builder-xp-details-section h4 {
+  margin: 0;
+}
+
+.character-builder-xp-expense-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-top: 1px solid rgba(150, 118, 83, 0.16);
+}
+
+.character-builder-xp-expense-row > div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.character-builder-xp-expense-row span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
 .character-builder-summary-notes {
   display: grid;
   gap: 0.22rem;
