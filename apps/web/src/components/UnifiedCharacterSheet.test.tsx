@@ -9,6 +9,18 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
 
   afterEach(cleanup);
 
+  it("migrates the persisted legacy Actions filter to Acciones de combate", () => {
+    window.localStorage.setItem("umbra:character-sheet-tabs:arold", JSON.stringify({
+      activeTab: "actions",
+      activeMechanicalTab: "actions",
+      activeActionTab: "actions"
+    }));
+
+    render(<UnifiedCharacterSheet title="Arold" sheet={createEmptyCharacterSheet()} editable={false} />);
+
+    expect(screen.getByRole("button", { name: "Acciones de combate" })).toHaveClass("is-active");
+  });
+
   it("starts on Atributos and switches to the action list with visible roll formulas", () => {
     const sheet = createEmptyCharacterSheet();
     sheet.identidad.nombrePersonaje = "Arold";
@@ -212,6 +224,128 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     fireEvent.click(within(narrativeNavigation).getByRole("button", { name: "Notas" }));
     expect(within(narrativeReader).getByRole("heading", { name: "Notas personales" })).toBeInTheDocument();
     expect(within(mechanicalReader).getByRole("navigation", { name: "Tipos de capacidades" })).toBeInTheDocument();
+  });
+
+  it("filters actions by multiple categories and exposes movement actions", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.inventoryItems = [{
+      id: "weapon-bow",
+      name: "Arco",
+      category: "weapon",
+      quantity: 1,
+      stackable: false,
+      isCustom: false,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: true,
+      slot: "ranged",
+      attackAttribute: "diestro",
+      damageFormula: "1d8",
+      protectionFormula: "",
+      qualities: "A distancia",
+      notes: "",
+      grantedActions: [],
+      modifiers: []
+    }, {
+      id: "weapon-crossbow",
+      name: "Ballesta",
+      category: "weapon",
+      quantity: 1,
+      stackable: false,
+      isCustom: false,
+      description: "",
+      weight: "",
+      value: "",
+      equipped: false,
+      slot: "none",
+      attackAttribute: "diestro",
+      damageFormula: "1d10",
+      protectionFormula: "",
+      qualities: "A distancia, Recarga",
+      notes: "",
+      grantedActions: [],
+      modifiers: []
+    }];
+
+    render(<UnifiedCharacterSheet title="Arold" sheet={sheet} editable />);
+    const filters = screen.getByRole("navigation", { name: "Filtros de acciones" });
+
+    expect(within(filters).getByRole("button", { name: "Acciones de combate" })).toBeInTheDocument();
+    expect(within(filters).getByRole("button", { name: "Acciones de movimiento" })).toBeInTheDocument();
+    expect(within(filters).queryByRole("button", { name: "Acciones" })).not.toBeInTheDocument();
+
+    within(filters).getByRole("button", { name: "Todas" }).focus();
+    fireEvent.keyDown(filters, { key: "ArrowRight" });
+    expect(within(filters).getByRole("button", { name: "Favoritas" })).toHaveFocus();
+    fireEvent.keyDown(filters, { key: "End" });
+    expect(within(filters).getByRole("button", { name: "Otras" })).toHaveFocus();
+
+    fireEvent.click(within(filters).getByRole("button", { name: "Ataques" }));
+    expect(screen.getAllByRole("button", { name: "Atacar con Arco" })).toHaveLength(1);
+
+    fireEvent.click(within(filters).getByRole("button", { name: "Acciones de combate" }));
+    expect(screen.getAllByRole("button", { name: "Atacar con Arco" })).toHaveLength(1);
+    ["Atacar", "Usar una habilidad activa", "Primeros auxilios", "Acción de movimiento adicional", "Usar/aplicar un elixir"]
+      .forEach((label) => expect(screen.getAllByRole("button", { name: label })).toHaveLength(1));
+
+    fireEvent.click(within(filters).getByRole("button", { name: "Acciones de movimiento" }));
+    expect(screen.getByRole("button", { name: "Recargar Ballesta" })).toBeInTheDocument();
+    [
+      "Trabarse en cuerpo a cuerpo",
+      "Flanquear",
+      "Moverse alrededor de un enemigo",
+      "Destrabarse del combate",
+      "Línea de visión",
+      "Desenvainar un arma",
+      "Cambiar de arma",
+      "Levantarse",
+      "Usar/aplicar un elixir"
+    ].forEach((label) => expect(screen.getAllByRole("button", { name: label })).toHaveLength(1));
+  });
+
+  it("shows complete informational action families without roll controls and allows favorites", () => {
+    const sheet = createEmptyCharacterSheet();
+    const { container } = render(<UnifiedCharacterSheet title="Arold" sheet={sheet} editable />);
+    const filters = screen.getByRole("navigation", { name: "Filtros de acciones" });
+
+    fireEvent.click(within(filters).getByRole("button", { name: "Hazañas" }));
+    expect(container.querySelectorAll(".campaign-action-button--row.is-informational")).toHaveLength(8);
+    const cleanStrike = screen.getByRole("button", { name: "Golpe limpio" });
+    const cleanStrikeRow = cleanStrike.closest(".campaign-action-button--row") as HTMLElement;
+    expect(cleanStrikeRow.querySelector(".campaign-action-rolls")).not.toBeInTheDocument();
+    fireEvent.click(cleanStrike);
+    const featModal = screen.getByRole("heading", { name: "Golpe limpio" }).closest(".modal-panel") as HTMLElement;
+    expect(within(featModal).getByText(/Regla opcional/)).toBeInTheDocument();
+    expect(featModal).toHaveTextContent("Activar una hazaña cuesta");
+    fireEvent.click(within(featModal).getByRole("button", { name: "Cerrar" }));
+
+    fireEvent.click(within(cleanStrikeRow).getByRole("button", { name: "Guardar en favoritas" }));
+    fireEvent.click(within(filters).getByRole("button", { name: "Favoritas" }));
+    expect(screen.getByRole("button", { name: "Golpe limpio" })).toBeInTheDocument();
+
+    fireEvent.click(within(filters).getByRole("button", { name: "Maniobras de combate" }));
+    expect(container.querySelectorAll(".campaign-action-button--row.is-informational")).toHaveLength(12);
+
+    fireEvent.click(within(filters).getByRole("button", { name: "Acciones especiales" }));
+    expect(container.querySelectorAll(".campaign-action-button--row.is-informational")).toHaveLength(5);
+  });
+
+  it("opens quick combat guide actions as informational details without creating roll controls", () => {
+    const sheet = createEmptyCharacterSheet();
+    const { container } = render(<UnifiedCharacterSheet title="Arold" sheet={sheet} editable />);
+    const filters = screen.getByRole("navigation", { name: "Filtros de acciones" });
+
+    fireEvent.click(within(filters).getByRole("button", { name: "Acciones de movimiento" }));
+    const drawWeapon = screen.getByRole("button", { name: "Desenvainar un arma" });
+    const row = drawWeapon.closest(".campaign-action-button--row") as HTMLElement;
+    expect(row).toHaveClass("is-informational");
+    expect(row.querySelector(".campaign-action-rolls")).not.toBeInTheDocument();
+
+    fireEvent.click(drawWeapon);
+    const modal = screen.getByRole("heading", { name: "Desenvainar un arma" }).closest(".modal-panel") as HTMLElement;
+    expect(modal).toHaveTextContent("Acción de movimiento");
+    expect(modal).toHaveTextContent("Libro Básico p. 161");
   });
 
   it("muestra Principiante como nivel inicial de las capacidades", () => {

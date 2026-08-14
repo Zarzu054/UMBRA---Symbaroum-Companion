@@ -3244,7 +3244,52 @@ const ADDITIONAL_RULE_ENTRIES: RuleCompendiumEntry[] = [
     id: "regla-basica-acciones-de-combate", tipo: "regla", ruleCategory: "core", nombre: "Acciones de combate y movimiento",
     resumen: "Cada turno ofrece normalmente una acción de combate y una acción de movimiento, que pueden emplearse o intercambiarse según las reglas.",
     detalle: "Un combatiente dispone normalmente de una acción de combate y otra de movimiento. La acción de combate permite atacar, usar una capacidad activa o realizar tareas exigentes; la de movimiento permite desplazarse, cambiar de arma, levantarse mediante Ágil o usar un elixir sobre uno mismo. Una acción de combate puede convertirse en una acción adicional de movimiento.",
-    fuente: "Libro Básico", pagina: 157, tags: ["regla", "combate", "acciones", "movimiento"]
+    fuente: "Libro Básico", pagina: 157, tags: ["regla", "combate", "acciones", "movimiento", "guía rápida"],
+    references: [{ source: "Libro Básico", page: 161 }],
+    variants: [
+      {
+        id: "guia-rapida-trabarse-cuerpo-a-cuerpo",
+        label: "Trabarse en cuerpo a cuerpo",
+        facts: [{ label: "Coste", value: "Acción de movimiento" }],
+        detail: "El personaje se mueve hasta un enemigo y queda trabado en combate cuerpo a cuerpo. Desde ese momento, abandonar el enfrentamiento o pasar junto al rival puede provocar ataques gratuitos."
+      },
+      {
+        id: "guia-rapida-moverse-alrededor-enemigo",
+        label: "Moverse alrededor de un enemigo",
+        facts: [{ label: "Coste", value: "Acción de movimiento" }],
+        detail: "El personaje cambia su posición alrededor de un enemigo trabado. Si el movimiento lo expone o lo hace pasar junto al adversario, este puede obtener un ataque gratuito; convertir la acción de combate en movimiento adicional permite completar maniobras más amplias."
+      },
+      {
+        id: "guia-rapida-desenvainar-arma",
+        label: "Desenvainar un arma",
+        facts: [{ label: "Coste", value: "Acción de movimiento" }],
+        detail: "Preparar y desenvainar un arma que el personaje lleva guardada consume su acción de movimiento."
+      },
+      {
+        id: "guia-rapida-cambiar-arma",
+        label: "Cambiar de arma",
+        facts: [{ label: "Coste", value: "Acción de movimiento" }],
+        detail: "Guardar, soltar o apartar el arma actual y preparar otra se resuelve como una acción de movimiento."
+      },
+      {
+        id: "guia-rapida-atacar",
+        label: "Atacar",
+        facts: [{ label: "Coste", value: "Acción de combate" }],
+        detail: "El personaje realiza un ataque con un arma, un ataque desarmado o cualquier otra acción ofensiva permitida por sus capacidades y equipo."
+      },
+      {
+        id: "guia-rapida-habilidad-activa",
+        label: "Usar una habilidad activa",
+        facts: [{ label: "Coste", value: "Acción de combate" }],
+        detail: "Activar una habilidad, poder o efecto cuyo uso requiera una acción activa consume la acción de combate del turno, salvo que su propia regla indique otro coste."
+      },
+      {
+        id: "guia-rapida-movimiento-adicional",
+        label: "Acción de movimiento adicional",
+        facts: [{ label: "Coste", value: "Acción de combate" }],
+        detail: "El personaje puede renunciar a su acción de combate para realizar una segunda acción de movimiento durante el mismo turno."
+      }
+    ]
   },
   {
     id: "regla-basica-reacciones-y-ataques-gratuitos", tipo: "regla", ruleCategory: "core", nombre: "Reacciones y ataques gratuitos",

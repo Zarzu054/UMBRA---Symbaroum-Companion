@@ -816,6 +816,115 @@ test("deriveCharacterActions colapsa acciones de arma duplicadas entre hoja prec
   assert.equal(actions.filter((action) => action.sourceName === "Ballesta").length, 1);
 });
 
+test("deriveCharacterActions agrupa armas oficiales identicas despues de aplicar estilos de combate", () => {
+  const makeWeapon = (id, overrides = {}) => ({
+    id,
+    name: "Arco",
+    category: "weapon",
+    quantity: 1,
+    stackable: false,
+    isCustom: false,
+    description: "",
+    weight: "",
+    value: "",
+    equipped: true,
+    slot: "ranged",
+    attackAttribute: "diestro",
+    damageFormula: "1d8",
+    protectionFormula: "",
+    qualities: "A distancia",
+    notes: "",
+    grantedActions: [],
+    modifiers: [],
+    ...overrides
+  });
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    inventoryItems: [
+      makeWeapon("bow-1"),
+      makeWeapon("bow-2"),
+      makeWeapon("composite-bow", { name: "Arco compuesto", qualities: "A distancia, Impacto agravado" })
+    ],
+    habilidades: [
+      {
+        nombre: "Sexto sentido", tipo: "Habilidad", efecto: "", nivel: "principiante",
+        fuente: "Libro Basico", notas: "", acciones: []
+      },
+      {
+        nombre: "Tirador", tipo: "Habilidad", efecto: "", nivel: "principiante",
+        fuente: "Libro Basico", notas: "", acciones: []
+      }
+    ]
+  });
+
+  const attacks = deriveCharacterActions(sheet).filter((action) => action.label.startsWith("Atacar con "));
+  assert.equal(attacks.filter((action) => action.label === "Atacar con Arco").length, 1);
+  assert.equal(attacks.filter((action) => action.label === "Atacar con Arco compuesto").length, 1);
+  assert.equal(attacks.find((action) => action.label === "Atacar con Arco")?.rollAttribute, "atento");
+  assert.equal(attacks.find((action) => action.label === "Atacar con Arco")?.damageFormula, "1d10");
+});
+
+test("deriveCharacterActions no agrupa armas personalizadas aunque compartan nombre y valores", () => {
+  const customWeapon = (id) => ({
+    id,
+    name: "Arco personalizado",
+    category: "weapon",
+    quantity: 1,
+    stackable: false,
+    isCustom: true,
+    description: "",
+    weight: "",
+    value: "",
+    equipped: true,
+    slot: "ranged",
+    attackAttribute: "diestro",
+    damageFormula: "1d8",
+    protectionFormula: "",
+    qualities: "A distancia",
+    notes: "",
+    grantedActions: [],
+    modifiers: []
+  });
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    inventoryItems: [customWeapon("custom-bow-1"), customWeapon("custom-bow-2")]
+  });
+
+  const attacks = deriveCharacterActions(sheet).filter((action) => action.label === "Atacar con Arco personalizado");
+  assert.equal(attacks.length, 2);
+});
+
+test("deriveCharacterActions agrupa tambien los modos de uso de varias armas oficiales identicas", () => {
+  const thrownWeapon = (id) => ({
+    id,
+    name: "Hacha arrojadiza",
+    category: "weapon",
+    quantity: 1,
+    stackable: false,
+    isCustom: false,
+    description: "",
+    weight: "",
+    value: "",
+    equipped: true,
+    slot: "mainHand",
+    attackAttribute: "diestro",
+    damageFormula: "1d6",
+    protectionFormula: "",
+    qualities: "Arrojadiza",
+    notes: "",
+    grantedActions: [],
+    modifiers: []
+  });
+  const sheet = synchronizeCharacterSheet({
+    ...createEmptyCharacterSheet(),
+    inventoryItems: [thrownWeapon("axe-1"), thrownWeapon("axe-2")]
+  });
+
+  const actions = deriveCharacterActions(sheet);
+  assert.equal(actions.filter((action) => action.label === "Atacar con Hacha arrojadiza").length, 1);
+  assert.equal(actions.filter((action) => action.label === "Lanzar Hacha arrojadiza").length, 1);
+});
+
 test("synchronizeCharacterSheet colapsa capacidades duplicadas y conserva el nivel mas alto", () => {
   const sheet = createEmptyCharacterSheet();
   sheet.habilidades = [

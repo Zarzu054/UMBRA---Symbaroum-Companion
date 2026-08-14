@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type WheelEvent } from "react";
 import {
   ATTRIBUTE_KEYS,
   ATTRIBUTE_LABELS,
@@ -30,7 +30,7 @@ import { computeDerivedStats } from "../models/rulesEngine";
 import { getCharacterActionRollPresentation } from "../models/actionPresentation";
 import { getCharacterExperienceSummary } from "../models/characterExperience";
 import { ARMOR_QUALITY_OPTIONS, ITEM_QUALITY_OPTIONS, createCustomInventoryItem, createInventoryItemFromTemplate, ITEM_CATALOG, type ItemTemplate } from "../models/itemCatalog";
-import { ALL_ENTRIES, findCompendiumEntryByTypeAndName, getCompendiumSourcePdfUrl, getCompendiumSummaryLink } from "../models/compendiumEntries";
+import { ALL_ENTRIES, findCompendiumEntryByTypeAndName, getCompendiumSourcePdfUrl, getCompendiumSummaryLink, type CompendiumEntry, type CompendiumVariant } from "../models/compendiumEntries";
 import { useUnifiedCharacterSheet } from "../hooks/useUnifiedCharacterSheet";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { SourceReferenceLink } from "./SourceReferenceLink";
@@ -44,7 +44,7 @@ type TabId = "actions" | "inventory" | "abilities" | "background" | "notes";
 type MobileSheetTabId = "attributes" | TabId;
 type MechanicalTabId = Extract<TabId, "actions" | "inventory" | "abilities">;
 type NarrativeTabId = Extract<TabId, "background" | "notes">;
-type ActionTabId = "all" | "favorites" | "attacks" | "powers" | "artifacts" | "actions" | "free" | "reactions" | "other" | "special";
+type ActionTabId = "all" | "favorites" | "attacks" | "combat" | "movement" | "free" | "reactions" | "powers" | "artifacts" | "feats" | "maneuvers" | "special" | "other";
 type CapabilityTabId = "traits" | "blessings" | "burdens" | "abilities" | "powers" | "rituals";
 type InventoryTabId = "money" | "weapons" | "armors" | "artifacts" | "items";
 type RatedEntry = CharacterSheet["habilidades"][number];
@@ -171,7 +171,7 @@ type PersistedSheetTabs = {
   activeTab?: TabId;
   activeMechanicalTab?: MechanicalTabId;
   activeNarrativeTab?: NarrativeTabId;
-  activeActionTab?: ActionTabId;
+  activeActionTab?: ActionTabId | "actions";
   activeCapabilityTab?: CapabilityTabId;
   activeInventoryTab?: InventoryTabId;
 };
@@ -188,7 +188,7 @@ type SheetTabState = {
 const TAB_IDS: TabId[] = ["actions", "inventory", "abilities", "background", "notes"];
 const MECHANICAL_TAB_IDS: MechanicalTabId[] = ["actions", "inventory", "abilities"];
 const NARRATIVE_TAB_IDS: NarrativeTabId[] = ["background", "notes"];
-const ACTION_TAB_IDS: ActionTabId[] = ["all", "favorites", "attacks", "powers", "artifacts", "actions", "free", "reactions", "other", "special"];
+const ACTION_TAB_IDS: ActionTabId[] = ["all", "favorites", "attacks", "combat", "movement", "free", "reactions", "powers", "artifacts", "feats", "maneuvers", "special", "other"];
 const CAPABILITY_TAB_IDS: CapabilityTabId[] = ["traits", "blessings", "burdens", "abilities", "powers", "rituals"];
 const INVENTORY_TAB_IDS: InventoryTabId[] = ["money", "weapons", "armors", "artifacts", "items"];
 
@@ -261,25 +261,132 @@ const DEFAULT_SHEET_TAB_STATE: SheetTabState = {
   activeInventoryTab: "weapons"
 };
 
-const SPECIAL_ACTION_RULE_NAMES = [
-  "Apuntar con cuidado",
-  "Embestir",
-  "Retrasar la iniciativa",
-  "Desarmar",
-  "Defensa completa",
-  "Ofensiva total",
-  "Presa",
-  "Dejar inconsciente",
-  "Veneno en las armas",
-  "Hacer retroceder",
-  "Placaje",
-  "Tomar la iniciativa",
+const STANDALONE_INFORMATIONAL_ACTION_RULE_NAMES = [
   "Luchar a ciegas",
   "Destrabarse del combate",
   "Usar/aplicar un elixir",
   "Primeros auxilios",
-  "Levantarse"
+  "Levantarse",
+  "Línea de visión",
+  "Flanquear"
 ] as const;
+
+type InformationalActionEntry = {
+  id: string;
+  label: string;
+  familyLabel: string;
+  familyDetail: string;
+  detail: string;
+  facts: CompendiumVariant["facts"];
+  sourceEntry: CompendiumEntry;
+  categories: ActionTabId[];
+  optional: boolean;
+};
+
+const INFORMATIONAL_ACTION_CATEGORIES: Record<string, ActionTabId[]> = {
+  "regla-resumen-40-golpe-limpio": ["feats", "combat", "attacks"],
+  "regla-resumen-41-sin-miedo": ["feats", "free"],
+  "regla-resumen-42-ignorar-la-corrupcion": ["feats", "free"],
+  "regla-resumen-43-defensa-perfecta": ["feats", "reactions"],
+  "regla-resumen-44-golpe-rapido": ["feats", "free"],
+  "regla-resumen-45-resistencia": ["feats", "free"],
+  "regla-resumen-46-mirada-de-acero": ["feats", "free"],
+  "regla-resumen-47-ataque-torbellino": ["feats", "combat", "attacks"],
+  "regla-resumen-62-apuntar-con-cuidado": ["maneuvers", "movement"],
+  "regla-resumen-63-embestir": ["maneuvers", "movement", "combat", "attacks"],
+  "regla-resumen-64-retrasar-la-iniciativa": ["maneuvers", "free"],
+  "regla-resumen-65-desarmar": ["maneuvers", "combat", "attacks"],
+  "regla-resumen-66-defensa-completa": ["maneuvers", "combat"],
+  "regla-resumen-67-ofensiva-total": ["maneuvers", "combat", "attacks"],
+  "regla-resumen-68-presa": ["maneuvers", "combat", "attacks"],
+  "regla-resumen-69-dejar-inconsciente": ["maneuvers", "combat", "attacks"],
+  "regla-resumen-70-veneno-en-las-armas": ["maneuvers", "combat"],
+  "regla-resumen-71-hacer-retroceder": ["maneuvers", "movement", "combat", "attacks"],
+  "regla-resumen-72-placaje": ["maneuvers", "combat", "attacks"],
+  "regla-resumen-73-tomar-la-iniciativa": ["maneuvers", "free"],
+  "regla-resumen-2-luchar-a-ciegas": ["special"],
+  "regla-resumen-3-destrabarse-del-combate": ["special", "movement"],
+  "regla-resumen-4-usar-aplicar-un-elixir": ["special", "movement", "combat"],
+  "regla-resumen-5-primeros-auxilios": ["special", "combat"],
+  "regla-resumen-6-levantarse": ["special", "movement"],
+  "regla-resumen-7-linea-de-vision": ["movement"],
+  "regla-resumen-9-flanquear": ["movement"],
+  "guia-rapida-trabarse-cuerpo-a-cuerpo": ["movement"],
+  "guia-rapida-moverse-alrededor-enemigo": ["movement"],
+  "guia-rapida-desenvainar-arma": ["movement"],
+  "guia-rapida-cambiar-arma": ["movement"],
+  "guia-rapida-atacar": ["combat", "attacks"],
+  "guia-rapida-habilidad-activa": ["combat"],
+  "guia-rapida-movimiento-adicional": ["combat"]
+};
+
+function buildVariantInformationalActions(parentId: string, familyCategory?: "feats" | "maneuvers"): InformationalActionEntry[] {
+  const parent = ALL_ENTRIES.find((entry) => entry.id === parentId);
+  if (!parent) return [];
+  return (parent.variants ?? [])
+    .filter((variant) => {
+      const categories = INFORMATIONAL_ACTION_CATEGORIES[variant.id];
+      return Boolean(categories && (!familyCategory || categories.includes(familyCategory)));
+    })
+    .map((variant) => ({
+      id: `rule:${variant.id}`,
+      label: variant.label,
+      familyLabel: parent.nombre,
+      familyDetail: parent.detalle,
+      detail: variant.detail ?? "Sin detalles adicionales.",
+      facts: variant.facts,
+      sourceEntry: parent,
+      categories: INFORMATIONAL_ACTION_CATEGORIES[variant.id] ?? [familyCategory],
+      optional: parent.ruleCategory === "official_optional"
+    }));
+}
+
+function buildStandaloneInformationalActions(): InformationalActionEntry[] {
+  const order = new Map(STANDALONE_INFORMATIONAL_ACTION_RULE_NAMES.map((name, index) => [normalizeCapabilityText(name), index]));
+  return ALL_ENTRIES
+    .filter((entry) => entry.tipo === "regla" && order.has(normalizeCapabilityText(entry.nombre)))
+    .sort((left, right) =>
+      (order.get(normalizeCapabilityText(left.nombre)) ?? 999) - (order.get(normalizeCapabilityText(right.nombre)) ?? 999)
+    )
+    .map((entry) => ({
+      id: `rule:${entry.id}`,
+      label: entry.nombre,
+      familyLabel: INFORMATIONAL_ACTION_CATEGORIES[entry.id]?.includes("special") ? "Acciones especiales" : "Guía rápida de combate",
+      familyDetail: "",
+      detail: entry.detalle,
+      facts: [],
+      sourceEntry: entry,
+      categories: INFORMATIONAL_ACTION_CATEGORIES[entry.id] ?? ["special"],
+      optional: entry.ruleCategory === "official_optional"
+    }));
+}
+
+function handleHorizontalActionTabWheel(event: WheelEvent<HTMLElement>): void {
+  const element = event.currentTarget;
+  if (element.scrollWidth <= element.clientWidth || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+  const previous = element.scrollLeft;
+  element.scrollLeft += event.deltaY;
+  if (element.scrollLeft !== previous) event.preventDefault();
+}
+
+function handleActionTabKeyDown(event: KeyboardEvent<HTMLElement>): void {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
+  if (buttons.length === 0) return;
+  const currentIndex = Math.max(0, buttons.indexOf(document.activeElement as HTMLButtonElement));
+  const nextIndex = event.key === "Home"
+    ? 0
+    : event.key === "End"
+      ? buttons.length - 1
+      : event.key === "ArrowLeft"
+        ? Math.max(0, currentIndex - 1)
+        : Math.min(buttons.length - 1, currentIndex + 1);
+  const target = buttons[nextIndex];
+  if (!target) return;
+  event.preventDefault();
+  target.focus();
+  target.scrollIntoView?.({ behavior: "smooth", block: "nearest", inline: "nearest" });
+}
 
 function buildSheetNoteId(): string {
   return `sheet-note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -814,14 +921,6 @@ function isDefenseModifierOnlyAction(action: CharacterActionDefinition): boolean
   return isDefenseAlternativeAction(action) && Boolean(action.fixedTarget);
 }
 
-function isOtherAction(action: CharacterActionDefinition): boolean {
-  if (action.sourceType === "weapon" || action.sourceType === "power" || action.sourceType === "ritual") {
-    return false;
-  }
-
-  return Boolean(action.fixedTarget);
-}
-
 function parseCapabilityTiers(text: string): { tiers: CapabilityTier[]; reference: string | null; remainder: string | null } {
   const source = String(text ?? "").trim();
   if (!source) {
@@ -1252,39 +1351,41 @@ export function UnifiedCharacterSheet({
       case "favorites":
         return visibleActions.filter((action) => favoriteActionIds.has(action.id));
       case "attacks":
-        return visibleActions.filter((action) => action.sourceType === "weapon");
+        return visibleActions.filter((action) => action.categories?.includes("attack"));
+      case "combat":
+        return visibleActions.filter((action) => action.categories?.includes("combat"));
+      case "movement":
+        return visibleActions.filter((action) => action.categories?.includes("movement"));
       case "powers":
-        return visibleActions.filter((action) => action.sourceType === "power" || action.sourceType === "ritual");
+        return visibleActions.filter((action) => action.categories?.includes("powers"));
       case "artifacts":
-        return visibleActions.filter((action) => action.sourceType === "artifact");
+        return visibleActions.filter((action) => action.categories?.includes("artifacts"));
       case "other":
-        return visibleActions.filter((action) => isOtherAction(action));
+        return visibleActions.filter((action) => action.categories?.includes("other"));
       case "free":
-        return visibleActions.filter((action) => action.cost === "free" && !isOtherAction(action));
+        return visibleActions.filter((action) => action.categories?.includes("free"));
       case "reactions":
-        return visibleActions.filter((action) => action.cost === "reaction" && !isOtherAction(action));
+        return visibleActions.filter((action) => action.categories?.includes("reaction"));
+      case "feats":
+      case "maneuvers":
       case "special":
-        return [];
-      case "actions":
       default:
-        return visibleActions.filter((action) =>
-          action.sourceType !== "weapon" &&
-          action.sourceType !== "power" &&
-          action.sourceType !== "ritual" &&
-          !isOtherAction(action) &&
-          action.cost !== "free" &&
-          action.cost !== "reaction"
-        );
+        return [];
     }
   }, [visibleActions, activeActionTab, favoriteActionIds]);
-  const specialActionEntries = useMemo(() => {
-    const order = new Map(SPECIAL_ACTION_RULE_NAMES.map((name, index) => [normalizeCapabilityText(name), index]));
-    return ALL_ENTRIES
-      .filter((entry) => entry.tipo === "regla" && order.has(normalizeCapabilityText(entry.nombre)))
-      .sort((a, b) =>
-        (order.get(normalizeCapabilityText(a.nombre)) ?? 999) - (order.get(normalizeCapabilityText(b.nombre)) ?? 999)
-      );
-  }, []);
+  const informationalActions = useMemo(() => [
+    ...buildVariantInformationalActions("regla-resumen-39-hazanas", "feats"),
+    ...buildVariantInformationalActions("regla-resumen-61-maniobras-de-combate-combates-mas-tacticos", "maneuvers"),
+    ...buildVariantInformationalActions("regla-basica-acciones-de-combate"),
+    ...buildStandaloneInformationalActions()
+  ], []);
+  const filteredInformationalActions = useMemo(() => {
+    if (activeActionTab === "all") return informationalActions;
+    if (activeActionTab === "favorites") {
+      return informationalActions.filter((entry) => favoriteActionIds.has(entry.id));
+    }
+    return informationalActions.filter((entry) => entry.categories.includes(activeActionTab));
+  }, [activeActionTab, favoriteActionIds, informationalActions]);
   const pendingAttackModifiers = useMemo(
     () => (
       pendingRollConfirmation
@@ -1369,6 +1470,9 @@ export function UnifiedCharacterSheet({
         const persistedActiveTab = persistedTabs.activeTab && TAB_IDS.includes(persistedTabs.activeTab)
           ? persistedTabs.activeTab
           : DEFAULT_SHEET_TAB_STATE.activeTab;
+        const persistedActionTab = persistedTabs.activeActionTab === "actions"
+          ? "combat"
+          : persistedTabs.activeActionTab;
         nextState = {
           activeTab: persistedActiveTab,
           activeMechanicalTab: persistedTabs.activeMechanicalTab && MECHANICAL_TAB_IDS.includes(persistedTabs.activeMechanicalTab)
@@ -1381,7 +1485,7 @@ export function UnifiedCharacterSheet({
             : NARRATIVE_TAB_IDS.includes(persistedActiveTab as NarrativeTabId)
               ? persistedActiveTab as NarrativeTabId
               : DEFAULT_SHEET_TAB_STATE.activeNarrativeTab,
-          activeActionTab: persistedTabs.activeActionTab && ACTION_TAB_IDS.includes(persistedTabs.activeActionTab) ? persistedTabs.activeActionTab : DEFAULT_SHEET_TAB_STATE.activeActionTab,
+          activeActionTab: persistedActionTab && ACTION_TAB_IDS.includes(persistedActionTab) ? persistedActionTab : DEFAULT_SHEET_TAB_STATE.activeActionTab,
           activeCapabilityTab: persistedTabs.activeCapabilityTab && CAPABILITY_TAB_IDS.includes(persistedTabs.activeCapabilityTab) ? persistedTabs.activeCapabilityTab : DEFAULT_SHEET_TAB_STATE.activeCapabilityTab,
           activeInventoryTab: persistedTabs.activeInventoryTab && INVENTORY_TAB_IDS.includes(persistedTabs.activeInventoryTab) ? persistedTabs.activeInventoryTab : DEFAULT_SHEET_TAB_STATE.activeInventoryTab
         };
@@ -1782,23 +1886,36 @@ export function UnifiedCharacterSheet({
     });
   }
 
-  function openRuleCompendiumDetail(entry: typeof ALL_ENTRIES[number]): void {
-    const summaryLink = getCompendiumSummaryLink(entry);
-    const references = [
-      getCompendiumSourcePdfUrl(entry.fuente, entry.pagina, entry.nombre),
-      summaryLink?.url
-    ]
-      .filter((url): url is string => Boolean(url))
-      .map((url) => ({
-        url,
-        label: url === summaryLink?.url ? `${summaryLink.documentLabel} - ${summaryLink.sectionLabel}` : `${entry.fuente}${entry.pagina ? ` p. ${entry.pagina}` : ""}`
-      }));
+  function openInformationalActionDetail(entry: InformationalActionEntry): void {
+    const sourceEntry = entry.sourceEntry;
+    const summaryLink = getCompendiumSummaryLink(sourceEntry);
+    const sourceReferences = [
+      { source: sourceEntry.fuente, page: sourceEntry.pagina },
+      ...(sourceEntry.references ?? [])
+    ];
+    const references = sourceReferences
+      .map((reference) => ({
+        url: getCompendiumSourcePdfUrl(reference.source, reference.page, entry.label),
+        label: `${reference.source}${reference.page ? ` p. ${reference.page}` : ""}`
+      }))
+      .filter((reference): reference is { url: string; label: string } => Boolean(reference.url));
+    if (summaryLink) {
+      references.push({
+        url: summaryLink.url,
+        label: `${summaryLink.documentLabel} - ${summaryLink.sectionLabel}`
+      });
+    }
+    const uniqueReferences = references.filter((reference, index, collection) => (
+      collection.findIndex((candidate) => candidate.url === reference.url) === index
+    ));
+
+    const facts = entry.facts.map((fact) => `${fact.label}: ${fact.value}`).join("\n");
 
     setActionDetailModal({
-      title: entry.nombre,
-      sourceLabel: `Accion especial · ${entry.fuente}${entry.pagina ? ` p. ${entry.pagina}` : ""}`,
-      detail: entry.detalle,
-      references
+      title: entry.label,
+      sourceLabel: `${entry.familyLabel}${entry.optional ? " · Regla opcional" : ""} · ${sourceEntry.fuente}${sourceEntry.pagina ? ` p. ${sourceEntry.pagina}` : ""}`,
+      detail: [entry.familyDetail, facts, entry.detail].filter(Boolean).join("\n\n"),
+      references: uniqueReferences
     });
   }
 
@@ -2898,17 +3015,25 @@ export function UnifiedCharacterSheet({
         </nav>
 
         {stageActiveTab === "actions" ? (
-          <nav className="unified-sheet-subtabs unified-sheet-action-subtabs unified-sheet-stage-subtabs is-actions" aria-label="Filtros de acciones">
+          <nav
+            className="unified-sheet-subtabs unified-sheet-action-subtabs unified-sheet-stage-subtabs is-actions"
+            aria-label="Filtros de acciones"
+            onWheel={handleHorizontalActionTabWheel}
+            onKeyDown={handleActionTabKeyDown}
+          >
             {([
               ["all", "Todas"],
               ["favorites", "Favoritas"],
               ["attacks", "Ataques"],
-              ["powers", "Poderes y rituales"],
-              ["artifacts", "Artefactos"],
-              ["special", "Acciones especiales"],
-              ["actions", "Acciones"],
+              ["combat", "Acciones de combate"],
+              ["movement", "Acciones de movimiento"],
               ["free", "Acciones gratuitas"],
               ["reactions", "Reacciones"],
+              ["powers", "Poderes y rituales"],
+              ["artifacts", "Artefactos"],
+              ["feats", "Hazañas"],
+              ["maneuvers", "Maniobras de combate"],
+              ["special", "Acciones especiales"],
               ["other", "Otras"]
             ] as Array<[ActionTabId, string]>).map(([tab, label]) => (
               <button key={tab} type="button" className={activeActionTab === tab ? "is-active" : ""} onClick={() => setActiveActionTab(tab)}>
@@ -2965,31 +3090,6 @@ export function UnifiedCharacterSheet({
                 </div>
                 {artifactUseError ? <p className="error-text">{artifactUseError}</p> : null}
                 <div className="campaign-sheet-actions">
-                  {activeActionTab === "special" ? (
-                    <>
-                      {specialActionEntries.map((entry) => (
-                        <div key={entry.id} className="campaign-action-button campaign-action-button--row">
-                          <div className="campaign-action-main">
-                            <div className="campaign-action-title-row">
-                              <button type="button" className="campaign-action-name-button" onClick={() => openRuleCompendiumDetail(entry)}>
-                                {entry.nombre}
-                              </button>
-                            </div>
-                            <span className="campaign-action-source-note">{entry.fuente}{entry.pagina ? ` p. ${entry.pagina}` : ""}</span>
-                          </div>
-                          <div className="campaign-action-slot">
-                            <span className="compendium-chip">Regla</span>
-                          </div>
-                          <div className="campaign-action-slot is-damage">
-                            <span aria-hidden="true" className="campaign-action-slot-placeholder" />
-                          </div>
-                        </div>
-                      ))}
-                      {specialActionEntries.length === 0 ? <p className="section-help">Sin acciones especiales registradas.</p> : null}
-                    </>
-                  ) : null}
-                  {activeActionTab !== "special" ? (
-                    <>
                   {filteredActions.map((action) => (
                     <div key={action.id} className="campaign-action-button campaign-action-button--row">
                       <div className="campaign-action-main">
@@ -3012,9 +3112,35 @@ export function UnifiedCharacterSheet({
                       {renderActionRollControls(action)}
                     </div>
                   ))}
-                  {filteredActions.length === 0 ? <p className="section-help">Sin acciones registradas en esta categoria.</p> : null}
-                    </>
-                  ) : null}
+                  {filteredInformationalActions.map((entry) => (
+                    <div key={entry.id} className="campaign-action-button campaign-action-button--row is-informational">
+                      <div className="campaign-action-main">
+                        <div className="campaign-action-title-row">
+                          <button
+                            type="button"
+                            className={`campaign-action-favorite-toggle${favoriteActionIds.has(entry.id) ? " is-active" : ""}`}
+                            onClick={() => toggleFavoriteAction(entry.id)}
+                            aria-label={favoriteActionIds.has(entry.id) ? "Quitar de favoritas" : "Guardar en favoritas"}
+                            title={favoriteActionIds.has(entry.id) ? "Quitar de favoritas" : "Guardar en favoritas"}
+                          >
+                            ★
+                          </button>
+                          <button type="button" className="campaign-action-name-button" onClick={() => openInformationalActionDetail(entry)}>
+                            {entry.label}
+                          </button>
+                        </div>
+                        <span className="campaign-action-source-note">
+                          {entry.familyLabel}{entry.optional ? " · Regla opcional" : ""}
+                        </span>
+                      </div>
+                      <div className="campaign-action-information">
+                        <span className="compendium-chip">Ver detalles</span>
+                      </div>
+                    </div>
+                  ))}
+                  {filteredActions.length === 0 && filteredInformationalActions.length === 0
+                    ? <p className="section-help">Sin acciones registradas en esta categoría.</p>
+                    : null}
                 </div>
                 <div className="unified-sheet-action-history" aria-live="polite">
                   <h4>Historial de acciones</h4>

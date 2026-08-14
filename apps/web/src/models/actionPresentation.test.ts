@@ -15,6 +15,51 @@ function buildAction(overrides: Partial<CharacterActionDefinition> = {}): Charac
 }
 
 describe("getCharacterActionRollPresentation", () => {
+  it("derives overlapping source, cost and attack categories", () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.habilidades = [{
+      nombre: "Ataque de prueba",
+      tipo: "Habilidad",
+      efecto: "",
+      nivel: "principiante",
+      fuente: "Prueba",
+      notas: "",
+      acciones: [{
+        id: "attack-test",
+        label: "Usar ataque de prueba",
+        cost: "combat",
+        categories: ["attack"],
+        rollAttribute: "diestro",
+        damageFormula: "1d6",
+        effectSummary: "Ataque de prueba."
+      }]
+    }];
+    sheet.poderesMisticos = [{
+      nombre: "Rayo de prueba",
+      tipo: "Poder",
+      efecto: "",
+      nivel: "principiante",
+      fuente: "Prueba",
+      notas: "",
+      acciones: [{
+        id: "ray-test",
+        label: "Lanzar rayo de prueba",
+        cost: "combat",
+        categories: ["attack"],
+        rollAttribute: "tenaz",
+        damageFormula: "1d8",
+        effectSummary: "Ataque místico de prueba."
+      }]
+    }];
+
+    const actions = deriveCharacterActions(synchronizeCharacterSheet(sheet));
+    const abilityAttack = actions.find((action) => action.sourceName === "Ataque de prueba");
+    const powerAttack = actions.find((action) => action.sourceName === "Rayo de prueba");
+
+    expect(abilityAttack?.categories).toEqual(expect.arrayContaining(["attack", "combat"]));
+    expect(powerAttack?.categories).toEqual(expect.arrayContaining(["attack", "combat", "powers"]));
+  });
+
   it("formats an attribute roll with its current target", () => {
     const sheet = createEmptyCharacterSheet();
     sheet.atributos.diestro = 13;

@@ -38,6 +38,16 @@ export const skillLevelSchema = z.preprocess(
 // Transitional compatibility for requests made by a cached pre-migration client.
 (value) => value === "novato" ? "principiante" : value, canonicalSkillLevelSchema);
 export const actionCostSchema = z.enum(["free", "movement", "combat", "reaction"]);
+export const characterActionCategorySchema = z.enum([
+    "attack",
+    "powers",
+    "artifacts",
+    "combat",
+    "movement",
+    "free",
+    "reaction",
+    "other"
+]);
 export const campaignChatVisibilitySchema = z.enum(["all", "gm_only"]);
 export const campaignChatMessageTypeSchema = z.enum(["text", "action"]);
 /**
@@ -133,6 +143,7 @@ const actionMetadataSchema = z.object({
     id: z.string().min(1).max(120),
     label: z.string().min(1).max(120),
     cost: actionCostSchema.default("combat"),
+    categories: z.array(characterActionCategorySchema).max(8).optional(),
     requiredLevel: skillLevelSchema.optional(),
     rollAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
     opponentAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
@@ -192,6 +203,7 @@ const canonicalActionEntrySchema = z.object({
     sourceType: z.enum(["weapon", "ability", "power", "ritual", "artifact", "utility"]).default("ability"),
     sourceName: z.string().min(1).max(160),
     cost: actionCostSchema.default("combat"),
+    categories: z.array(characterActionCategorySchema).max(8).optional(),
     requiredLevel: skillLevelSchema.optional(),
     rollAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
     opponentAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
@@ -944,15 +956,23 @@ function buildLegacyNotesSections(sheet) {
 }
 function buildCanonicalActions(sheet) {
     const actions = [];
+    const standardWeaponClasses = new Set();
     for (const item of sheet.inventoryItems) {
         if (item.category !== "weapon" || item.quantity <= 0)
             continue;
+        if (!item.isCustom && !item.managedArtifactId) {
+            const weaponClass = buildStandardWeaponClassKey(item);
+            if (standardWeaponClasses.has(weaponClass))
+                continue;
+            standardWeaponClasses.add(weaponClass);
+        }
         actions.push({
             id: `inventory:${item.id}`,
             label: `Atacar con ${item.name}`,
             sourceType: "weapon",
             sourceName: item.name,
             cost: "combat",
+            categories: buildCanonicalActionCategories("weapon", "combat", [], true),
             rollAttribute: item.attackAttribute ?? "diestro",
             damageFormula: item.damageFormula || undefined,
             effectSummary: item.qualities || item.description || "Tirada de ataque desde el inventario.",
@@ -966,12 +986,14 @@ function buildCanonicalActions(sheet) {
         if (!canUseItemActions)
             continue;
         for (const action of item.grantedActions ?? []) {
+            const sourceType = item.managedArtifactId ? "artifact" : item.category === "weapon" ? "weapon" : "ability";
             actions.push({
                 id: `item:${item.id}:${action.id}`,
                 label: action.label,
-                sourceType: item.managedArtifactId ? "artifact" : item.category === "weapon" ? "weapon" : "ability",
+                sourceType,
                 sourceName: item.name,
                 cost: action.cost,
+                categories: buildCanonicalActionCategories(sourceType, action.cost, action.categories, action.rolls?.some((roll) => roll.kind === "attack") || Boolean(action.rollAttribute && action.damageFormula)),
                 requiredLevel: action.requiredLevel,
                 rollAttribute: action.rollAttribute,
                 opponentAttribute: action.opponentAttribute,
@@ -1005,6 +1027,7 @@ function buildCanonicalActions(sheet) {
                         sourceType,
                         sourceName: entry.nombre,
                         cost: action.cost,
+                        categories: buildCanonicalActionCategories(sourceType, action.cost, action.categories, action.rolls?.some((roll) => roll.kind === "attack") || Boolean(action.rollAttribute && action.damageFormula)),
                         requiredLevel: action.requiredLevel ?? inferRatedActionLevel(action.id, action.label, entry.nombre),
                         rollAttribute: action.rollAttribute,
                         fixedTarget: action.fixedTarget,
@@ -1035,6 +1058,7 @@ function buildCanonicalActions(sheet) {
         sourceType: "weapon",
         sourceName: combateSinArmas ? "Combate sin armas" : "Ataque basico",
         cost: "combat",
+        categories: buildCanonicalActionCategories("weapon", "combat", [], true),
         requiredLevel: combateSinArmas?.nivel,
         rollAttribute: "diestro",
         damageFormula: baseUnarmedDamage,
@@ -1057,6 +1081,7 @@ function buildCanonicalActions(sheet) {
             sourceType: "weapon",
             sourceName: "Arma natural",
             cost: "combat",
+            categories: buildCanonicalActionCategories("weapon", "combat", [], true),
             rollAttribute: "diestro",
             damageFormula: getNaturalWeaponCharacterDamage(naturalWeaponLevel),
             effectSummary: "Ataque cuerpo a cuerpo realizado con las armas naturales del personaje.",
@@ -1066,6 +1091,31 @@ function buildCanonicalActions(sheet) {
         });
     }
     return actions;
+}
+function buildCanonicalActionCategories(sourceType, cost, provided = [], isAttack = false) {
+    const categories = new Set(provided);
+    categories.add(cost);
+    if (isAttack)
+        categories.add("attack");
+    if (sourceType === "power" || sourceType === "ritual")
+        categories.add("powers");
+    if (sourceType === "artifact")
+        categories.add("artifacts");
+    return [...categories];
+}
+function buildStandardWeaponClassKey(item) {
+    const qualities = item.qualities
+        .split(",")
+        .map((quality) => normalizeName(quality))
+        .filter(Boolean)
+        .sort()
+        .join(",");
+    return [
+        normalizeName(item.name),
+        item.attackAttribute ?? "diestro",
+        normalizeName(item.damageFormula),
+        qualities
+    ].join("|");
 }
 function normalizeActionFavorites(favorites) {
     return Array.from(new Set((favorites ?? []).map((entry) => String(entry ?? "").trim()).filter(Boolean))).slice(0, 80);
@@ -1161,6 +1211,7 @@ function inferCanonicalFallbackAction(sourceType, sourceName, entryLevel, text, 
         sourceType,
         sourceName,
         cost,
+        categories: buildCanonicalActionCategories(sourceType, cost, [], /\b(ataque|atacar|dispar|golpe|embest|placaje|lanzar)\b/i.test(trimmedText)),
         requiredLevel: entryLevel,
         rollAttribute: undefined,
         damageFormula: undefined,

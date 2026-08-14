@@ -2,6 +2,7 @@ import type {
   ActionRollResult,
   AttributeKey,
   CharacterActionDefinition,
+  CharacterActionCategory,
   CharacterActionPhase,
   CharacterSheet,
   RollDestination,
@@ -49,7 +50,9 @@ export function deriveCharacterActions(sheet: CharacterSheet): CharacterActionDe
         label: action.label,
         sourceType: action.sourceType === "utility" ? "ability" : action.sourceType,
         sourceName: action.sourceName,
+        linkedItemId: action.linkedItemId || undefined,
         cost: action.cost,
+        categories: action.categories,
         requiredLevel: action.requiredLevel ?? inferActionLevel(action.id, action.label, action.sourceName),
         rollAttribute: action.rollAttribute,
         opponentAttribute: action.opponentAttribute,
@@ -73,10 +76,40 @@ export function deriveCharacterActions(sheet: CharacterSheet): CharacterActionDe
     const filteredDerivedActions = derivedActions.filter(
       (action) => !hasStoredWeaponEquivalent(action, filteredStoredActions)
     );
-    return applyPassiveActionRules(sheet, dedupeActions([...filteredStoredActions, ...filteredDerivedActions]));
+    return categorizeCharacterActions(applyPassiveActionRules(sheet, dedupeActions([...filteredStoredActions, ...filteredDerivedActions])));
   }
 
-  return deriveLegacyCharacterActions(sheet);
+  return categorizeCharacterActions(deriveLegacyCharacterActions(sheet));
+}
+
+function categorizeCharacterActions(actions: CharacterActionDefinition[]): CharacterActionDefinition[] {
+  return actions.map((action) => {
+    const categories = new Set<CharacterActionCategory>(action.categories ?? []);
+    categories.add(action.cost);
+    if (isLikelyAttackAction(action)) categories.add("attack");
+    if (action.sourceType === "power" || action.sourceType === "ritual") categories.add("powers");
+    if (action.sourceType === "artifact") categories.add("artifacts");
+    if (
+      action.sourceType !== "weapon"
+      && action.sourceType !== "power"
+      && action.sourceType !== "ritual"
+      && action.sourceType !== "artifact"
+      && typeof action.fixedTarget === "number"
+    ) {
+      categories.add("other");
+    }
+    return { ...action, categories: [...categories] };
+  });
+}
+
+function isLikelyAttackAction(action: CharacterActionDefinition): boolean {
+  if (action.rolls?.some((roll) => roll.kind === "attack")) return true;
+  if (action.rollAttribute && action.damageFormula) return true;
+  const searchable = `${action.label} ${action.effectSummary}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return /\b(ataque|atacar|disparar|disparo|golpear|golpe|embestir|placaje|lanzar)\b/.test(searchable);
 }
 
 function isStoredSheetActionStillLinked(sheet: CharacterSheet, action: CharacterSheet["actions"][number]): boolean {
@@ -144,6 +177,7 @@ function deriveLegacyCharacterActions(sheet: CharacterSheet): CharacterActionDef
       label: `Atacar con ${weapon.name}`,
       sourceType: "weapon",
       sourceName: weapon.name,
+      linkedItemId: weapon.id,
       cost: "combat",
       rollAttribute: weapon.attackAttribute ?? "diestro",
       damageFormula: normalizeFormula(weapon.damageFormula),
@@ -227,6 +261,7 @@ function buildWeaponQualityActions(weapon: CharacterSheet["inventoryItems"][numb
         label: `Lanzar ${weapon.name}`,
         sourceType: "weapon",
         sourceName: weapon.name,
+        linkedItemId: weapon.id,
         cost: "combat",
         rollAttribute: weapon.attackAttribute ?? "diestro",
         damageFormula: normalizeFormula(weapon.damageFormula),
@@ -244,6 +279,7 @@ function buildWeaponQualityActions(weapon: CharacterSheet["inventoryItems"][numb
         label: `Recargar ${weapon.name}`,
         sourceType: "weapon",
         sourceName: weapon.name,
+        linkedItemId: weapon.id,
         cost: "movement",
         effectSummary: `${definition.label}: ${definition.summary}`
       });
@@ -268,6 +304,7 @@ function mapRatedEntryActions(
         sourceType,
         sourceName,
         cost: action.cost,
+        categories: action.categories,
         requiredLevel: action.requiredLevel ?? inferActionLevel(action.id, action.label),
         rollAttribute: action.rollAttribute,
         fixedTarget: action.fixedTarget,
@@ -538,7 +575,7 @@ function applyPassiveActionRules(sheet: CharacterSheet, actions: CharacterAction
   }
 
   applyConditionalDamageVariants(sheet, visibleActions);
-  return dedupeActions(visibleActions);
+  return collapseEquivalentWeaponActions(sheet, dedupeActions(visibleActions));
 }
 
 function applyWeaponQualityBonuses(sheet: CharacterSheet, actions: CharacterActionDefinition[]): CharacterActionDefinition[] {
@@ -1183,7 +1220,8 @@ function isWeaponTextMatch(action: CharacterActionDefinition, pattern: RegExp): 
 }
 
 function findActionWeapon(sheet: CharacterSheet, action: CharacterActionDefinition): CharacterSheet["inventoryItems"][number] | undefined {
-  const linkedId = action.id.match(/^weapon:([^:]+)/)?.[1];
+  const linkedId = action.linkedItemId
+    || sheet.inventoryItems.find((item) => action.id === `weapon:${item.id}` || action.id.startsWith(`weapon:${item.id}:`))?.id;
   return sheet.inventoryItems.find((item) => item.category === "weapon" && (
     (linkedId && item.id === linkedId)
     || normalizeName(item.name) === normalizeName(action.sourceName)
@@ -1289,9 +1327,120 @@ function dedupeActions(actions: CharacterActionDefinition[]): CharacterActionDef
   });
 }
 
+function collapseEquivalentWeaponActions(
+  sheet: CharacterSheet,
+  actions: CharacterActionDefinition[]
+): CharacterActionDefinition[] {
+  const itemsById = new Map(sheet.inventoryItems.map((item) => [item.id, item]));
+  const basicAttackItemIds = new Set(
+    actions
+      .map((action) => resolveActionItemId(sheet, action))
+      .filter((itemId): itemId is string => Boolean(itemId))
+      .filter((itemId) => actions.some((action) => isGeneratedBasicWeaponAttack(action, itemId)))
+  );
+  const output: CharacterActionDefinition[] = [];
+  const itemAttackIndexes = new Map<string, number>();
+  const standardClassIndexes = new Map<string, number>();
+
+  for (const action of actions) {
+    const itemId = resolveActionItemId(sheet, action);
+    const item = itemId ? itemsById.get(itemId) : undefined;
+    if (!itemId || !item || item.category !== "weapon") {
+      output.push(action);
+      continue;
+    }
+
+    if (isRedundantArtifactWeaponAlias(action, itemId, item.name, basicAttackItemIds)) {
+      continue;
+    }
+
+    const generatedMode = getGeneratedWeaponActionMode(action, itemId);
+    if (!generatedMode) {
+      output.push(action);
+      continue;
+    }
+
+    const itemActionKey = `${itemId}|${generatedMode}`;
+    const existingItemIndex = itemAttackIndexes.get(itemActionKey);
+    if (existingItemIndex !== undefined) {
+      if (isFreshInventoryWeaponAction(action) && !isFreshInventoryWeaponAction(output[existingItemIndex]!)) {
+        output[existingItemIndex] = action;
+      }
+      continue;
+    }
+
+    if (!item.isCustom && !item.managedArtifactId) {
+      const classKey = `${buildRuntimeWeaponClassKey(item)}|${generatedMode}`;
+      if (standardClassIndexes.has(classKey)) {
+        itemAttackIndexes.set(itemActionKey, standardClassIndexes.get(classKey)!);
+        continue;
+      }
+      standardClassIndexes.set(classKey, output.length);
+    }
+
+    itemAttackIndexes.set(itemActionKey, output.length);
+    output.push(action);
+  }
+
+  return output;
+}
+
+function resolveActionItemId(sheet: CharacterSheet, action: CharacterActionDefinition): string | undefined {
+  if (action.linkedItemId && sheet.inventoryItems.some((item) => item.id === action.linkedItemId)) {
+    return action.linkedItemId;
+  }
+  return sheet.inventoryItems.find((item) => (
+    action.id === `weapon:${item.id}`
+    || action.id.startsWith(`weapon:${item.id}:`)
+    || action.id === `inventory:${item.id}`
+    || action.id.startsWith(`item:${item.id}:`)
+  ))?.id;
+}
+
+function isGeneratedBasicWeaponAttack(action: CharacterActionDefinition, itemId: string): boolean {
+  return action.id === `weapon:${itemId}` || action.id === `inventory:${itemId}`;
+}
+
+function getGeneratedWeaponActionMode(action: CharacterActionDefinition, itemId: string): string | undefined {
+  if (isGeneratedBasicWeaponAttack(action, itemId)) return "basic";
+  const prefix = `weapon:${itemId}:`;
+  return action.id.startsWith(prefix) ? action.id.slice(prefix.length) : undefined;
+}
+
+function isFreshInventoryWeaponAction(action: CharacterActionDefinition): boolean {
+  return action.id.startsWith("weapon:");
+}
+
+function isRedundantArtifactWeaponAlias(
+  action: CharacterActionDefinition,
+  itemId: string,
+  itemName: string,
+  basicAttackItemIds: Set<string>
+): boolean {
+  if (action.sourceType !== "artifact" || !basicAttackItemIds.has(itemId)) return false;
+  const label = normalizeName(action.label).replace(/^atacar con\s+/, "");
+  return label === normalizeName(itemName);
+}
+
+function buildRuntimeWeaponClassKey(item: CharacterSheet["inventoryItems"][number]): string {
+  const qualities = item.qualities
+    .split(",")
+    .map((quality) => normalizeName(quality))
+    .filter(Boolean)
+    .sort()
+    .join(",");
+  return [
+    normalizeName(item.name),
+    item.attackAttribute ?? "diestro",
+    normalizeFormula(item.damageFormula) ?? "",
+    qualities
+  ].join("|");
+}
+
 function buildActionDedupeSignature(action: CharacterActionDefinition): string {
   return [
     action.sourceType,
+    action.linkedItemId ?? "",
     normalizeName(action.sourceName),
     normalizeName(action.label),
     action.cost,
