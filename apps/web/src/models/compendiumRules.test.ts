@@ -3,6 +3,8 @@ import {
   ALL_ENTRIES,
   CORE_RULES,
   RULE_CATEGORY_LABELS,
+  SYMBAROUM_BLESSINGS,
+  SYMBAROUM_CHARACTER_TRAITS,
   findCompendiumEntryById,
   getCompendiumSummaryLink,
   type RuleCategory
@@ -30,6 +32,12 @@ describe("catálogo de reglas del compendio", () => {
     expect(rules.find((entry) => entry.nombre === "Carga")?.ruleCategory).toBe("official_optional");
     expect(rules.find((entry) => entry.nombre === "Enfermedad en Symbaroum")?.ruleCategory).toBe("core");
     expect(rules.find((entry) => entry.nombre === "Cambio a las tradiciones")?.ruleCategory).toBe("homebrew");
+  });
+
+  it("separa bendiciones de rasgos raciales simples sin duplicar categorías", () => {
+    expect(SYMBAROUM_BLESSINGS.map((entry) => entry.nombre)).toContain("Montés");
+    expect(SYMBAROUM_BLESSINGS.map((entry) => entry.nombre)).not.toEqual(expect.arrayContaining(["Longevo", "Robusto", "Cambiaformas"]));
+    expect(SYMBAROUM_CHARACTER_TRAITS.map((entry) => entry.nombre)).toEqual(["Longevo", "Poco longevo", "Vínculo terrenal"]);
   });
 
   it("usa los manuales como fuente oficial y el resumen solo como referencia secundaria", () => {

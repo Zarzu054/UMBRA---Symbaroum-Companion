@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CharacterCreationWizard } from "./ActorCreationWizard";
+import { ConfirmationDialogProvider } from "./ConfirmationDialogProvider";
 
 function CharacterWizardHarness({ submit = vi.fn().mockResolvedValue(true), onCancel = vi.fn() }) {
   const [form, setForm] = useState({
@@ -46,6 +47,10 @@ describe("ActorCreationWizard", () => {
   it("impide saltar fases si la identidad actual no es válida", () => {
     render(<CharacterWizardHarness />);
 
+    const activeStep = screen.getByRole("button", { name: /1 Identidad/ });
+    expect(activeStep).toHaveClass("is-active");
+    expect(activeStep).toHaveAttribute("aria-current", "step");
+
     fireEvent.click(screen.getByRole("button", { name: /5 Trasfondo/ }));
 
     expect(screen.getByText("El personaje necesita un nombre de al menos dos caracteres.")).toBeInTheDocument();
@@ -58,6 +63,22 @@ describe("ActorCreationWizard", () => {
     fireEvent.click(screen.getByLabelText("Es familiar (20 PX iniciales)"));
 
     expect(screen.getByText((_, element) => element?.tagName === "SPAN" && element.textContent === "PX inicial 20")).toBeInTheDocument();
+  });
+
+  it("confirma con el diálogo tematizado antes de descartar cambios", async () => {
+    const onCancel = vi.fn();
+    render(<ConfirmationDialogProvider><CharacterWizardHarness onCancel={onCancel} /></ConfirmationDialogProvider>);
+
+    fireEvent.change(screen.getByLabelText("Nombre del personaje"), { target: { value: "Ada" } });
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+    expect(screen.getByRole("alertdialog", { name: "Descartar cambios" })).toHaveClass("character-roll-confirm-modal");
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(onCancel).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar sin guardar" }));
+    await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
   });
 
   it("aplica Atributo excepcional después del reparto base y permite elegir atributos distintos", () => {

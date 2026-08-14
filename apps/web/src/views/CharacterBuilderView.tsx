@@ -13,12 +13,15 @@ import {
   synchronizeCharacterSheet,
   type Character,
   type CharacterSheet,
+  type MysticArtifact,
   type MysticArtifactPaymentType,
   type SkillLevel,
   type SymbaroumCapability
 } from "@umbra/shared";
 import { getCharacterExperienceSummary } from "../models/characterExperience";
-import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS, type CompendiumEntry } from "../models/compendiumEntries";
+import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS, SYMBAROUM_CHARACTER_TRAITS, type CompendiumEntry } from "../models/compendiumEntries";
+import { useConfirmationDialog } from "../components/ConfirmationDialogProvider";
+import { MysticArtifactDetailsModal } from "../components/MysticArtifactDetailsModal";
 
 type RatedSection = "habilidades" | "rasgosMonstruosos" | "poderesMisticos" | "rituales";
 type StoredRatedSection = "habilidades" | "poderesMisticos" | "rituales";
@@ -36,10 +39,20 @@ type BuilderCapabilityConfirmationModal = {
   sourceLabel: string;
   targetLevel: SkillLevel;
   cost: number;
+  xpLabel: string;
   previewSummary: string;
   targetTier: CapabilityTier | null;
   confirmLabel: string;
   onConfirm: () => void;
+};
+type BuilderCapabilityDetailsSelection = {
+  section: RatedSection;
+  name: string;
+};
+type BuilderSimpleCatalogModal = {
+  section: SimpleSection;
+  query: string;
+  selectedId: string;
 };
 
 type Props = {
@@ -52,6 +65,7 @@ type Props = {
   sheetLabel?: string;
   saveLabel?: string;
   onBindMysticArtifact?: (artifactId: string, paymentType: MysticArtifactPaymentType) => Promise<void>;
+  onOpenMysticArtifactSource?: (artifact: MysticArtifact) => Promise<void>;
   onAspireProfession?: (professionId: string) => Promise<void>;
   onRemoveProfessionAspiration?: (professionId: string) => Promise<void>;
   onRequestProfession?: (professionId: string) => Promise<void>;
@@ -65,19 +79,24 @@ type CatalogSelections = {
   rasgosMonstruosos: string;
   poderesMisticos: string;
   rituales: string;
-  bendiciones: string;
-  cargas: string;
 };
 
-type SimpleInputs = Record<SimpleSection, string>;
 type CapabilityTier = {
   label: string;
   content: string;
 };
 
+const BUILDER_ARTIFACT_KIND_LABELS = { weapon: "Arma", armor: "Armadura", object: "Objeto" } as const;
+
+function formatBuilderArtifactBindingCosts(bindingCosts: MysticArtifact["bindingCosts"]): string {
+  return bindingCosts
+    .map((cost) => cost.paymentType === "xp" ? `${cost.amount} PX` : `${cost.amount} Corrupción permanente`)
+    .join(" o ");
+}
+
 const BUILDER_ABILITIES = SYMBAROUM_ABILITIES.filter((entry) => normalizeName(entry.nombre) !== "rituales");
 const BUILDER_MONSTER_TRAITS: SymbaroumCapability[] = ALL_ENTRIES
-  .filter((entry): entry is CompendiumEntry => entry.tipo === "rasgo")
+  .filter((entry): entry is CompendiumEntry => entry.tipo === "rasgo" && !entry.tags.includes("rasgo-personaje"))
   .map((entry) => ({
     id: entry.id,
     nombre: entry.nombre,
@@ -105,9 +124,7 @@ const INITIAL_CATALOG_SELECTIONS: CatalogSelections = {
   habilidades: BUILDER_ABILITIES[0]?.id ?? "",
   rasgosMonstruosos: BUILDER_MONSTER_TRAITS[0]?.id ?? "",
   poderesMisticos: SYMBAROUM_MYSTIC_POWERS[0]?.id ?? "",
-  rituales: SYMBAROUM_RITUALS[0]?.id ?? "",
-  bendiciones: SYMBAROUM_BLESSINGS[0]?.id ?? "",
-  cargas: SYMBAROUM_BURDENS[0]?.id ?? ""
+  rituales: SYMBAROUM_RITUALS[0]?.id ?? ""
 };
 
 const SIMPLE_SECTION_LABELS: Record<SimpleSection, string> = {
@@ -146,9 +163,26 @@ function getRatedEntryCost(level: SkillLevel): number {
   }
 }
 
-function getSimpleEntryDelta(section: SimpleSection): number {
-  if (section === "bendiciones") return -5;
-  return 0;
+function getSimpleCatalogEntries(section: SimpleSection): CompendiumEntry[] {
+  if (section === "bendiciones") return SYMBAROUM_BLESSINGS;
+  if (section === "cargas") return SYMBAROUM_BURDENS;
+  return SYMBAROUM_CHARACTER_TRAITS;
+}
+
+function getSimpleEntryCost(section: SimpleSection): number {
+  return section === "bendiciones" ? 5 : 0;
+}
+
+function getSimpleAddLabel(section: SimpleSection): string {
+  if (section === "bendiciones") return "Añadir bendición";
+  if (section === "cargas") return "Añadir carga";
+  return "Añadir rasgo";
+}
+
+function getSimpleCapabilityKind(section: SimpleSection): "bendicion" | "carga" | "rasgo_personaje" {
+  if (section === "bendiciones") return "bendicion";
+  if (section === "cargas") return "carga";
+  return "rasgo_personaje";
 }
 
 function isMonsterTraitCapability(name: string): boolean {
@@ -230,6 +264,13 @@ function getSectionTitle(section: RatedSection): string {
   if (section === "rasgosMonstruosos") return "Rasgos monstruosos";
   if (section === "poderesMisticos") return "Poderes";
   return "Rituales";
+}
+
+function getSectionItemLabel(section: RatedSection): string {
+  if (section === "habilidades") return "Habilidad";
+  if (section === "rasgosMonstruosos") return "Rasgo monstruoso";
+  if (section === "poderesMisticos") return "Poder místico";
+  return "Ritual";
 }
 
 function getAcquireButtonLabel(section: RatedSection): string {
@@ -330,6 +371,7 @@ export function CharacterBuilderView({
   sheetLabel = "Abrir hoja",
   saveLabel = "Guardar constructor",
   onBindMysticArtifact,
+  onOpenMysticArtifactSource,
   onAspireProfession,
   onRemoveProfessionAspiration,
   onRequestProfession,
@@ -337,22 +379,20 @@ export function CharacterBuilderView({
   onOpenCompendiumCapability,
   professionRemovalLabel = "Abandonar profesión"
 }: Props) {
+  const confirm = useConfirmationDialog();
   const [draft, setDraft] = useState<CharacterSheet>(() => parseCharacterSheet(character.sheet));
   const [catalogSelections, setCatalogSelections] = useState<CatalogSelections>(INITIAL_CATALOG_SELECTIONS);
-  const [simpleInputs, setSimpleInputs] = useState<SimpleInputs>({
-    bendiciones: "",
-    cargas: "",
-    rasgos: ""
-  });
   const [historicalRerollSpent, setHistoricalRerollSpent] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<BuilderTabId>("resumen");
   const [acquisitionModal, setAcquisitionModal] = useState<BuilderAcquisitionModal | null>(null);
+  const [simpleCatalogModal, setSimpleCatalogModal] = useState<BuilderSimpleCatalogModal | null>(null);
   const [capabilityConfirmationModal, setCapabilityConfirmationModal] = useState<BuilderCapabilityConfirmationModal | null>(null);
+  const [capabilityDetailsSelection, setCapabilityDetailsSelection] = useState<BuilderCapabilityDetailsSelection | null>(null);
   const [bindingArtifactId, setBindingArtifactId] = useState<string | null>(null);
+  const [selectedMysticArtifactId, setSelectedMysticArtifactId] = useState<string | null>(null);
   const [professionBusyId, setProfessionBusyId] = useState<string | null>(null);
-  const [selectedProfessionGoalId, setSelectedProfessionGoalId] = useState(SYMBAROUM_PROFESSIONS[0]?.id ?? "");
   const [selectedProfessionDetailsId, setSelectedProfessionDetailsId] = useState<string | null>(null);
   const [isXpDetailsOpen, setIsXpDetailsOpen] = useState(false);
   const artifactBindingXpSpent = character.artifactBindingXpSpent ?? 0;
@@ -363,14 +403,12 @@ export function CharacterBuilderView({
     const experience = getCharacterExperienceSummary(parsedSheet);
     setDraft(parsedSheet);
     setCatalogSelections(INITIAL_CATALOG_SELECTIONS);
-    setSimpleInputs({
-      bendiciones: "",
-      cargas: "",
-      rasgos: ""
-    });
     const nextArtifactBindingXpSpent = character.artifactBindingXpSpent ?? 0;
     const derivedHistoricalRerollSpent = Math.max(0, parsedSheet.progreso.experienciaGastada - experience.computedSpent - nextArtifactBindingXpSpent);
     const previousCharacter = loadedCharacterRef.current;
+    if (previousCharacter && previousCharacter.id !== character.id) {
+      setSelectedMysticArtifactId(null);
+    }
     setHistoricalRerollSpent((currentHistoricalRerollSpent) => {
       const receivedNewBinding = previousCharacter?.id === character.id
         && nextArtifactBindingXpSpent > previousCharacter.artifactBindingXpSpent;
@@ -382,13 +420,24 @@ export function CharacterBuilderView({
     setError(null);
     setActiveTab("resumen");
     setAcquisitionModal(null);
+    setSimpleCatalogModal(null);
     setCapabilityConfirmationModal(null);
+    setCapabilityDetailsSelection(null);
     setSelectedProfessionDetailsId(null);
-    setSelectedProfessionGoalId(SYMBAROUM_PROFESSIONS.find((profession) => !(character.professionMemberships ?? []).some((membership) => membership.professionId === profession.id))?.id ?? "");
   }, [character]);
 
   const experience = useMemo(() => getCharacterExperienceSummary(draft), [draft]);
   const rerollSpentTotal = experience.spentFromRerolls + historicalRerollSpent;
+  const featSpentTotal = experience.spentFromFeats;
+  const selectedMysticArtifact = useMemo(
+    () => (character.mysticArtifacts ?? []).find((artifact) => artifact.id === selectedMysticArtifactId) ?? null,
+    [character.mysticArtifacts, selectedMysticArtifactId]
+  );
+  useEffect(() => {
+    if (selectedMysticArtifactId && !selectedMysticArtifact) {
+      setSelectedMysticArtifactId(null);
+    }
+  }, [selectedMysticArtifact, selectedMysticArtifactId]);
   const artifactBindingXpExpenses = character.artifactBindingXpExpenses ?? [];
   const rerollExpenseDetails = [
     ...experience.rerollExpenses,
@@ -487,6 +536,26 @@ export function CharacterBuilderView({
   const selectedBenefitUnlocked = selectedBenefitProfessionIds.length === 0 || selectedBenefitProfessionIds.some((id) => activeProfessionIds.has(id));
   const selectedHigherRitualBase = selectedAcquisitionEntry ? getHigherRitualBase(selectedAcquisitionEntry.nombre) : undefined;
   const selectedHigherRitualBaseMet = !selectedHigherRitualBase || draft.rituales.some((entry) => normalizeProfessionText(entry.nombre) === normalizeProfessionText(selectedHigherRitualBase));
+  const simpleCatalogEntries = useMemo(
+    () => simpleCatalogModal ? getSimpleCatalogEntries(simpleCatalogModal.section) : [],
+    [simpleCatalogModal]
+  );
+  const filteredSimpleCatalogEntries = useMemo(() => {
+    if (!simpleCatalogModal) return [];
+    const query = normalizeName(simpleCatalogModal.query);
+    return simpleCatalogEntries
+      .filter((entry) => !draft[simpleCatalogModal.section].some((current) => normalizeName(current) === normalizeName(entry.nombre)))
+      .filter((entry) => !query
+        || normalizeName(entry.nombre).includes(query)
+        || normalizeName(entry.resumen).includes(query)
+        || normalizeName(entry.fuente).includes(query));
+  }, [draft, simpleCatalogEntries, simpleCatalogModal]);
+  const selectedSimpleCatalogEntry = useMemo(() => {
+    if (!simpleCatalogModal) return null;
+    return filteredSimpleCatalogEntries.find((entry) => entry.id === simpleCatalogModal.selectedId)
+      ?? filteredSimpleCatalogEntries[0]
+      ?? null;
+  }, [filteredSimpleCatalogEntries, simpleCatalogModal]);
 
   async function runProfessionAction(professionId: string, action: (() => Promise<void>) | undefined): Promise<void> {
     if (!action) return;
@@ -503,6 +572,37 @@ export function CharacterBuilderView({
 
   function findCatalogEntryByName(section: RatedSection, name: string): SymbaroumCapability | null {
     return getCatalogEntries(section).find((entry) => normalizeName(entry.nombre) === normalizeName(name)) ?? null;
+  }
+
+  const capabilityDetails = (() => {
+    if (!capabilityDetailsSelection) return null;
+    const entries = getRatedEntriesForSection(draft, capabilityDetailsSelection.section);
+    const index = entries.findIndex((entry) => normalizeName(entry.nombre) === normalizeName(capabilityDetailsSelection.name));
+    const entry = entries[index];
+    if (!entry) return null;
+    const catalogEntry = findCatalogEntryByName(capabilityDetailsSelection.section, entry.nombre);
+    const description = catalogEntry?.efectoResumen ?? entry.efecto ?? entry.notas ?? "";
+    const tiers = parseCapabilityTiers(description, capabilityDetailsSelection.section);
+    return {
+      section: capabilityDetailsSelection.section,
+      index,
+      entry,
+      description,
+      tiers,
+      sourceLabel: catalogEntry?.libro
+        ? `${catalogEntry.libro}${catalogEntry.pagina ? ` p. ${catalogEntry.pagina}` : ""}`
+        : entry.fuente
+          ? `${entry.fuente}${entry.pagina ? ` p. ${entry.pagina}` : ""}`
+          : ""
+    };
+  })();
+
+  function openCapabilityDetails(section: RatedSection, name: string): void {
+    setCapabilityDetailsSelection({ section, name });
+  }
+
+  function closeCapabilityDetails(): void {
+    setCapabilityDetailsSelection(null);
   }
 
   function closeCapabilityConfirmationModal(): void {
@@ -571,6 +671,7 @@ export function CharacterBuilderView({
           : "",
       targetLevel,
       cost,
+      xpLabel: `Gastar ${cost} PX`,
       previewSummary: previewSource,
       targetTier: getCapabilityTierForLevel(previewTiers, targetLevel, section),
       confirmLabel: section === "rituales" ? `Subir a ${getLevelLabel(section, targetLevel)}` : `Gastar ${cost} PX`,
@@ -610,6 +711,7 @@ export function CharacterBuilderView({
     const catalogEntry = findCatalogEntryByName(section, entry.nombre);
     const previewSource = catalogEntry?.efectoResumen ?? entry.efecto ?? entry.notas ?? "";
     const previewTiers = parseCapabilityTiers(previewSource, section);
+    const releasedXp = getRatedEntryCost(entry.nivel) - getRatedEntryCost(targetLevel);
     setError(null);
     setCapabilityConfirmationModal({
       mode: "downgrade",
@@ -621,7 +723,8 @@ export function CharacterBuilderView({
           ? `${entry.fuente}${entry.pagina ? ` p. ${entry.pagina}` : ""}`
           : "",
       targetLevel,
-      cost: 0,
+      cost: releasedXp,
+      xpLabel: `Liberar ${releasedXp} PX`,
       previewSummary: previewSource,
       targetTier: getCapabilityTierForLevel(previewTiers, targetLevel, section),
       confirmLabel: `Confirmar bajada a ${getLevelLabel(section, targetLevel)}`,
@@ -643,6 +746,21 @@ export function CharacterBuilderView({
       section,
       getRatedEntriesForSection(current, section).filter((_, entryIndex) => entryIndex !== index)
     ));
+  }
+
+  async function confirmRemoveRatedEntry(section: RatedSection, index: number): Promise<void> {
+    const entry = getRatedEntriesForSection(draft, section)[index];
+    if (!entry) return;
+    const releasedXp = section === "rituales" ? 10 : getRatedEntryCost(entry.nivel);
+    const accepted = await confirm({
+      title: `Quitar ${entry.nombre}`,
+      message: `Se quitará ${entry.nombre} del personaje y se liberarán ${releasedXp} PX en el constructor.`,
+      confirmLabel: `Quitar y liberar ${releasedXp} PX`,
+      tone: "danger"
+    });
+    if (!accepted) return;
+    removeRatedEntry(section, index);
+    setCapabilityDetailsSelection(null);
   }
 
   function openAcquisitionModal(section: RatedSection): void {
@@ -713,6 +831,7 @@ export function CharacterBuilderView({
       sourceLabel: `${selectedAcquisitionEntry.libro}${selectedAcquisitionEntry.pagina ? ` p. ${selectedAcquisitionEntry.pagina}` : ""}`,
       targetLevel: "principiante",
       cost,
+      xpLabel: `Gastar ${cost} PX`,
       previewSummary: selectedAcquisitionEntry.efectoResumen,
       targetTier: getCapabilityTierForLevel(acquisitionPreviewTiers, "principiante", acquisitionModal.section),
       confirmLabel: `Confirmar ${cost} PX`,
@@ -723,62 +842,61 @@ export function CharacterBuilderView({
     });
   }
 
-  function updateSimpleInput(section: SimpleSection, value: string): void {
-    setSimpleInputs((current) => ({
-      ...current,
-      [section]: value
-    }));
-  }
-
-  function addSimpleEntry(section: SimpleSection): void {
-    const value = simpleInputs[section].trim();
-    if (!value) return;
-    if (section === "bendiciones" && effectiveAvailable < 5) {
-      setError(`No hay PX suficientes para obtener ${value}.`);
-      return;
-    }
-    if (draft[section].some((entry) => normalizeName(entry) === normalizeName(value))) {
-      setError(`${value} ya esta en ${SIMPLE_SECTION_LABELS[section].toLowerCase()}.`);
-      return;
-    }
-    setError(null);
-    setDraft((current) => ({
-      ...current,
-      [section]: [...current[section], value]
-    }));
-    setSimpleInputs((current) => ({
-      ...current,
-      [section]: ""
-    }));
-  }
-
   function removeSimpleEntry(section: SimpleSection, index: number): void {
+    const removedName = draft[section][index];
+    const removedKind = getSimpleCapabilityKind(section);
     setDraft((current) => ({
       ...current,
-      [section]: current[section].filter((_, entryIndex) => entryIndex !== index)
+      [section]: current[section].filter((_, entryIndex) => entryIndex !== index),
+      capabilitySelections: current.capabilitySelections.filter((selection) => !(
+        selection.kind === removedKind && normalizeName(selection.name) === normalizeName(removedName ?? "")
+      ))
     }));
   }
 
-  function addCatalogSimpleEntry(section: Extract<SimpleSection, "bendiciones" | "cargas">): void {
-    const sourceEntries = section === "bendiciones" ? SYMBAROUM_BLESSINGS : SYMBAROUM_BURDENS;
-    const selectedId = catalogSelections[section];
-    const entry = sourceEntries.find((candidate) => candidate.id === selectedId);
-    if (!entry) {
+  function openSimpleCatalogModal(section: SimpleSection): void {
+    const availableEntries = getSimpleCatalogEntries(section).filter((entry) =>
+      !draft[section].some((current) => normalizeName(current) === normalizeName(entry.nombre))
+    );
+    setSimpleCatalogModal({ section, query: "", selectedId: availableEntries[0]?.id ?? "" });
+  }
+
+  async function addSelectedSimpleCatalogEntry(): Promise<void> {
+    if (!simpleCatalogModal || !selectedSimpleCatalogEntry) return;
+    const section = simpleCatalogModal.section;
+    const entry = selectedSimpleCatalogEntry;
+    const cost = getSimpleEntryCost(section);
+    if (draft[section].some((current) => normalizeName(current) === normalizeName(entry.nombre))) {
+      setError(`${entry.nombre} ya está en ${SIMPLE_SECTION_LABELS[section].toLowerCase()}.`);
       return;
     }
-    if (section === "bendiciones" && effectiveAvailable < 5) {
+    if (cost > effectiveAvailable) {
       setError(`No hay PX suficientes para obtener ${entry.nombre}.`);
       return;
     }
-    if (draft[section].some((current) => normalizeName(current) === normalizeName(entry.nombre))) {
-      setError(`${entry.nombre} ya esta en ${SIMPLE_SECTION_LABELS[section].toLowerCase()}.`);
-      return;
-    }
+    if (cost > 0 && !await confirm({
+      title: `Comprar ${entry.nombre}`,
+      message: `Añadir ${entry.nombre} a las bendiciones del personaje cuesta ${cost} PX.`,
+      confirmLabel: `Gastar ${cost} PX`,
+      tone: "danger"
+    })) return;
     setError(null);
     setDraft((current) => ({
       ...current,
-      [section]: [...current[section], entry.nombre]
+      [section]: [...current[section], entry.nombre],
+      capabilitySelections: [
+        ...current.capabilitySelections,
+        {
+          catalogId: entry.id,
+          name: entry.nombre,
+          kind: getSimpleCapabilityKind(section),
+          origin: "comprada",
+          source: entry.fuente,
+          page: entry.pagina
+        }
+      ]
     }));
+    setSimpleCatalogModal(null);
   }
 
   async function handleSave(): Promise<void> {
@@ -822,11 +940,17 @@ export function CharacterBuilderView({
     const consequence = paymentType === "xp"
       ? `${cost?.amount ?? 0} PX pasarán a experiencia gastada`
       : `ganarás ${cost?.amount ?? 0} punto(s) de Corrupción permanente; esto puede superar tus umbrales, aunque la ficha no te convertirá automáticamente en PNJ`;
-    if (!window.confirm(`Vincular ${artifact?.name ?? "este artefacto"}: ${consequence}. Romper el vínculo no devuelve el pago. ¿Confirmar?`)) return;
+    if (!await confirm({
+      title: "Vincular artefacto",
+      message: `Vincular ${artifact?.name ?? "este artefacto"}: ${consequence}. Romper el vínculo no devuelve el pago.`,
+      confirmLabel: "Vincular artefacto",
+      tone: "danger"
+    })) return;
     setBindingArtifactId(artifactId);
     setError(null);
     try {
       await onBindMysticArtifact(artifactId, paymentType);
+      setActiveTab("artefactos");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo completar el vinculo.");
     } finally {
@@ -912,7 +1036,7 @@ export function CharacterBuilderView({
 
                 <div className="character-builder-summary-notes">
                   <p><strong>PX concedidos:</strong> el total lo gestiona el director de juego desde la campaña. El constructor solo permite invertir los puntos disponibles.</p>
-                  <p><strong>Origen del PX gastado:</strong> {experience.spentFromCapabilities} en capacidades y poderes + {experience.spentFromRituals} en rituales + {experience.spentFromBlessings} en bendiciones{artifactBindingXpSpent > 0 ? ` + ${artifactBindingXpSpent} en vínculos de artefactos` : ""}{rerollSpentTotal > 0 ? ` + ${rerollSpentTotal} en repeticiones de dados` : ""}.</p>
+                  <p><strong>Origen del PX gastado:</strong> {experience.spentFromCapabilities} en capacidades y poderes + {experience.spentFromRituals} en rituales + {experience.spentFromBlessings} en bendiciones{artifactBindingXpSpent > 0 ? ` + ${artifactBindingXpSpent} en vínculos de artefactos` : ""}{rerollSpentTotal > 0 ? ` + ${rerollSpentTotal} en repeticiones de dados` : ""}{featSpentTotal > 0 ? ` + ${featSpentTotal} en hazañas` : ""}.</p>
                   <p><strong>Rituales y rasgos:</strong> los rituales cuestan 10 PX cada uno; los rasgos y las cargas no modifican automáticamente el total concedido.</p>
                 </div>
               </section>
@@ -923,81 +1047,65 @@ export function CharacterBuilderView({
                 <div className="row-actions">
                   <h3>Identidad</h3>
                 </div>
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Nombre del personaje</span>
-                    <input value={draft.identidad.nombrePersonaje} onChange={(event) => updateIdentityField("nombrePersonaje", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Nombre del jugador</span>
-                    <input value={draft.identidad.nombreJugador} onChange={(event) => updateIdentityField("nombreJugador", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Marcador especial</span>
-                    <label className="checkbox-row">
-                      <input
-                        type="checkbox"
-                        checked={draft.identidad.esFamiliar}
-                        onChange={(event) => updateIdentityField("esFamiliar", event.target.checked)}
-                      />
-                      <span>Es familiar (empieza con 20 PX)</span>
-                    </label>
-                  </label>
-                  <label className="field">
-                    <span>Raza</span>
-                    <input value={draft.identidad.raza} onChange={(event) => updateIdentityField("raza", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Cultura</span>
-                    <input value={draft.identidad.cultura} onChange={(event) => updateIdentityField("cultura", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Arquetipo</span>
-                    <input value={draft.identidad.arquetipo} onChange={(event) => updateIdentityField("arquetipo", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Ocupación descriptiva</span>
-                    <input value={draft.identidad.profesion} onChange={(event) => updateIdentityField("profesion", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Edad</span>
-                    <input value={draft.identidad.edad} onChange={(event) => updateIdentityField("edad", event.target.value)} />
-                  </label>
-                  <label className="field">
-                    <span>Apariencia</span>
-                    <input value={draft.identidad.apariencia} onChange={(event) => updateIdentityField("apariencia", event.target.value)} />
-                  </label>
-                  <label className="field field-span-2">
-                    <span>Objetivo personal</span>
-                    <input value={draft.identidad.objetivoPersonal} onChange={(event) => updateIdentityField("objetivoPersonal", event.target.value)} />
-                  </label>
-                  <label className="field field-span-2">
-                    <span>Trasfondo</span>
-                    <textarea rows={6} value={draft.identidad.trasfondo} onChange={(event) => updateIdentityField("trasfondo", event.target.value)} />
-                  </label>
-                </div>
-                <section className="profession-goal-picker">
-                  <div>
-                    <h4>Objetivos profesionales</h4>
-                    <p className="section-help">Puedes aspirar a varias profesiones. Consulta la pestaña Profesiones para ver el progreso de cada requisito.</p>
-                  </div>
-                  {(character.professionMemberships ?? []).length > 0 ? (
-                    <div className="toolbar">
-                      {(character.professionMemberships ?? []).map((membership) => <span key={membership.id} className={`profession-state profession-state--${membership.effectiveState}`}>{membership.professionName}</span>)}
-                    </div>
-                  ) : null}
-                  {onAspireProfession ? (
-                    <div className="inline-row">
+                <div className="character-builder-identity-form">
+                  <section className="character-builder-identity-section" aria-labelledby="character-builder-personal-title">
+                    <h4 id="character-builder-personal-title">Datos personales</h4>
+                    <div className="character-builder-identity-grid is-personal">
                       <label className="field">
-                        <span>Nueva aspiración</span>
-                        <select value={selectedProfessionGoalId} onChange={(event) => setSelectedProfessionGoalId(event.target.value)}>
-                          {SYMBAROUM_PROFESSIONS.filter((profession) => !(character.professionMemberships ?? []).some((membership) => membership.professionId === profession.id)).map((profession) => <option key={profession.id} value={profession.id}>{profession.name}</option>)}
-                        </select>
+                        <span>Nombre del personaje</span>
+                        <input value={draft.identidad.nombrePersonaje} onChange={(event) => updateIdentityField("nombrePersonaje", event.target.value)} />
                       </label>
-                      <button type="button" disabled={!selectedProfessionGoalId || professionBusyId === selectedProfessionGoalId} onClick={() => void runProfessionAction(selectedProfessionGoalId, () => onAspireProfession(selectedProfessionGoalId))}>Marcar objetivo</button>
+                      <label className="field">
+                        <span>Nombre del jugador</span>
+                        <input value={draft.identidad.nombreJugador} onChange={(event) => updateIdentityField("nombreJugador", event.target.value)} />
+                      </label>
+                      <label className="field">
+                        <span>Edad</span>
+                        <input value={draft.identidad.edad} onChange={(event) => updateIdentityField("edad", event.target.value)} />
+                      </label>
+                      <label className="field">
+                        <span>Ocupación descriptiva</span>
+                        <input value={draft.identidad.profesion} onChange={(event) => updateIdentityField("profesion", event.target.value)} />
+                      </label>
                     </div>
-                  ) : null}
-                </section>
+                  </section>
+
+                  <section className="character-builder-identity-section" aria-labelledby="character-builder-origin-title">
+                    <h4 id="character-builder-origin-title">Origen</h4>
+                    <div className="character-builder-identity-grid is-origin">
+                      <label className="field">
+                        <span>Raza</span>
+                        <input value={draft.identidad.raza} onChange={(event) => updateIdentityField("raza", event.target.value)} />
+                      </label>
+                      <label className="field">
+                        <span>Cultura</span>
+                        <input value={draft.identidad.cultura} onChange={(event) => updateIdentityField("cultura", event.target.value)} />
+                      </label>
+                      <label className="field">
+                        <span>Arquetipo</span>
+                        <input value={draft.identidad.arquetipo} onChange={(event) => updateIdentityField("arquetipo", event.target.value)} />
+                      </label>
+                    </div>
+                  </section>
+
+                  <section className="character-builder-identity-section" aria-labelledby="character-builder-description-title">
+                    <h4 id="character-builder-description-title">Descripción</h4>
+                    <div className="character-builder-identity-grid is-description">
+                      <label className="field">
+                        <span>Apariencia</span>
+                        <input value={draft.identidad.apariencia} onChange={(event) => updateIdentityField("apariencia", event.target.value)} />
+                      </label>
+                      <label className="field is-wide">
+                        <span>Objetivo personal</span>
+                        <input value={draft.identidad.objetivoPersonal} onChange={(event) => updateIdentityField("objetivoPersonal", event.target.value)} />
+                      </label>
+                      <label className="field is-full">
+                        <span>Trasfondo</span>
+                        <textarea rows={6} value={draft.identidad.trasfondo} onChange={(event) => updateIdentityField("trasfondo", event.target.value)} />
+                      </label>
+                    </div>
+                  </section>
+                </div>
               </section>
             ) : null}
 
@@ -1006,7 +1114,7 @@ export function CharacterBuilderView({
                 <div className="row-actions">
                   <div>
                     <h3>Profesiones avanzadas</h3>
-                    <p className="section-help">Marca varios objetivos y completa todos sus requisitos. Para solicitar el ingreso, al menos una capacidad requerida debe estar en maestro.</p>
+                    <p className="section-help">Abre una profesión para consultar sus requisitos, marcarla como objetivo o gestionar su ingreso. Puedes aspirar a varias profesiones.</p>
                   </div>
                 </div>
                 <div className="profession-builder-list">
@@ -1059,55 +1167,40 @@ export function CharacterBuilderView({
                           </div>
                         </div>
                         <div className="character-builder-entry-list">
-                          {sectionEntries.length > 0 ? sectionEntries.map((entry, index) => (
-                            <article key={`${section}-${entry.nombre}-${index}`} className={`character-builder-entry-card character-builder-entry-card--${section}`}>
-                              <div className="character-builder-entry-head">
-                                <div className="character-builder-entry-copy">
+                          {sectionEntries.length > 0 ? sectionEntries.map((entry, index) => {
+                            const nextLevel = section === "rituales" ? null : getNextLevel(entry.nivel);
+                            const investedXp = section === "rituales" ? 10 : getRatedEntryCost(entry.nivel);
+                            return (
+                              <button
+                                key={`${section}-${entry.nombre}-${index}`}
+                                type="button"
+                                className={`character-builder-entry-card character-builder-entry-card--${section} character-builder-entry-trigger`}
+                                aria-label={`Ver detalles de ${entry.nombre}`}
+                                onClick={() => openCapabilityDetails(section, entry.nombre)}
+                              >
+                                <span className="character-builder-entry-copy">
                                   <strong>{entry.nombre}</strong>
-                                  <div className="character-builder-entry-meta meta-text">
-                                    {section === "rituales" ? "10 PX invertidos" : `${getRatedEntryCost(entry.nivel)} PX invertidos`}{entry.fuente ? ` · ${entry.fuente}` : ""}
-                                  </div>
-                                </div>
-                                <div className="card-actions character-builder-entry-actions">
-                                  {section !== "rituales" ? (
-                                    <>
-                                      <span className="meta-text">Nivel actual: {getLevelLabel(section, entry.nivel)}</span>
-                                      {getPreviousLevel(entry.nivel) ? (
-                                        <button
-                                          type="button"
-                                          className="subtle-button"
-                                          onClick={() => openDowngradeConfirmation(section, index)}
-                                        >
-                                          <span aria-hidden="true">↓</span>{" "}
-                                          Bajar a {getLevelLabel(section, getPreviousLevel(entry.nivel)!)}
-                                        </button>
-                                      ) : null}
-                                      {getNextLevel(entry.nivel) ? (
-                                        <button
-                                          type="button"
-                                          onClick={() => openUpgradeConfirmation(section, index)}
-                                          disabled={getUpgradeCost(section, entry.nivel) > effectiveAvailable}
-                                        >
-                                          <span aria-hidden="true">↑</span>{" "}
-                                          Subir a {getLevelLabel(section, getNextLevel(entry.nivel)!)} ({getUpgradeCost(section, entry.nivel)} PX)
-                                        </button>
-                                      ) : (
-                                        <span className="meta-text">Nivel maximo</span>
-                                      )}
-                                    </>
-                                  ) : null}
-                                  <button
-                                    type="button"
-                                    className="destructive-button"
-                                    onClick={() => removeRatedEntry(section, index)}
-                                  >
-                                    Quitar
-                                  </button>
-                                </div>
-                              </div>
-                              {entry.efecto ? <p className="section-help">{entry.efecto}</p> : null}
-                            </article>
-                          )) : (
+                                  <span className="character-builder-entry-level">
+                                    {section === "rituales" ? "Nivel único" : `Nivel ${getLevelLabel(section, entry.nivel)}`}
+                                  </span>
+                                </span>
+                                <span className="character-builder-entry-metric">
+                                  <span>Invertidos</span>
+                                  <strong>{investedXp} PX</strong>
+                                </span>
+                                <span className="character-builder-entry-metric is-next">
+                                  <span>{section === "rituales" ? "Progresión" : nextLevel ? "Siguiente nivel" : "Progresión"}</span>
+                                  <strong>
+                                    {section === "rituales"
+                                      ? "Sin niveles"
+                                      : nextLevel
+                                        ? `${getLevelLabel(section, nextLevel)} · ${getUpgradeCost(section, entry.nivel)} PX`
+                                        : "Nivel máximo"}
+                                  </strong>
+                                </span>
+                              </button>
+                            );
+                          }) : (
                             <p className="section-help">Sin entradas registradas.</p>
                           )}
                         </div>
@@ -1124,64 +1217,42 @@ export function CharacterBuilderView({
                   <h3>Bendiciones, cargas y rasgos</h3>
                   <span className="meta-text">Listas simples para progreso y narrativa.</span>
                 </div>
-                <div className="character-builder-purchase-stack">
-                  {(["bendiciones", "cargas", "rasgos"] as SimpleSection[]).map((section) => (
-                    <article key={section} className="character-builder-block">
-                      <div className="row-actions">
-                        <h4>{SIMPLE_SECTION_LABELS[section]}</h4>
-                        <span className="meta-text">
-                          {getSimpleEntryDelta(section) === 0 ? "Sin coste automatico" : getSimpleEntryDelta(section) > 0 ? `+${getSimpleEntryDelta(section)} PX` : `${getSimpleEntryDelta(section)} PX`}
-                        </span>
-                      </div>
-                      {section === "bendiciones" || section === "cargas" ? (
-                        <div className="character-builder-purchase-stack">
-                          <div className="character-builder-inline-form">
-                            <label className="field">
-                              <span>Catalogo</span>
-                              <select
-                                value={catalogSelections[section]}
-                                onChange={(event) => setCatalogSelections((current) => ({ ...current, [section]: event.target.value }))}
-                              >
-                                {(section === "bendiciones" ? SYMBAROUM_BLESSINGS : SYMBAROUM_BURDENS).map((entry) => (
-                                  <option key={entry.id} value={entry.id}>{entry.nombre}</option>
-                                ))}
-                              </select>
-                            </label>
-                            <button type="button" onClick={() => addCatalogSimpleEntry(section)} disabled={section === "bendiciones" && effectiveAvailable < 5}>
-                              {section === "bendiciones" ? "Comprar del catalogo" : "Añadir del catalogo"}
-                            </button>
+                <div className="character-builder-simple-sections">
+                  {(["bendiciones", "cargas", "rasgos"] as SimpleSection[]).map((section) => {
+                    const sectionTitleId = `character-builder-${section}-title`;
+                    return (
+                      <article key={section} className="character-builder-block character-builder-simple-section" aria-labelledby={sectionTitleId}>
+                        <div className="row-actions">
+                          <div>
+                            <h4 id={sectionTitleId}>{SIMPLE_SECTION_LABELS[section]}</h4>
+                            <span className="meta-text">
+                              {section === "bendiciones" ? "5 PX por bendición" : section === "cargas" ? "+5 PX efectivos por carga" : "Sin coste de PX"}
+                            </span>
                           </div>
-                          <div className="character-builder-inline-form">
-                            <label className="field">
-                              <span>Personalizada</span>
-                              <input value={simpleInputs[section]} onChange={(event) => updateSimpleInput(section, event.target.value)} />
-                            </label>
-                            <button type="button" onClick={() => addSimpleEntry(section)} disabled={section === "bendiciones" && effectiveAvailable < 5}>
-                              {section === "bendiciones" ? "Comprar personalizada" : "Añadir personalizada"}
-                            </button>
-                          </div>
+                          <button type="button" onClick={() => openSimpleCatalogModal(section)}>{getSimpleAddLabel(section)}</button>
                         </div>
-                      ) : (
-                        <div className="character-builder-inline-form">
-                          <label className="field">
-                            <span>Añadir</span>
-                            <input value={simpleInputs[section]} onChange={(event) => updateSimpleInput(section, event.target.value)} />
-                          </label>
-                          <button type="button" onClick={() => addSimpleEntry(section)}>Añadir</button>
+                        <div className="character-builder-simple-list">
+                          {draft[section].length > 0 ? draft[section].map((entry, index) => {
+                            const catalogEntry = getSimpleCatalogEntries(section).find((candidate) => normalizeName(candidate.nombre) === normalizeName(entry));
+                            return (
+                              <article key={`${section}-${entry}-${index}`} className="character-builder-simple-row">
+                                <div className="character-builder-simple-row__identity">
+                                  <strong>{entry}</strong>
+                                  <span>{catalogEntry ? `${catalogEntry.fuente}${catalogEntry.pagina ? ` · p. ${catalogEntry.pagina}` : ""}` : "Entrada histórica fuera del catálogo actual"}</span>
+                                </div>
+                                <div className="character-builder-simple-row__actions">
+                                  <span className={`compendium-chip${catalogEntry ? " is-active" : ""}`}>{catalogEntry ? "Catálogo oficial" : "Histórica"}</span>
+                                  <button type="button" className="subtle-button" aria-label={`Quitar ${entry}`} onClick={() => removeSimpleEntry(section, index)}>Quitar</button>
+                                </div>
+                              </article>
+                            );
+                          }) : (
+                            <p className="section-help">Sin entradas registradas.</p>
+                          )}
                         </div>
-                      )}
-                      <div className="character-builder-token-list">
-                        {draft[section].length > 0 ? draft[section].map((entry, index) => (
-                          <span key={`${section}-${entry}-${index}`} className="character-builder-token">
-                            <span>{entry}</span>
-                            <button type="button" onClick={() => removeSimpleEntry(section, index)}>x</button>
-                          </span>
-                        )) : (
-                          <p className="section-help">Sin entradas registradas.</p>
-                        )}
-                      </div>
-                    </article>
-                  ))}
+                      </article>
+                    );
+                  })}
                 </div>
               </section>
             ) : null}
@@ -1195,50 +1266,24 @@ export function CharacterBuilderView({
                   </div>
                   <span className="meta-text">PX disponibles: {effectiveAvailable}</span>
                 </div>
-                <div className="character-builder-purchase-stack">
+                <div className="character-builder-artifact-list">
                   {(character.mysticArtifacts ?? []).map((artifact) => (
-                    <article key={artifact.id} className="character-builder-block">
-                      <div className="row-actions">
-                        <div>
-                          <h4>{artifact.name}</h4>
-                          <p className="meta-text">{artifact.campaignName} · {artifact.isBound ? "Vinculado" : "Sin vincular"}</p>
-                        </div>
-                        {!artifact.isBound ? (
-                          <div className="toolbar">
-                            {artifact.bindingCosts.map((cost) => (
-                              <button
-                                key={cost.paymentType}
-                                type="button"
-                                disabled={bindingArtifactId === artifact.id || (cost.paymentType === "xp" && cost.amount > effectiveAvailable)}
-                                onClick={() => void handleBindArtifact(artifact.id, cost.paymentType)}
-                              >
-                                {bindingArtifactId === artifact.id
-                                  ? "Vinculando..."
-                                  : cost.paymentType === "xp" ? `Vincular por ${cost.amount} PX` : `Vincular por ${cost.amount} Corrupcion permanente`}
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
+                    <button
+                      key={artifact.id}
+                      type="button"
+                      className="character-builder-artifact-row"
+                      aria-label={`Ver detalles de ${artifact.name}`}
+                      onClick={() => setSelectedMysticArtifactId(artifact.id)}
+                    >
+                      <div className="character-builder-artifact-row__identity">
+                        <strong>{artifact.name}</strong>
+                        <span>{BUILDER_ARTIFACT_KIND_LABELS[artifact.kind]} · {artifact.campaignName}</span>
                       </div>
-                      {artifact.description ? <p className="section-help">{artifact.description}</p> : null}
-                      {artifact.resources.map((resource) => resource.maximum !== undefined && resource.current !== undefined ? (
-                        <div key={resource.id} className="info-box"><span>{resource.name}</span><strong>{resource.current}/{resource.maximum}</strong></div>
-                      ) : null)}
-                      {artifact.abilities.length > 0 ? (
-                        <div className="character-builder-entry-list">
-                          {artifact.abilities.map((ability) => (
-                            <article key={ability.id} className="character-builder-entry-card">
-                              <div className="character-builder-entry-head">
-                                <strong>{ability.name}</strong>
-                                <span className="meta-text">{ability.locked ? ability.lockReason : ability.activation === "active" ? "Disponible" : ability.activation}</span>
-                              </div>
-                              <p className="section-help">{ability.description}</p>
-                              <p className="meta-text">Corrupcion: {ability.corruptionFormula || "Ninguna"}{ability.perSceneLimit ? ` · ${ability.perSceneLimit} vez/veces por escena` : ""}</p>
-                            </article>
-                          ))}
-                        </div>
-                      ) : !artifact.isBound ? <p className="section-help">Sus capacidades se revelaran al completar el vinculo.</p> : null}
-                    </article>
+                      <div className="character-builder-artifact-row__status">
+                        <span className={`compendium-chip${artifact.isBound ? " is-active" : ""}`}>{artifact.isBound ? "Vinculado" : "Sin vincular"}</span>
+                        <span>{formatBuilderArtifactBindingCosts(artifact.bindingCosts) || "Sin coste configurado"}</span>
+                      </div>
+                    </button>
                   ))}
                   {(character.mysticArtifacts ?? []).length === 0 ? <p className="section-help">Este personaje no posee artefactos de campaña.</p> : null}
                 </div>
@@ -1247,6 +1292,18 @@ export function CharacterBuilderView({
           </section>
         </section>
       </section>
+
+      {selectedMysticArtifact ? (
+        <MysticArtifactDetailsModal
+          artifact={selectedMysticArtifact}
+          campaignName={selectedMysticArtifact.campaignName}
+          availableExperience={effectiveAvailable}
+          busy={busy || bindingArtifactId === selectedMysticArtifact.id}
+          onClose={() => setSelectedMysticArtifactId(null)}
+          onBind={onBindMysticArtifact ? handleBindArtifact : undefined}
+          onOpenSource={onOpenMysticArtifactSource}
+        />
+      ) : null}
 
       {isXpDetailsOpen ? (
         <section className="modal-backdrop" onClick={() => setIsXpDetailsOpen(false)}>
@@ -1267,7 +1324,7 @@ export function CharacterBuilderView({
 
             <div className="character-builder-xp-details-body">
               <section className="character-builder-xp-details-section">
-                <div className="row-actions"><h4>Capacidades, poderes, rituales y bendiciones</h4><strong>{experience.computedSpent - experience.spentFromRerolls} PX</strong></div>
+                <div className="row-actions"><h4>Capacidades, poderes, rituales y bendiciones</h4><strong>{experience.computedSpent - experience.spentFromRerolls - experience.spentFromFeats} PX</strong></div>
                 <div className="character-builder-xp-expense-list">
                   {experience.capabilityExpenses.map((expense, index) => (
                     <article key={`${expense.kind}-${expense.name}-${index}`} className="character-builder-xp-expense-row">
@@ -1312,6 +1369,22 @@ export function CharacterBuilderView({
                     </article>
                   ))}
                   {rerollExpenseDetails.length === 0 ? <p className="section-help">No se ha gastado PX en repeticiones.</p> : null}
+                </div>
+              </section>
+
+              <section className="character-builder-xp-details-section">
+                <div className="row-actions"><h4>Hazañas</h4><strong>{featSpentTotal} PX</strong></div>
+                <div className="character-builder-xp-expense-list">
+                  {experience.featExpenses.map((expense) => (
+                    <article key={expense.id} className="character-builder-xp-expense-row">
+                      <div>
+                        <strong>{expense.motivo || "Hazaña sin motivo registrado"}</strong>
+                        <span>Hazaña · {expense.fecha ? new Date(expense.fecha).toLocaleString("es-ES") : "Fecha no disponible"}</span>
+                      </div>
+                      <strong>{expense.cantidad} PX</strong>
+                    </article>
+                  ))}
+                  {experience.featExpenses.length === 0 ? <p className="section-help">No se ha gastado PX en hazañas.</p> : null}
                 </div>
               </section>
             </div>
@@ -1379,20 +1452,197 @@ export function CharacterBuilderView({
                 <button type="button" className="subtle-button" disabled={professionBusyId === selectedProfessionDetails.id} onClick={() => void runProfessionAction(selectedProfessionDetails.id, () => onRemoveProfessionAspiration(selectedProfessionDetails.id))}>Retirar objetivo</button>
               ) : null}
               {selectedProfessionMembership && ["aspiration", "rejected"].includes(selectedProfessionMembership.state) && selectedProfessionEligibility.eligible && onRequestProfession ? (
-                <button type="button" disabled={professionBusyId === selectedProfessionDetails.id} onClick={() => {
-                  if (window.confirm("Se comprobarán de nuevo todos los requisitos. Si el personaje está en campaña, la solicitud quedará pendiente de aprobación del DJ; si no lo está, el ingreso se activará directamente. ¿Continuar?")) {
-                    void runProfessionAction(selectedProfessionDetails.id, () => onRequestProfession(selectedProfessionDetails.id));
-                  }
+                <button type="button" disabled={professionBusyId === selectedProfessionDetails.id} onClick={async () => {
+                  if (!await confirm({
+                    title: "Solicitar ingreso",
+                    message: "Se comprobarán de nuevo todos los requisitos. Si el personaje está en campaña, la solicitud quedará pendiente de aprobación del DJ; si no lo está, el ingreso se activará directamente.",
+                    confirmLabel: "Continuar"
+                  })) return;
+                  void runProfessionAction(selectedProfessionDetails.id, () => onRequestProfession(selectedProfessionDetails.id));
                 }}>Solicitar ingreso</button>
               ) : null}
               {selectedProfessionMembership?.state === "active" && onLeaveProfession ? (
-                <button type="button" className="destructive-button" disabled={professionBusyId === selectedProfessionDetails.id} onClick={() => {
-                  if (window.confirm(`¿Abandonar ${selectedProfessionDetails.name}? Las capacidades compradas no se borrarán ni reembolsarán.`)) {
-                    void runProfessionAction(selectedProfessionDetails.id, () => onLeaveProfession(selectedProfessionDetails.id));
-                  }
+                <button type="button" className="destructive-button" disabled={professionBusyId === selectedProfessionDetails.id} onClick={async () => {
+                  if (!await confirm({
+                    title: "Abandonar profesión",
+                    message: `¿Abandonar ${selectedProfessionDetails.name}? Las capacidades compradas no se borrarán ni reembolsarán.`,
+                    confirmLabel: professionRemovalLabel,
+                    tone: "danger"
+                  })) return;
+                  void runProfessionAction(selectedProfessionDetails.id, () => onLeaveProfession(selectedProfessionDetails.id));
                 }}>{professionRemovalLabel}</button>
               ) : null}
             </footer>
+          </div>
+        </section>
+      ) : null}
+
+      {capabilityDetails ? (() => {
+        const { section, entry, index, description, tiers, sourceLabel } = capabilityDetails;
+        const isRitual = section === "rituales";
+        const investedXp = isRitual ? 10 : getRatedEntryCost(entry.nivel);
+        const previousLevel = isRitual ? null : getPreviousLevel(entry.nivel);
+        const nextLevel = isRitual ? null : getNextLevel(entry.nivel);
+        const upgradeCost = nextLevel ? getUpgradeCost(section, entry.nivel) : 0;
+        const currentLevelLabel = isRitual ? "Nivel único" : getLevelLabel(section, entry.nivel);
+        const hasCompleteTierBreakdown = !isRitual && tiers.length === 3;
+        return (
+          <section className="modal-backdrop" onClick={closeCapabilityDetails}>
+            <div
+              className="panel modal-panel character-builder-capability-detail-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="character-builder-capability-detail-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <header className="character-builder-capability-detail-header">
+                <div>
+                  <span className="eyebrow">{getSectionItemLabel(section)}</span>
+                  <h3 id="character-builder-capability-detail-title">{entry.nombre}</h3>
+                  <p className="section-help">{sourceLabel || "Fuente no registrada"}</p>
+                </div>
+                <button type="button" className="subtle-button" onClick={closeCapabilityDetails}>Cerrar</button>
+              </header>
+
+              <div className="character-builder-capability-detail-summary">
+                <article>
+                  <span>Nivel actual</span>
+                  <strong>{currentLevelLabel}</strong>
+                </article>
+                <article>
+                  <span>PX invertidos</span>
+                  <strong>{investedXp} PX</strong>
+                </article>
+                <article>
+                  <span>PX disponibles</span>
+                  <strong>{effectiveAvailable}</strong>
+                </article>
+              </div>
+
+              <div className="character-builder-capability-detail-body">
+                {hasCompleteTierBreakdown ? (
+                  <div className="character-builder-capability-tier-list" aria-label="Descripción por niveles">
+                    {tiers.map((tier) => {
+                      const isCurrent = tier.label === currentLevelLabel;
+                      return (
+                        <section key={tier.label} className={`character-builder-capability-tier${isCurrent ? " is-current" : ""}`}>
+                          <div className="row-actions">
+                            <h4>{tier.label}</h4>
+                            {isCurrent ? <span className="character-builder-current-level-badge">Nivel actual</span> : null}
+                          </div>
+                          <p>{tier.content}</p>
+                        </section>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <section className="character-builder-capability-description">
+                    <h4>Descripción</h4>
+                    <p>{description || "No hay una descripción detallada registrada."}</p>
+                  </section>
+                )}
+              </div>
+
+              <footer className="character-builder-capability-detail-actions">
+                <div className="toolbar">
+                  {previousLevel ? (
+                    <button type="button" className="subtle-button" onClick={() => openDowngradeConfirmation(section, index)}>
+                      Bajar a {getLevelLabel(section, previousLevel)} · liberar {investedXp - getRatedEntryCost(previousLevel)} PX
+                    </button>
+                  ) : null}
+                  {nextLevel ? (
+                    <button
+                      type="button"
+                      disabled={upgradeCost > effectiveAvailable}
+                      title={upgradeCost > effectiveAvailable ? `Faltan ${upgradeCost - effectiveAvailable} PX` : undefined}
+                      onClick={() => openUpgradeConfirmation(section, index)}
+                    >
+                      Subir a {getLevelLabel(section, nextLevel)} · {upgradeCost} PX
+                    </button>
+                  ) : !isRitual ? <span className="meta-text">Nivel máximo alcanzado</span> : null}
+                  <button type="button" className="destructive-button" onClick={() => void confirmRemoveRatedEntry(section, index)}>
+                    Quitar · liberar {investedXp} PX
+                  </button>
+                </div>
+                <button type="button" className="subtle-button" onClick={closeCapabilityDetails}>Cerrar</button>
+              </footer>
+            </div>
+          </section>
+        );
+      })() : null}
+
+      {simpleCatalogModal ? (
+        <section className="modal-backdrop" onClick={() => setSimpleCatalogModal(null)}>
+          <div
+            className="panel modal-panel character-builder-acquisition-modal character-builder-simple-catalog-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="character-builder-simple-catalog-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="row-actions">
+              <div>
+                <h3 id="character-builder-simple-catalog-title">{getSimpleAddLabel(simpleCatalogModal.section)}</h3>
+                <span className="meta-text">Solo se muestran entradas del catálogo oficial que el personaje aún no posee.</span>
+              </div>
+              <span className="meta-text">
+                {simpleCatalogModal.section === "bendiciones" ? `PX disponibles: ${effectiveAvailable}` : SIMPLE_SECTION_LABELS[simpleCatalogModal.section]}
+              </span>
+            </div>
+            <div className="character-builder-acquisition-layout">
+              <div className="character-builder-acquisition-search">
+                <label className="field">
+                  <span>Buscar en el catálogo</span>
+                  <input
+                    autoFocus
+                    value={simpleCatalogModal.query}
+                    placeholder={`Buscar ${SIMPLE_SECTION_LABELS[simpleCatalogModal.section].toLowerCase()}...`}
+                    onChange={(event) => setSimpleCatalogModal((current) => current ? ({ ...current, query: event.target.value }) : null)}
+                  />
+                </label>
+                <div className="character-builder-acquisition-results">
+                  {filteredSimpleCatalogEntries.map((entry) => (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      className={`character-builder-acquisition-result${selectedSimpleCatalogEntry?.id === entry.id ? " is-active" : ""}`}
+                      onClick={() => setSimpleCatalogModal((current) => current ? ({ ...current, selectedId: entry.id }) : null)}
+                    >
+                      <strong>{entry.nombre}</strong>
+                      <span>{entry.fuente}{entry.pagina ? ` · p. ${entry.pagina}` : ""}</span>
+                    </button>
+                  ))}
+                  {filteredSimpleCatalogEntries.length === 0 ? <p className="section-help">No hay entradas disponibles con este filtro.</p> : null}
+                </div>
+              </div>
+              <div className="character-builder-acquisition-preview">
+                {selectedSimpleCatalogEntry ? (
+                  <>
+                    <div className="character-builder-acquisition-header">
+                      <strong>{selectedSimpleCatalogEntry.nombre}</strong>
+                      <span className="meta-text">
+                        {selectedSimpleCatalogEntry.fuente}{selectedSimpleCatalogEntry.pagina ? ` · p. ${selectedSimpleCatalogEntry.pagina}` : ""}
+                        {getSimpleEntryCost(simpleCatalogModal.section) > 0 ? ` · ${getSimpleEntryCost(simpleCatalogModal.section)} PX` : " · Sin coste de PX"}
+                      </span>
+                    </div>
+                    <p>{selectedSimpleCatalogEntry.detalle || selectedSimpleCatalogEntry.resumen}</p>
+                  </>
+                ) : (
+                  <p className="section-help">Selecciona una entrada para consultar sus reglas.</p>
+                )}
+              </div>
+            </div>
+            <div className="toolbar">
+              <button type="button" className="subtle-button" onClick={() => setSimpleCatalogModal(null)}>Cancelar</button>
+              <button
+                type="button"
+                disabled={!selectedSimpleCatalogEntry || getSimpleEntryCost(simpleCatalogModal.section) > effectiveAvailable}
+                title={selectedSimpleCatalogEntry && getSimpleEntryCost(simpleCatalogModal.section) > effectiveAvailable ? "No hay PX suficientes" : undefined}
+                onClick={() => void addSelectedSimpleCatalogEntry()}
+              >
+                {simpleCatalogModal.section === "bendiciones" ? "Comprar por 5 PX" : getSimpleAddLabel(simpleCatalogModal.section)}
+              </button>
+            </div>
           </div>
         </section>
       ) : null}
@@ -1496,7 +1746,7 @@ export function CharacterBuilderView({
                 {capabilityConfirmationModal.sourceLabel
                   ? `${capabilityConfirmationModal.sourceLabel} · `
                   : ""}
-                {`${capabilityConfirmationModal.cost} PX`}
+                {capabilityConfirmationModal.xpLabel}
               </span>
             </div>
             {capabilityConfirmationModal.targetTier ? (

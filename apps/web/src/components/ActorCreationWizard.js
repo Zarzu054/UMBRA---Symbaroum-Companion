@@ -2,13 +2,14 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ATTRIBUTE_KEYS, ATTRIBUTE_LABELS, MONSTER_ATTRIBUTE_KEYS, MONSTER_ATTRIBUTE_LABELS, SYMBAROUM_ABILITIES, SYMBAROUM_ARCHETYPES, SYMBAROUM_CULTURES, SYMBAROUM_MYSTIC_POWERS, SYMBAROUM_RACES, SYMBAROUM_RITUALS, averageDiceFormula, applyExceptionalAttributeBonuses, getActorBurdenBonus, getActorChallengeFromXp, getActorSpentXp, isProfessionExclusiveBenefit, isExceptionalAttributeSelection, removeExceptionalAttributeBonuses, synchronizeExceptionalAttributes, validateCreationAttributes, validateExceptionalAttributeSelections } from "@umbra/shared";
 import { getCharacterExperienceSummary } from "../models/characterExperience";
-import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS } from "../models/compendiumEntries";
+import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS, SYMBAROUM_CHARACTER_TRAITS } from "../models/compendiumEntries";
 import { ITEM_CATALOG } from "../models/itemCatalog";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { useConfirmationDialog } from "./ConfirmationDialogProvider";
 function WizardShell(props) {
     useBodyScrollLock(true);
     const isLast = props.step === props.steps.length - 1;
-    return (_jsxs("section", { className: "actor-wizard", role: "dialog", "aria-modal": "true", "aria-label": props.title, onClick: (event) => event.stopPropagation(), children: [_jsxs("header", { className: "actor-wizard__header", children: [_jsxs("div", { children: [_jsx("span", { className: "eyebrow", children: "Creador por fases" }), _jsx("h2", { children: props.title })] }), _jsx("button", { type: "button", className: "subtle-button", onClick: props.onCancel, children: "Cerrar" })] }), _jsx("nav", { className: "actor-wizard__steps", "aria-label": "Fases de creaci\u00F3n", children: props.steps.map((item, index) => (_jsxs("button", { type: "button", className: index === props.step ? "is-active" : index < props.step ? "is-complete" : "", onClick: () => props.onStep(index), children: [_jsx("span", { children: index + 1 }), item.label] }, item.id))) }), _jsx("aside", { className: "actor-wizard__summary", children: props.summary }), props.error ? _jsx("p", { className: "error actor-wizard__error", children: props.error }) : null, _jsx("div", { className: "actor-wizard__body", children: props.children }), _jsxs("footer", { className: "actor-wizard__footer", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: props.onPrevious, disabled: props.step === 0, children: "Anterior" }), _jsxs("span", { className: "meta-text", children: ["Paso ", props.step + 1, " de ", props.steps.length] }), isLast ? (_jsx("button", { type: "button", onClick: props.onSave, disabled: props.busy, children: props.busy ? "Guardando..." : "Guardar" })) : (_jsx("button", { type: "button", onClick: props.onNext, children: "Siguiente" }))] })] }));
+    return (_jsxs("section", { className: "actor-wizard", role: "dialog", "aria-modal": "true", "aria-label": props.title, onClick: (event) => event.stopPropagation(), children: [_jsxs("header", { className: "actor-wizard__header", children: [_jsxs("div", { children: [_jsx("span", { className: "eyebrow", children: "Creador por fases" }), _jsx("h2", { children: props.title })] }), _jsx("button", { type: "button", className: "subtle-button", onClick: props.onCancel, children: "Cerrar" })] }), _jsx("nav", { className: "actor-wizard__steps", "aria-label": "Fases de creaci\u00F3n", children: props.steps.map((item, index) => (_jsxs("button", { type: "button", className: index === props.step ? "is-active" : index < props.step ? "is-complete" : "", "aria-current": index === props.step ? "step" : undefined, onClick: () => props.onStep(index), children: [_jsx("span", { children: index + 1 }), item.label] }, item.id))) }), _jsx("aside", { className: "actor-wizard__summary", children: props.summary }), props.error ? _jsx("p", { className: "error actor-wizard__error", children: props.error }) : null, _jsx("div", { className: "actor-wizard__body", children: props.children }), _jsxs("footer", { className: "actor-wizard__footer", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: props.onPrevious, disabled: props.step === 0, children: "Anterior" }), _jsxs("span", { className: "meta-text", children: ["Paso ", props.step + 1, " de ", props.steps.length] }), isLast ? (_jsx("button", { type: "button", onClick: props.onSave, disabled: props.busy, children: props.busy ? "Guardando..." : "Guardar" })) : (_jsx("button", { type: "button", onClick: props.onNext, children: "Siguiente" }))] })] }));
 }
 function normalize(value) {
     return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -43,13 +44,7 @@ function makeInventoryItem(template, origin, index) {
         notes: [`Origen de creación: ${origin}.`, template.notes].filter(Boolean).join("\n")
     };
 }
-const FREE_PLAYER_TRAITS = [
-    { id: "rasgo-personaje-longevo", name: "Longevo", source: "Libro Básico", page: 107 },
-    { id: "rasgo-personaje-poco-longevo", name: "Poco longevo", source: "Libro Básico", page: 107 },
-    { id: "rasgo-personaje-vinculo-terrenal", name: "Vínculo terrenal", source: "Guía Avanzada del Jugador", page: 48 }
-];
 const RATED_TRAIT_NAMES = new Set(["robusto", "superviviente", "cambiaformas", "memoria racial"]);
-const MISCLASSIFIED_BLESSINGS = new Set(["robusto", "cambiaformas", "longevo"]);
 const RACIAL_RECOMMENDATIONS = {
     humano: [{ name: "Contactos", kind: "bendicion" }, { name: "Privilegiado", kind: "bendicion" }, { name: "Montés", kind: "bendicion" }],
     trocalengo: [{ name: "Longevo", kind: "rasgo_personaje" }, { name: "Cambiaformas", kind: "rasgo_nivelado" }],
@@ -86,10 +81,9 @@ function getCharacterCatalog(race, selections) {
         effect: entry.efectoResumen
     }));
     const simple = [
-        ...SYMBAROUM_BLESSINGS.filter((entry) => !MISCLASSIFIED_BLESSINGS.has(normalize(entry.nombre))).map((entry) => ({ id: entry.id, name: entry.nombre, kind: "bendicion", source: entry.fuente, page: entry.pagina, effect: entry.resumen })),
+        ...SYMBAROUM_BLESSINGS.map((entry) => ({ id: entry.id, name: entry.nombre, kind: "bendicion", source: entry.fuente, page: entry.pagina, effect: entry.resumen })),
         ...SYMBAROUM_BURDENS.map((entry) => ({ id: entry.id, name: entry.nombre, kind: "carga", source: entry.fuente, page: entry.pagina, effect: entry.resumen })),
-        ...FREE_PLAYER_TRAITS.map((entry) => ({ id: entry.id, name: entry.name, kind: "rasgo_personaje", source: entry.source, page: entry.page })),
-        { id: "bendicion-montes", name: "Montés", kind: "bendicion", source: "Libro Básico", page: 108 },
+        ...SYMBAROUM_CHARACTER_TRAITS.map((entry) => ({ id: entry.id, name: entry.nombre, kind: "rasgo_personaje", source: entry.fuente, page: entry.pagina, effect: entry.resumen })),
         { id: "rasgo-nivelado-superviviente", name: "Superviviente", kind: "rasgo_nivelado", source: "Libro Básico", page: 111 },
         { id: "rasgo-nivelado-memoria-racial", name: "Memoria racial", kind: "rasgo_nivelado", source: "Guía Avanzada del Jugador", page: 49 }
     ];
@@ -127,6 +121,7 @@ function updateLegacyCollections(sheet, selections) {
     };
 }
 export function CharacterCreationWizard({ controller, onCancel }) {
+    const confirm = useConfirmationDialog();
     const steps = [
         { id: "identity", label: "Identidad" }, { id: "attributes", label: "Atributos" }, { id: "capabilities", label: "Capacidades" }, { id: "equipment", label: "Equipo" }, { id: "background", label: "Trasfondo" }
     ];
@@ -314,8 +309,13 @@ export function CharacterCreationWizard({ controller, onCancel }) {
         }
         return true;
     }
-    function close() {
-        if (JSON.stringify(controller.form) !== initialRef.current && !window.confirm("Hay cambios sin guardar. ¿Cerrar el creador?"))
+    async function close() {
+        if (JSON.stringify(controller.form) !== initialRef.current && !await confirm({
+            title: "Descartar cambios",
+            message: "Hay cambios sin guardar. Si cierras el creador, se perderán.",
+            confirmLabel: "Cerrar sin guardar",
+            tone: "danger"
+        }))
             return;
         onCancel();
     }
@@ -383,6 +383,7 @@ function AttributeEditor({ values, labels, keys, bonuses, onChange }) {
     return _jsxs("section", { className: "actor-wizard__section", children: [_jsxs("div", { className: "row-actions", children: [_jsxs("div", { children: [_jsx("h3", { children: "Atributos base" }), _jsx("p", { className: "section-help", children: "Reparte exactamente 80 puntos. Cada valor base debe estar entre 5 y 15 y solo uno puede alcanzar 15. Atributo excepcional se aplica despu\u00E9s y puede elevar distintos atributos hasta 18." })] }), _jsxs("strong", { className: validation.valid ? "is-valid" : "error", children: [validation.total, " / 80"] })] }), _jsx("div", { className: "actor-wizard__attribute-grid", children: keys.map((key) => { const effective = bonuses?.[key] ?? values[key]; const bonus = effective - values[key]; return _jsxs("label", { className: "field", children: [_jsxs("span", { children: [labels[key], bonus > 0 ? ` · final ${effective} (+${bonus})` : ""] }), _jsx("input", { type: "number", min: 5, max: 15, value: values[key], onChange: (event) => onChange(key, Number(event.target.value)) })] }, key); }) }), !validation.valid ? _jsx("p", { className: "error", children: validation.errors.join(" ") }) : null] });
 }
 export function NpcCreationWizard({ controller, onCancel, onSaved }) {
+    const confirm = useConfirmationDialog();
     const narrative = controller.draft.depth === "notes";
     const steps = narrative ? [{ id: "identity", label: "Identidad" }, { id: "background", label: "Trasfondo" }] : [{ id: "identity", label: "Identidad" }, { id: "attributes", label: "Atributos" }, { id: "capabilities", label: "Capacidades" }, { id: "equipment", label: "Equipo" }, { id: "background", label: "Trasfondo" }];
     const [step, setStep] = useState(0);
@@ -394,8 +395,16 @@ export function NpcCreationWizard({ controller, onCancel, onSaved }) {
     const baseAttributes = sheet ? removeExceptionalAttributeBonuses(sheet.atributos, selections) : null;
     const spent = getActorSpentXp(selections);
     const challenge = getActorChallengeFromXp(spent);
-    function close() { if (JSON.stringify(draft) !== initialRef.current && !window.confirm("Hay cambios sin guardar. ¿Cerrar el creador?"))
-        return; onCancel(); }
+    async function close() {
+        if (JSON.stringify(draft) !== initialRef.current && !await confirm({
+            title: "Descartar cambios",
+            message: "Hay cambios sin guardar. Si cierras el creador, se perderán.",
+            confirmLabel: "Cerrar sin guardar",
+            tone: "danger"
+        }))
+            return;
+        onCancel();
+    }
     function validate(index) {
         setLocalError(null);
         if (index === 0 && draft.name.trim().length < 2) {
@@ -434,6 +443,7 @@ export function NpcCreationWizard({ controller, onCancel, onSaved }) {
             setStep((current) => Math.min(steps.length - 1, current + 1)); }, onCancel: close, onSave: () => void save(), children: [step === 0 ? _jsxs("section", { className: "actor-wizard__section", children: [_jsx("h3", { children: "Identidad" }), _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field", children: [_jsx("span", { children: "Tipo de PNJ" }), _jsxs("select", { value: narrative ? "notes" : "full_sheet", onChange: (event) => controller.updateDepth(event.target.value), children: [_jsx("option", { value: "notes", children: "Narrativo" }), _jsx("option", { value: "full_sheet", children: "Completo" })] })] }), ["name", "race", "archetype", "occupation", "faction"].map((field) => _jsxs("label", { className: "field", children: [_jsx("span", { children: { name: "Nombre", race: "Raza", archetype: "Arquetipo", occupation: "Ocupación", faction: "Facción" }[field] }), _jsx("input", { value: draft[field], onChange: (event) => controller.updateField(field, event.target.value) })] }, field)), !narrative && sheet ? _jsxs("label", { className: "field", children: [_jsx("span", { children: "Cultura" }), _jsx("select", { value: sheet.identidad.cultura, onChange: (event) => setCharacterSheet({ ...sheet, identidad: { ...sheet.identidad, cultura: event.target.value } }), children: SYMBAROUM_CULTURES.map((entry) => _jsx("option", { children: entry }, entry)) })] }) : null, _jsxs("label", { className: "field field-span-2", children: [_jsx("span", { children: "Etiquetas" }), _jsx("input", { value: draft.labels.join(", "), onChange: (event) => controller.updateLabels(event.target.value) })] })] })] }) : null, !narrative && step === 1 && sheet && baseAttributes ? _jsx(AttributeEditor, { values: baseAttributes, labels: ATTRIBUTE_LABELS, keys: ATTRIBUTE_KEYS, bonuses: sheet.atributos, onChange: (key, value) => setCharacterSheet({ ...sheet, atributos: applyExceptionalAttributeBonuses({ ...baseAttributes, [key]: value }, selections) }) }) : null, !narrative && step === 2 && sheet ? _jsx(SimpleGmCapabilities, { selections: selections, attributeKeys: ATTRIBUTE_KEYS, attributeLabels: ATTRIBUTE_LABELS, onChange: (next) => setCharacterSheet(updateLegacyCollections({ ...sheet, atributos: synchronizeExceptionalAttributes(sheet.atributos, selections, next) }, next)), includeMonsterTraits: true }) : null, !narrative && step === 3 && sheet ? _jsx(SimpleGmEquipment, { sheet: sheet, onChange: setCharacterSheet, fixed: true }) : null, step === steps.length - 1 ? _jsxs("section", { className: "actor-wizard__section", children: [_jsx("h3", { children: "Trasfondo" }), _jsxs("div", { className: "form-grid", children: [_jsxs("label", { className: "field field-span-2", children: [_jsx("span", { children: "Resumen" }), _jsx("textarea", { rows: 4, value: draft.summary, onChange: (event) => controller.updateField("summary", event.target.value) })] }), _jsxs("label", { className: "field field-span-2", children: [_jsx("span", { children: "Historia, personalidad, conducta y ganchos" }), _jsx("textarea", { rows: 10, value: draft.notes, onChange: (event) => controller.updateField("notes", event.target.value) })] }), !narrative && sheet ? _jsx(_Fragment, { children: ["tactics", "weakness", "loot"].map((field) => _jsxs("label", { className: "field field-span-2", children: [_jsx("span", { children: { tactics: "Tácticas", weakness: "Debilidad", loot: "Botín" }[field] }), _jsx("textarea", { rows: 4, value: sheet.gmBackground[field], onChange: (event) => setCharacterSheet({ ...sheet, gmBackground: { ...sheet.gmBackground, [field]: event.target.value } }) })] }, field)) }) : null] })] }) : null] });
 }
 export function MonsterCreationWizard({ controller, onCancel }) {
+    const confirm = useConfirmationDialog();
     const steps = [{ id: "identity", label: "Identidad" }, { id: "attributes", label: "Atributos" }, { id: "capabilities", label: "Capacidades" }, { id: "equipment", label: "Equipo" }, { id: "background", label: "Trasfondo" }];
     const [step, setStep] = useState(0);
     const [localError, setLocalError] = useState(null);
@@ -460,8 +470,16 @@ export function MonsterCreationWizard({ controller, onCancel }) {
     function validateThrough(index) { for (let current = 0; current <= index; current += 1)
         if (!validate(current))
             return false; return true; }
-    function close() { if (JSON.stringify(draft) !== initialRef.current && !window.confirm("Hay cambios sin guardar. ¿Cerrar el creador?"))
-        return; onCancel(); }
+    async function close() {
+        if (JSON.stringify(draft) !== initialRef.current && !await confirm({
+            title: "Descartar cambios",
+            message: "Hay cambios sin guardar. Si cierras el creador, se perderán.",
+            confirmLabel: "Cerrar sin guardar",
+            tone: "danger"
+        }))
+            return;
+        onCancel();
+    }
     async function save() { if (!validateThrough(steps.length - 1))
         return; if (await controller.saveDraft())
         onCancel(); }

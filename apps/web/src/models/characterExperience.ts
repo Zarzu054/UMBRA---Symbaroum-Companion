@@ -29,10 +29,12 @@ export type CharacterExperienceSummary = {
     cost: number;
   }>;
   rerollExpenses: CharacterSheet["progreso"]["gastosExperiencia"];
+  featExpenses: CharacterSheet["progreso"]["gastosExperiencia"];
   spentFromCapabilities: number;
   spentFromRituals: number;
   spentFromBlessings: number;
   spentFromRerolls: number;
+  spentFromFeats: number;
   extraFromBurdens: number;
   computedSpent: number;
   effectiveTotal: number;
@@ -127,20 +129,25 @@ export function getCharacterExperienceSummary(
     return false;
   });
   const extraFromBurdens = (sheet.capabilitySelections.filter((entry) => entry.kind === "carga").length + unmatchedLegacyBurdens.length) * 5;
-  const spentFromRerolls = sheet.progreso.gastosExperiencia
-    .filter((entry) => entry.tipo === "repeticion_tirada")
+  const rerollExpenses = sheet.progreso.gastosExperiencia.filter((entry) => entry.tipo === "repeticion_tirada");
+  const featExpenses = sheet.progreso.gastosExperiencia.filter((entry) => entry.tipo === "hazana");
+  const spentFromRerolls = rerollExpenses
     .reduce((total, entry) => total + entry.cantidad, 0);
-  const computedSpent = spentFromCapabilities + spentFromRituals + spentFromBlessings + spentFromRerolls;
+  const spentFromFeats = featExpenses
+    .reduce((total, entry) => total + entry.cantidad, 0);
+  const computedSpent = spentFromCapabilities + spentFromRituals + spentFromBlessings + spentFromRerolls + spentFromFeats;
   const effectiveTotal = sheet.progreso.experienciaTotal + (options.includeBurdenBonus ? extraFromBurdens : 0);
   const effectiveAvailable = Math.max(0, effectiveTotal - Math.max(sheet.progreso.experienciaGastada, computedSpent));
 
   return {
     capabilityExpenses: capabilityExpenses.filter((entry) => entry.cost > 0),
-    rerollExpenses: sheet.progreso.gastosExperiencia,
+    rerollExpenses,
+    featExpenses,
     spentFromCapabilities,
     spentFromRituals,
     spentFromBlessings,
     spentFromRerolls,
+    spentFromFeats,
     extraFromBurdens,
     computedSpent,
     effectiveTotal,

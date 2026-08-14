@@ -26,10 +26,9 @@ export function getComputedCharacterExperienceSpent(sheet: CharacterSheet): numb
   );
   const rituals = sheet.rituales.length * 10;
   const blessings = sheet.bendiciones.length * 5;
-  const rerolls = sheet.progreso.gastosExperiencia
-    .filter((entry) => entry.tipo === "repeticion_tirada")
+  const recordedExpenses = sheet.progreso.gastosExperiencia
     .reduce((total, entry) => total + entry.cantidad, 0);
-  return abilities + powers + rituals + blessings + rerolls;
+  return abilities + powers + rituals + blessings + recordedExpenses;
 }
 
 export function getEffectiveCharacterExperienceSpent(sheet: CharacterSheet): number {

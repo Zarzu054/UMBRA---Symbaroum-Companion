@@ -50,6 +50,28 @@ describe("component contrast contracts", () => {
     expect(stylesheet).toMatch(/\.vital-action\.subtle[\s\S]*?color: var\(--ui-brand-strong\)/);
   });
 
+  it("keeps the mobile character-sheet back button legible over illustrated backgrounds", () => {
+    expect(stylesheet).toMatch(/\.app-context-navigation \.character-sheet-back-button[\s\S]*?color: #fffaf5;[\s\S]*?background: #4d2023/);
+    expect(contrast("#fffaf5", "#4d2023")).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("makes the active character-creation step stronger than inactive steps", () => {
+    expect(stylesheet).toMatch(/\.actor-wizard__steps button\s*\{[\s\S]*?color: var\(--ui-text-muted\);[\s\S]*?background: var\(--ui-surface\)/);
+    expect(stylesheet).toMatch(/\.actor-wizard__steps button\.is-active,[\s\S]*?\.actor-wizard__steps button\.is-active:hover\s*\{[\s\S]*?color: var\(--ui-on-brand\);[\s\S]*?background: var\(--ui-brand\);[\s\S]*?font-weight: 800/);
+    for (const palette of ["ambria", "davokar", "corruption"] as const) {
+      for (const theme of ["light", "dark"] as const) {
+        const block = stylesheet.match(new RegExp(`:root\\[data-palette="${palette}"\\]\\[data-theme="${theme}"\\][^\\{]*\\{([^}]+)\\}`))?.[1] ?? "";
+        expect(contrast(token(block, "--ui-on-brand"), token(block, "--ui-brand"))).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("keeps compact PX purchases and the current level theme-aware", () => {
+    expect(stylesheet).toMatch(/\.character-builder-entry-trigger:hover,[\s\S]*?color: var\(--ui-text\);[\s\S]*?background: var\(--ui-surface-hover\);[\s\S]*?box-shadow: inset 0 0 0 2px var\(--ui-focus\)/);
+    expect(stylesheet).toMatch(/\.character-builder-entry-level,[\s\S]*?color: var\(--ui-text-muted\)/);
+    expect(stylesheet).toMatch(/\.character-builder-capability-tier\.is-current\s*\{[\s\S]*?border-color: var\(--ui-brand\);[\s\S]*?background: var\(--ui-brand-soft\)/);
+  });
+
   it("keeps inactive monster tabs readable in every theme", () => {
     expect(stylesheet).toMatch(/\.monster-catalog-tabs button\s*\{[\s\S]*?color: var\(--ui-text-muted\);[\s\S]*?background: transparent/);
     expect(stylesheet).toMatch(/\.monster-catalog-tabs button:hover\s*\{[\s\S]*?color: var\(--ui-text\);[\s\S]*?background: var\(--ui-surface-hover\)/);
@@ -102,6 +124,13 @@ describe("component contrast contracts", () => {
     expect(stylesheet).toMatch(/\.character-directory-page\.unified-sheet\s*\{[\s\S]*?gap: 16px;[\s\S]*?overflow: visible/);
     expect(stylesheet).toMatch(/\.character-directory-header-band\.module-sticky-header\s*\{[\s\S]*?top: var\(--app-top-navigation-height\);[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
     expect(stylesheet).toMatch(/\.character-directory-header-actions\s*\{[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[\s\S]*?overflow: visible/);
+  });
+
+  it("lets the character action menu escape short directory cards", () => {
+    expect(stylesheet).toMatch(/\.module-theme \.character-directory-panel\.campaign-sheet-card,[\s\S]*?\.character-record-grid\s*\{[\s\S]*?overflow: visible/);
+    expect(stylesheet).toMatch(/\.character-record-card:only-child\s*\{[\s\S]*?border-radius: var\(--ui-radius-md\)/);
+    expect(stylesheet).toMatch(/\.character-record-actions-menu\[open\]\s*\{[\s\S]*?z-index: 50/);
+    expect(stylesheet).toMatch(/\.character-record-secondary-actions\s*\{[\s\S]*?position: absolute;[\s\S]*?top: calc\(100% \+ 6px\)/);
   });
 
   it("lets the global-search dropdown escape its panel and scroll independently", () => {

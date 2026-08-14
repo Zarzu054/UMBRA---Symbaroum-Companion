@@ -1432,7 +1432,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }) {
                                     const token = await ensureAccessToken();
                                     await bindMysticArtifact(artifactId, { paymentType }, token);
                                     await refresh();
-                                }, onLeaveProfession: async (professionId) => {
+                                }, onOpenMysticArtifactSource: handleOpenArtifactSource, onLeaveProfession: async (professionId) => {
                                     const token = await ensureAccessToken();
                                     await leaveProfession(campaignSheetModalEntry.characterId, professionId, token);
                                     await refresh();

@@ -350,7 +350,9 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     fireEvent.click(cleanStrike);
     const featModal = screen.getByRole("heading", { name: "Golpe limpio" }).closest(".modal-panel") as HTMLElement;
     expect(within(featModal).getByText(/Regla opcional/)).toBeInTheDocument();
-    expect(featModal).toHaveTextContent("Activar una hazaña cuesta");
+    expect(featModal).toHaveTextContent("cualquier golpe o golpes con éxito causan el máximo daño");
+    expect(featModal).not.toHaveTextContent("Activar una hazaña cuesta");
+    expect(featModal).not.toHaveTextContent("personajes se parezcan más a los héroes tradicionales");
     fireEvent.click(within(featModal).getByRole("button", { name: "Cerrar" }));
 
     fireEvent.click(within(cleanStrikeRow).getByRole("button", { name: "Guardar en favoritas" }));
@@ -359,9 +361,51 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
 
     fireEvent.click(within(filters).getByRole("button", { name: "Maniobras de combate" }));
     expect(container.querySelectorAll(".campaign-action-button--row.is-informational")).toHaveLength(12);
+    fireEvent.click(screen.getByRole("button", { name: "Apuntar con cuidado" }));
+    const maneuverModal = screen.getByRole("heading", { name: "Apuntar con cuidado" }).closest(".modal-panel") as HTMLElement;
+    expect(maneuverModal).toHaveTextContent("Apuntar consume una acción de movimiento");
+    expect(maneuverModal).not.toHaveTextContent("mucho más complicadas las escenas de combate");
+    expect(maneuverModal).not.toHaveTextContent("A continuación hay una lista de maniobras");
+    fireEvent.click(within(maneuverModal).getByRole("button", { name: "Cerrar" }));
 
     fireEvent.click(within(filters).getByRole("button", { name: "Acciones especiales" }));
     expect(container.querySelectorAll(".campaign-action-button--row.is-informational")).toHaveLength(5);
+  });
+
+  it("confirms and records a dated XP expense with the feat as its reason", async () => {
+    const sheet = createEmptyCharacterSheet();
+    sheet.progreso.experienciaTotal = 3;
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { container } = render(
+      <UnifiedCharacterSheet title="Arold" sheet={sheet} editable onSave={onSave} />
+    );
+    const filters = screen.getByRole("navigation", { name: "Filtros de acciones" });
+
+    fireEvent.click(within(filters).getByRole("button", { name: "Hazañas" }));
+    const cleanStrikeRow = screen.getByRole("button", { name: "Golpe limpio" }).closest(".campaign-action-button--row") as HTMLElement;
+    const spendButton = within(cleanStrikeRow).getByRole("button", { name: "Gastar 1 PX en Golpe limpio" });
+    fireEvent.click(spendButton);
+
+    let confirmation = screen.getByRole("dialog", { name: "Gastar PX en una hazaña" });
+    expect(confirmation).toHaveTextContent("Golpe limpio");
+    expect(confirmation).toHaveTextContent("fecha y motivo");
+    fireEvent.click(within(confirmation).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog", { name: "Gastar PX en una hazaña" })).not.toBeInTheDocument();
+
+    fireEvent.click(spendButton);
+    confirmation = screen.getByRole("dialog", { name: "Gastar PX en una hazaña" });
+    fireEvent.click(within(confirmation).getByRole("button", { name: "Gastar 1 PX" }));
+
+    const xpCard = container.querySelector(".unified-sheet-xp-card") as HTMLElement;
+    expect(xpCard).toHaveTextContent("PX disponible2");
+    await waitFor(() => expect(onSave).toHaveBeenCalled(), { timeout: 2500 });
+    const savedExpense = onSave.mock.calls.at(-1)?.[0].progreso.gastosExperiencia[0];
+    expect(savedExpense).toEqual(expect.objectContaining({
+      tipo: "hazana",
+      cantidad: 1,
+      motivo: "Golpe limpio"
+    }));
+    expect(Number.isNaN(Date.parse(savedExpense.fecha))).toBe(false);
   });
 
   it("opens quick combat guide actions as informational details without creating roll controls", () => {

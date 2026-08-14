@@ -34,9 +34,10 @@ import type { useCharacterController } from "../controllers/characterController"
 import type { useMonsterController } from "../controllers/monsterController";
 import type { useNpcController } from "../controllers/npcController";
 import { getCharacterExperienceSummary } from "../models/characterExperience";
-import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS } from "../models/compendiumEntries";
+import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS, SYMBAROUM_CHARACTER_TRAITS } from "../models/compendiumEntries";
 import { ITEM_CATALOG, type ItemTemplate } from "../models/itemCatalog";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { useConfirmationDialog } from "./ConfirmationDialogProvider";
 
 type WizardStep = { id: string; label: string };
 
@@ -73,6 +74,7 @@ function WizardShell(props: WizardShellProps) {
             key={item.id}
             type="button"
             className={index === props.step ? "is-active" : index < props.step ? "is-complete" : ""}
+            aria-current={index === props.step ? "step" : undefined}
             onClick={() => props.onStep(index)}
           >
             <span>{index + 1}</span>{item.label}
@@ -128,14 +130,7 @@ function makeInventoryItem(template: ItemTemplate, origin: "inicial" | "concedid
   };
 }
 
-const FREE_PLAYER_TRAITS = [
-  { id: "rasgo-personaje-longevo", name: "Longevo", source: "Libro Básico", page: 107 },
-  { id: "rasgo-personaje-poco-longevo", name: "Poco longevo", source: "Libro Básico", page: 107 },
-  { id: "rasgo-personaje-vinculo-terrenal", name: "Vínculo terrenal", source: "Guía Avanzada del Jugador", page: 48 }
-] as const;
-
 const RATED_TRAIT_NAMES = new Set(["robusto", "superviviente", "cambiaformas", "memoria racial"]);
-const MISCLASSIFIED_BLESSINGS = new Set(["robusto", "cambiaformas", "longevo"]);
 
 const RACIAL_RECOMMENDATIONS: Record<string, Array<{ name: string; kind: ActorCapabilityKind }>> = {
   humano: [{ name: "Contactos", kind: "bendicion" }, { name: "Privilegiado", kind: "bendicion" }, { name: "Montés", kind: "bendicion" }],
@@ -177,10 +172,9 @@ function getCharacterCatalog(race: string, selections: ActorCapabilitySelection[
     effect: entry.efectoResumen
   }));
   const simple: CatalogChoice[] = [
-    ...SYMBAROUM_BLESSINGS.filter((entry) => !MISCLASSIFIED_BLESSINGS.has(normalize(entry.nombre))).map((entry) => ({ id: entry.id, name: entry.nombre, kind: "bendicion" as const, source: entry.fuente, page: entry.pagina, effect: entry.resumen })),
+    ...SYMBAROUM_BLESSINGS.map((entry) => ({ id: entry.id, name: entry.nombre, kind: "bendicion" as const, source: entry.fuente, page: entry.pagina, effect: entry.resumen })),
     ...SYMBAROUM_BURDENS.map((entry) => ({ id: entry.id, name: entry.nombre, kind: "carga" as const, source: entry.fuente, page: entry.pagina, effect: entry.resumen })),
-    ...FREE_PLAYER_TRAITS.map((entry) => ({ id: entry.id, name: entry.name, kind: "rasgo_personaje" as const, source: entry.source, page: entry.page })),
-    { id: "bendicion-montes", name: "Montés", kind: "bendicion", source: "Libro Básico", page: 108 },
+    ...SYMBAROUM_CHARACTER_TRAITS.map((entry) => ({ id: entry.id, name: entry.nombre, kind: "rasgo_personaje" as const, source: entry.fuente, page: entry.pagina, effect: entry.resumen })),
     { id: "rasgo-nivelado-superviviente", name: "Superviviente", kind: "rasgo_nivelado", source: "Libro Básico", page: 111 },
     { id: "rasgo-nivelado-memoria-racial", name: "Memoria racial", kind: "rasgo_nivelado", source: "Guía Avanzada del Jugador", page: 49 }
   ];
@@ -222,6 +216,7 @@ function updateLegacyCollections(sheet: CharacterSheet, selections: ActorCapabil
 type CharacterController = ReturnType<typeof useCharacterController>;
 
 export function CharacterCreationWizard({ controller, onCancel }: { controller: CharacterController; onCancel: () => void }) {
+  const confirm = useConfirmationDialog();
   const steps: WizardStep[] = [
     { id: "identity", label: "Identidad" }, { id: "attributes", label: "Atributos" }, { id: "capabilities", label: "Capacidades" }, { id: "equipment", label: "Equipo" }, { id: "background", label: "Trasfondo" }
   ];
@@ -387,8 +382,13 @@ export function CharacterCreationWizard({ controller, onCancel }: { controller: 
     return true;
   }
 
-  function close() {
-    if (JSON.stringify(controller.form) !== initialRef.current && !window.confirm("Hay cambios sin guardar. ¿Cerrar el creador?")) return;
+  async function close() {
+    if (JSON.stringify(controller.form) !== initialRef.current && !await confirm({
+      title: "Descartar cambios",
+      message: "Hay cambios sin guardar. Si cierras el creador, se perderán.",
+      confirmLabel: "Cerrar sin guardar",
+      tone: "danger"
+    })) return;
     onCancel();
   }
 
@@ -494,6 +494,7 @@ function AttributeEditor<K extends string>({ values, labels, keys, bonuses, onCh
 type NpcController = ReturnType<typeof useNpcController>;
 
 export function NpcCreationWizard({ controller, onCancel, onSaved }: { controller: NpcController; onCancel: () => void; onSaved: (npc: Npc) => void }) {
+  const confirm = useConfirmationDialog();
   const narrative = controller.draft.depth === "notes";
   const steps = narrative ? [{ id: "identity", label: "Identidad" }, { id: "background", label: "Trasfondo" }] : [{ id: "identity", label: "Identidad" }, { id: "attributes", label: "Atributos" }, { id: "capabilities", label: "Capacidades" }, { id: "equipment", label: "Equipo" }, { id: "background", label: "Trasfondo" }];
   const [step, setStep] = useState(0);
@@ -506,7 +507,15 @@ export function NpcCreationWizard({ controller, onCancel, onSaved }: { controlle
   const spent = getActorSpentXp(selections);
   const challenge = getActorChallengeFromXp(spent);
 
-  function close() { if (JSON.stringify(draft) !== initialRef.current && !window.confirm("Hay cambios sin guardar. ¿Cerrar el creador?")) return; onCancel(); }
+  async function close() {
+    if (JSON.stringify(draft) !== initialRef.current && !await confirm({
+      title: "Descartar cambios",
+      message: "Hay cambios sin guardar. Si cierras el creador, se perderán.",
+      confirmLabel: "Cerrar sin guardar",
+      tone: "danger"
+    })) return;
+    onCancel();
+  }
   function validate(index: number): boolean {
     setLocalError(null);
     if (index === 0 && draft.name.trim().length < 2) { setLocalError("El PNJ necesita un nombre."); return false; }
@@ -534,13 +543,22 @@ export function NpcCreationWizard({ controller, onCancel, onSaved }: { controlle
 type MonsterController = ReturnType<typeof useMonsterController>;
 
 export function MonsterCreationWizard({ controller, onCancel }: { controller: MonsterController; onCancel: () => void }) {
+  const confirm = useConfirmationDialog();
   const steps = [{ id: "identity", label: "Identidad" }, { id: "attributes", label: "Atributos" }, { id: "capabilities", label: "Capacidades" }, { id: "equipment", label: "Equipo" }, { id: "background", label: "Trasfondo" }];
   const [step, setStep] = useState(0); const [localError, setLocalError] = useState<string | null>(null); const initialRef = useRef(JSON.stringify(controller.draft));
   const draft = controller.draft; const sheet = draft.sheet;
   const baseAttributes = removeExceptionalAttributeBonuses(sheet.attributes, sheet.capabilities);
   function validate(index: number) { setLocalError(null); if (index === 0 && draft.name.trim().length < 2) { setLocalError("El monstruo necesita un nombre."); return false; } if (index === 1) { const result = validateCreationAttributes(baseAttributes); if (!result.valid) { setLocalError(result.errors.join(" ")); return false; } } if (index === 2) { const errors = validateExceptionalAttributeSelections(sheet.capabilities, MONSTER_ATTRIBUTE_KEYS); if (errors.length > 0) { setLocalError(errors.join(" ")); return false; } } return true; }
   function validateThrough(index: number) { for (let current = 0; current <= index; current += 1) if (!validate(current)) return false; return true; }
-  function close() { if (JSON.stringify(draft) !== initialRef.current && !window.confirm("Hay cambios sin guardar. ¿Cerrar el creador?")) return; onCancel(); }
+  async function close() {
+    if (JSON.stringify(draft) !== initialRef.current && !await confirm({
+      title: "Descartar cambios",
+      message: "Hay cambios sin guardar. Si cierras el creador, se perderán.",
+      confirmLabel: "Cerrar sin guardar",
+      tone: "danger"
+    })) return;
+    onCancel();
+  }
   async function save() { if (!validateThrough(steps.length - 1)) return; if (await controller.saveDraft()) onCancel(); }
   return <WizardShell title={controller.selectedCustomId ? "Editar monstruo" : "Crear monstruo"} steps={steps} step={step} summary={<><span>PX usada <strong>{controller.draftSpentXp}</strong></span><span>Desafío <strong>{controller.draftChallenge}</strong></span><span>Daño medio <strong>{averageDiceFormula(sheet.damage) ?? "-"}</strong></span><span>Armadura media <strong>{averageDiceFormula(sheet.armor) ?? "-"}</strong></span></>} error={localError ?? controller.formError} busy={controller.isSaving} onStep={(index) => { if (index <= step || validateThrough(index - 1)) setStep(index); }} onPrevious={() => setStep((current) => Math.max(0, current - 1))} onNext={() => { if (validate(step)) setStep((current) => Math.min(steps.length - 1, current + 1)); }} onCancel={close} onSave={() => void save()}>
     {step === 0 ? <section className="actor-wizard__section"><h3>Identidad</h3><div className="form-grid"><label className="field"><span>Nombre</span><input value={draft.name} onChange={(event) => controller.updateField("name", event.target.value)} /></label><label className="field"><span>Categoría</span><select value={draft.category} onChange={(event) => controller.updateField("category", event.target.value)}>{["Abominación", "Bestia", "Fenómeno", "Flora", "Muerto viviente", "Ser civilizado"].map((entry) => <option key={entry}>{entry}</option>)}</select></label><label className="field"><span>Fuente</span><input value={draft.source} onChange={(event) => controller.updateField("source", event.target.value)} /></label><label className="field"><span>Desafío calculado</span><input readOnly value={controller.draftChallenge} /></label></div></section> : null}
