@@ -3408,8 +3408,62 @@ td {
 .monster-catalog-list-pane {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--ui-border, rgba(117, 76, 57, 0.28));
   background: var(--ui-surface, rgba(255, 252, 247, 0.92));
+}
+
+.monster-catalog-splitter {
+  position: relative;
+  z-index: 4;
+  width: 10px;
+  min-width: 10px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  background: color-mix(in srgb, var(--ui-border, rgba(117, 76, 57, 0.28)) 58%, transparent);
+  transition: background .14s ease, box-shadow .14s ease;
+}
+
+.monster-catalog-splitter::before {
+  content: "";
+  position: absolute;
+  inset: 0 3px;
+  background: var(--ui-border, rgba(117, 76, 57, 0.42));
+  transition: inset .14s ease, background .14s ease;
+}
+
+.monster-catalog-splitter > span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 46px;
+  transform: translate(-50%, -50%);
+  border: 1px solid color-mix(in srgb, var(--ui-brand, #8e353b) 45%, var(--ui-border));
+  border-radius: 999px;
+  background: var(--ui-surface, #fffaf5);
+  box-shadow: 0 2px 8px rgba(31, 24, 19, .16);
+}
+
+.monster-catalog-splitter:hover,
+.monster-catalog-splitter:focus-visible,
+.monster-catalog-workspace.is-resizing .monster-catalog-splitter {
+  outline: 0;
+  background: color-mix(in srgb, var(--ui-brand, #8e353b) 26%, var(--ui-surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-brand, #8e353b) 18%, transparent);
+}
+
+.monster-catalog-splitter:hover::before,
+.monster-catalog-splitter:focus-visible::before,
+.monster-catalog-workspace.is-resizing .monster-catalog-splitter::before {
+  inset-inline: 2px;
+  background: var(--ui-brand, #8e353b);
+}
+
+body.is-resizing-monster-catalog,
+body.is-resizing-monster-catalog * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 .monster-catalog-list-header {
@@ -4317,6 +4371,10 @@ td {
   .monster-catalog-list-pane {
     min-height: 620px;
     border-right: 0;
+  }
+
+  .monster-catalog-splitter {
+    display: none;
   }
 
   .monster-catalog-results {
