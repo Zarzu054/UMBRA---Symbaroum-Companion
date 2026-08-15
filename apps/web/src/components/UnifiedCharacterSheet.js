@@ -898,7 +898,7 @@ function shouldKeepCapabilityNote(note, tiers, reference) {
     }
     return !combinedTierText.includes(normalizedNote);
 }
-export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy = false, onSave, onBack, onOpenBuilder, onUseArtifactAbility, collapsibleHistory = false, onOpenCompendiumCapability, professionMemberships = [], enforceProfessionRestrictions = false }) {
+export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy = false, onSave, onBack, onOpenBuilder, onUseArtifactAbility, collapsibleHistory = false, onOpenCompendiumCapability, professionMemberships = [], enforceProfessionRestrictions = false, campaignItems = [], canManageCampaignItems = false, campaignCharacterLinkId, onCreateCampaignItem, onUpdateCampaignItem }) {
     const { draft, isSavingLocal, setDraft, updateField, save } = useUnifiedCharacterSheet({
         sheet,
         editable,
@@ -907,6 +907,29 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
     const isReadOnly = !editable;
     const canEditNotes = editable;
     const canEditInventory = editable;
+    const activeCampaignItems = useMemo(() => campaignItems.filter((item) => !item.archivedAt), [campaignItems]);
+    const campaignItemsById = useMemo(() => new Map(campaignItems.map((item) => [item.id, item])), [campaignItems]);
+    const campaignCatalogTemplates = useMemo(() => activeCampaignItems.map((item) => ({
+        templateId: `campaign:${item.id}`,
+        name: item.definition.name,
+        category: item.definition.category,
+        stackable: item.isUnique ? false : item.definition.stackable,
+        isCustom: true,
+        description: item.definition.description,
+        weight: item.definition.weight,
+        value: item.definition.value,
+        slot: item.definition.defaultSlot,
+        attackAttribute: item.definition.attackAttribute,
+        damageFormula: item.definition.damageFormula,
+        protectionFormula: item.definition.protectionFormula,
+        qualities: item.definition.qualities,
+        notes: item.definition.notes,
+        grantedActions: item.definition.grantedActions,
+        modifiers: item.definition.modifiers,
+        defaultQuantity: item.isUnique ? 1 : item.definition.defaultQuantity,
+        campaignItemId: item.id
+    })), [activeCampaignItems]);
+    const availableItemCatalog = useMemo(() => [...ITEM_CATALOG, ...campaignCatalogTemplates], [campaignCatalogTemplates]);
     const [selectedCatalogItemId, setSelectedCatalogItemId] = useState(ITEM_CATALOG[0]?.templateId ?? "");
     const [inventoryCatalogModalTab, setInventoryCatalogModalTab] = useState(null);
     const [selectedWeaponCatalogFilter, setSelectedWeaponCatalogFilter] = useState("all");
@@ -932,6 +955,7 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
     const [weaponEditorModal, setWeaponEditorModal] = useState(null);
     const [armorEditorModal, setArmorEditorModal] = useState(null);
     const [itemEditorModal, setItemEditorModal] = useState(null);
+    const [inventoryMutationError, setInventoryMutationError] = useState(null);
     const [activeWeaponQualityInfoId, setActiveWeaponQualityInfoId] = useState("");
     const isSheetModalOpen = Boolean(inventoryCatalogModalTab
         || pendingRollConfirmation
@@ -1090,16 +1114,16 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
     }), [normalizedSheet.inventoryItems]);
     const modalCatalogItems = useMemo(() => {
         if (inventoryCatalogModalTab === "weapons") {
-            return ITEM_CATALOG.filter((item) => item.category === "weapon");
+            return availableItemCatalog.filter((item) => item.category === "weapon");
         }
         if (inventoryCatalogModalTab === "armors") {
-            return ITEM_CATALOG.filter((item) => item.category === "armor");
+            return availableItemCatalog.filter((item) => item.category === "armor");
         }
         if (inventoryCatalogModalTab === "items") {
-            return ITEM_CATALOG.filter((item) => item.category !== "weapon" && item.category !== "armor");
+            return availableItemCatalog.filter((item) => item.category !== "weapon" && item.category !== "armor");
         }
         return [];
-    }, [inventoryCatalogModalTab]);
+    }, [availableItemCatalog, inventoryCatalogModalTab]);
     const filteredModalCatalogItems = useMemo(() => inventoryCatalogModalTab === "weapons"
         ? modalCatalogItems.filter((item) => {
             if (!matchesWeaponCatalogFilter(item, selectedWeaponCatalogFilter))
@@ -1276,7 +1300,7 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
             sourceLabel: item.isCustom ? "Arma personalizada" : item.category === "weapon" ? "Arma del catalogo" : item.category === "armor" ? "Armadura" : "Objeto",
             detail: item.description.trim() || "Sin descripcion adicional.",
             notes,
-            removeInventoryIndex: canEditInventory && !item.managedArtifactId ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined
+            removeInventoryIndex: canEditInventory && !item.managedArtifactId && !(item.campaignItemId && campaignItemsById.get(item.campaignItemId)?.isUnique) ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined
         });
     }
     function openInventoryWeaponDetail(item) {
@@ -1324,8 +1348,8 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
             sourceLabel: item.isCustom ? "Arma personalizada" : "Arma del catalogo",
             detail: item.description.trim() || "Sin descripcion adicional.",
             notes,
-            removeInventoryIndex: canEditInventory && !item.managedArtifactId ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
-            editInventoryIndex: canEditInventory && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+            removeInventoryIndex: canEditInventory && !item.managedArtifactId && !(item.campaignItemId && campaignItemsById.get(item.campaignItemId)?.isUnique) ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+            editInventoryIndex: canManageCampaignItems && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
             inventoryMeta: {
                 kind: "weapon",
                 damage: item.damageFormula || undefined,
@@ -1377,8 +1401,8 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
             sourceLabel: item.isCustom ? "Armadura personalizada" : "Armadura del catalogo",
             detail: item.description.trim() || "Sin descripcion adicional.",
             notes,
-            removeInventoryIndex: canEditInventory && !item.managedArtifactId ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
-            editInventoryIndex: canEditInventory && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+            removeInventoryIndex: canEditInventory && !item.managedArtifactId && !(item.campaignItemId && campaignItemsById.get(item.campaignItemId)?.isUnique) ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+            editInventoryIndex: canManageCampaignItems && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
             inventoryMeta: {
                 kind: "armor",
                 protection: item.protectionFormula || undefined,
@@ -1429,8 +1453,8 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
             sourceLabel: item.isCustom ? "Objeto personalizado" : "Objeto del catalogo",
             detail: item.description.trim() || "Sin descripcion adicional.",
             notes,
-            removeInventoryIndex: canEditInventory && !item.managedArtifactId ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
-            editInventoryIndex: canEditInventory && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+            removeInventoryIndex: canEditInventory && !item.managedArtifactId && !(item.campaignItemId && campaignItemsById.get(item.campaignItemId)?.isUnique) ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+            editInventoryIndex: canManageCampaignItems && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
             inventoryMeta: {
                 kind: "item",
                 damage: `x${item.quantity}`,
@@ -1942,6 +1966,7 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
         });
     }
     function addCustomWeapon() {
+        setInventoryMutationError(null);
         setWeaponEditorModal({
             mode: "create",
             item: createCustomInventoryItem("weapon")
@@ -1949,6 +1974,7 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
         setActiveInventoryTab("weapons");
     }
     function addCustomArmor() {
+        setInventoryMutationError(null);
         setArmorEditorModal({
             mode: "create",
             item: createCustomInventoryItem("armor")
@@ -1956,6 +1982,7 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
         setActiveInventoryTab("armors");
     }
     function addCustomItemModal() {
+        setInventoryMutationError(null);
         setItemEditorModal({
             mode: "create",
             item: createCustomInventoryItem()
@@ -2000,7 +2027,55 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
             };
         });
     }
-    function saveWeaponEditorModal() {
+    function campaignDefinitionFromItem(item) {
+        return {
+            name: item.name.trim(),
+            category: item.category,
+            stackable: item.stackable,
+            description: item.description.trim(),
+            weight: item.weight.trim(),
+            value: item.value.trim(),
+            defaultQuantity: Math.max(1, item.quantity),
+            defaultSlot: item.slot,
+            attackAttribute: item.attackAttribute,
+            damageFormula: item.damageFormula.trim(),
+            protectionFormula: item.protectionFormula.trim(),
+            qualities: formatWeaponQualities(parseWeaponQualities(item.qualities)),
+            notes: item.notes.trim(),
+            grantedActions: item.grantedActions,
+            modifiers: item.modifiers
+        };
+    }
+    async function persistCampaignEditorItem(item, isUnique) {
+        try {
+            setInventoryMutationError(null);
+            if (item.campaignItemId && onUpdateCampaignItem) {
+                const existing = campaignItemsById.get(item.campaignItemId);
+                await onUpdateCampaignItem(item.campaignItemId, {
+                    definition: campaignDefinitionFromItem(item),
+                    isUnique,
+                    ownerType: existing?.ownerType ?? undefined,
+                    ownerId: existing?.ownerId ?? undefined
+                });
+                return true;
+            }
+            if (onCreateCampaignItem) {
+                await onCreateCampaignItem({
+                    definition: campaignDefinitionFromItem(item),
+                    isUnique,
+                    assignToType: campaignCharacterLinkId ? "character" : undefined,
+                    assignToId: campaignCharacterLinkId
+                });
+                return true;
+            }
+            return false;
+        }
+        catch (error) {
+            setInventoryMutationError(error instanceof Error ? error.message : "No se pudo guardar el objeto de campaña.");
+            return false;
+        }
+    }
+    async function saveWeaponEditorModal() {
         if (!weaponEditorModal)
             return;
         const nextItem = {
@@ -2012,6 +2087,11 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
             notes: weaponEditorModal.item.notes.trim(),
             qualities: formatWeaponQualities(parseWeaponQualities(weaponEditorModal.item.qualities))
         };
+        if (canManageCampaignItems) {
+            if (await persistCampaignEditorItem(nextItem, Boolean(weaponEditorModal.isUnique)))
+                setWeaponEditorModal(null);
+            return;
+        }
         setDraft({
             ...draft,
             inventoryItems: typeof weaponEditorModal.index === "number"
@@ -2058,7 +2138,7 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
             };
         });
     }
-    function saveArmorEditorModal() {
+    async function saveArmorEditorModal() {
         if (!armorEditorModal)
             return;
         const nextItem = {
@@ -2071,6 +2151,11 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
             qualities: formatWeaponQualities(parseWeaponQualities(armorEditorModal.item.qualities)),
             slot: armorEditorModal.item.slot === "none" ? "armor" : armorEditorModal.item.slot
         };
+        if (canManageCampaignItems) {
+            if (await persistCampaignEditorItem(nextItem, Boolean(armorEditorModal.isUnique)))
+                setArmorEditorModal(null);
+            return;
+        }
         setDraft({
             ...draft,
             inventoryItems: typeof armorEditorModal.index === "number"
@@ -2117,7 +2202,7 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
             };
         });
     }
-    function saveItemEditorModal() {
+    async function saveItemEditorModal() {
         if (!itemEditorModal)
             return;
         const nextItem = {
@@ -2128,6 +2213,11 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
             notes: itemEditorModal.item.notes.trim(),
             qualities: formatWeaponQualities(parseWeaponQualities(itemEditorModal.item.qualities))
         };
+        if (canManageCampaignItems) {
+            if (await persistCampaignEditorItem(nextItem, Boolean(itemEditorModal.isUnique)))
+                setItemEditorModal(null);
+            return;
+        }
         setDraft({
             ...draft,
             inventoryItems: typeof itemEditorModal.index === "number"
@@ -2152,8 +2242,10 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
         });
     }
     function addCatalogInventoryItem() {
-        const template = ITEM_CATALOG.find((entry) => entry.templateId === selectedCatalogItemId);
+        const template = availableItemCatalog.find((entry) => entry.templateId === selectedCatalogItemId);
         if (!template)
+            return;
+        if (template.campaignItemId && campaignItemsById.get(template.campaignItemId)?.isUnique)
             return;
         setDraft({
             ...draft,
@@ -2161,7 +2253,7 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
         });
     }
     function openInventoryCatalogModal(tab) {
-        const filteredItems = ITEM_CATALOG.filter((item) => {
+        const filteredItems = availableItemCatalog.filter((item) => {
             if (tab === "weapons")
                 return item.category === "weapon";
             if (tab === "armors")
@@ -2472,11 +2564,11 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
                                             ["taleros", "Taleros"],
                                             ["chelines", "Chelines"],
                                             ["ortegs", "Ortegs"]
-                                        ].map(([key, label]) => (_jsxs("article", { className: "campaign-structured-card unified-sheet-money-card", children: [_jsx("strong", { children: label }), _jsxs("div", { className: "unified-sheet-money-control-row", children: [canEditInventory ? (_jsx("button", { type: "button", className: "subtle-button unified-sheet-money-button", "aria-label": `Restar ${label}`, onClick: () => changeMoneyCounter(key, -1), children: "\u2212" })) : null, _jsx("div", { className: `unified-sheet-money-coin is-${key}`, "aria-hidden": "true", children: _jsx("span", { children: key === "taleros" ? "T" : key === "chelines" ? "C" : "O" }) }), canEditInventory ? (_jsx("button", { type: "button", className: "subtle-button unified-sheet-money-button", "aria-label": `Sumar ${label}`, onClick: () => changeMoneyCounter(key, 1), children: "+" })) : null] }), _jsxs("span", { className: "unified-sheet-money-amount", children: ["x", moneyCounters[key]] })] }, key))) })) : null, activeInventoryTab === "weapons" ? (_jsxs(_Fragment, { children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Armas" }), canEditInventory ? (_jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: addCustomWeapon, children: "Arma personalizada" }), _jsx("button", { type: "button", onClick: () => openInventoryCatalogModal("weapons"), children: "Agregar arma" })] })) : null] }), _jsx("div", { className: "unified-sheet-list", children: inventorySections.weapons.length > 0
+                                        ].map(([key, label]) => (_jsxs("article", { className: "campaign-structured-card unified-sheet-money-card", children: [_jsx("strong", { children: label }), _jsxs("div", { className: "unified-sheet-money-control-row", children: [canEditInventory ? (_jsx("button", { type: "button", className: "subtle-button unified-sheet-money-button", "aria-label": `Restar ${label}`, onClick: () => changeMoneyCounter(key, -1), children: "\u2212" })) : null, _jsx("div", { className: `unified-sheet-money-coin is-${key}`, "aria-hidden": "true", children: _jsx("span", { children: key === "taleros" ? "T" : key === "chelines" ? "C" : "O" }) }), canEditInventory ? (_jsx("button", { type: "button", className: "subtle-button unified-sheet-money-button", "aria-label": `Sumar ${label}`, onClick: () => changeMoneyCounter(key, 1), children: "+" })) : null] }), _jsxs("span", { className: "unified-sheet-money-amount", children: ["x", moneyCounters[key]] })] }, key))) })) : null, activeInventoryTab === "weapons" ? (_jsxs(_Fragment, { children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Armas" }), canEditInventory ? (_jsxs("div", { className: "toolbar", children: [canManageCampaignItems ? _jsx("button", { type: "button", className: "subtle-button", onClick: addCustomWeapon, children: "Arma personalizada" }) : null, _jsx("button", { type: "button", onClick: () => openInventoryCatalogModal("weapons"), children: "Agregar arma" })] })) : null] }), _jsx("div", { className: "unified-sheet-list", children: inventorySections.weapons.length > 0
                                                     ? inventorySections.weapons.map(({ item, index }) => renderInventoryItemEditor(item, index))
-                                                    : _jsx("p", { className: "section-help", children: "Sin armas registradas." }) })] })) : null, activeInventoryTab === "armors" ? (_jsxs(_Fragment, { children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Armaduras" }), canEditInventory ? (_jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: addCustomArmor, children: "Armadura personalizada" }), _jsx("button", { type: "button", onClick: () => openInventoryCatalogModal("armors"), children: "Agregar armadura" })] })) : null] }), _jsx("div", { className: "unified-sheet-list", children: inventorySections.armors.length > 0
+                                                    : _jsx("p", { className: "section-help", children: "Sin armas registradas." }) })] })) : null, activeInventoryTab === "armors" ? (_jsxs(_Fragment, { children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Armaduras" }), canEditInventory ? (_jsxs("div", { className: "toolbar", children: [canManageCampaignItems ? _jsx("button", { type: "button", className: "subtle-button", onClick: addCustomArmor, children: "Armadura personalizada" }) : null, _jsx("button", { type: "button", onClick: () => openInventoryCatalogModal("armors"), children: "Agregar armadura" })] })) : null] }), _jsx("div", { className: "unified-sheet-list", children: inventorySections.armors.length > 0
                                                     ? inventorySections.armors.map(({ item, index }) => renderInventoryItemEditor(item, index))
-                                                    : _jsx("p", { className: "section-help", children: "Sin armaduras registradas." }) })] })) : null, activeInventoryTab === "items" ? (_jsxs(_Fragment, { children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Objetos" }), canEditInventory ? (_jsxs("div", { className: "toolbar", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: addCustomItemModal, children: "Objeto personalizado" }), _jsx("button", { type: "button", onClick: () => openInventoryCatalogModal("items"), children: "Agregar objeto" })] })) : null] }), _jsx("div", { className: "unified-sheet-list", children: inventorySections.items.length > 0
+                                                    : _jsx("p", { className: "section-help", children: "Sin armaduras registradas." }) })] })) : null, activeInventoryTab === "items" ? (_jsxs(_Fragment, { children: [_jsxs("div", { className: "row-actions", children: [_jsx("h3", { children: "Objetos" }), canEditInventory ? (_jsxs("div", { className: "toolbar", children: [canManageCampaignItems ? _jsx("button", { type: "button", className: "subtle-button", onClick: addCustomItemModal, children: "Objeto personalizado" }) : null, _jsx("button", { type: "button", onClick: () => openInventoryCatalogModal("items"), children: "Agregar objeto" })] })) : null] }), _jsx("div", { className: "unified-sheet-list", children: inventorySections.items.length > 0
                                                     ? inventorySections.items.map(({ item, index }) => renderInventoryItemEditor(item, index))
                                                     : _jsx("p", { className: "section-help", children: "Sin otros objetos registrados." }) })] })) : null, activeInventoryTab === "artifacts" ? (_jsxs(_Fragment, { children: [_jsx("div", { className: "row-actions", children: _jsx("h3", { children: "Artefactos misticos" }) }), _jsx("div", { className: "unified-sheet-list", children: inventorySections.artifacts.length > 0
                                                     ? inventorySections.artifacts.map(({ item, index }) => renderInventoryItemEditor(item, index))
@@ -2546,37 +2638,40 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
                                             setWeaponEditorModal({
                                                 mode: "edit",
                                                 item: { ...item },
-                                                index: actionDetailModal.editInventoryIndex
+                                                index: actionDetailModal.editInventoryIndex,
+                                                isUnique: item.campaignItemId ? campaignItemsById.get(item.campaignItemId)?.isUnique : false
                                             });
                                         }
                                         else if (item.category === "armor") {
                                             setArmorEditorModal({
                                                 mode: "edit",
                                                 item: { ...item },
-                                                index: actionDetailModal.editInventoryIndex
+                                                index: actionDetailModal.editInventoryIndex,
+                                                isUnique: item.campaignItemId ? campaignItemsById.get(item.campaignItemId)?.isUnique : false
                                             });
                                         }
                                         else {
                                             setItemEditorModal({
                                                 mode: "edit",
                                                 item: { ...item },
-                                                index: actionDetailModal.editInventoryIndex
+                                                index: actionDetailModal.editInventoryIndex,
+                                                isUnique: item.campaignItemId ? campaignItemsById.get(item.campaignItemId)?.isUnique : false
                                             });
                                         }
                                         setActionDetailModal(null);
                                     }, children: "Editar" })) : null, typeof actionDetailModal.removeInventoryIndex === "number" ? (_jsx("button", { type: "button", className: "destructive-button", onClick: () => {
                                         removeInventoryItem(actionDetailModal.removeInventoryIndex);
                                         setActionDetailModal(null);
-                                    }, children: "Quitar" })) : null, _jsx("button", { type: "button", className: "subtle-button", onClick: () => setActionDetailModal(null), children: "Cerrar" })] })] }) })) : null, weaponEditorModal ? (_jsx("div", { className: "modal-backdrop", onClick: () => setWeaponEditorModal(null), children: _jsxs("div", { className: "panel modal-panel character-roll-confirm-modal unified-sheet-weapon-editor-modal", onClick: (event) => event.stopPropagation(), children: [_jsx("h3", { children: weaponEditorModal.mode === "create" ? "Arma personalizada" : "Editar arma personalizada" }), _jsx("p", { className: "section-help", children: "Configura el arma y guardala para que aparezca en el inventario como cualquier otra arma." }), _jsxs("div", { className: "unified-sheet-action-detail-body", children: [_jsxs("div", { className: "form-grid", children: [_jsx(Field, { label: "Nombre", children: _jsx("input", { value: weaponEditorModal.item.name, onChange: (event) => updateWeaponEditorItem("name", event.target.value) }) }), _jsx(Field, { label: "Da\u00F1o", children: _jsx("input", { value: weaponEditorModal.item.damageFormula, onChange: (event) => updateWeaponEditorItem("damageFormula", event.target.value) }) }), _jsx(Field, { label: "Ranura", children: _jsxs("select", { value: weaponEditorModal.item.slot, onChange: (event) => updateWeaponEditorItem("slot", event.target.value), children: [_jsx("option", { value: "none", children: "Ninguna" }), _jsx("option", { value: "mainHand", children: "Mano principal" }), _jsx("option", { value: "offHand", children: "Mano secundaria" }), _jsx("option", { value: "ranged", children: "A distancia" })] }) }), _jsx(Field, { label: "Cantidad", children: _jsx("input", { type: "number", min: 0, value: weaponEditorModal.item.quantity, onChange: (event) => updateWeaponEditorItem("quantity", Number(event.target.value || 0)) }) }), _jsx(Field, { label: "Apilable", children: _jsxs("select", { value: weaponEditorModal.item.stackable ? "si" : "no", onChange: (event) => updateWeaponEditorItem("stackable", event.target.value === "si"), children: [_jsx("option", { value: "no", children: "No" }), _jsx("option", { value: "si", children: "Si" })] }) }), _jsx(Field, { label: "Valor", children: _jsx("input", { value: weaponEditorModal.item.value, onChange: (event) => updateWeaponEditorItem("value", event.target.value) }) })] }), _jsxs("div", { className: "field", children: [_jsx("span", { children: "Cualidades" }), _jsx("div", { className: "unified-sheet-quality-picker", children: WEAPON_QUALITY_OPTIONS.map((quality) => {
+                                    }, children: "Quitar" })) : null, _jsx("button", { type: "button", className: "subtle-button", onClick: () => setActionDetailModal(null), children: "Cerrar" })] })] }) })) : null, weaponEditorModal ? (_jsx("div", { className: "modal-backdrop", onClick: () => setWeaponEditorModal(null), children: _jsxs("div", { className: "panel modal-panel character-roll-confirm-modal unified-sheet-weapon-editor-modal", onClick: (event) => event.stopPropagation(), children: [_jsx("h3", { children: weaponEditorModal.mode === "create" ? "Arma personalizada" : "Editar arma personalizada" }), _jsx("p", { className: "section-help", children: "Configura el arma y guardala para que aparezca en el inventario como cualquier otra arma." }), _jsxs("div", { className: "unified-sheet-action-detail-body", children: [_jsxs("div", { className: "form-grid", children: [_jsx(Field, { label: "Nombre", children: _jsx("input", { value: weaponEditorModal.item.name, onChange: (event) => updateWeaponEditorItem("name", event.target.value) }) }), _jsx(Field, { label: "Da\u00F1o", children: _jsx("input", { value: weaponEditorModal.item.damageFormula, onChange: (event) => updateWeaponEditorItem("damageFormula", event.target.value) }) }), _jsx(Field, { label: "Ranura", children: _jsxs("select", { value: weaponEditorModal.item.slot, onChange: (event) => updateWeaponEditorItem("slot", event.target.value), children: [_jsx("option", { value: "none", children: "Ninguna" }), _jsx("option", { value: "mainHand", children: "Mano principal" }), _jsx("option", { value: "offHand", children: "Mano secundaria" }), _jsx("option", { value: "ranged", children: "A distancia" })] }) }), _jsx(Field, { label: "Cantidad", children: _jsx("input", { type: "number", min: 1, disabled: weaponEditorModal.isUnique, value: weaponEditorModal.isUnique ? 1 : weaponEditorModal.item.quantity, onChange: (event) => updateWeaponEditorItem("quantity", Number(event.target.value || 1)) }) }), _jsx(Field, { label: "Apilable", children: _jsxs("select", { disabled: weaponEditorModal.isUnique, value: weaponEditorModal.isUnique ? "no" : weaponEditorModal.item.stackable ? "si" : "no", onChange: (event) => updateWeaponEditorItem("stackable", event.target.value === "si"), children: [_jsx("option", { value: "no", children: "No" }), _jsx("option", { value: "si", children: "Si" })] }) }), _jsx(Field, { label: "Valor", children: _jsx("input", { value: weaponEditorModal.item.value, onChange: (event) => updateWeaponEditorItem("value", event.target.value) }) })] }), _jsxs("label", { className: "campaign-item-unique-toggle", children: [_jsx("input", { type: "checkbox", checked: Boolean(weaponEditorModal.isUnique), onChange: (event) => setWeaponEditorModal((current) => current ? ({ ...current, isUnique: event.target.checked, item: event.target.checked ? { ...current.item, quantity: 1, stackable: false } : current.item }) : current) }), _jsxs("span", { children: [_jsx("strong", { children: "Poseedor \u00FAnico" }), _jsx("small", { children: "Pieza con nombre propio que solo el DJ puede asignar a un PJ o PNJ." })] })] }), _jsxs("div", { className: "field", children: [_jsx("span", { children: "Cualidades" }), _jsx("div", { className: "unified-sheet-quality-picker", children: WEAPON_QUALITY_OPTIONS.map((quality) => {
                                                 const active = getKnownWeaponQualities(weaponEditorModal.item).some((entry) => normalizeWeaponQualityKey(entry) === quality.id);
                                                 return (_jsx("button", { type: "button", className: active ? "is-active" : "", onClick: () => toggleWeaponEditorQuality(quality.label), children: quality.label }, `${weaponEditorModal.item.id}-${quality.id}`));
-                                            }) })] }), _jsx(Field, { label: "Cualidades adicionales", children: _jsx("input", { value: getCustomWeaponQualities(weaponEditorModal.item).join(", "), placeholder: "Separadas por comas", onChange: (event) => updateWeaponEditorCustomQualities(event.target.value) }) }), _jsx(Field, { label: "Descripcion", children: _jsx("textarea", { rows: 3, value: weaponEditorModal.item.description, placeholder: "Descripcion del arma", onChange: (event) => updateWeaponEditorItem("description", event.target.value) }) }), _jsx(Field, { label: "Notas", children: _jsx("textarea", { rows: 3, value: weaponEditorModal.item.notes, placeholder: "Notas de uso, mantenimiento o procedencia", onChange: (event) => updateWeaponEditorItem("notes", event.target.value) }) })] }), _jsxs("div", { className: "row-actions character-roll-confirm-actions", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: () => setWeaponEditorModal(null), children: "Cancelar" }), _jsx("button", { type: "button", className: "accent-button", onClick: saveWeaponEditorModal, children: "Guardar" })] })] }) })) : null, armorEditorModal ? (_jsx("div", { className: "modal-backdrop", onClick: () => setArmorEditorModal(null), children: _jsxs("div", { className: "panel modal-panel character-roll-confirm-modal unified-sheet-weapon-editor-modal", onClick: (event) => event.stopPropagation(), children: [_jsx("h3", { children: armorEditorModal.mode === "create" ? "Armadura personalizada" : "Editar armadura personalizada" }), _jsx("p", { className: "section-help", children: "Configura la armadura y guardala para que aparezca en el inventario como cualquier otra armadura." }), _jsxs("div", { className: "unified-sheet-action-detail-body", children: [_jsxs("div", { className: "form-grid", children: [_jsx(Field, { label: "Nombre", children: _jsx("input", { value: armorEditorModal.item.name, onChange: (event) => updateArmorEditorItem("name", event.target.value) }) }), _jsx(Field, { label: "Proteccion", children: _jsx("input", { value: armorEditorModal.item.protectionFormula, onChange: (event) => updateArmorEditorItem("protectionFormula", event.target.value) }) }), _jsx(Field, { label: "Ranura", children: _jsxs("select", { value: armorEditorModal.item.slot, onChange: (event) => updateArmorEditorItem("slot", event.target.value), children: [_jsx("option", { value: "armor", children: "Armadura" }), _jsx("option", { value: "offHand", children: "Mano secundaria" }), _jsx("option", { value: "worn", children: "Llevada" })] }) }), _jsx(Field, { label: "Cantidad", children: _jsx("input", { type: "number", min: 0, value: armorEditorModal.item.quantity, onChange: (event) => updateArmorEditorItem("quantity", Number(event.target.value || 0)) }) }), _jsx(Field, { label: "Apilable", children: _jsxs("select", { value: armorEditorModal.item.stackable ? "si" : "no", onChange: (event) => updateArmorEditorItem("stackable", event.target.value === "si"), children: [_jsx("option", { value: "no", children: "No" }), _jsx("option", { value: "si", children: "Si" })] }) }), _jsx(Field, { label: "Valor", children: _jsx("input", { value: armorEditorModal.item.value, onChange: (event) => updateArmorEditorItem("value", event.target.value) }) })] }), _jsxs("div", { className: "field", children: [_jsx("span", { children: "Cualidades" }), _jsx("div", { className: "unified-sheet-quality-picker", children: ARMOR_QUALITY_OPTIONS.map((quality) => {
+                                            }) })] }), _jsx(Field, { label: "Cualidades adicionales", children: _jsx("input", { value: getCustomWeaponQualities(weaponEditorModal.item).join(", "), placeholder: "Separadas por comas", onChange: (event) => updateWeaponEditorCustomQualities(event.target.value) }) }), _jsx(Field, { label: "Descripcion", children: _jsx("textarea", { rows: 3, value: weaponEditorModal.item.description, placeholder: "Descripcion del arma", onChange: (event) => updateWeaponEditorItem("description", event.target.value) }) }), _jsx(Field, { label: "Notas", children: _jsx("textarea", { rows: 3, value: weaponEditorModal.item.notes, placeholder: "Notas de uso, mantenimiento o procedencia", onChange: (event) => updateWeaponEditorItem("notes", event.target.value) }) })] }), inventoryMutationError ? _jsx("p", { className: "error-text", children: inventoryMutationError }) : null, _jsxs("div", { className: "row-actions character-roll-confirm-actions", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: () => setWeaponEditorModal(null), children: "Cancelar" }), _jsx("button", { type: "button", className: "accent-button", onClick: saveWeaponEditorModal, children: "Guardar" })] })] }) })) : null, armorEditorModal ? (_jsx("div", { className: "modal-backdrop", onClick: () => setArmorEditorModal(null), children: _jsxs("div", { className: "panel modal-panel character-roll-confirm-modal unified-sheet-weapon-editor-modal", onClick: (event) => event.stopPropagation(), children: [_jsx("h3", { children: armorEditorModal.mode === "create" ? "Armadura personalizada" : "Editar armadura personalizada" }), _jsx("p", { className: "section-help", children: "Configura la armadura y guardala para que aparezca en el inventario como cualquier otra armadura." }), _jsxs("div", { className: "unified-sheet-action-detail-body", children: [_jsxs("div", { className: "form-grid", children: [_jsx(Field, { label: "Nombre", children: _jsx("input", { value: armorEditorModal.item.name, onChange: (event) => updateArmorEditorItem("name", event.target.value) }) }), _jsx(Field, { label: "Proteccion", children: _jsx("input", { value: armorEditorModal.item.protectionFormula, onChange: (event) => updateArmorEditorItem("protectionFormula", event.target.value) }) }), _jsx(Field, { label: "Ranura", children: _jsxs("select", { value: armorEditorModal.item.slot, onChange: (event) => updateArmorEditorItem("slot", event.target.value), children: [_jsx("option", { value: "armor", children: "Armadura" }), _jsx("option", { value: "offHand", children: "Mano secundaria" }), _jsx("option", { value: "worn", children: "Llevada" })] }) }), _jsx(Field, { label: "Cantidad", children: _jsx("input", { type: "number", min: 1, disabled: armorEditorModal.isUnique, value: armorEditorModal.isUnique ? 1 : armorEditorModal.item.quantity, onChange: (event) => updateArmorEditorItem("quantity", Number(event.target.value || 1)) }) }), _jsx(Field, { label: "Apilable", children: _jsxs("select", { disabled: armorEditorModal.isUnique, value: armorEditorModal.isUnique ? "no" : armorEditorModal.item.stackable ? "si" : "no", onChange: (event) => updateArmorEditorItem("stackable", event.target.value === "si"), children: [_jsx("option", { value: "no", children: "No" }), _jsx("option", { value: "si", children: "Si" })] }) }), _jsx(Field, { label: "Valor", children: _jsx("input", { value: armorEditorModal.item.value, onChange: (event) => updateArmorEditorItem("value", event.target.value) }) })] }), _jsxs("label", { className: "campaign-item-unique-toggle", children: [_jsx("input", { type: "checkbox", checked: Boolean(armorEditorModal.isUnique), onChange: (event) => setArmorEditorModal((current) => current ? ({ ...current, isUnique: event.target.checked, item: event.target.checked ? { ...current.item, quantity: 1, stackable: false } : current.item }) : current) }), _jsxs("span", { children: [_jsx("strong", { children: "Poseedor \u00FAnico" }), _jsx("small", { children: "Pieza con nombre propio que solo el DJ puede asignar a un PJ o PNJ." })] })] }), _jsxs("div", { className: "field", children: [_jsx("span", { children: "Cualidades" }), _jsx("div", { className: "unified-sheet-quality-picker", children: ARMOR_QUALITY_OPTIONS.map((quality) => {
                                                 const active = getKnownArmorQualities(armorEditorModal.item).some((entry) => normalizeWeaponQualityKey(entry) === quality.id);
                                                 return (_jsx("button", { type: "button", className: active ? "is-active" : "", onClick: () => toggleArmorEditorQuality(quality.label), children: quality.label }, `${armorEditorModal.item.id}-${quality.id}`));
-                                            }) })] }), _jsx(Field, { label: "Cualidades adicionales", children: _jsx("input", { value: getCustomArmorQualities(armorEditorModal.item).join(", "), placeholder: "Separadas por comas", onChange: (event) => updateArmorEditorCustomQualities(event.target.value) }) }), _jsx(Field, { label: "Descripcion", children: _jsx("textarea", { rows: 3, value: armorEditorModal.item.description, placeholder: "Descripcion de la armadura", onChange: (event) => updateArmorEditorItem("description", event.target.value) }) }), _jsx(Field, { label: "Notas", children: _jsx("textarea", { rows: 3, value: armorEditorModal.item.notes, placeholder: "Notas de uso, mantenimiento o procedencia", onChange: (event) => updateArmorEditorItem("notes", event.target.value) }) })] }), _jsxs("div", { className: "row-actions character-roll-confirm-actions", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: () => setArmorEditorModal(null), children: "Cancelar" }), _jsx("button", { type: "button", className: "accent-button", onClick: saveArmorEditorModal, children: "Guardar" })] })] }) })) : null, itemEditorModal ? (_jsx("div", { className: "modal-backdrop", onClick: () => setItemEditorModal(null), children: _jsxs("div", { className: "panel modal-panel character-roll-confirm-modal unified-sheet-weapon-editor-modal", onClick: (event) => event.stopPropagation(), children: [_jsx("h3", { children: itemEditorModal.mode === "create" ? "Objeto personalizado" : "Editar objeto personalizado" }), _jsx("p", { className: "section-help", children: "Configura el objeto para que aparezca en el inventario con el mismo flujo de detalle que el catalogo." }), _jsxs("div", { className: "unified-sheet-action-detail-body", children: [_jsxs("div", { className: "form-grid", children: [_jsx(Field, { label: "Nombre", children: _jsx("input", { value: itemEditorModal.item.name, onChange: (event) => updateItemEditorItem("name", event.target.value) }) }), _jsx(Field, { label: "Categoria", children: _jsxs("select", { value: itemEditorModal.item.category, onChange: (event) => updateItemEditorItem("category", event.target.value), children: [_jsx("option", { value: "gear", children: "Equipo" }), _jsx("option", { value: "consumable", children: "Consumible" }), _jsx("option", { value: "artifact", children: "Artefacto" }), _jsx("option", { value: "treasure", children: "Tesoro" }), _jsx("option", { value: "other", children: "Otro" })] }) }), _jsx(Field, { label: "Cantidad", children: _jsx("input", { type: "number", min: 0, value: itemEditorModal.item.quantity, onChange: (event) => updateItemEditorItem("quantity", Number(event.target.value || 0)) }) }), _jsx(Field, { label: "Apilable", children: _jsxs("select", { value: itemEditorModal.item.stackable ? "si" : "no", onChange: (event) => updateItemEditorItem("stackable", event.target.value === "si"), children: [_jsx("option", { value: "no", children: "No" }), _jsx("option", { value: "si", children: "Si" })] }) }), _jsx(Field, { label: "Ranura", children: _jsxs("select", { value: itemEditorModal.item.slot, onChange: (event) => updateItemEditorItem("slot", event.target.value), children: [_jsx("option", { value: "none", children: "Ninguna" }), _jsx("option", { value: "worn", children: "Vestido" }), _jsx("option", { value: "artifact", children: "Artefacto" })] }) }), _jsx(Field, { label: "Valor", children: _jsx("input", { value: itemEditorModal.item.value, onChange: (event) => updateItemEditorItem("value", event.target.value) }) })] }), _jsxs("div", { className: "field", children: [_jsx("span", { children: "Cualidades" }), _jsx("div", { className: "unified-sheet-quality-picker", children: ITEM_QUALITY_OPTIONS.map((quality) => {
+                                            }) })] }), _jsx(Field, { label: "Cualidades adicionales", children: _jsx("input", { value: getCustomArmorQualities(armorEditorModal.item).join(", "), placeholder: "Separadas por comas", onChange: (event) => updateArmorEditorCustomQualities(event.target.value) }) }), _jsx(Field, { label: "Descripcion", children: _jsx("textarea", { rows: 3, value: armorEditorModal.item.description, placeholder: "Descripcion de la armadura", onChange: (event) => updateArmorEditorItem("description", event.target.value) }) }), _jsx(Field, { label: "Notas", children: _jsx("textarea", { rows: 3, value: armorEditorModal.item.notes, placeholder: "Notas de uso, mantenimiento o procedencia", onChange: (event) => updateArmorEditorItem("notes", event.target.value) }) })] }), inventoryMutationError ? _jsx("p", { className: "error-text", children: inventoryMutationError }) : null, _jsxs("div", { className: "row-actions character-roll-confirm-actions", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: () => setArmorEditorModal(null), children: "Cancelar" }), _jsx("button", { type: "button", className: "accent-button", onClick: saveArmorEditorModal, children: "Guardar" })] })] }) })) : null, itemEditorModal ? (_jsx("div", { className: "modal-backdrop", onClick: () => setItemEditorModal(null), children: _jsxs("div", { className: "panel modal-panel character-roll-confirm-modal unified-sheet-weapon-editor-modal", onClick: (event) => event.stopPropagation(), children: [_jsx("h3", { children: itemEditorModal.mode === "create" ? "Objeto personalizado" : "Editar objeto personalizado" }), _jsx("p", { className: "section-help", children: "Configura el objeto para que aparezca en el inventario con el mismo flujo de detalle que el catalogo." }), _jsxs("div", { className: "unified-sheet-action-detail-body", children: [_jsxs("div", { className: "form-grid", children: [_jsx(Field, { label: "Nombre", children: _jsx("input", { value: itemEditorModal.item.name, onChange: (event) => updateItemEditorItem("name", event.target.value) }) }), _jsx(Field, { label: "Categoria", children: _jsxs("select", { value: itemEditorModal.item.category, onChange: (event) => updateItemEditorItem("category", event.target.value), children: [_jsx("option", { value: "gear", children: "Equipo" }), _jsx("option", { value: "consumable", children: "Consumible" }), _jsx("option", { value: "artifact", children: "Artefacto" }), _jsx("option", { value: "treasure", children: "Tesoro" }), _jsx("option", { value: "other", children: "Otro" })] }) }), _jsx(Field, { label: "Cantidad", children: _jsx("input", { type: "number", min: 1, disabled: itemEditorModal.isUnique, value: itemEditorModal.isUnique ? 1 : itemEditorModal.item.quantity, onChange: (event) => updateItemEditorItem("quantity", Number(event.target.value || 1)) }) }), _jsx(Field, { label: "Apilable", children: _jsxs("select", { disabled: itemEditorModal.isUnique, value: itemEditorModal.isUnique ? "no" : itemEditorModal.item.stackable ? "si" : "no", onChange: (event) => updateItemEditorItem("stackable", event.target.value === "si"), children: [_jsx("option", { value: "no", children: "No" }), _jsx("option", { value: "si", children: "Si" })] }) }), _jsx(Field, { label: "Ranura", children: _jsxs("select", { value: itemEditorModal.item.slot, onChange: (event) => updateItemEditorItem("slot", event.target.value), children: [_jsx("option", { value: "none", children: "Ninguna" }), _jsx("option", { value: "worn", children: "Vestido" }), _jsx("option", { value: "artifact", children: "Artefacto" })] }) }), _jsx(Field, { label: "Valor", children: _jsx("input", { value: itemEditorModal.item.value, onChange: (event) => updateItemEditorItem("value", event.target.value) }) })] }), _jsxs("label", { className: "campaign-item-unique-toggle", children: [_jsx("input", { type: "checkbox", checked: Boolean(itemEditorModal.isUnique), onChange: (event) => setItemEditorModal((current) => current ? ({ ...current, isUnique: event.target.checked, item: event.target.checked ? { ...current.item, quantity: 1, stackable: false } : current.item }) : current) }), _jsxs("span", { children: [_jsx("strong", { children: "Poseedor \u00FAnico" }), _jsx("small", { children: "Pieza con nombre propio que solo el DJ puede asignar a un PJ o PNJ." })] })] }), _jsxs("div", { className: "field", children: [_jsx("span", { children: "Cualidades" }), _jsx("div", { className: "unified-sheet-quality-picker", children: ITEM_QUALITY_OPTIONS.map((quality) => {
                                                 const active = getKnownItemQualities(itemEditorModal.item).some((entry) => normalizeWeaponQualityKey(entry) === quality.id);
                                                 return (_jsx("button", { type: "button", className: active ? "is-active" : "", onClick: () => toggleItemEditorQuality(quality.label), children: quality.label }, `${itemEditorModal.item.id}-${quality.id}`));
-                                            }) })] }), _jsx(Field, { label: "Cualidades adicionales", children: _jsx("input", { value: getCustomItemQualities(itemEditorModal.item).join(", "), placeholder: "Separadas por comas", onChange: (event) => updateItemEditorCustomQualities(event.target.value) }) }), _jsx(Field, { label: "Descripcion", children: _jsx("textarea", { rows: 3, value: itemEditorModal.item.description, placeholder: "Descripcion del objeto", onChange: (event) => updateItemEditorItem("description", event.target.value) }) }), _jsx(Field, { label: "Notas", children: _jsx("textarea", { rows: 3, value: itemEditorModal.item.notes, placeholder: "Notas de uso, procedencia o comercio", onChange: (event) => updateItemEditorItem("notes", event.target.value) }) })] }), _jsxs("div", { className: "row-actions character-roll-confirm-actions", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: () => setItemEditorModal(null), children: "Cancelar" }), _jsx("button", { type: "button", className: "accent-button", onClick: saveItemEditorModal, children: "Guardar" })] })] }) })) : null, inventoryCatalogModalTab ? (_jsx("div", { className: "modal-backdrop", onClick: () => setInventoryCatalogModalTab(null), children: _jsxs("div", { className: "panel modal-panel character-roll-confirm-modal unified-sheet-item-catalog-modal", onClick: (event) => event.stopPropagation(), children: [_jsx("h3", { children: inventoryCatalogModalTab === "weapons"
+                                            }) })] }), _jsx(Field, { label: "Cualidades adicionales", children: _jsx("input", { value: getCustomItemQualities(itemEditorModal.item).join(", "), placeholder: "Separadas por comas", onChange: (event) => updateItemEditorCustomQualities(event.target.value) }) }), _jsx(Field, { label: "Descripcion", children: _jsx("textarea", { rows: 3, value: itemEditorModal.item.description, placeholder: "Descripcion del objeto", onChange: (event) => updateItemEditorItem("description", event.target.value) }) }), _jsx(Field, { label: "Notas", children: _jsx("textarea", { rows: 3, value: itemEditorModal.item.notes, placeholder: "Notas de uso, procedencia o comercio", onChange: (event) => updateItemEditorItem("notes", event.target.value) }) })] }), inventoryMutationError ? _jsx("p", { className: "error-text", children: inventoryMutationError }) : null, _jsxs("div", { className: "row-actions character-roll-confirm-actions", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: () => setItemEditorModal(null), children: "Cancelar" }), _jsx("button", { type: "button", className: "accent-button", onClick: saveItemEditorModal, children: "Guardar" })] })] }) })) : null, inventoryCatalogModalTab ? (_jsx("div", { className: "modal-backdrop", onClick: () => setInventoryCatalogModalTab(null), children: _jsxs("div", { className: "panel modal-panel character-roll-confirm-modal unified-sheet-item-catalog-modal", onClick: (event) => event.stopPropagation(), children: [_jsx("h3", { children: inventoryCatalogModalTab === "weapons"
                                 ? "Agregar arma"
                                 : inventoryCatalogModalTab === "armors"
                                     ? "Agregar armadura"
@@ -2585,8 +2680,15 @@ export function UnifiedCharacterSheet({ title, subtitle, sheet, editable, busy =
                                 if (!selectedItem)
                                     return null;
                                 const selectedItemQualities = parseWeaponQualities(selectedItem.qualities);
-                                return (selectedItem.category === "weapon" ? (_jsxs("div", { className: "unified-sheet-weapon-detail-layout unified-sheet-item-catalog-weapon-preview", children: [_jsxs("div", { className: "unified-sheet-item-catalog-preview-header", children: [_jsx("strong", { children: selectedItem.name }), _jsx("span", { children: "Arma del catalogo" })] }), _jsxs("section", { className: "unified-sheet-weapon-detail-hero", children: [_jsxs("div", { className: "unified-sheet-weapon-detail-primary", children: [selectedItem.damageFormula ? _jsx("strong", { children: selectedItem.damageFormula }) : _jsx("strong", { children: "-" }), _jsx("span", { children: "Da\u00F1o base" })] }), _jsx("div", { className: "unified-sheet-weapon-detail-stats", children: selectedItem.value ? (_jsxs("article", { className: "unified-sheet-weapon-detail-stat", children: [_jsx("span", { children: "Valor" }), _jsx("strong", { children: selectedItem.value })] })) : null })] }), selectedItem.description ? (_jsx("section", { className: "unified-sheet-weapon-detail-copy", children: _jsx("p", { children: selectedItem.description }) })) : null, selectedItemQualities.length > 0 ? (_jsxs("section", { className: "unified-sheet-weapon-detail-qualities", children: [_jsx("h4", { children: "Cualidades" }), _jsx("div", { className: "unified-sheet-item-catalog-meta", children: selectedItemQualities.map((quality) => _jsx("span", { children: quality }, `${selectedItem.templateId}-${quality}`)) })] })) : null] })) : selectedItem.category === "armor" ? (_jsxs("div", { className: "unified-sheet-weapon-detail-layout unified-sheet-item-catalog-weapon-preview", children: [_jsxs("div", { className: "unified-sheet-item-catalog-preview-header", children: [_jsx("strong", { children: selectedItem.name }), _jsx("span", { children: "Armadura del catalogo" })] }), _jsxs("section", { className: "unified-sheet-weapon-detail-hero", children: [_jsxs("div", { className: "unified-sheet-weapon-detail-primary", children: [selectedItem.protectionFormula ? _jsx("strong", { children: selectedItem.protectionFormula }) : _jsx("strong", { children: "-" }), _jsx("span", { children: "Proteccion base" })] }), _jsx("div", { className: "unified-sheet-weapon-detail-stats", children: selectedItem.value ? (_jsxs("article", { className: "unified-sheet-weapon-detail-stat", children: [_jsx("span", { children: "Valor" }), _jsx("strong", { children: selectedItem.value })] })) : null })] }), selectedItem.description ? (_jsx("section", { className: "unified-sheet-weapon-detail-copy", children: _jsx("p", { children: selectedItem.description }) })) : null, parseWeaponQualities(selectedItem.qualities).length > 0 ? (_jsxs("section", { className: "unified-sheet-weapon-detail-qualities", children: [_jsx("h4", { children: "Cualidades" }), _jsx("div", { className: "unified-sheet-item-catalog-meta", children: parseWeaponQualities(selectedItem.qualities).map((quality) => _jsx("span", { children: quality }, `${selectedItem.templateId}-${quality}`)) })] })) : null] })) : (_jsxs("div", { className: "unified-sheet-weapon-detail-layout unified-sheet-item-catalog-weapon-preview", children: [_jsxs("div", { className: "unified-sheet-item-catalog-preview-header", children: [_jsx("strong", { children: selectedItem.name }), _jsx("span", { children: selectedItem.category === "artifact" ? "Artefacto del catalogo" : "Objeto del catalogo" })] }), _jsxs("section", { className: "unified-sheet-weapon-detail-hero", children: [_jsxs("div", { className: "unified-sheet-weapon-detail-primary", children: [_jsxs("strong", { children: ["x", selectedItem.defaultQuantity ?? 1] }), _jsx("span", { children: "Cantidad base" })] }), _jsx("div", { className: "unified-sheet-weapon-detail-stats", children: selectedItem.value ? (_jsxs("article", { className: "unified-sheet-weapon-detail-stat", children: [_jsx("span", { children: "Valor" }), _jsx("strong", { children: selectedItem.value })] })) : null })] }), selectedItem.description ? (_jsx("section", { className: "unified-sheet-weapon-detail-copy", children: _jsx("p", { children: selectedItem.description }) })) : null, selectedItemQualities.length > 0 ? (_jsxs("section", { className: "unified-sheet-weapon-detail-qualities", children: [_jsx("h4", { children: "Cualidades" }), _jsx("div", { className: "unified-sheet-item-catalog-meta", children: selectedItemQualities.map((quality) => _jsx("span", { children: quality }, `${selectedItem.templateId}-${quality}`)) })] })) : null] })));
-                            })() })) : (_jsx("p", { className: "section-help", children: "No hay elementos disponibles en esta categoria." })), _jsxs("div", { className: "row-actions character-roll-confirm-actions", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: () => setInventoryCatalogModalTab(null), children: "Cancelar" }), _jsx("button", { type: "button", disabled: filteredModalCatalogItems.length === 0 || !selectedCatalogItemId, onClick: addSelectedCatalogItemFromModal, children: "Agregar" })] })] }) })) : null] }));
+                                const selectedCampaignItem = selectedItem.campaignItemId ? campaignItemsById.get(selectedItem.campaignItemId) : undefined;
+                                return (_jsxs(_Fragment, { children: [selectedCampaignItem?.isUnique ? (_jsxs("div", { className: "unified-sheet-campaign-item-owner", children: [_jsx("span", { className: "campaign-item-unique-badge", children: "Pieza \u00FAnica" }), _jsxs("strong", { children: ["Poseedor: ", selectedCampaignItem.ownerName ?? "Sin poseedor"] })] })) : null, selectedItem.category === "weapon" ? (_jsxs("div", { className: "unified-sheet-weapon-detail-layout unified-sheet-item-catalog-weapon-preview", children: [_jsxs("div", { className: "unified-sheet-item-catalog-preview-header", children: [_jsx("strong", { children: selectedItem.name }), _jsx("span", { children: "Arma del catalogo" })] }), _jsxs("section", { className: "unified-sheet-weapon-detail-hero", children: [_jsxs("div", { className: "unified-sheet-weapon-detail-primary", children: [selectedItem.damageFormula ? _jsx("strong", { children: selectedItem.damageFormula }) : _jsx("strong", { children: "-" }), _jsx("span", { children: "Da\u00F1o base" })] }), _jsx("div", { className: "unified-sheet-weapon-detail-stats", children: selectedItem.value ? (_jsxs("article", { className: "unified-sheet-weapon-detail-stat", children: [_jsx("span", { children: "Valor" }), _jsx("strong", { children: selectedItem.value })] })) : null })] }), selectedItem.description ? (_jsx("section", { className: "unified-sheet-weapon-detail-copy", children: _jsx("p", { children: selectedItem.description }) })) : null, selectedItemQualities.length > 0 ? (_jsxs("section", { className: "unified-sheet-weapon-detail-qualities", children: [_jsx("h4", { children: "Cualidades" }), _jsx("div", { className: "unified-sheet-item-catalog-meta", children: selectedItemQualities.map((quality) => _jsx("span", { children: quality }, `${selectedItem.templateId}-${quality}`)) })] })) : null] })) : selectedItem.category === "armor" ? (_jsxs("div", { className: "unified-sheet-weapon-detail-layout unified-sheet-item-catalog-weapon-preview", children: [_jsxs("div", { className: "unified-sheet-item-catalog-preview-header", children: [_jsx("strong", { children: selectedItem.name }), _jsx("span", { children: "Armadura del catalogo" })] }), _jsxs("section", { className: "unified-sheet-weapon-detail-hero", children: [_jsxs("div", { className: "unified-sheet-weapon-detail-primary", children: [selectedItem.protectionFormula ? _jsx("strong", { children: selectedItem.protectionFormula }) : _jsx("strong", { children: "-" }), _jsx("span", { children: "Proteccion base" })] }), _jsx("div", { className: "unified-sheet-weapon-detail-stats", children: selectedItem.value ? (_jsxs("article", { className: "unified-sheet-weapon-detail-stat", children: [_jsx("span", { children: "Valor" }), _jsx("strong", { children: selectedItem.value })] })) : null })] }), selectedItem.description ? (_jsx("section", { className: "unified-sheet-weapon-detail-copy", children: _jsx("p", { children: selectedItem.description }) })) : null, parseWeaponQualities(selectedItem.qualities).length > 0 ? (_jsxs("section", { className: "unified-sheet-weapon-detail-qualities", children: [_jsx("h4", { children: "Cualidades" }), _jsx("div", { className: "unified-sheet-item-catalog-meta", children: parseWeaponQualities(selectedItem.qualities).map((quality) => _jsx("span", { children: quality }, `${selectedItem.templateId}-${quality}`)) })] })) : null] })) : (_jsxs("div", { className: "unified-sheet-weapon-detail-layout unified-sheet-item-catalog-weapon-preview", children: [_jsxs("div", { className: "unified-sheet-item-catalog-preview-header", children: [_jsx("strong", { children: selectedItem.name }), _jsx("span", { children: selectedItem.category === "artifact" ? "Artefacto del catalogo" : "Objeto del catalogo" })] }), _jsxs("section", { className: "unified-sheet-weapon-detail-hero", children: [_jsxs("div", { className: "unified-sheet-weapon-detail-primary", children: [_jsxs("strong", { children: ["x", selectedItem.defaultQuantity ?? 1] }), _jsx("span", { children: "Cantidad base" })] }), _jsx("div", { className: "unified-sheet-weapon-detail-stats", children: selectedItem.value ? (_jsxs("article", { className: "unified-sheet-weapon-detail-stat", children: [_jsx("span", { children: "Valor" }), _jsx("strong", { children: selectedItem.value })] })) : null })] }), selectedItem.description ? (_jsx("section", { className: "unified-sheet-weapon-detail-copy", children: _jsx("p", { children: selectedItem.description }) })) : null, selectedItemQualities.length > 0 ? (_jsxs("section", { className: "unified-sheet-weapon-detail-qualities", children: [_jsx("h4", { children: "Cualidades" }), _jsx("div", { className: "unified-sheet-item-catalog-meta", children: selectedItemQualities.map((quality) => _jsx("span", { children: quality }, `${selectedItem.templateId}-${quality}`)) })] })) : null] }))] }));
+                            })() })) : (_jsx("p", { className: "section-help", children: "No hay elementos disponibles en esta categoria." })), _jsxs("div", { className: "row-actions character-roll-confirm-actions", children: [_jsx("button", { type: "button", className: "subtle-button", onClick: () => setInventoryCatalogModalTab(null), children: "Cancelar" }), _jsx("button", { type: "button", disabled: filteredModalCatalogItems.length === 0 || !selectedCatalogItemId || Boolean((() => {
+                                        const selected = availableItemCatalog.find((item) => item.templateId === selectedCatalogItemId);
+                                        return selected?.campaignItemId && campaignItemsById.get(selected.campaignItemId)?.isUnique;
+                                    })()), onClick: addSelectedCatalogItemFromModal, children: (() => {
+                                        const selected = availableItemCatalog.find((item) => item.templateId === selectedCatalogItemId);
+                                        return selected?.campaignItemId && campaignItemsById.get(selected.campaignItemId)?.isUnique ? "Solo el DJ puede asignarlo" : "Agregar";
+                                    })() })] })] }) })) : null] }));
 }
 function Field({ label, children }) {
     return _jsxs("label", { className: "field", children: [_jsx("span", { children: label }), children] });

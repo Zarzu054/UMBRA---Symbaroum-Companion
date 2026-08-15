@@ -15,6 +15,8 @@ import {
 import { AppError } from "../utils/AppError.js";
 import { CharacterModel } from "../models/CharacterModel.js";
 import { protectGrantedCharacterExperience } from "./characterExperiencePolicy.js";
+import { CampaignItemModel } from "../models/CampaignItemModel.js";
+import { protectCampaignItemInventory } from "./campaignItemInventoryPolicy.js";
 import { CharacterAuditModel, type CharacterAuditActor } from "../models/CharacterAuditModel.js";
 import { translateProfessionError } from "./ProfessionService.js";
 
@@ -119,10 +121,16 @@ export class CharacterService {
     };
 
     const payload = updateCharacterSchema.parse(normalizedInput);
-    const requestedSheet = preserveLegacyMysticArtifacts(
+    let requestedSheet = preserveLegacyMysticArtifacts(
       currentSheet,
       stripManagedMysticArtifactsFromSheet(parseCharacterSheet(payload.sheet ?? currentSheet))
     );
+    if (current.campaignContext) {
+      const campaignItems = await new CampaignItemModel().listCampaign(current.campaignContext.campaignId, true);
+      requestedSheet = protectCampaignItemInventory(currentSheet, requestedSheet, campaignItems, current.campaignContext.characterLinkId);
+    } else if (payload.sheet) {
+      requestedSheet = protectCampaignItemInventory(currentSheet, requestedSheet, [], characterId);
+    }
     let updated: Character | null;
     try {
       updated = await this.model.update(ownerId, characterId, {
@@ -163,6 +171,9 @@ export class CharacterService {
     }
 
     const duplicatedName = source.name.trim() ? `${source.name} (Copia)` : "Personaje sin nombre (Copia)";
+    const sourceSheet = parseCharacterSheet(source.sheet);
+    const inventoryItems = sourceSheet.inventoryItems.filter((item) => !item.campaignItemId);
+    const inventoryIds = new Set(inventoryItems.map((item) => item.id));
 
     return this.model.create(ownerId, {
       name: duplicatedName,
@@ -172,9 +183,14 @@ export class CharacterService {
       profession: source.profession,
       level: 1,
       sheet: {
-        ...parseCharacterSheet(source.sheet),
+        ...sourceSheet,
+        inventoryItems,
+        equipmentSlots: Object.fromEntries(Object.entries(sourceSheet.equipmentSlots).map(([slot, itemId]) => [
+          slot,
+          itemId && inventoryIds.has(itemId) ? itemId : ""
+        ])) as typeof sourceSheet.equipmentSlots,
         identidad: {
-          ...parseCharacterSheet(source.sheet).identidad,
+          ...sourceSheet.identidad,
           nombrePersonaje: duplicatedName
         }
       }

@@ -4,9 +4,12 @@ import { Prisma as PrismaRuntime } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { getEffectiveCharacterExperienceSpent, protectGrantedCharacterExperience } from "../services/characterExperiencePolicy.js";
 import { mapMysticArtifact, mysticArtifactInclude } from "./MysticArtifactModel.js";
+import { campaignItemInclude, mapCampaignItem } from "./CampaignItemModel.js";
+import { removeCampaignInventoryItems, upsertCampaignInventoryItem } from "../utils/campaignItemInventory.js";
 import { buildCharacterChanges, getCharacterAuditActor, getUnreadCharacterChangeCounts, recordCharacterChange } from "./CharacterAuditModel.js";
 import { AppError } from "../utils/AppError.js";
 import { mapProfessionMembership, validateProfessionBenefitAcquisitionWithMemberships } from "./ProfessionModel.js";
+import { importLegacyCampaignItemsForCharacter } from "../utils/legacyCampaignItemImport.js";
 
 const campaignInclude = {
   gm: true,
@@ -100,6 +103,10 @@ const campaignInclude = {
   },
   mysticArtifacts: {
     include: mysticArtifactInclude,
+    orderBy: { updatedAt: "desc" }
+  },
+  itemTemplates: {
+    include: campaignItemInclude,
     orderBy: { updatedAt: "desc" }
   }
 } satisfies Prisma.CampaignInclude;
@@ -286,7 +293,10 @@ function mapCampaign(
           const ownedArtifacts = row.mysticArtifacts
             .filter((artifact) => artifact.ownerCharacterId === entry.id)
             .map((artifact) => mapMysticArtifact(artifact, { characterSheet: baseSheet, concealForOwner: !isDirector }) as OwnedMysticArtifact);
-          visibleSheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(baseSheet, ownedArtifacts));
+          const withCampaignItems = row.itemTemplates
+            .filter((item) => item.isUnique && item.ownerCharacterId === entry.id)
+            .reduce((current, item) => upsertCampaignInventoryItem(current, item.id, mapCampaignItem(item).definition, true), baseSheet);
+          visibleSheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(withCampaignItems, ownedArtifacts));
         } catch {
           visibleSheet = null;
         }
@@ -327,8 +337,11 @@ function mapCampaign(
       let visibleSheet: CharacterSheet | null = null;
       if (baseSheet) {
         try {
+          const withCampaignItems = row.itemTemplates
+            .filter((item) => item.isUnique && item.ownerNpcId === npc.id)
+            .reduce((current, item) => upsertCampaignInventoryItem(current, item.id, mapCampaignItem(item).definition, true), baseSheet);
           visibleSheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(
-            baseSheet,
+            withCampaignItems,
             row.mysticArtifacts
               .filter((artifact) => artifact.ownerNpcId === npc.id)
               .map((artifact) => mapMysticArtifact(artifact, { characterSheet: baseSheet, concealForOwner: false }) as OwnedMysticArtifact)
@@ -392,7 +405,12 @@ function mapCampaign(
       updatedAt: reference.updatedAt.toISOString()
     })),
     chatMessages: visibleChatMessages.map((message) => mapChatMessage(message)),
-    mysticArtifacts: isDirector ? row.mysticArtifacts.map((artifact) => mapMysticArtifact(artifact)) : []
+    mysticArtifacts: isDirector ? row.mysticArtifacts.map((artifact) => mapMysticArtifact(artifact)) : [],
+    campaignItems: row.itemTemplates
+      .filter((item) => isDirector || !item.archivedAt || (
+        item.isUnique && item.ownerCharacter?.character.ownerId === viewerId
+      ))
+      .map(mapCampaignItem)
   };
 }
 
@@ -524,8 +542,19 @@ export class CampaignModel {
 
   async unlinkCharacter(linkId: string, actorId?: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
-      const link = await tx.campaignCharacter.findUnique({ where: { id: linkId }, select: { characterId: true, campaignId: true } });
+      const link = await tx.campaignCharacter.findUnique({
+        where: { id: linkId },
+        include: { character: { select: { sheet: true } } }
+      });
       if (!link) return;
+      const campaignItems = await tx.campaignItemTemplate.findMany({ where: { campaignId: link.campaignId }, select: { id: true } });
+      const itemIds = new Set(campaignItems.map((item) => item.id));
+      const currentSheet = parseCharacterSheet(link.character.sheet);
+      const cleanedSheet = removeCampaignInventoryItems(currentSheet, itemIds);
+      if (cleanedSheet !== currentSheet) {
+        await tx.character.update({ where: { id: link.characterId }, data: { sheet: cleanedSheet as unknown as Prisma.InputJsonValue } });
+      }
+      await tx.campaignItemTemplate.updateMany({ where: { ownerCharacterId: linkId }, data: { ownerCharacterId: null } });
       const actor = actorId ? await getCharacterAuditActor(tx, actorId) : null;
       if (actor) {
         await recordCharacterChange(tx, {
@@ -707,16 +736,18 @@ export class CampaignModel {
 
         const existingLink = await transaction.campaignCharacter.findUnique({
           where: { characterId: request.characterId },
-          select: { campaignId: true }
+          select: { id: true, campaignId: true }
         });
         if (existingLink && existingLink.campaignId !== request.campaignId) {
           throw new AppError("CAMPAIGN_CHARACTER_ALREADY_LINKED", "El personaje ya está vinculado a otra campaña", 409);
         }
 
+        let linkId = existingLink?.id;
         if (!existingLink) {
-          await transaction.campaignCharacter.create({
+          const createdLink = await transaction.campaignCharacter.create({
             data: { campaignId: request.campaignId, characterId: request.characterId }
           });
+          linkId = createdLink.id;
           const actor = await getCharacterAuditActor(transaction, userId);
           if (actor) {
             await recordCharacterChange(transaction, {
@@ -729,6 +760,8 @@ export class CampaignModel {
             });
           }
         }
+
+        if (linkId) await importLegacyCampaignItemsForCharacter(transaction, request.campaignId, request.characterId);
 
         await transaction.campaignCharacterLinkRequest.deleteMany({
           where: { characterId: request.characterId }
@@ -803,6 +836,7 @@ export class CampaignModel {
     await prisma.$transaction(async (tx) => {
       const npc = await tx.campaignNpc.findUnique({ where: { id: npcId }, select: { campaignId: true } });
       if (!npc) return;
+      await tx.campaignItemTemplate.updateMany({ where: { ownerNpcId: npcId }, data: { ownerNpcId: null } });
       await removeCombatParticipants(tx, npc.campaignId, (participant) => participant.kind === "npc" && participant.campaignNpcId === npcId);
       await tx.campaignNpc.delete({ where: { id: npcId } });
     });

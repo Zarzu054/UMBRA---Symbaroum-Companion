@@ -22,6 +22,10 @@ import {
   type CharacterActionDefinition,
   type CharacterActionPhase,
   type CharacterProfessionMembership,
+  type CampaignItemDefinition,
+  type CampaignItemTemplate,
+  type CreateCampaignItemInput,
+  type UpdateCampaignItemInput,
   type CharacterSheet,
   type RollDestination,
   type RollRequest
@@ -75,6 +79,11 @@ type Props = {
   onUseArtifactAbility?: (artifactId: string, abilityId: string) => Promise<void>;
   professionMemberships?: CharacterProfessionMembership[];
   enforceProfessionRestrictions?: boolean;
+  campaignItems?: CampaignItemTemplate[];
+  canManageCampaignItems?: boolean;
+  campaignCharacterLinkId?: string;
+  onCreateCampaignItem?: (input: CreateCampaignItemInput) => Promise<CampaignItemTemplate>;
+  onUpdateCampaignItem?: (itemId: string, input: UpdateCampaignItemInput) => Promise<CampaignItemTemplate>;
 };
 
 type PendingRollConfirmation = {
@@ -139,18 +148,21 @@ type WeaponEditorModal = {
   mode: "create" | "edit";
   item: CharacterSheet["inventoryItems"][number];
   index?: number;
+  isUnique?: boolean;
 };
 
 type ArmorEditorModal = {
   mode: "create" | "edit";
   item: CharacterSheet["inventoryItems"][number];
   index?: number;
+  isUnique?: boolean;
 };
 
 type ItemEditorModal = {
   mode: "create" | "edit";
   item: CharacterSheet["inventoryItems"][number];
   index?: number;
+  isUnique?: boolean;
 };
 
 type AttackRollModifier = {
@@ -1192,7 +1204,12 @@ export function UnifiedCharacterSheet({
   collapsibleHistory = false,
   onOpenCompendiumCapability,
   professionMemberships = [],
-  enforceProfessionRestrictions = false
+  enforceProfessionRestrictions = false,
+  campaignItems = [],
+  canManageCampaignItems = false,
+  campaignCharacterLinkId,
+  onCreateCampaignItem,
+  onUpdateCampaignItem
 }: Props) {
   const { draft, isSavingLocal, setDraft, updateField, save } = useUnifiedCharacterSheet({
     sheet,
@@ -1202,6 +1219,29 @@ export function UnifiedCharacterSheet({
   const isReadOnly = !editable;
   const canEditNotes = editable;
   const canEditInventory = editable;
+  const activeCampaignItems = useMemo(() => campaignItems.filter((item) => !item.archivedAt), [campaignItems]);
+  const campaignItemsById = useMemo(() => new Map(campaignItems.map((item) => [item.id, item])), [campaignItems]);
+  const campaignCatalogTemplates = useMemo<ItemTemplate[]>(() => activeCampaignItems.map((item) => ({
+    templateId: `campaign:${item.id}`,
+    name: item.definition.name,
+    category: item.definition.category,
+    stackable: item.isUnique ? false : item.definition.stackable,
+    isCustom: true,
+    description: item.definition.description,
+    weight: item.definition.weight,
+    value: item.definition.value,
+    slot: item.definition.defaultSlot,
+    attackAttribute: item.definition.attackAttribute,
+    damageFormula: item.definition.damageFormula,
+    protectionFormula: item.definition.protectionFormula,
+    qualities: item.definition.qualities,
+    notes: item.definition.notes,
+    grantedActions: item.definition.grantedActions,
+    modifiers: item.definition.modifiers,
+    defaultQuantity: item.isUnique ? 1 : item.definition.defaultQuantity,
+    campaignItemId: item.id
+  })), [activeCampaignItems]);
+  const availableItemCatalog = useMemo(() => [...ITEM_CATALOG, ...campaignCatalogTemplates], [campaignCatalogTemplates]);
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>(ITEM_CATALOG[0]?.templateId ?? "");
   const [inventoryCatalogModalTab, setInventoryCatalogModalTab] = useState<InventoryCatalogModalTab | null>(null);
   const [selectedWeaponCatalogFilter, setSelectedWeaponCatalogFilter] = useState<WeaponCatalogFilterId>("all");
@@ -1227,6 +1267,7 @@ export function UnifiedCharacterSheet({
   const [weaponEditorModal, setWeaponEditorModal] = useState<WeaponEditorModal | null>(null);
   const [armorEditorModal, setArmorEditorModal] = useState<ArmorEditorModal | null>(null);
   const [itemEditorModal, setItemEditorModal] = useState<ItemEditorModal | null>(null);
+  const [inventoryMutationError, setInventoryMutationError] = useState<string | null>(null);
   const [activeWeaponQualityInfoId, setActiveWeaponQualityInfoId] = useState<string>("");
   const isSheetModalOpen = Boolean(
     inventoryCatalogModalTab
@@ -1422,16 +1463,16 @@ export function UnifiedCharacterSheet({
   );
   const modalCatalogItems = useMemo(() => {
     if (inventoryCatalogModalTab === "weapons") {
-      return ITEM_CATALOG.filter((item) => item.category === "weapon");
+      return availableItemCatalog.filter((item) => item.category === "weapon");
     }
     if (inventoryCatalogModalTab === "armors") {
-      return ITEM_CATALOG.filter((item) => item.category === "armor");
+      return availableItemCatalog.filter((item) => item.category === "armor");
     }
     if (inventoryCatalogModalTab === "items") {
-      return ITEM_CATALOG.filter((item) => item.category !== "weapon" && item.category !== "armor");
+      return availableItemCatalog.filter((item) => item.category !== "weapon" && item.category !== "armor");
     }
     return [];
-  }, [inventoryCatalogModalTab]);
+  }, [availableItemCatalog, inventoryCatalogModalTab]);
   const filteredModalCatalogItems = useMemo(
     () => inventoryCatalogModalTab === "weapons"
       ? modalCatalogItems.filter((item) => {
@@ -1621,7 +1662,7 @@ export function UnifiedCharacterSheet({
       sourceLabel: item.isCustom ? "Arma personalizada" : item.category === "weapon" ? "Arma del catalogo" : item.category === "armor" ? "Armadura" : "Objeto",
       detail: item.description.trim() || "Sin descripcion adicional.",
       notes,
-      removeInventoryIndex: canEditInventory && !item.managedArtifactId ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined
+      removeInventoryIndex: canEditInventory && !item.managedArtifactId && !(item.campaignItemId && campaignItemsById.get(item.campaignItemId)?.isUnique) ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined
     });
   }
 
@@ -1672,8 +1713,8 @@ export function UnifiedCharacterSheet({
       sourceLabel: item.isCustom ? "Arma personalizada" : "Arma del catalogo",
       detail: item.description.trim() || "Sin descripcion adicional.",
       notes,
-      removeInventoryIndex: canEditInventory && !item.managedArtifactId ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
-      editInventoryIndex: canEditInventory && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+      removeInventoryIndex: canEditInventory && !item.managedArtifactId && !(item.campaignItemId && campaignItemsById.get(item.campaignItemId)?.isUnique) ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+      editInventoryIndex: canManageCampaignItems && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
       inventoryMeta: {
         kind: "weapon",
         damage: item.damageFormula || undefined,
@@ -1727,8 +1768,8 @@ export function UnifiedCharacterSheet({
       sourceLabel: item.isCustom ? "Armadura personalizada" : "Armadura del catalogo",
       detail: item.description.trim() || "Sin descripcion adicional.",
       notes,
-      removeInventoryIndex: canEditInventory && !item.managedArtifactId ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
-      editInventoryIndex: canEditInventory && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+      removeInventoryIndex: canEditInventory && !item.managedArtifactId && !(item.campaignItemId && campaignItemsById.get(item.campaignItemId)?.isUnique) ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+      editInventoryIndex: canManageCampaignItems && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
       inventoryMeta: {
         kind: "armor",
         protection: item.protectionFormula || undefined,
@@ -1781,8 +1822,8 @@ export function UnifiedCharacterSheet({
       sourceLabel: item.isCustom ? "Objeto personalizado" : "Objeto del catalogo",
       detail: item.description.trim() || "Sin descripcion adicional.",
       notes,
-      removeInventoryIndex: canEditInventory && !item.managedArtifactId ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
-      editInventoryIndex: canEditInventory && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+      removeInventoryIndex: canEditInventory && !item.managedArtifactId && !(item.campaignItemId && campaignItemsById.get(item.campaignItemId)?.isUnique) ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
+      editInventoryIndex: canManageCampaignItems && item.isCustom ? normalizedSheet.inventoryItems.findIndex((entry) => entry.id === item.id) : undefined,
       inventoryMeta: {
         kind: "item",
         damage: `x${item.quantity}`,
@@ -2379,6 +2420,7 @@ export function UnifiedCharacterSheet({
   }
 
   function addCustomWeapon(): void {
+    setInventoryMutationError(null);
     setWeaponEditorModal({
       mode: "create",
       item: createCustomInventoryItem("weapon")
@@ -2387,6 +2429,7 @@ export function UnifiedCharacterSheet({
   }
 
   function addCustomArmor(): void {
+    setInventoryMutationError(null);
     setArmorEditorModal({
       mode: "create",
       item: createCustomInventoryItem("armor")
@@ -2395,6 +2438,7 @@ export function UnifiedCharacterSheet({
   }
 
   function addCustomItemModal(): void {
+    setInventoryMutationError(null);
     setItemEditorModal({
       mode: "create",
       item: createCustomInventoryItem()
@@ -2443,7 +2487,56 @@ export function UnifiedCharacterSheet({
     });
   }
 
-  function saveWeaponEditorModal(): void {
+  function campaignDefinitionFromItem(item: CharacterSheet["inventoryItems"][number]): CampaignItemDefinition {
+    return {
+      name: item.name.trim(),
+      category: item.category,
+      stackable: item.stackable,
+      description: item.description.trim(),
+      weight: item.weight.trim(),
+      value: item.value.trim(),
+      defaultQuantity: Math.max(1, item.quantity),
+      defaultSlot: item.slot,
+      attackAttribute: item.attackAttribute,
+      damageFormula: item.damageFormula.trim(),
+      protectionFormula: item.protectionFormula.trim(),
+      qualities: formatWeaponQualities(parseWeaponQualities(item.qualities)),
+      notes: item.notes.trim(),
+      grantedActions: item.grantedActions,
+      modifiers: item.modifiers
+    };
+  }
+
+  async function persistCampaignEditorItem(item: CharacterSheet["inventoryItems"][number], isUnique: boolean): Promise<boolean> {
+    try {
+      setInventoryMutationError(null);
+      if (item.campaignItemId && onUpdateCampaignItem) {
+        const existing = campaignItemsById.get(item.campaignItemId);
+        await onUpdateCampaignItem(item.campaignItemId, {
+          definition: campaignDefinitionFromItem(item),
+          isUnique,
+          ownerType: existing?.ownerType ?? undefined,
+          ownerId: existing?.ownerId ?? undefined
+        });
+        return true;
+      }
+      if (onCreateCampaignItem) {
+        await onCreateCampaignItem({
+          definition: campaignDefinitionFromItem(item),
+          isUnique,
+          assignToType: campaignCharacterLinkId ? "character" : undefined,
+          assignToId: campaignCharacterLinkId
+        });
+        return true;
+      }
+      return false;
+    } catch (error) {
+      setInventoryMutationError(error instanceof Error ? error.message : "No se pudo guardar el objeto de campaña.");
+      return false;
+    }
+  }
+
+  async function saveWeaponEditorModal(): Promise<void> {
     if (!weaponEditorModal) return;
     const nextItem = {
       ...weaponEditorModal.item,
@@ -2454,6 +2547,10 @@ export function UnifiedCharacterSheet({
       notes: weaponEditorModal.item.notes.trim(),
       qualities: formatWeaponQualities(parseWeaponQualities(weaponEditorModal.item.qualities))
     };
+    if (canManageCampaignItems) {
+      if (await persistCampaignEditorItem(nextItem, Boolean(weaponEditorModal.isUnique))) setWeaponEditorModal(null);
+      return;
+    }
     setDraft({
       ...draft,
       inventoryItems: typeof weaponEditorModal.index === "number"
@@ -2504,7 +2601,7 @@ export function UnifiedCharacterSheet({
     });
   }
 
-  function saveArmorEditorModal(): void {
+  async function saveArmorEditorModal(): Promise<void> {
     if (!armorEditorModal) return;
     const nextItem = {
       ...armorEditorModal.item,
@@ -2516,6 +2613,10 @@ export function UnifiedCharacterSheet({
       qualities: formatWeaponQualities(parseWeaponQualities(armorEditorModal.item.qualities)),
       slot: armorEditorModal.item.slot === "none" ? "armor" : armorEditorModal.item.slot
     };
+    if (canManageCampaignItems) {
+      if (await persistCampaignEditorItem(nextItem, Boolean(armorEditorModal.isUnique))) setArmorEditorModal(null);
+      return;
+    }
     setDraft({
       ...draft,
       inventoryItems: typeof armorEditorModal.index === "number"
@@ -2566,7 +2667,7 @@ export function UnifiedCharacterSheet({
     });
   }
 
-  function saveItemEditorModal(): void {
+  async function saveItemEditorModal(): Promise<void> {
     if (!itemEditorModal) return;
     const nextItem = {
       ...itemEditorModal.item,
@@ -2576,6 +2677,10 @@ export function UnifiedCharacterSheet({
       notes: itemEditorModal.item.notes.trim(),
       qualities: formatWeaponQualities(parseWeaponQualities(itemEditorModal.item.qualities))
     };
+    if (canManageCampaignItems) {
+      if (await persistCampaignEditorItem(nextItem, Boolean(itemEditorModal.isUnique))) setItemEditorModal(null);
+      return;
+    }
     setDraft({
       ...draft,
       inventoryItems: typeof itemEditorModal.index === "number"
@@ -2602,8 +2707,9 @@ export function UnifiedCharacterSheet({
   }
 
   function addCatalogInventoryItem(): void {
-    const template = ITEM_CATALOG.find((entry) => entry.templateId === selectedCatalogItemId);
+    const template = availableItemCatalog.find((entry) => entry.templateId === selectedCatalogItemId);
     if (!template) return;
+    if (template.campaignItemId && campaignItemsById.get(template.campaignItemId)?.isUnique) return;
     setDraft({
       ...draft,
       inventoryItems: [...draft.inventoryItems, createInventoryItemFromTemplate(template)]
@@ -2611,7 +2717,7 @@ export function UnifiedCharacterSheet({
   }
 
   function openInventoryCatalogModal(tab: InventoryCatalogModalTab): void {
-    const filteredItems = ITEM_CATALOG.filter((item) => {
+    const filteredItems = availableItemCatalog.filter((item) => {
       if (tab === "weapons") return item.category === "weapon";
       if (tab === "armors") return item.category === "armor";
       return item.category !== "weapon" && item.category !== "armor";
@@ -3258,7 +3364,7 @@ export function UnifiedCharacterSheet({
                       <h3>Armas</h3>
                       {canEditInventory ? (
                         <div className="toolbar">
-                          <button type="button" className="subtle-button" onClick={addCustomWeapon}>Arma personalizada</button>
+                          {canManageCampaignItems ? <button type="button" className="subtle-button" onClick={addCustomWeapon}>Arma personalizada</button> : null}
                           <button type="button" onClick={() => openInventoryCatalogModal("weapons")}>Agregar arma</button>
                         </div>
                       ) : null}
@@ -3277,7 +3383,7 @@ export function UnifiedCharacterSheet({
                       <h3>Armaduras</h3>
                       {canEditInventory ? (
                         <div className="toolbar">
-                          <button type="button" className="subtle-button" onClick={addCustomArmor}>Armadura personalizada</button>
+                          {canManageCampaignItems ? <button type="button" className="subtle-button" onClick={addCustomArmor}>Armadura personalizada</button> : null}
                           <button type="button" onClick={() => openInventoryCatalogModal("armors")}>Agregar armadura</button>
                         </div>
                       ) : null}
@@ -3296,7 +3402,7 @@ export function UnifiedCharacterSheet({
                       <h3>Objetos</h3>
                       {canEditInventory ? (
                         <div className="toolbar">
-                          <button type="button" className="subtle-button" onClick={addCustomItemModal}>Objeto personalizado</button>
+                          {canManageCampaignItems ? <button type="button" className="subtle-button" onClick={addCustomItemModal}>Objeto personalizado</button> : null}
                           <button type="button" onClick={() => openInventoryCatalogModal("items")}>Agregar objeto</button>
                         </div>
                       ) : null}
@@ -4162,19 +4268,22 @@ export function UnifiedCharacterSheet({
                       setWeaponEditorModal({
                         mode: "edit",
                         item: { ...item },
-                        index: actionDetailModal.editInventoryIndex
+                        index: actionDetailModal.editInventoryIndex,
+                        isUnique: item.campaignItemId ? campaignItemsById.get(item.campaignItemId)?.isUnique : false
                       });
                     } else if (item.category === "armor") {
                       setArmorEditorModal({
                         mode: "edit",
                         item: { ...item },
-                        index: actionDetailModal.editInventoryIndex
+                        index: actionDetailModal.editInventoryIndex,
+                        isUnique: item.campaignItemId ? campaignItemsById.get(item.campaignItemId)?.isUnique : false
                       });
                     } else {
                       setItemEditorModal({
                         mode: "edit",
                         item: { ...item },
-                        index: actionDetailModal.editInventoryIndex
+                        index: actionDetailModal.editInventoryIndex,
+                        isUnique: item.campaignItemId ? campaignItemsById.get(item.campaignItemId)?.isUnique : false
                       });
                     }
                     setActionDetailModal(null);
@@ -4218,16 +4327,17 @@ export function UnifiedCharacterSheet({
                   </select>
                 </Field>
                 <Field label="Cantidad">
-                  <input type="number" min={0} value={weaponEditorModal.item.quantity} onChange={(event) => updateWeaponEditorItem("quantity", Number(event.target.value || 0))} />
+                  <input type="number" min={1} disabled={weaponEditorModal.isUnique} value={weaponEditorModal.isUnique ? 1 : weaponEditorModal.item.quantity} onChange={(event) => updateWeaponEditorItem("quantity", Number(event.target.value || 1))} />
                 </Field>
                 <Field label="Apilable">
-                  <select value={weaponEditorModal.item.stackable ? "si" : "no"} onChange={(event) => updateWeaponEditorItem("stackable", event.target.value === "si")}>
+                  <select disabled={weaponEditorModal.isUnique} value={weaponEditorModal.isUnique ? "no" : weaponEditorModal.item.stackable ? "si" : "no"} onChange={(event) => updateWeaponEditorItem("stackable", event.target.value === "si")}>
                     <option value="no">No</option>
                     <option value="si">Si</option>
                   </select>
                 </Field>
                 <Field label="Valor"><input value={weaponEditorModal.item.value} onChange={(event) => updateWeaponEditorItem("value", event.target.value)} /></Field>
               </div>
+              <label className="campaign-item-unique-toggle"><input type="checkbox" checked={Boolean(weaponEditorModal.isUnique)} onChange={(event) => setWeaponEditorModal((current) => current ? ({ ...current, isUnique: event.target.checked, item: event.target.checked ? { ...current.item, quantity: 1, stackable: false } : current.item }) : current)} /><span><strong>Poseedor único</strong><small>Pieza con nombre propio que solo el DJ puede asignar a un PJ o PNJ.</small></span></label>
               <div className="field">
                 <span>Cualidades</span>
                 <div className="unified-sheet-quality-picker">
@@ -4260,6 +4370,7 @@ export function UnifiedCharacterSheet({
                 <textarea rows={3} value={weaponEditorModal.item.notes} placeholder="Notas de uso, mantenimiento o procedencia" onChange={(event) => updateWeaponEditorItem("notes", event.target.value)} />
               </Field>
             </div>
+            {inventoryMutationError ? <p className="error-text">{inventoryMutationError}</p> : null}
             <div className="row-actions character-roll-confirm-actions">
               <button type="button" className="subtle-button" onClick={() => setWeaponEditorModal(null)}>Cancelar</button>
               <button type="button" className="accent-button" onClick={saveWeaponEditorModal}>Guardar</button>
@@ -4284,16 +4395,17 @@ export function UnifiedCharacterSheet({
                   </select>
                 </Field>
                 <Field label="Cantidad">
-                  <input type="number" min={0} value={armorEditorModal.item.quantity} onChange={(event) => updateArmorEditorItem("quantity", Number(event.target.value || 0))} />
+                  <input type="number" min={1} disabled={armorEditorModal.isUnique} value={armorEditorModal.isUnique ? 1 : armorEditorModal.item.quantity} onChange={(event) => updateArmorEditorItem("quantity", Number(event.target.value || 1))} />
                 </Field>
                 <Field label="Apilable">
-                  <select value={armorEditorModal.item.stackable ? "si" : "no"} onChange={(event) => updateArmorEditorItem("stackable", event.target.value === "si")}>
+                  <select disabled={armorEditorModal.isUnique} value={armorEditorModal.isUnique ? "no" : armorEditorModal.item.stackable ? "si" : "no"} onChange={(event) => updateArmorEditorItem("stackable", event.target.value === "si")}>
                     <option value="no">No</option>
                     <option value="si">Si</option>
                   </select>
                 </Field>
                 <Field label="Valor"><input value={armorEditorModal.item.value} onChange={(event) => updateArmorEditorItem("value", event.target.value)} /></Field>
               </div>
+              <label className="campaign-item-unique-toggle"><input type="checkbox" checked={Boolean(armorEditorModal.isUnique)} onChange={(event) => setArmorEditorModal((current) => current ? ({ ...current, isUnique: event.target.checked, item: event.target.checked ? { ...current.item, quantity: 1, stackable: false } : current.item }) : current)} /><span><strong>Poseedor único</strong><small>Pieza con nombre propio que solo el DJ puede asignar a un PJ o PNJ.</small></span></label>
               <div className="field">
                 <span>Cualidades</span>
                 <div className="unified-sheet-quality-picker">
@@ -4326,6 +4438,7 @@ export function UnifiedCharacterSheet({
                 <textarea rows={3} value={armorEditorModal.item.notes} placeholder="Notas de uso, mantenimiento o procedencia" onChange={(event) => updateArmorEditorItem("notes", event.target.value)} />
               </Field>
             </div>
+            {inventoryMutationError ? <p className="error-text">{inventoryMutationError}</p> : null}
             <div className="row-actions character-roll-confirm-actions">
               <button type="button" className="subtle-button" onClick={() => setArmorEditorModal(null)}>Cancelar</button>
               <button type="button" className="accent-button" onClick={saveArmorEditorModal}>Guardar</button>
@@ -4351,10 +4464,10 @@ export function UnifiedCharacterSheet({
                   </select>
                 </Field>
                 <Field label="Cantidad">
-                  <input type="number" min={0} value={itemEditorModal.item.quantity} onChange={(event) => updateItemEditorItem("quantity", Number(event.target.value || 0))} />
+                  <input type="number" min={1} disabled={itemEditorModal.isUnique} value={itemEditorModal.isUnique ? 1 : itemEditorModal.item.quantity} onChange={(event) => updateItemEditorItem("quantity", Number(event.target.value || 1))} />
                 </Field>
                 <Field label="Apilable">
-                  <select value={itemEditorModal.item.stackable ? "si" : "no"} onChange={(event) => updateItemEditorItem("stackable", event.target.value === "si")}>
+                  <select disabled={itemEditorModal.isUnique} value={itemEditorModal.isUnique ? "no" : itemEditorModal.item.stackable ? "si" : "no"} onChange={(event) => updateItemEditorItem("stackable", event.target.value === "si")}>
                     <option value="no">No</option>
                     <option value="si">Si</option>
                   </select>
@@ -4368,6 +4481,7 @@ export function UnifiedCharacterSheet({
                 </Field>
                 <Field label="Valor"><input value={itemEditorModal.item.value} onChange={(event) => updateItemEditorItem("value", event.target.value)} /></Field>
               </div>
+              <label className="campaign-item-unique-toggle"><input type="checkbox" checked={Boolean(itemEditorModal.isUnique)} onChange={(event) => setItemEditorModal((current) => current ? ({ ...current, isUnique: event.target.checked, item: event.target.checked ? { ...current.item, quantity: 1, stackable: false } : current.item }) : current)} /><span><strong>Poseedor único</strong><small>Pieza con nombre propio que solo el DJ puede asignar a un PJ o PNJ.</small></span></label>
               <div className="field">
                 <span>Cualidades</span>
                 <div className="unified-sheet-quality-picker">
@@ -4400,6 +4514,7 @@ export function UnifiedCharacterSheet({
                 <textarea rows={3} value={itemEditorModal.item.notes} placeholder="Notas de uso, procedencia o comercio" onChange={(event) => updateItemEditorItem("notes", event.target.value)} />
               </Field>
             </div>
+            {inventoryMutationError ? <p className="error-text">{inventoryMutationError}</p> : null}
             <div className="row-actions character-roll-confirm-actions">
               <button type="button" className="subtle-button" onClick={() => setItemEditorModal(null)}>Cancelar</button>
               <button type="button" className="accent-button" onClick={saveItemEditorModal}>Guardar</button>
@@ -4580,8 +4695,16 @@ export function UnifiedCharacterSheet({
                   const selectedItem = filteredModalCatalogItems.find((item) => item.templateId === selectedCatalogItemId) ?? filteredModalCatalogItems[0];
                   if (!selectedItem) return null;
                   const selectedItemQualities = parseWeaponQualities(selectedItem.qualities);
+                  const selectedCampaignItem = selectedItem.campaignItemId ? campaignItemsById.get(selectedItem.campaignItemId) : undefined;
                   return (
-                    selectedItem.category === "weapon" ? (
+                    <>
+                      {selectedCampaignItem?.isUnique ? (
+                        <div className="unified-sheet-campaign-item-owner">
+                          <span className="campaign-item-unique-badge">Pieza única</span>
+                          <strong>Poseedor: {selectedCampaignItem.ownerName ?? "Sin poseedor"}</strong>
+                        </div>
+                      ) : null}
+                    {selectedItem.category === "weapon" ? (
                       <div className="unified-sheet-weapon-detail-layout unified-sheet-item-catalog-weapon-preview">
                         <div className="unified-sheet-item-catalog-preview-header">
                           <strong>{selectedItem.name}</strong>
@@ -4683,7 +4806,8 @@ export function UnifiedCharacterSheet({
                           </section>
                         ) : null}
                       </div>
-                    )
+                    )}
+                    </>
                   );
                 })()}
               </div>
@@ -4692,7 +4816,17 @@ export function UnifiedCharacterSheet({
             )}
             <div className="row-actions character-roll-confirm-actions">
               <button type="button" className="subtle-button" onClick={() => setInventoryCatalogModalTab(null)}>Cancelar</button>
-              <button type="button" disabled={filteredModalCatalogItems.length === 0 || !selectedCatalogItemId} onClick={addSelectedCatalogItemFromModal}>Agregar</button>
+              <button
+                type="button"
+                disabled={filteredModalCatalogItems.length === 0 || !selectedCatalogItemId || Boolean((() => {
+                  const selected = availableItemCatalog.find((item) => item.templateId === selectedCatalogItemId);
+                  return selected?.campaignItemId && campaignItemsById.get(selected.campaignItemId)?.isUnique;
+                })())}
+                onClick={addSelectedCatalogItemFromModal}
+              >{(() => {
+                const selected = availableItemCatalog.find((item) => item.templateId === selectedCatalogItemId);
+                return selected?.campaignItemId && campaignItemsById.get(selected.campaignItemId)?.isUnique ? "Solo el DJ puede asignarlo" : "Agregar";
+              })()}</button>
             </div>
           </div>
         </div>

@@ -57,6 +57,8 @@ import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { ALL_ENTRIES } from "../models/compendiumEntries";
 import { buildPdfViewerUrl } from "../services/pdfViewer";
 import { CampaignCombatView } from "../components/CampaignCombatView";
+import { CampaignItemManager } from "../components/CampaignItemManager";
+import { createCampaignItem, updateCampaignItem } from "../services/campaignItemService";
 
 type Props = {
   user: AuthUser;
@@ -619,6 +621,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [artifactEditor, setArtifactEditor] = useState<{ id: string | null; definition: MysticArtifactDefinitionInput } | null>(null);
   const [artifactDetails, setArtifactDetails] = useState<MysticArtifact | null>(null);
   const [artifactError, setArtifactError] = useState<string | null>(null);
+  const [campaignObjectTab, setCampaignObjectTab] = useState<"weapon" | "armor" | "item" | "artifacts">("weapon");
 
   const selectedCampaign = useMemo(
     () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
@@ -1806,7 +1809,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   className={activeSection === "artifacts" ? "is-active" : ""}
                   onClick={() => setActiveSection("artifacts")}
                 >
-                  Artefactos
+                  Objetos de campaña
                 </button>
               ) : null}
               {isDirector ? (
@@ -2095,6 +2098,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     .join("") || "PJ";
                   const availableExperience = Math.max(0, entry.experienceTotal - entry.experienceSpent);
                   const pendingProfessionRequestCount = professionRequestsByCharacterId.get(entry.characterId)?.length ?? 0;
+                  const unreadChangeCount = canViewChangeLog ? entry.unreadChangeCount ?? 0 : 0;
                   return (
                     <article key={entry.id} className="card character-record-card campaign-character-card" aria-label={`Personaje ${entry.name}`}>
                       <div className="character-record-card-head">
@@ -2143,26 +2147,40 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                             Conceder PX
                           </button>
                         ) : null}
-                        {isDirector ? (
+                        {isDirector && entry.sheet ? (
                           <button
                             type="button"
-                            className="subtle-button campaign-character-profession-action"
-                            aria-label={`Solicitudes profesionales de ${entry.name}: ${pendingProfessionRequestCount} ${pendingProfessionRequestCount === 1 ? "pendiente" : "pendientes"}`}
+                            className="subtle-button character-record-builder-action"
                             onClick={() => {
-                              setFormError(null);
-                              setProfessionRequestsCharacterId(entry.characterId);
+                              setSelectedSheetId(entry.id);
+                              setCampaignCharacterView("builder");
                             }}
                           >
-                            <span>Solicitudes</span>
-                            <strong>{pendingProfessionRequestCount}</strong>
+                            Constructor
                           </button>
                         ) : null}
                         <details className="character-record-actions-menu">
-                          <summary>Más acciones</summary>
+                          <summary>
+                            <span>Más acciones</span>
+                            {unreadChangeCount > 0 ? (
+                              <span className="character-history-badge" aria-label={`${unreadChangeCount} cambios sin leer`}>
+                                {unreadChangeCount}
+                              </span>
+                            ) : null}
+                          </summary>
                           <div className="character-record-secondary-actions">
-                            {isDirector && entry.sheet ? (
-                              <button type="button" onClick={() => { setSelectedSheetId(entry.id); setCampaignCharacterView("builder"); }}>
-                                Constructor
+                            {isDirector ? (
+                              <button
+                                type="button"
+                                className="campaign-character-profession-action"
+                                aria-label={`Solicitudes de profesión de ${entry.name}: ${pendingProfessionRequestCount} ${pendingProfessionRequestCount === 1 ? "pendiente" : "pendientes"}`}
+                                onClick={() => {
+                                  setFormError(null);
+                                  setProfessionRequestsCharacterId(entry.characterId);
+                                }}
+                              >
+                                <span>Solicitudes de profesión</span>
+                                <strong>{pendingProfessionRequestCount}</strong>
                               </button>
                             ) : null}
                             {canViewChangeLog ? (
@@ -2172,7 +2190,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                                 aria-label={`Historial de cambios de ${entry.name}`}
                                 onClick={() => setChangeLogCharacterId(entry.characterId)}
                               >
-                                Historial de cambios{(entry.unreadChangeCount ?? 0) > 0 ? <span className="character-history-badge" aria-label={`${entry.unreadChangeCount} cambios sin leer`}>{entry.unreadChangeCount}</span> : null}
+                                Historial de cambios{unreadChangeCount > 0 ? <span className="character-history-badge" aria-label={`${unreadChangeCount} cambios sin leer`}>{unreadChangeCount}</span> : null}
                               </button>
                             ) : null}
                             <button type="button" onClick={() => setExperienceHistoryCharacterId(entry.characterId)}>
@@ -2219,6 +2237,17 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
           {isDirector && activeSection === "artifacts" ? (
             <section className="panel">
+              <div className="toolbar campaign-object-tabs" role="tablist" aria-label="Tipos de objetos de campaña">
+                {([[
+                  "weapon", "Armas"
+                ], ["armor", "Armaduras"], ["item", "Objetos"], ["artifacts", "Artefactos místicos"]] as const).map(([tab, label]) => (
+                  <button key={tab} type="button" role="tab" aria-selected={campaignObjectTab === tab} className={campaignObjectTab === tab ? "is-active" : ""} onClick={() => setCampaignObjectTab(tab)}>{label}</button>
+                ))}
+              </div>
+              {campaignObjectTab !== "artifacts" ? (
+                <CampaignItemManager campaign={selectedCampaign} kind={campaignObjectTab} ensureAccessToken={ensureAccessToken} onRefresh={refresh} />
+              ) : (
+              <>
               <div className="row-actions">
                 <div>
                   <h3>Artefactos místicos</h3>
@@ -2303,7 +2332,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   </p>
                 ) : null}
               </div>
-
+              </>
+              )}
             </section>
           ) : null}
 
@@ -2803,6 +2833,21 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   enforceProfessionRestrictions
                   editable
                   busy={isSaving}
+                  campaignItems={selectedCampaign?.campaignItems ?? []}
+                  canManageCampaignItems={isDirector}
+                  campaignCharacterLinkId={campaignSheetModalEntry.id}
+                  onCreateCampaignItem={async (input) => {
+                    const token = await ensureAccessToken();
+                    const created = await createCampaignItem(selectedCampaign!.id, input, token);
+                    await refresh();
+                    return created;
+                  }}
+                  onUpdateCampaignItem={async (itemId, input) => {
+                    const token = await ensureAccessToken();
+                    const updated = await updateCampaignItem(itemId, input, token);
+                    await refresh();
+                    return updated;
+                  }}
                   onOpenBuilder={() => setCampaignCharacterView("builder")}
                   onSave={(sheet) => handleSaveCampaignCharacter(campaignSheetModalEntry, sheet, "sheet")}
                   onUseArtifactAbility={async (artifactId, abilityId) => {

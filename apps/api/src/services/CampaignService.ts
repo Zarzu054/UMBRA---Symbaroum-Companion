@@ -47,6 +47,8 @@ import { CampaignModel } from "../models/CampaignModel.js";
 import { campaignLiveHub } from "./CampaignLiveHub.js";
 import { AppError } from "../utils/AppError.js";
 import { protectGrantedCharacterExperience } from "./characterExperiencePolicy.js";
+import { CampaignItemModel } from "../models/CampaignItemModel.js";
+import { protectCampaignItemInventory } from "./campaignItemInventoryPolicy.js";
 import { translateProfessionError } from "./ProfessionService.js";
 import { ProfessionModel } from "../models/ProfessionModel.js";
 
@@ -516,7 +518,11 @@ export class CampaignService {
         }
       }
     });
-    const playerSafeSheet = isDirector ? payload.sheet : preserveLegacyMysticArtifacts(currentSheet, payload.sheet);
+    const artifactSafeSheet = isDirector ? payload.sheet : preserveLegacyMysticArtifacts(currentSheet, payload.sheet);
+    const campaignItems = process.env.DATABASE_URL
+      ? await new CampaignItemModel().listCampaign(link.campaignId, true)
+      : [];
+    const playerSafeSheet = protectCampaignItemInventory(currentSheet, artifactSafeSheet, campaignItems, link.id);
     const protectedSheet = protectGrantedCharacterExperience(
       currentSheet,
       playerSafeSheet
@@ -546,6 +552,12 @@ export class CampaignService {
       ...input,
       sheet: input.sheet ? stripManagedMysticArtifactsFromSheet(input.sheet) : null
     });
+    if (payload.sheet) {
+      const currentNpc = await this.model.findNpcById(npcId);
+      const currentSheet = currentNpc?.sheet ? parseCharacterSheet(currentNpc.sheet) : createEmptyCharacterSheet();
+      const campaignItems = process.env.DATABASE_URL ? await new CampaignItemModel().listCampaign(npc.campaignId, true) : [];
+      payload.sheet = protectCampaignItemInventory(currentSheet, payload.sheet, campaignItems, npcId, "npc");
+    }
     await this.model.updateNpcSheet(npcId, payload.sheet);
     return this.getCampaign(userId, userRole, npc.campaignId);
   }

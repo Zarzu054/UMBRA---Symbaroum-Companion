@@ -53,6 +53,54 @@
   --font-body: var(--ui-font);
 }
 
+.campaign-object-tabs {
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--line, #d8c4ae);
+}
+
+.campaign-object-tabs button { border-radius: 0.5rem 0.5rem 0 0; }
+.campaign-item-manager { display: grid; gap: 1rem; }
+.campaign-item-template-grid { grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
+.campaign-item-template-card { gap: 0.65rem; }
+.campaign-item-template-card.is-archived { opacity: 0.68; }
+
+.campaign-item-unique-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.7rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--accent, #7f2d35);
+  border-radius: 999px;
+  color: var(--accent, #7f2d35);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.unified-sheet-campaign-item-owner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+  color: var(--text-muted);
+}
+
+.campaign-item-unique-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.8rem;
+  border: 1px solid var(--line, #d8c4ae);
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, var(--accent, #7f2d35) 6%, transparent);
+}
+
+.campaign-item-unique-toggle input { margin-top: 0.2rem; }
+.campaign-item-unique-toggle span { display: grid; gap: 0.2rem; }
+.campaign-item-unique-toggle small { color: var(--muted, #6f625a); }
+.campaign-item-editor-modal { width: min(48rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; }
+.campaign-item-archive-toggle { display: inline-flex; align-items: center; gap: 0.45rem; align-self: end; min-height: 2.4rem; }
+
 :root[data-theme="dark"] {
   --ui-danger: #e28a84;
   --ui-danger-button: #a94e4a;
@@ -1305,6 +1353,7 @@ button[disabled] {
   padding: 8px 12px;
   display: inline-flex;
   align-items: center;
+  gap: 7px;
   border: 1px solid var(--ui-border-strong);
   border-radius: var(--ui-radius-sm);
   color: var(--ui-text);
@@ -1313,6 +1362,11 @@ button[disabled] {
   font-size: 0.86rem;
   font-weight: 600;
   list-style: none;
+}
+
+:root[data-theme][data-palette] .character-history-badge {
+  color: var(--ui-on-danger) !important;
+  background: var(--ui-danger-button);
 }
 
 .character-record-actions-menu > summary::-webkit-details-marker {

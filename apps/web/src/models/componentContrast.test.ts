@@ -39,12 +39,14 @@ describe("component contrast contracts", () => {
       for (const semantic of ["danger", "warning", "success", "info"] as const) {
         expect(contrast(token(block, `--ui-${semantic}`), token(block, `--ui-${semantic}-soft`))).toBeGreaterThanOrEqual(4.5);
       }
+      expect(contrast(token(block, "--ui-on-danger"), token(block, "--ui-danger-button"))).toBeGreaterThanOrEqual(4.5);
     });
   }
 
   it("protects nested button labels and disabled controls from legacy colors", () => {
     expect(stylesheet).toContain("button > :is(span, strong, small)");
     expect(stylesheet).toMatch(/\.campaign-burden-summary-button > strong\s*\{[\s\S]*?color: var\(--ui-brand-strong\) !important/);
+    expect(stylesheet).toMatch(/\.character-history-badge\s*\{[\s\S]*?color: var\(--ui-on-danger\) !important;[\s\S]*?background: var\(--ui-danger-button\)/);
     expect(stylesheet).toMatch(/button, \.file-trigger\)\[disabled\][\s\S]*?color: var\(--ui-text-muted\) !important/);
     expect(stylesheet).toMatch(/\.campaign-action-roll-button\s*\{[\s\S]*?color: var\(--ui-on-brand\)/);
     expect(stylesheet).toMatch(/\.campaign-action-roll-button > :is\(span, strong\)[\s\S]*?color: inherit !important/);

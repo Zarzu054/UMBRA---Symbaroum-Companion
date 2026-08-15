@@ -160,6 +160,9 @@ describe("CampaignDashboardView experience grants", () => {
   });
 
   it("places linking in a modal, highlights burdens and groups secondary character actions", async () => {
+    const campaign = buildCampaign();
+    campaign.characters[0].unreadChangeCount = 2;
+    serviceMocks.fetchCampaigns.mockResolvedValue([campaign]);
     render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
 
     const heading = await screen.findByRole("heading", { name: "Personajes vinculados" });
@@ -180,11 +183,16 @@ describe("CampaignDashboardView experience grants", () => {
     expect(characterCard).toHaveClass("character-record-card");
     expect(within(characterCard).getByRole("button", { name: "Abrir hoja" })).toBeInTheDocument();
     expect(within(characterCard).getByRole("button", { name: "Conceder PX" })).toBeInTheDocument();
+    expect(within(characterCard).getByRole("button", { name: "Constructor" })).toBeInTheDocument();
     const moreActions = characterCard.querySelector("summary");
     expect(moreActions).toHaveTextContent("Más acciones");
+    const menuAlert = within(moreActions!).getByLabelText("2 cambios sin leer");
+    expect(menuAlert).toHaveTextContent("2");
     fireEvent.click(moreActions!);
     expect(moreActions?.closest("details")).toHaveAttribute("open");
-    expect(within(characterCard).getByRole("button", { name: "Constructor" })).toBeInTheDocument();
+    expect(within(characterCard).getByRole("button", { name: "Solicitudes de profesión de Alda: 0 pendientes" })).toBeInTheDocument();
+    const historyButton = within(characterCard).getByRole("button", { name: "Historial de cambios de Alda" });
+    expect(within(historyButton).getByLabelText("2 cambios sin leer")).toHaveTextContent(menuAlert.textContent ?? "");
     expect(within(characterCard).getByRole("button", { name: "Historial de PX" })).toBeInTheDocument();
     expect(within(characterCard).getByRole("button", { name: "Desvincular" })).toBeInTheDocument();
   });
@@ -526,7 +534,9 @@ describe("CampaignDashboardView experience grants", () => {
     const aldaCard = await screen.findByRole("article", { name: "Personaje Alda" });
     const beremoCard = screen.getByRole("article", { name: "Personaje Beremo" });
     expect(screen.queryByRole("button", { name: "Solicitudes profesionales (2)" })).not.toBeInTheDocument();
-    fireEvent.click(within(aldaCard).getByRole("button", { name: "Solicitudes profesionales de Alda: 1 pendiente" }));
+    expect(within(aldaCard).getByRole("button", { name: "Constructor" })).toBeInTheDocument();
+    fireEvent.click(aldaCard.querySelector("summary")!);
+    fireEvent.click(within(aldaCard).getByRole("button", { name: "Solicitudes de profesión de Alda: 1 pendiente" }));
 
     const dialog = screen.getByRole("dialog", { name: "Solicitudes de profesiones de Alda" });
     expect(within(dialog).getByText("Juramentado de hierro")).toBeInTheDocument();
@@ -535,7 +545,8 @@ describe("CampaignDashboardView experience grants", () => {
     await waitFor(() => expect(serviceMocks.decideProfessionRequest).toHaveBeenCalledWith("campaign-a", "request-a", { decision: "approve", note: "" }, "token-a"));
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Cerrar" }));
-    fireEvent.click(within(beremoCard).getByRole("button", { name: "Solicitudes profesionales de Beremo: 1 pendiente" }));
+    fireEvent.click(beremoCard.querySelector("summary")!);
+    fireEvent.click(within(beremoCard).getByRole("button", { name: "Solicitudes de profesión de Beremo: 1 pendiente" }));
     const beremoDialog = screen.getByRole("dialog", { name: "Solicitudes de profesiones de Beremo" });
     expect(within(beremoDialog).getByText("Cazador de brujas")).toBeInTheDocument();
     expect(within(beremoDialog).queryByText("Juramentado de hierro")).not.toBeInTheDocument();
@@ -838,7 +849,8 @@ describe("CampaignDashboardView experience grants", () => {
   it("shows the GM-only artifact management section", async () => {
     render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
     await screen.findByText("Davokar");
-    fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Objetos de campaña" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Artefactos místicos" }));
     expect(screen.getByRole("heading", { name: "Artefactos místicos" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Añadir artefacto" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Seleccionar artefacto")).not.toBeInTheDocument();
@@ -847,7 +859,8 @@ describe("CampaignDashboardView experience grants", () => {
   it("opens a guided artifact creator instead of a raw JSON editor", async () => {
     render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
     await screen.findByText("Davokar");
-    fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Objetos de campaña" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Artefactos místicos" }));
     fireEvent.click(screen.getByRole("button", { name: "Añadir artefacto" }));
     fireEvent.click(screen.getByRole("button", { name: "Crear personalizado" }));
 
@@ -865,7 +878,8 @@ describe("CampaignDashboardView experience grants", () => {
 
     render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
     await screen.findByText("Davokar");
-    fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Objetos de campaña" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Artefactos místicos" }));
 
     expect(screen.getByText("Campaign artifact")).toBeInTheDocument();
     expect(screen.queryByText(/Catalog-only artifact/)).not.toBeInTheDocument();

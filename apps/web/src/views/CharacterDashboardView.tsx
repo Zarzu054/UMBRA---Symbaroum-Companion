@@ -416,6 +416,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
                   professionMemberships={selectedCharacterSheet.professionMemberships}
                   enforceProfessionRestrictions
                   editable
+                  campaignItems={selectedCharacterSheet.campaignContext?.campaignItems ?? []}
                   backgroundPreferenceScope={user.id}
                   onBack={closeCharacterSheet}
                   onOpenBuilder={() => openCharacterBuilder(selectedCharacterSheet.id)}
