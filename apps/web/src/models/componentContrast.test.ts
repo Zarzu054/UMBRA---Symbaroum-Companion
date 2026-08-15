@@ -73,6 +73,11 @@ describe("component contrast contracts", () => {
     expect(stylesheet).toMatch(/\.character-builder-capability-tier\.is-current\s*\{[\s\S]*?border-color: var\(--ui-brand\);[\s\S]*?background: var\(--ui-brand-soft\)/);
   });
 
+  it("keeps wiki references prominent and contrast-safe in notes", () => {
+    expect(stylesheet).toMatch(/\.compendium-highlight,[\s\S]*?\.campaign-shared-notes-modal \.compendium-tags \.compendium-chip\s*\{[\s\S]*?color: var\(--ui-brand-strong\);[\s\S]*?background: var\(--ui-brand-soft\)/);
+    expect(stylesheet).toMatch(/\.compendium-highlight-button:hover,[\s\S]*?\.compendium-highlight-button:focus-visible,[\s\S]*?color: var\(--ui-on-brand\);[\s\S]*?background: var\(--ui-brand\)/);
+  });
+
   it("keeps inactive monster tabs readable in every theme", () => {
     expect(stylesheet).toMatch(/\.monster-catalog-tabs button\s*\{[\s\S]*?color: var\(--ui-text-muted\);[\s\S]*?background: transparent/);
     expect(stylesheet).toMatch(/\.monster-catalog-tabs button:hover\s*\{[\s\S]*?color: var\(--ui-text\);[\s\S]*?background: var\(--ui-surface-hover\)/);

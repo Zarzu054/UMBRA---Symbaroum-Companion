@@ -488,23 +488,57 @@ describe("CampaignDashboardView experience grants", () => {
     expect(screen.queryByRole("dialog", { name: "Renombrar monstruo" })).not.toBeInTheDocument();
   });
 
-  it("shows and approves pending profession requests", async () => {
+  it("shows and approves only the profession requests for each character", async () => {
     const campaign = buildCampaign();
-    campaign.pendingProfessionRequests = [{
+    const secondCharacter = {
+      ...campaign.characters[0],
+      id: "link-b",
+      characterId: "00000000-0000-4000-8000-000000000002",
+      name: "Beremo",
+      ownerId: "player-b",
+      ownerEmail: "beremo@example.com"
+    };
+    campaign.characters.push(secondCharacter);
+    const aldaRequest = {
       id: "request-a", characterId: campaign.characters[0].characterId, characterName: "Alda", ownerEmail: "player@example.com",
       professionId: "juramentado-de-hierro", professionName: "Juramentado de hierro", state: "pending", effectiveState: "pending",
       campaignId: campaign.id, campaignName: campaign.name, requestedAt: new Date(0).toISOString(), reviewedAt: null, decisionNote: "",
       eligibility: { professionId: "juramentado-de-hierro", eligible: true, requirementsMet: true, masterRequirementMet: true, otherRequirementMet: true, unmetRequirements: [], requirementResults: [{ id: "estudioso", label: "Estudioso", met: true, matchedNames: ["Estudioso"], hasMaster: true }] },
       createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+    } as const;
+    campaign.pendingProfessionRequests = [aldaRequest, {
+      ...aldaRequest,
+      id: "request-b",
+      characterId: secondCharacter.characterId,
+      characterName: secondCharacter.name,
+      ownerEmail: secondCharacter.ownerEmail,
+      professionId: "cazador-de-brujas",
+      professionName: "Cazador de brujas",
+      eligibility: {
+        ...aldaRequest.eligibility,
+        professionId: "cazador-de-brujas"
+      }
     }];
     serviceMocks.fetchCampaigns.mockResolvedValue([campaign]);
     serviceMocks.decideProfessionRequest.mockResolvedValue([]);
     render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Solicitudes profesionales (1)" }));
-    expect(screen.getByRole("heading", { name: "Solicitudes de profesiones" })).toBeInTheDocument();
-    expect(screen.getByText("Juramentado de hierro")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Aprobar" }));
+
+    const aldaCard = await screen.findByRole("article", { name: "Personaje Alda" });
+    const beremoCard = screen.getByRole("article", { name: "Personaje Beremo" });
+    expect(screen.queryByRole("button", { name: "Solicitudes profesionales (2)" })).not.toBeInTheDocument();
+    fireEvent.click(within(aldaCard).getByRole("button", { name: "Solicitudes profesionales de Alda: 1 pendiente" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Solicitudes de profesiones de Alda" });
+    expect(within(dialog).getByText("Juramentado de hierro")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Cazador de brujas")).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Aprobar" }));
     await waitFor(() => expect(serviceMocks.decideProfessionRequest).toHaveBeenCalledWith("campaign-a", "request-a", { decision: "approve", note: "" }, "token-a"));
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cerrar" }));
+    fireEvent.click(within(beremoCard).getByRole("button", { name: "Solicitudes profesionales de Beremo: 1 pendiente" }));
+    const beremoDialog = screen.getByRole("dialog", { name: "Solicitudes de profesiones de Beremo" });
+    expect(within(beremoDialog).getByText("Cazador de brujas")).toBeInTheDocument();
+    expect(within(beremoDialog).queryByText("Juramentado de hierro")).not.toBeInTheDocument();
   });
 
   it("sends an invitation instead of adding a campaign member directly", async () => {

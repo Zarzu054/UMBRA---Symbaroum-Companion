@@ -2435,6 +2435,10 @@ button.subtle-button {
   min-width: min(540px, 100%);
 }
 
+.campaign-notes-copy .section-help {
+  min-block-size: 2.44em;
+}
+
 .campaign-inline-form .field,
 .campaign-xp-reason {
   min-width: 0;

@@ -606,7 +606,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [isInviteMemberModalOpen, setIsInviteMemberModalOpen] = useState(false);
   const [isLinkCharacterModalOpen, setIsLinkCharacterModalOpen] = useState(false);
   const [isBurdenSummaryModalOpen, setIsBurdenSummaryModalOpen] = useState(false);
-  const [isProfessionRequestsModalOpen, setIsProfessionRequestsModalOpen] = useState(false);
+  const [professionRequestsCharacterId, setProfessionRequestsCharacterId] = useState<string | null>(null);
   const [pendingUnlinkCharacter, setPendingUnlinkCharacter] = useState<Campaign["characters"][number] | null>(null);
   const [experienceGrantDraft, setExperienceGrantDraft] = useState<ExperienceGrantDraft | null>(null);
   const [experienceGrantError, setExperienceGrantError] = useState<string | null>(null);
@@ -623,6 +623,25 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const selectedCampaign = useMemo(
     () => campaigns.find((campaign) => campaign.id === selectedCampaignId) ?? null,
     [campaigns, selectedCampaignId]
+  );
+  const professionRequestsByCharacterId = useMemo(() => {
+    const groupedRequests = new Map<string, NonNullable<Campaign["pendingProfessionRequests"]>>();
+    for (const request of selectedCampaign?.pendingProfessionRequests ?? []) {
+      const characterRequests = groupedRequests.get(request.characterId) ?? [];
+      characterRequests.push(request);
+      groupedRequests.set(request.characterId, characterRequests);
+    }
+    return groupedRequests;
+  }, [selectedCampaign]);
+  const professionRequestsCharacter = useMemo(
+    () => selectedCampaign?.characters.find((entry) => entry.characterId === professionRequestsCharacterId) ?? null,
+    [professionRequestsCharacterId, selectedCampaign]
+  );
+  const selectedProfessionRequests = useMemo(
+    () => professionRequestsCharacter
+      ? professionRequestsByCharacterId.get(professionRequestsCharacter.characterId) ?? []
+      : [],
+    [professionRequestsCharacter, professionRequestsByCharacterId]
   );
   const focusedInvitation = useMemo(
     () => invitations.find((invitation) => invitation.id === focusedInvitationId) ?? null,
@@ -791,7 +810,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     isInviteMemberModalOpen ||
     isLinkCharacterModalOpen ||
     isBurdenSummaryModalOpen ||
-    isProfessionRequestsModalOpen ||
+    Boolean(professionRequestsCharacter) ||
     Boolean(pendingUnlinkCharacter) ||
     Boolean(experienceGrantDraft) ||
     isArtifactAddModalOpen ||
@@ -893,6 +912,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setSharedNoteError(null);
       setSharedNoteSearch("");
       setPendingUnlinkCharacter(null);
+      setProfessionRequestsCharacterId(null);
       setExperienceGrantDraft(null);
       setExperienceGrantError(null);
       setExperienceHistoryCharacterId(null);
@@ -969,7 +989,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     if (experienceHistoryCharacterId && !selectedCampaign.characters.some((entry) => entry.characterId === experienceHistoryCharacterId)) {
       setExperienceHistoryCharacterId(null);
     }
-  }, [activeSection, experienceHistoryCharacterId, isLoading, selectedCampaign, selectedCampaignId, selectedSheetId]);
+    if (professionRequestsCharacterId && !selectedCampaign.characters.some((entry) => entry.characterId === professionRequestsCharacterId)) {
+      setProfessionRequestsCharacterId(null);
+    }
+  }, [activeSection, experienceHistoryCharacterId, isLoading, professionRequestsCharacterId, selectedCampaign, selectedCampaignId, selectedSheetId]);
 
   async function refresh(): Promise<void> {
     setIsLoading(true);
@@ -1721,21 +1744,16 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   Volver a campañas
                 </button>
                 {isDirector ? (
-                  <>
-                    <button type="button" className="subtle-button" onClick={() => setIsProfessionRequestsModalOpen(true)}>
-                      Solicitudes profesionales ({selectedCampaign.pendingProfessionRequests?.length ?? 0})
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isSaving}
-                      onClick={() => {
-                        setFormError(null);
-                        setIsCampaignDetailsModalOpen(true);
-                      }}
-                    >
-                      Detalles
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() => {
+                      setFormError(null);
+                      setIsCampaignDetailsModalOpen(true);
+                    }}
+                  >
+                    Detalles
+                  </button>
                 ) : null}
               </div>
             </div>
@@ -1806,7 +1824,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           {isDirector && activeSection === "dmNotes" ? (
             <section className="panel">
               <div className="row-actions campaign-notes-heading">
-                <div>
+                <div className="campaign-notes-copy">
                   <h3>Notas privadas del DJ</h3>
                   <p className="section-help">Entradas privadas en Markdown, visibles exclusivamente para el director de juego.</p>
                 </div>
@@ -1869,7 +1887,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           {activeSection === "sharedNotes" ? (
             <section className="panel">
               <div className="row-actions campaign-notes-heading">
-                <div>
+                <div className="campaign-notes-copy">
                   <h3>Notas compartidas</h3>
                   <p className="section-help">Entradas en Markdown visibles para toda la campaña, con busqueda por titulo y enlaces a la wiki detectados dentro de cada nota.</p>
                 </div>
@@ -2076,6 +2094,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     .map((part) => part.charAt(0).toUpperCase())
                     .join("") || "PJ";
                   const availableExperience = Math.max(0, entry.experienceTotal - entry.experienceSpent);
+                  const pendingProfessionRequestCount = professionRequestsByCharacterId.get(entry.characterId)?.length ?? 0;
                   return (
                     <article key={entry.id} className="card character-record-card campaign-character-card" aria-label={`Personaje ${entry.name}`}>
                       <div className="character-record-card-head">
@@ -2122,6 +2141,20 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                             }}
                           >
                             Conceder PX
+                          </button>
+                        ) : null}
+                        {isDirector ? (
+                          <button
+                            type="button"
+                            className="subtle-button campaign-character-profession-action"
+                            aria-label={`Solicitudes profesionales de ${entry.name}: ${pendingProfessionRequestCount} ${pendingProfessionRequestCount === 1 ? "pendiente" : "pendientes"}`}
+                            onClick={() => {
+                              setFormError(null);
+                              setProfessionRequestsCharacterId(entry.characterId);
+                            }}
+                          >
+                            <span>Solicitudes</span>
+                            <strong>{pendingProfessionRequestCount}</strong>
                           </button>
                         ) : null}
                         <details className="character-record-actions-menu">
@@ -2839,23 +2872,44 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
         </section>
       ) : null}
 
-      {isDirector && isProfessionRequestsModalOpen ? (
-        <section className="modal-backdrop" onClick={() => setIsProfessionRequestsModalOpen(false)}>
-          <div className="panel modal-panel profession-request-modal" onClick={(event) => event.stopPropagation()}>
+      {isDirector && professionRequestsCharacter ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            setFormError(null);
+            setProfessionRequestsCharacterId(null);
+          }}
+        >
+          <div
+            className="panel modal-panel profession-request-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profession-requests-title"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="row-actions">
               <div>
-                <h3>Solicitudes de profesiones</h3>
-                <p className="section-help">Los requisitos se comprobarán de nuevo al aprobar.</p>
+                <h3 id="profession-requests-title">Solicitudes de profesiones de {professionRequestsCharacter.name}</h3>
+                <p className="section-help">Solo se muestran las solicitudes de esta ficha. Los requisitos se comprobarán de nuevo al aprobar.</p>
               </div>
-              <button type="button" className="subtle-button" onClick={() => setIsProfessionRequestsModalOpen(false)}>Cerrar</button>
+              <button
+                type="button"
+                className="subtle-button"
+                onClick={() => {
+                  setFormError(null);
+                  setProfessionRequestsCharacterId(null);
+                }}
+              >
+                Cerrar
+              </button>
             </div>
             {formError ? <p className="error-text">{formError}</p> : null}
             <div className="profession-request-list">
-              {(selectedCampaign?.pendingProfessionRequests ?? []).map((request) => (
+              {selectedProfessionRequests.map((request) => (
                 <article key={request.id} className="profession-request-card">
                   <div>
                     <strong>{request.professionName}</strong>
-                    <span>{request.characterName} · {request.ownerEmail}</span>
+                    <span>{request.ownerEmail}</span>
                     <small>Solicitada: {request.requestedAt ? formatDate(request.requestedAt) : "Sin fecha"}</small>
                   </div>
                   <div className="profession-requirement-list">
@@ -2869,7 +2923,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                   </div>
                 </article>
               ))}
-              {(selectedCampaign?.pendingProfessionRequests?.length ?? 0) === 0 ? <p className="section-help">No hay solicitudes pendientes.</p> : null}
+              {selectedProfessionRequests.length === 0 ? <p className="section-help">Este personaje no tiene solicitudes pendientes.</p> : null}
             </div>
           </div>
         </section>
