@@ -172,6 +172,45 @@ export class MailService {
     });
   }
 
+  async sendCharacterLinkRequestEmail(
+    recipientEmail: string,
+    characterName: string,
+    campaignName: string,
+    gmEmail: string,
+    requestId: string
+  ): Promise<void> {
+    this.ensureConfigured();
+    const requestUrl = `${env.APP_BASE_URL.replace(/\/$/, "")}/#campaigns?characterRequest=${encodeURIComponent(requestId)}`;
+
+    await this.transporter.sendMail({
+      from: getConfiguredFromAddress(),
+      to: recipientEmail,
+      subject: `UMBRA · Solicitud para vincular a ${characterName}`,
+      text: [
+        `${gmEmail} solicita vincular tu personaje «${characterName}» a la campaña «${campaignName}» en UMBRA.`,
+        "",
+        "El personaje no se añadirá a la campaña hasta que aceptes expresamente la solicitud.",
+        `Revisar solicitud: ${requestUrl}`,
+        "",
+        "Si no esperabas este mensaje, puedes ignorarlo o rechazar la solicitud desde UMBRA."
+      ].join("\n"),
+      html: `
+        <div style="font-family:Georgia,serif;color:#231913;line-height:1.5;">
+          <h2 style="margin-bottom:12px;">Solicitud para vincular un personaje</h2>
+          <p><strong>${escapeHtml(gmEmail)}</strong> solicita vincular a <strong>${escapeHtml(characterName)}</strong> con la campaña <strong>${escapeHtml(campaignName)}</strong>.</p>
+          <p>El personaje no se añadirá a la campaña hasta que aceptes expresamente la solicitud.</p>
+          <p>
+            <a href="${escapeHtml(requestUrl)}" style="display:inline-block;padding:10px 16px;border-radius:999px;background:#7d3035;border:1px solid #64252a;color:#fff;text-decoration:none;font-weight:700;">
+              Revisar solicitud
+            </a>
+          </p>
+          <p style="word-break:break-all;color:#65554c;">${escapeHtml(requestUrl)}</p>
+          <p>Si no esperabas este mensaje, puedes ignorarlo o rechazar la solicitud desde UMBRA.</p>
+        </div>
+      `
+    });
+  }
+
   private ensureConfigured(): void {
     if (!this.isConfigured()) {
       throw new AppError("MAIL_NOT_CONFIGURED", "El envio de correo no esta configurado", 503);

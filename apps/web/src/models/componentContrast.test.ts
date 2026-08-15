@@ -44,6 +44,7 @@ describe("component contrast contracts", () => {
 
   it("protects nested button labels and disabled controls from legacy colors", () => {
     expect(stylesheet).toContain("button > :is(span, strong, small)");
+    expect(stylesheet).toMatch(/\.campaign-burden-summary-button > strong\s*\{[\s\S]*?color: var\(--ui-brand-strong\) !important/);
     expect(stylesheet).toMatch(/button, \.file-trigger\)\[disabled\][\s\S]*?color: var\(--ui-text-muted\) !important/);
     expect(stylesheet).toMatch(/\.campaign-action-roll-button\s*\{[\s\S]*?color: var\(--ui-on-brand\)/);
     expect(stylesheet).toMatch(/\.campaign-action-roll-button > :is\(span, strong\)[\s\S]*?color: inherit !important/);

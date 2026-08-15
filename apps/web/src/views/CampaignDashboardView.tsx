@@ -4,6 +4,7 @@ import {
   createCampaignSchema,
   type AuthUser,
   type Campaign,
+  type CampaignCharacterLinkRequest,
   type CampaignInvitation,
   type CampaignReference,
   type Character,
@@ -13,16 +14,19 @@ import {
   type MysticArtifactDefinitionInput
 } from "@umbra/shared";
 import {
+  acceptCampaignCharacterLinkRequest,
   acceptCampaignInvitation,
   createCampaign,
   createCampaignReference,
   deleteCampaignReference,
   decideProfessionRequest,
+  dismissCampaignCharacterLinkRequest,
   fetchCampaigns,
+  fetchCampaignCharacterLinkRequests,
   fetchCampaignInvitations,
-  linkCampaignCharacter,
   removeCampaignMember,
   dismissCampaignInvitation,
+  requestCampaignCharacterLink,
   sendCampaignInvitation,
   unlinkCampaignCharacter,
   grantCampaignExperience,
@@ -64,6 +68,7 @@ type CampaignHashState = {
   sheetId: string | null;
   section: CampaignSection | null;
   invitationId: string | null;
+  characterRequestId: string | null;
 };
 
 type CampaignSection = "dmNotes" | "sharedNotes" | "wiki" | "members" | "characters" | "artifacts" | "combat";
@@ -487,7 +492,7 @@ function describeReferenceVisibility(reference: CampaignReference): string {
 function parseCampaignHash(): CampaignHashState {
   const rawHash = window.location.hash.replace(/^#/, "");
   if (!rawHash.startsWith("campaigns")) {
-    return { campaignId: null, sheetId: null, section: null, invitationId: null };
+    return { campaignId: null, sheetId: null, section: null, invitationId: null, characterRequestId: null };
   }
 
   const [, search = ""] = rawHash.split("?");
@@ -507,7 +512,8 @@ function parseCampaignHash(): CampaignHashState {
     campaignId: params.get("id"),
     sheetId: params.get("sheetId"),
     section,
-    invitationId: params.get("invitation")
+    invitationId: params.get("invitation"),
+    characterRequestId: params.get("characterRequest")
   };
 }
 
@@ -515,7 +521,8 @@ function replaceCampaignHash(
   campaignId: string | null,
   sheetId: string | null,
   section: CampaignSection | null,
-  invitationId: string | null = null
+  invitationId: string | null = null,
+  characterRequestId: string | null = null
 ): void {
   const params = new URLSearchParams();
   if (campaignId) {
@@ -529,6 +536,9 @@ function replaceCampaignHash(
   }
   if (invitationId) {
     params.set("invitation", invitationId);
+  }
+  if (characterRequestId) {
+    params.set("characterRequest", characterRequestId);
   }
 
   const nextHash = params.toString() ? `#campaigns?${params.toString()}` : "#campaigns";
@@ -555,7 +565,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const defaultSection: CampaignSection = isDirector ? "dmNotes" : "sharedNotes";
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [invitations, setInvitations] = useState<CampaignInvitation[]>([]);
+  const [characterLinkRequests, setCharacterLinkRequests] = useState<CampaignCharacterLinkRequest[]>([]);
   const [focusedInvitationId, setFocusedInvitationId] = useState<string | null>(initialHash.invitationId);
+  const [focusedCharacterLinkRequestId, setFocusedCharacterLinkRequestId] = useState<string | null>(initialHash.characterRequestId);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(initialHash.campaignId);
   const [selectedSheetId, setSelectedSheetId] = useState<string | null>(initialHash.sheetId);
   const [campaignCharacterView, setCampaignCharacterView] = useState<"sheet" | "builder">("sheet");
@@ -591,6 +603,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const [isReferenceEditMode, setIsReferenceEditMode] = useState(false);
   const [isCreateCampaignModalOpen, setIsCreateCampaignModalOpen] = useState(false);
   const [isCampaignDetailsModalOpen, setIsCampaignDetailsModalOpen] = useState(false);
+  const [isInviteMemberModalOpen, setIsInviteMemberModalOpen] = useState(false);
+  const [isLinkCharacterModalOpen, setIsLinkCharacterModalOpen] = useState(false);
   const [isBurdenSummaryModalOpen, setIsBurdenSummaryModalOpen] = useState(false);
   const [isProfessionRequestsModalOpen, setIsProfessionRequestsModalOpen] = useState(false);
   const [pendingUnlinkCharacter, setPendingUnlinkCharacter] = useState<Campaign["characters"][number] | null>(null);
@@ -613,6 +627,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const focusedInvitation = useMemo(
     () => invitations.find((invitation) => invitation.id === focusedInvitationId) ?? null,
     [focusedInvitationId, invitations]
+  );
+  const focusedCharacterLinkRequest = useMemo(
+    () => characterLinkRequests.find((request) => request.id === focusedCharacterLinkRequestId) ?? null,
+    [characterLinkRequests, focusedCharacterLinkRequestId]
   );
   const experienceLogByCharacterId = useMemo(() => {
     const groupedEntries = new Map<string, Campaign["experienceLog"]>();
@@ -674,10 +692,14 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     [selectedCampaign]
   );
   const linkableCharacters = useMemo(
-    () =>
-      (selectedCampaign?.availableCharacters ?? []).filter(
-        (entry) => !entry.linked && (isDirector || entry.ownerId === user.id)
-      ),
+    () => {
+      const requestedCharacterIds = new Set(
+        (selectedCampaign?.pendingCharacterLinkRequests ?? []).map((request) => request.characterId)
+      );
+      return (selectedCampaign?.availableCharacters ?? []).filter(
+        (entry) => !entry.linked && !requestedCharacterIds.has(entry.characterId) && (isDirector || entry.ownerId === user.id)
+      );
+    },
     [isDirector, selectedCampaign, user.id]
   );
   const artifactSources = useMemo(
@@ -766,6 +788,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     Boolean(sharedNoteEditor) ||
     isReferenceCreateModalOpen ||
     isReferenceDetailModalOpen ||
+    isInviteMemberModalOpen ||
+    isLinkCharacterModalOpen ||
     isBurdenSummaryModalOpen ||
     isProfessionRequestsModalOpen ||
     Boolean(pendingUnlinkCharacter) ||
@@ -775,7 +799,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     isSheetModalOpen ||
     Boolean(changeLogCharacterId) ||
     Boolean(experienceHistoryCharacterId) ||
-    Boolean(focusedInvitation);
+    Boolean(focusedInvitation) ||
+    Boolean(focusedCharacterLinkRequest);
 
   useBodyScrollLock(isAnyModalOpen);
 
@@ -814,6 +839,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setSelectedCampaignId(next.campaignId);
       setSelectedSheetId(next.sheetId);
       setFocusedInvitationId(next.invitationId);
+      setFocusedCharacterLinkRequestId(next.characterRequestId);
       setActiveSection(next.section && (isDirector || next.section !== "dmNotes") ? next.section : defaultSection);
     }
 
@@ -823,8 +849,14 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   }, [defaultSection, isDirector]);
 
   useEffect(() => {
-    replaceCampaignHash(selectedCampaignId, selectedSheetId, selectedCampaignId ? activeSection : null, focusedInvitationId);
-  }, [activeSection, focusedInvitationId, selectedCampaignId, selectedSheetId]);
+    replaceCampaignHash(
+      selectedCampaignId,
+      selectedSheetId,
+      selectedCampaignId ? activeSection : null,
+      focusedInvitationId,
+      focusedCharacterLinkRequestId
+    );
+  }, [activeSection, focusedCharacterLinkRequestId, focusedInvitationId, selectedCampaignId, selectedSheetId]);
 
   useEffect(() => {
     if (!isDirector && activeSection === "dmNotes") {
@@ -866,6 +898,8 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       setExperienceHistoryCharacterId(null);
       setReferenceCreateError(null);
       setIsReferenceCreateModalOpen(false);
+      setIsInviteMemberModalOpen(false);
+      setIsLinkCharacterModalOpen(false);
       setIsReferenceEditMode(false);
       setIsReferenceDetailModalOpen(false);
       return;
@@ -942,15 +976,21 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     setLoadError(null);
     try {
       const token = await ensureAccessToken();
-      const [nextCampaigns, nextInvitations] = await Promise.all([
+      const [nextCampaigns, nextInvitations, nextCharacterLinkRequests] = await Promise.all([
         fetchCampaigns(token),
-        fetchCampaignInvitations(token)
+        fetchCampaignInvitations(token),
+        fetchCampaignCharacterLinkRequests(token)
       ]);
       setCampaigns(nextCampaigns);
       setInvitations(nextInvitations);
+      setCharacterLinkRequests(nextCharacterLinkRequests);
       if (focusedInvitationId && !nextInvitations.some((invitation) => invitation.id === focusedInvitationId)) {
         setFocusedInvitationId(null);
         setFormError("La invitación del enlace ya no está disponible o ya fue respondida.");
+      }
+      if (focusedCharacterLinkRequestId && !nextCharacterLinkRequests.some((request) => request.id === focusedCharacterLinkRequestId)) {
+        setFocusedCharacterLinkRequestId(null);
+        setFormError("La solicitud para vincular el personaje ya no está disponible o ya fue respondida.");
       }
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : "No se pudieron cargar las campañas");
@@ -1179,6 +1219,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       const token = await ensureAccessToken();
       upsertCampaign(await sendCampaignInvitation(selectedCampaign.id, { email: memberEmail.trim() }, token));
       setMemberEmail("");
+      setIsInviteMemberModalOpen(false);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "No se pudo enviar la invitación");
     } finally {
@@ -1199,7 +1240,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     }
   }
 
-  async function handleLinkCharacter(): Promise<void> {
+  async function handleRequestCharacterLink(): Promise<void> {
     if (!selectedCampaign || !selectedAvailableCharacterId) {
       return;
     }
@@ -1208,9 +1249,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
     setIsSaving(true);
     try {
       const token = await ensureAccessToken();
-      upsertCampaign(await linkCampaignCharacter(selectedCampaign.id, selectedAvailableCharacterId, token));
+      upsertCampaign(await requestCampaignCharacterLink(selectedCampaign.id, selectedAvailableCharacterId, token));
+      setIsLinkCharacterModalOpen(false);
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "No se pudo vincular el personaje");
+      setFormError(err instanceof Error ? err.message : "No se pudo enviar la solicitud de vinculación");
     } finally {
       setIsSaving(false);
     }
@@ -1320,6 +1362,44 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "No se pudo retirar la invitación");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleAcceptCharacterLinkRequest(requestId: string): Promise<void> {
+    setFormError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      const campaign = await acceptCampaignCharacterLinkRequest(requestId, token);
+      setCharacterLinkRequests((current) => current.filter((entry) => entry.id !== requestId));
+      setFocusedCharacterLinkRequestId(null);
+      upsertCampaign(campaign);
+      setActiveSection("characters");
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo aceptar la vinculación");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDismissCharacterLinkRequest(requestId: string, campaignId?: string): Promise<void> {
+    setFormError(null);
+    setIsSaving(true);
+    try {
+      const token = await ensureAccessToken();
+      await dismissCampaignCharacterLinkRequest(requestId, token);
+      setCharacterLinkRequests((current) => current.filter((entry) => entry.id !== requestId));
+      setFocusedCharacterLinkRequestId((current) => current === requestId ? null : current);
+      if (campaignId) {
+        setCampaigns((current) => current.map((campaign) => campaign.id === campaignId ? {
+          ...campaign,
+          pendingCharacterLinkRequests: (campaign.pendingCharacterLinkRequests ?? []).filter((entry) => entry.id !== requestId)
+        } : campaign));
+      }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "No se pudo retirar la solicitud de vinculación");
     } finally {
       setIsSaving(false);
     }
@@ -1621,7 +1701,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
       ) : null}
 
       {selectedCampaign ? (
-        <section className="campaign-main">
+        <section className={`campaign-main${activeSection === "combat" ? " is-combat-active" : ""}`}>
           <header className="panel module-sticky-header campaign-module-header">
             <div className="row-actions">
               <div>
@@ -1660,7 +1740,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               </div>
             </div>
 
-            {formError && !selectedDmNoteId && !dmNoteEditor && !selectedSharedNoteId && !sharedNoteEditor && !isCampaignDetailsModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen ? (
+            {formError && !selectedDmNoteId && !dmNoteEditor && !selectedSharedNoteId && !sharedNoteEditor && !isCampaignDetailsModalOpen && !isReferenceCreateModalOpen && !isReferenceDetailModalOpen && !isInviteMemberModalOpen && !isLinkCharacterModalOpen ? (
               <p className="error-text">{formError}</p>
             ) : null}
 
@@ -1725,12 +1805,12 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
           {isDirector && activeSection === "dmNotes" ? (
             <section className="panel">
-              <div className="row-actions">
+              <div className="row-actions campaign-notes-heading">
                 <div>
                   <h3>Notas privadas del DJ</h3>
                   <p className="section-help">Entradas privadas en Markdown, visibles exclusivamente para el director de juego.</p>
                 </div>
-                <div className="inline-row campaign-inline-form">
+                <div className="inline-row campaign-inline-form campaign-notes-controls" role="group" aria-label="Controles de notas privadas">
                   <label className="field">
                     <span>Buscar por titulo</span>
                     <input
@@ -1788,12 +1868,12 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
           {activeSection === "sharedNotes" ? (
             <section className="panel">
-              <div className="row-actions">
+              <div className="row-actions campaign-notes-heading">
                 <div>
                   <h3>Notas compartidas</h3>
                   <p className="section-help">Entradas en Markdown visibles para toda la campaña, con busqueda por titulo y enlaces a la wiki detectados dentro de cada nota.</p>
                 </div>
-                <div className="inline-row campaign-inline-form">
+                <div className="inline-row campaign-inline-form campaign-notes-controls" role="group" aria-label="Controles de notas compartidas">
                   <label className="field">
                     <span>Buscar por titulo</span>
                     <input
@@ -1886,23 +1966,23 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
           {activeSection === "members" ? (
             <section className="panel">
-              <div className="row-actions">
-                <h3>Miembros</h3>
+              <div className="row-actions campaign-members-heading">
+                <div>
+                  <h3>Miembros</h3>
+                  <p className="section-help">Gestiona los jugadores que participan en la campaña.</p>
+                </div>
                 {isDirector ? (
-                  <div className="inline-row campaign-inline-form">
-                    <label className="field">
-                      <span>Email del jugador</span>
-                      <input
-                        type="email"
-                        autoComplete="email"
-                        value={memberEmail}
-                        onChange={(event) => setMemberEmail(event.target.value)}
-                      />
-                    </label>
-                    <button type="button" disabled={isSaving} onClick={() => void handleSendInvitation()}>
-                      Enviar invitación
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="campaign-invite-member-button"
+                    onClick={() => {
+                      setFormError(null);
+                      setMemberEmail("");
+                      setIsInviteMemberModalOpen(true);
+                    }}
+                  >
+                    Invitar jugador
+                  </button>
                 ) : null}
               </div>
 
@@ -1949,66 +2029,75 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
           ) : null}
 
           {activeSection === "characters" ? (
-            <section className="panel">
-              <div className="row-actions">
+            <section className="panel campaign-characters-panel">
+              <div className="row-actions campaign-characters-heading">
                 <div>
                   <h3>Personajes vinculados</h3>
                   <p className="section-help">
                     El director concede la experiencia desde aqui. Los jugadores pueden invertirla desde el constructor de su personaje.
                   </p>
                 </div>
-                <div className="inline-row campaign-inline-form">
-                  <label className="field">
-                    <span>Personaje disponible</span>
-                    <select
-                      value={selectedAvailableCharacterId}
-                      onChange={(event) => setSelectedAvailableCharacterId(event.target.value)}
-                    >
-                      {linkableCharacters.length === 0 ? <option value="">Sin personajes disponibles</option> : null}
-                      {linkableCharacters.map((entry) => (
-                        <option key={entry.characterId} value={entry.characterId}>
-                          {entry.name} - {entry.ownerEmail}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    type="button"
-                    disabled={isSaving || !selectedAvailableCharacterId}
-                    onClick={() => void handleLinkCharacter()}
-                  >
-                    Vincular
-                  </button>
-                  {isDirector ? (
+                {isDirector ? (
+                  <div className="campaign-character-heading-actions">
                     <button
                       type="button"
-                      className="subtle-button"
+                      className="campaign-link-character-button"
+                      onClick={() => {
+                        setFormError(null);
+                        setIsLinkCharacterModalOpen(true);
+                      }}
+                    >
+                      Solicitar personaje
+                    </button>
+                    <button
+                      type="button"
+                      className="campaign-burden-summary-button"
+                      aria-label={`Ver resumen de cargas: ${campaignBurdenDigest.length} ${campaignBurdenDigest.length === 1 ? "carga registrada" : "cargas registradas"}`}
                       onClick={() => setIsBurdenSummaryModalOpen(true)}
                     >
-                      Resumen de cargas
+                      <span>Ver resumen de cargas</span>
+                      <strong>{campaignBurdenDigest.length}</strong>
                     </button>
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
               </div>
 
-              <div className="cards">
+              <div className="cards character-record-grid campaign-character-record-grid">
                 {selectedCampaign.characters.map((entry) => {
                   const canManageLink = isDirector || entry.ownerId === user.id;
                   const canViewChangeLog =
                     entry.ownerId === user.id ||
                     user.role === "superadmin" ||
                     selectedCampaign.gmId === user.id;
+                  const initials = entry.name
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part.charAt(0).toUpperCase())
+                    .join("") || "PJ";
+                  const availableExperience = Math.max(0, entry.experienceTotal - entry.experienceSpent);
                   return (
-                    <article key={entry.id} className="card campaign-character-card" aria-label={`Personaje ${entry.name}`}>
-                      <strong>{entry.name}</strong>
-                      <span>{entry.ownerEmail}</span>
-                      <span>PX total: {entry.experienceTotal} | Gastada: {entry.experienceSpent} | Disponible: {Math.max(0, entry.experienceTotal - entry.experienceSpent)}</span>
-                      <span>Actualizado: {formatDate(entry.updatedAt)}</span>
-                      {entry.sheetLoadError ? <span className="error-text">La ficha necesita reparación, pero la campaña sigue disponible.</span> : null}
+                    <article key={entry.id} className="card character-record-card campaign-character-card" aria-label={`Personaje ${entry.name}`}>
+                      <div className="character-record-card-head">
+                        <div className="character-record-card-portrait" aria-hidden="true">
+                          <span>{initials}</span>
+                        </div>
+                        <div className="character-record-card-copy">
+                          <h3>{entry.name}</h3>
+                          <p>{entry.ownerEmail}</p>
+                          <p className="campaign-character-xp-summary">
+                            <strong>{availableExperience} PX disponibles</strong>
+                            <span>{entry.experienceSpent} gastadas de {entry.experienceTotal}</span>
+                          </p>
+                          {entry.sheetLoadError ? <span className="error-text">La ficha necesita reparación, pero la campaña sigue disponible.</span> : null}
+                        </div>
+                      </div>
+                      <small className="character-record-card-updated">Actualizada {formatDate(entry.updatedAt)}</small>
                       <div className="card-actions">
                         {isDirector && entry.sheet ? (
                           <button
                             type="button"
+                            className="character-record-primary-action"
                             onClick={() => {
                               setSelectedSheetId(entry.id);
                               setCampaignCharacterView("sheet");
@@ -2017,27 +2106,10 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                             Abrir hoja
                           </button>
                         ) : null}
-                        {isDirector && entry.sheet ? (
-                          <button type="button" onClick={() => { setSelectedSheetId(entry.id); setCampaignCharacterView("builder"); }}>
-                            Constructor
-                          </button>
-                        ) : null}
-                        {canViewChangeLog ? (
-                          <button
-                            type="button"
-                            className="character-history-button"
-                            aria-label={`Historial de cambios de ${entry.name}`}
-                            onClick={() => setChangeLogCharacterId(entry.characterId)}
-                          >
-                            Historial{(entry.unreadChangeCount ?? 0) > 0 ? <span className="character-history-badge" aria-label={`${entry.unreadChangeCount} cambios sin leer`}>{entry.unreadChangeCount}</span> : null}
-                          </button>
-                        ) : null}
-                        <button type="button" className="subtle-button" onClick={() => setExperienceHistoryCharacterId(entry.characterId)}>
-                          Historial de PX
-                        </button>
                         {isDirector ? (
                           <button
                             type="button"
+                            className="campaign-character-grant-action"
                             disabled={isSaving}
                             onClick={() => {
                               setExperienceGrantError(null);
@@ -2052,18 +2124,42 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                             Conceder PX
                           </button>
                         ) : null}
-                        {canManageLink ? (
-                          <button
-                            type="button"
-                            disabled={isSaving}
-                            onClick={() => {
-                              setFormError(null);
-                              setPendingUnlinkCharacter(entry);
-                            }}
-                          >
-                            Desvincular
-                          </button>
-                        ) : null}
+                        <details className="character-record-actions-menu">
+                          <summary>Más acciones</summary>
+                          <div className="character-record-secondary-actions">
+                            {isDirector && entry.sheet ? (
+                              <button type="button" onClick={() => { setSelectedSheetId(entry.id); setCampaignCharacterView("builder"); }}>
+                                Constructor
+                              </button>
+                            ) : null}
+                            {canViewChangeLog ? (
+                              <button
+                                type="button"
+                                className="character-history-button"
+                                aria-label={`Historial de cambios de ${entry.name}`}
+                                onClick={() => setChangeLogCharacterId(entry.characterId)}
+                              >
+                                Historial de cambios{(entry.unreadChangeCount ?? 0) > 0 ? <span className="character-history-badge" aria-label={`${entry.unreadChangeCount} cambios sin leer`}>{entry.unreadChangeCount}</span> : null}
+                              </button>
+                            ) : null}
+                            <button type="button" onClick={() => setExperienceHistoryCharacterId(entry.characterId)}>
+                              Historial de PX
+                            </button>
+                            {canManageLink ? (
+                              <button
+                                type="button"
+                                className="danger"
+                                disabled={isSaving}
+                                onClick={() => {
+                                  setFormError(null);
+                                  setPendingUnlinkCharacter(entry);
+                                }}
+                              >
+                                Desvincular
+                              </button>
+                            ) : null}
+                          </div>
+                        </details>
                       </div>
                     </article>
                   );
@@ -2639,7 +2735,9 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 Cerrar
               </button>
             </div>
-            <div className="campaign-character-sheet-modal-body">
+            <div
+              className={`campaign-character-sheet-modal-body${campaignCharacterView === "builder" && campaignBuilderCharacter ? " is-builder" : " is-sheet"}`}
+            >
               {campaignCharacterView === "builder" && campaignBuilderCharacter ? (
                 <CharacterBuilderView
                   character={campaignBuilderCharacter}
@@ -2772,6 +2870,191 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                 </article>
               ))}
               {(selectedCampaign?.pendingProfessionRequests?.length ?? 0) === 0 ? <p className="section-help">No hay solicitudes pendientes.</p> : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {isDirector && isInviteMemberModalOpen ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setFormError(null);
+              setMemberEmail("");
+              setIsInviteMemberModalOpen(false);
+            }
+          }}
+        >
+          <div
+            className="panel modal-panel campaign-link-character-modal campaign-invite-member-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="campaign-invite-member-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="row-actions campaign-link-character-modal-header">
+              <div>
+                <h3 id="campaign-invite-member-title">Invitar jugador</h3>
+                <p className="section-help">
+                  Enviaremos un email para que el jugador pueda aceptar su incorporación a la campaña.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="subtle-button"
+                disabled={isSaving}
+                onClick={() => {
+                  setFormError(null);
+                  setMemberEmail("");
+                  setIsInviteMemberModalOpen(false);
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+            {formError ? <p className="error-text">{formError}</p> : null}
+            <form
+              className="campaign-link-character-modal-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleSendInvitation();
+              }}
+            >
+              <label className="field">
+                <span>Email del jugador</span>
+                <input
+                  type="email"
+                  autoComplete="email"
+                  autoFocus
+                  required
+                  value={memberEmail}
+                  onChange={(event) => setMemberEmail(event.target.value)}
+                  disabled={isSaving}
+                />
+              </label>
+              <div className="toolbar campaign-link-character-modal-actions">
+                <button
+                  type="button"
+                  className="subtle-button"
+                  disabled={isSaving}
+                  onClick={() => {
+                    setFormError(null);
+                    setMemberEmail("");
+                    setIsInviteMemberModalOpen(false);
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" disabled={isSaving || !memberEmail.trim()}>
+                  {isSaving ? "Enviando..." : "Enviar invitación"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+      ) : null}
+
+      {isDirector && isLinkCharacterModalOpen ? (
+        <section
+          className="modal-backdrop"
+          onClick={() => {
+            if (!isSaving) {
+              setFormError(null);
+              setIsLinkCharacterModalOpen(false);
+            }
+          }}
+        >
+          <div
+            className="panel modal-panel campaign-link-character-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="campaign-link-character-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="row-actions campaign-link-character-modal-header">
+              <div>
+                <h3 id="campaign-link-character-title">Solicitar vinculación</h3>
+                <p className="section-help">
+                  El propietario recibirá un email y el personaje solo se añadirá cuando acepte la solicitud.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="subtle-button"
+                disabled={isSaving}
+                onClick={() => {
+                  setFormError(null);
+                  setIsLinkCharacterModalOpen(false);
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+            {formError ? <p className="error-text">{formError}</p> : null}
+            <div className="campaign-link-character-modal-form">
+              <label className="field">
+                <span>Personaje disponible</span>
+                <select
+                  value={selectedAvailableCharacterId}
+                  onChange={(event) => setSelectedAvailableCharacterId(event.target.value)}
+                  disabled={isSaving || linkableCharacters.length === 0}
+                >
+                  {linkableCharacters.length === 0 ? <option value="">Sin personajes disponibles</option> : null}
+                  {linkableCharacters.map((entry) => (
+                    <option key={entry.characterId} value={entry.characterId}>
+                      {entry.name} - {entry.ownerEmail}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {linkableCharacters.length === 0 ? (
+                <p className="section-help">Todos los personajes disponibles ya están vinculados o tienen una solicitud pendiente.</p>
+              ) : null}
+              {(selectedCampaign?.pendingCharacterLinkRequests ?? []).length > 0 ? (
+                <div className="campaign-pending-invitations">
+                  <h4>Solicitudes pendientes</h4>
+                  <div className="campaign-invite-grid">
+                    {(selectedCampaign?.pendingCharacterLinkRequests ?? []).map((request) => (
+                      <article key={request.id} className="campaign-invite-item">
+                        <div className="campaign-invite-copy">
+                          <strong>{request.characterName}</strong>
+                          <span>{request.ownerEmail}</span>
+                          <span>Enviada: {formatDate(request.createdAt)}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="subtle-button"
+                          disabled={isSaving}
+                          onClick={() => void handleDismissCharacterLinkRequest(request.id, request.campaignId)}
+                        >
+                          Cancelar solicitud
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <div className="toolbar campaign-link-character-modal-actions">
+              <button
+                type="button"
+                className="subtle-button"
+                disabled={isSaving}
+                onClick={() => {
+                  setFormError(null);
+                  setIsLinkCharacterModalOpen(false);
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isSaving || !selectedAvailableCharacterId}
+                onClick={() => void handleRequestCharacterLink()}
+              >
+                {isSaving ? "Enviando..." : "Enviar solicitud"}
+              </button>
             </div>
           </div>
         </section>
@@ -3307,6 +3590,45 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
               </button>
               <button type="button" className="subtle-button" disabled={isSaving} onClick={() => setFocusedInvitationId(null)}>
                 Decidir más tarde
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {focusedCharacterLinkRequest ? (
+        <section className="modal-backdrop" aria-label="Solicitud de vinculación de personaje">
+          <div
+            className="panel modal-panel campaign-invitation-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="character-link-request-modal-title"
+          >
+            <p className="campaign-reference-detail-kicker">Solicitud de vinculación</p>
+            <h2 id="character-link-request-modal-title">{focusedCharacterLinkRequest.characterName}</h2>
+            <p>
+              <strong>{focusedCharacterLinkRequest.gmEmail}</strong> solicita vincular este personaje a la campaña{" "}
+              <strong>{focusedCharacterLinkRequest.campaignName}</strong>.
+            </p>
+            <p className="section-help">
+              El personaje no formará parte de la campaña hasta que aceptes expresamente.
+            </p>
+            {formError ? <p className="error-text">{formError}</p> : null}
+            <div className="toolbar campaign-invitation-actions">
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={() => void handleAcceptCharacterLinkRequest(focusedCharacterLinkRequest.id)}
+              >
+                {isSaving ? "Aceptando..." : "Aceptar vinculación"}
+              </button>
+              <button
+                type="button"
+                className="subtle-button"
+                disabled={isSaving}
+                onClick={() => void handleDismissCharacterLinkRequest(focusedCharacterLinkRequest.id)}
+              >
+                Rechazar
               </button>
             </div>
           </div>

@@ -4195,20 +4195,25 @@ td {
 .campaign-combat-error { margin: 0; padding: 10px 14px; border-radius: 10px; background: color-mix(in srgb, var(--danger) 10%, var(--paper)); }
 .campaign-combat-list { display: grid; gap: 7px; }
 .campaign-combat-empty { text-align: center; padding: 32px; }
-.campaign-combat-card { overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); box-shadow: 0 5px 14px rgba(31, 24, 19, .07); }
-.campaign-combat-card > header { min-height: 42px; display: grid; grid-template-columns: auto minmax(130px, 1fr) 82px auto; align-items: center; gap: 7px; padding: 5px 8px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--paper-deep) 70%, transparent); }
+.campaign-combat-card { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); box-shadow: 0 5px 14px rgba(31, 24, 19, .07); transition: opacity .14s ease, transform .14s ease, box-shadow .14s ease; }
+.campaign-combat-card.is-dragging { opacity: .46; transform: scale(.995); }
+.campaign-combat-card.is-drop-before,
+.campaign-combat-card.is-drop-after { box-shadow: 0 0 0 2px color-mix(in srgb, var(--rubric) 28%, transparent), 0 7px 18px rgba(31, 24, 19, .12); }
+.campaign-combat-drop-marker { position: absolute; z-index: 8; left: 7px; right: 7px; height: 3px; border-radius: 999px; background: var(--rubric); pointer-events: none; }
+.campaign-combat-drop-marker::after { content: "Soltar aquí"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); padding: 2px 7px; border-radius: 999px; color: #fff; background: var(--rubric); box-shadow: 0 2px 7px rgba(31, 24, 19, .2); font-size: .6rem; font-weight: 800; line-height: 1.2; white-space: nowrap; }
+.campaign-combat-drop-marker.is-before { top: 0; }
+.campaign-combat-drop-marker.is-after { bottom: 0; }
+.campaign-combat-card > header { min-height: 36px; display: grid; grid-template-columns: auto minmax(130px, 1fr) auto; align-items: center; gap: 7px; padding: 3px 8px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--paper-deep) 70%, transparent); }
 .campaign-combat-card > header > div { display: grid; }
 .campaign-combat-card > header span { color: var(--ink-soft); font-size: .62rem; }
 .campaign-combat-card > header strong { font-size: .92rem; line-height: 1.05; }
-.campaign-combat-initiative-field { display: grid; gap: 1px; }
-.campaign-combat-initiative-field > span { white-space: nowrap; }
-.campaign-combat-initiative-field input { width: 100%; min-width: 0; height: 29px; padding: 3px 7px; font-weight: 700; }
-.campaign-combat-initiative-field:focus-within > span { color: var(--rubric-strong); font-weight: 700; }
 .campaign-combat-drag { min-width: 28px; min-height: 30px; padding: 3px 6px; cursor: grab; color: var(--ink-soft); background: transparent; }
+.campaign-combat-drag:active { cursor: grabbing; }
 .campaign-combat-card-actions { display: flex !important; align-items: center; justify-content: flex-end; gap: 4px; }
 .campaign-combat-card-actions button { min-height: 30px; padding: 4px 8px; white-space: nowrap; font-size: .72rem; }
-.campaign-combat-stats { display: grid; grid-template-columns: repeat(7, minmax(100px, 1fr)); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
+.campaign-combat-stats { display: grid; grid-template-columns: repeat(8, minmax(92px, 1fr)); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
 .campaign-combat-stats > div { min-height: 48px; padding: 5px 8px; display: flex; flex-direction: column; justify-content: center; gap: 1px; background: var(--paper); }
+.campaign-combat-stat-initiative { min-width: 0; }
 .campaign-combat-stats span { color: var(--ink-soft); font-size: .58rem; line-height: 1.05; text-transform: uppercase; }
 .campaign-combat-stats strong { font-size: .88rem; line-height: 1; }
 .campaign-combat-resource { min-width: 0; display: grid !important; grid-template-columns: minmax(0, 1fr); align-content: center; }
@@ -4253,7 +4258,7 @@ td {
 @media (max-width: 980px) {
   .campaign-combat-toolbar { position: sticky; top: 52px; align-items: stretch; flex-direction: column; }
   .campaign-combat-toolbar-actions { justify-content: stretch; display: grid; grid-template-columns: repeat(2, 1fr); }
-  .campaign-combat-card > header { grid-template-columns: auto 1fr 94px; }
+  .campaign-combat-card > header { grid-template-columns: auto 1fr auto; }
   .campaign-combat-card-actions { grid-column: 2 / -1; justify-content: stretch; }
   .campaign-combat-card-actions button { flex: 1 1 auto; }
   .campaign-combat-stats { grid-template-columns: repeat(2, 1fr); }
@@ -4265,7 +4270,7 @@ td {
   .campaign-combat-toolbar-actions { grid-template-columns: 1fr 1fr; }
   .campaign-combat-card { border-radius: 10px; }
   .campaign-combat-card > header { grid-template-columns: auto 1fr; }
-  .campaign-combat-initiative-field, .campaign-combat-card-actions { grid-column: 2; }
+  .campaign-combat-card-actions { grid-column: 2; }
   .campaign-combat-card-actions { display: grid !important; grid-template-columns: repeat(2, 1fr); }
   .campaign-combat-stats { grid-template-columns: 1fr 1fr; }
   .campaign-combat-monster-filter { grid-template-columns: 1fr; }

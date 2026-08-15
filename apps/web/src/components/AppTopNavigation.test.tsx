@@ -45,7 +45,7 @@ describe("AppTopNavigation", () => {
     expect(within(navigationDialog).queryByRole("group", { name: "Tema de la interfaz" })).not.toBeInTheDocument();
     fireEvent.click(within(navigationDialog).getByRole("button", { name: "Personalización" }));
     expect(within(navigationDialog).getByRole("group", { name: "Tema de la interfaz" })).toBeInTheDocument();
-    expect(within(navigationDialog).getByRole("group", { name: "Fondo de pantalla" })).toBeInTheDocument();
+    expect(within(navigationDialog).getByRole("button", { name: /Elegir fondo de pantalla/ })).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(menuButton).toHaveFocus());
@@ -89,6 +89,6 @@ describe("AppTopNavigation", () => {
     expect(navigationDialog.querySelector('[role="group"][aria-label="Tema de la interfaz"]')).toBeNull();
     fireEvent.click(within(navigationDialog).getByRole("button", { name: "Personalización" }));
     expect(within(navigationDialog).getByRole("group", { name: "Tema de la interfaz" })).toBeInTheDocument();
-    expect(within(navigationDialog).getByRole("group", { name: "Fondo de pantalla" })).toBeInTheDocument();
+    expect(within(navigationDialog).getByRole("button", { name: /Elegir fondo de pantalla/ })).toBeInTheDocument();
   });
 });

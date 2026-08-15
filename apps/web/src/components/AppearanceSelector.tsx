@@ -3,10 +3,7 @@ import {
   usePalettePreference,
   type PalettePreference
 } from "../models/themePreference";
-import {
-  CHARACTER_SHEET_BACKGROUNDS,
-  useCharacterSheetBackground
-} from "../models/characterSheetBackground";
+import { CharacterSheetBackgroundPicker } from "./CharacterSheetBackgroundPicker";
 
 const PALETTES: Array<{
   value: PalettePreference;
@@ -20,7 +17,6 @@ const PALETTES: Array<{
 
 export function AppearanceSelector() {
   const [palette, setPalette] = usePalettePreference();
-  const [background, setBackground] = useCharacterSheetBackground();
 
   return (
     <div className="appearance-selector">
@@ -58,29 +54,7 @@ export function AppearanceSelector() {
           <span>Fondo de pantalla</span>
           <small>La ilustración elegida se comparte entre todas tus pantallas.</small>
         </div>
-        <div className="appearance-background-selector" role="group" aria-label="Fondo de pantalla">
-          <button
-            type="button"
-            className={`appearance-background-option is-none${background === "none" ? " is-active" : ""}`}
-            aria-pressed={background === "none"}
-            onClick={() => setBackground("none")}
-          >
-            <span className="appearance-background-none" aria-hidden="true" />
-            <span>Sin ilustración</span>
-          </button>
-          {CHARACTER_SHEET_BACKGROUNDS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              className={background === option.id ? "is-active" : ""}
-              aria-pressed={background === option.id}
-              onClick={() => setBackground(option.id)}
-            >
-              <img src={option.thumbnailUrl} alt="" loading="lazy" />
-              <span>{option.name}</span>
-            </button>
-          ))}
-        </div>
+        <CharacterSheetBackgroundPicker triggerVariant="appearance" />
       </div>
     </div>
   );

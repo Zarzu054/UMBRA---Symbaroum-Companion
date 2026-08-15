@@ -2223,6 +2223,8 @@ export const linkCampaignCharacterSchema = z.object({
   characterId: z.string().uuid()
 });
 
+export const campaignCharacterLinkRequestIdSchema = z.string().uuid();
+
 export const createCampaignNpcSchema = z.object({
   name: z.string().min(2).max(120),
   race: z.string().max(80).default(""),
@@ -2710,6 +2712,18 @@ export type CampaignInvitation = {
   createdAt: string;
 };
 
+export type CampaignCharacterLinkRequest = {
+  id: string;
+  campaignId: string;
+  campaignName: string;
+  characterId: string;
+  characterName: string;
+  ownerEmail: string;
+  gmEmail: string;
+  requestedByEmail: string;
+  createdAt: string;
+};
+
 export type CharacterActionDefinition = {
   id: string;
   label: string;
@@ -2818,6 +2832,7 @@ export type Campaign = {
   updatedAt: string;
   members: CampaignMember[];
   pendingInvitations?: CampaignInvitation[];
+  pendingCharacterLinkRequests?: CampaignCharacterLinkRequest[];
   pendingProfessionRequests?: CampaignProfessionRequest[];
   characters: CampaignCharacter[];
   availableCharacters: CampaignAvailableCharacter[];

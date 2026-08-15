@@ -623,49 +623,41 @@ a {
   gap: 7px;
 }
 
-.appearance-background-selector {
-  display: grid;
-  grid-auto-columns: 112px;
-  grid-auto-flow: column;
-  gap: 7px;
-  padding: 2px 2px 7px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: thin;
-}
-
-.appearance-background-selector > button {
+.appearance-background-dialog-trigger {
+  width: 100%;
   min-width: 0;
-  height: 88px;
-  padding: 4px;
+  min-height: 68px;
+  padding: 6px;
   display: grid;
-  grid-template-rows: 58px auto;
-  gap: 4px;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
   color: var(--ui-text);
   border-color: var(--ui-border);
   background: var(--ui-surface);
   text-align: left;
 }
 
-.appearance-background-selector > button:hover {
+.appearance-background-dialog-trigger:hover {
   color: var(--ui-text);
   border-color: var(--ui-metal);
   background: var(--ui-surface-hover);
 }
 
-.appearance-background-selector > button.is-active {
-  color: var(--ui-brand-strong);
-  border-color: var(--ui-metal);
-  background: var(--ui-metal-soft);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-metal) 30%, transparent);
+.appearance-background-trigger-preview {
+  width: 84px;
+  height: 54px;
+  display: block;
+  overflow: hidden;
+  border-radius: calc(var(--ui-radius-sm) - 2px);
+  background: var(--ui-canvas);
 }
 
-.appearance-background-selector img,
-.appearance-background-none {
+.appearance-background-trigger-preview > :is(img, .appearance-background-none) {
   width: 100%;
-  height: 58px;
+  height: 100%;
+  display: block;
   object-fit: cover;
-  border-radius: calc(var(--ui-radius-sm) - 2px);
   background: var(--ui-canvas);
 }
 
@@ -676,13 +668,27 @@ a {
     var(--ui-canvas);
 }
 
-.appearance-background-selector > button > span:last-child {
+.appearance-background-trigger-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.appearance-background-trigger-copy strong,
+.appearance-background-trigger-copy small {
   overflow: hidden;
-  padding-inline: 2px;
-  font-size: 0.68rem;
-  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.appearance-background-trigger-copy strong {
+  color: var(--ui-text);
+  font-size: 0.84rem;
+}
+
+.appearance-background-trigger-copy small {
+  color: var(--ui-text-muted);
+  font-size: 0.72rem;
 }
 
 .appearance-popover {
@@ -1673,6 +1679,186 @@ button[disabled] {
   border-radius: var(--ui-radius-md);
 }
 
+.campaign-characters-panel {
+  overflow: visible !important;
+}
+
+.campaign-notes-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(500px, 540px);
+  align-items: start;
+  gap: 24px;
+}
+
+.campaign-notes-heading > div:first-child {
+  min-width: 0;
+}
+
+.campaign-notes-heading :is(h3, p) {
+  margin-top: 0;
+}
+
+.campaign-notes-controls {
+  min-width: 0;
+  margin: 0;
+  grid-template-columns: minmax(200px, 1fr) minmax(132px, auto) auto;
+  align-items: end;
+}
+
+.campaign-notes-controls .field {
+  min-width: 0;
+}
+
+.campaign-notes-controls button {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .campaign-notes-heading {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .campaign-notes-controls {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.campaign-characters-heading,
+.campaign-members-heading {
+  align-items: flex-start;
+}
+
+.campaign-character-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.campaign-link-character-button,
+.campaign-invite-member-button {
+  min-height: 48px;
+  padding-inline: 16px;
+  color: var(--ui-brand-strong);
+  border-color: var(--ui-brand);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-brand-soft);
+  font-weight: 800;
+}
+
+.campaign-link-character-button:hover,
+.campaign-invite-member-button:hover {
+  color: var(--ui-text);
+  border-color: var(--ui-brand-strong);
+  background: var(--ui-surface-hover);
+}
+
+.campaign-burden-summary-button {
+  min-height: 48px;
+  padding: 9px 10px 9px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  color: var(--ui-on-brand);
+  border-color: var(--ui-brand-strong);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-brand);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--ui-brand) 28%, transparent);
+  font-weight: 800;
+}
+
+.campaign-burden-summary-button:hover {
+  color: var(--ui-on-brand);
+  border-color: var(--ui-brand-strong);
+  background: var(--ui-brand-strong);
+}
+
+.campaign-burden-summary-button strong {
+  min-width: 30px;
+  min-height: 30px;
+  padding-inline: 7px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--ui-brand-strong);
+  background: var(--ui-surface);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+}
+
+.campaign-link-character-modal {
+  width: min(560px, 100%);
+  display: grid;
+  gap: 18px;
+  overflow: visible;
+}
+
+.campaign-link-character-modal-header {
+  align-items: flex-start;
+}
+
+.campaign-link-character-modal-header :is(h3, p) {
+  margin: 0;
+}
+
+.campaign-link-character-modal-form {
+  display: grid;
+  gap: 10px;
+}
+
+.campaign-link-character-modal-form .field {
+  min-width: 0;
+}
+
+.campaign-link-character-modal-actions {
+  justify-content: flex-end;
+}
+
+.campaign-character-record-grid {
+  margin-top: 18px;
+  overflow: visible;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+}
+
+.campaign-character-xp-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.character-record-card-copy .campaign-character-xp-summary strong {
+  color: var(--ui-brand-strong);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+}
+
+.campaign-character-xp-summary span {
+  color: var(--ui-text-muted);
+  font-size: 0.76rem;
+}
+
+.campaign-character-card .campaign-character-grant-action {
+  color: var(--ui-brand-strong);
+  border-color: var(--ui-brand);
+  background: var(--ui-brand-soft);
+}
+
+.campaign-character-card .campaign-character-grant-action:hover {
+  color: var(--ui-text);
+  border-color: var(--ui-brand-strong);
+  background: var(--ui-surface-hover);
+}
+
+.campaign-character-card .character-record-secondary-actions {
+  width: 220px;
+}
+
 .campaign-list,
 .campaign-reference-list,
 .campaign-npc-list,
@@ -2569,6 +2755,38 @@ button[disabled] {
     padding: 14px;
   }
 
+  .campaign-characters-heading,
+  .campaign-members-heading {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .campaign-notes-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .campaign-character-heading-actions,
+  .campaign-link-character-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .campaign-link-character-button,
+  .campaign-invite-member-button,
+  .campaign-burden-summary-button,
+  .campaign-link-character-modal-actions button {
+    width: 100%;
+  }
+
+  .campaign-character-card .character-record-actions-menu > summary,
+  .campaign-character-card .character-record-secondary-actions {
+    width: 100%;
+  }
+
+  .campaign-character-card .character-record-actions-menu > summary {
+    justify-content: center;
+  }
+
   .character-record-secondary-actions {
     position: static;
     width: 100%;
@@ -3255,6 +3473,12 @@ button[disabled] {
   color: inherit !important;
 }
 
+/* The burden count sits on a light badge and needs its own foreground instead
+   of inheriting the button label color. This also keeps a zero clearly visible. */
+:root[data-theme][data-palette] .campaign-burden-summary-button > strong {
+  color: var(--ui-brand-strong) !important;
+}
+
 :root[data-theme][data-palette] :is(button, [role="button"]):focus-visible {
   outline-color: var(--ui-focus);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--ui-focus) 28%, transparent);
@@ -3778,6 +4002,15 @@ button[disabled] {
     linear-gradient(rgba(10, 11, 9, 0.58), rgba(10, 9, 8, 0.72)),
     radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--ui-metal) 16%, transparent), transparent 46rem),
     var(--character-sheet-background-image) var(--character-sheet-background-position, center) / cover fixed no-repeat;
+}
+
+/* The DM sheet lives inside an opaque modal, so mirror the selected sheet
+   illustration on its own scroll viewport instead of relying on body. */
+:root[data-character-sheet-background] .campaign-character-sheet-modal-body.is-sheet {
+  background:
+    linear-gradient(rgba(10, 11, 9, 0.58), rgba(10, 9, 8, 0.72)),
+    radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--ui-metal) 16%, transparent), transparent 46rem),
+    var(--character-sheet-background-image) var(--character-sheet-background-position, center) / cover no-repeat;
 }
 
 :root[data-character-sheet-background] .campaign-combat :is(.campaign-combat-toolbar, .campaign-combat-card, .campaign-combat-empty) {
@@ -5904,6 +6137,21 @@ button[disabled] {
   top: calc(var(--app-top-navigation-height) + var(--campaign-module-header-height));
 }
 
+.campaign-main.is-combat-active {
+  gap: 0;
+}
+
+.campaign-main.is-combat-active > .campaign-module-header {
+  border-radius: 0 !important;
+}
+
+.campaign-main.is-combat-active .campaign-combat-toolbar,
+.campaign-main.is-combat-active > .campaign-combat-empty {
+  margin-top: 0;
+  border-top: 0;
+  border-radius: 0 0 var(--ui-radius-md) var(--ui-radius-md);
+}
+
 /* Character archive and builder actions now live in their title bar. */
 .character-directory-shell,
 .character-builder-shell {
@@ -5922,6 +6170,16 @@ button[disabled] {
   background: color-mix(in srgb, var(--ui-surface) 95%, transparent);
   box-shadow: 0 7px 18px color-mix(in srgb, var(--ui-text) 9%, transparent);
   backdrop-filter: blur(16px);
+}
+
+/* The campaign modal owns its scroll viewport, so the builder header must stick
+   to that viewport rather than reserving space for the global navigation. */
+.campaign-character-sheet-modal-body.is-builder {
+  padding-top: 0;
+}
+
+.campaign-character-sheet-modal-body.is-builder .character-builder-sticky-controls {
+  top: 0;
 }
 
 .character-builder-sticky-controls > .character-builder-header-band.module-sticky-header {

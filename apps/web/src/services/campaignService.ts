@@ -4,6 +4,7 @@ import type {
   Campaign,
   CampaignCombat,
   CampaignChatMessage,
+  CampaignCharacterLinkRequest,
   CampaignInvitation,
   AddCampaignCombatParticipantInput,
   AdvanceCampaignCombatTurnInput,
@@ -31,6 +32,7 @@ type CampaignListResponse = { data: Campaign[] };
 type CampaignSingleResponse = { data: Campaign };
 type CampaignChatListResponse = { data: CampaignChatMessage[] };
 type CampaignInvitationListResponse = { data: CampaignInvitation[] };
+type CampaignCharacterLinkRequestListResponse = { data: CampaignCharacterLinkRequest[] };
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
 async function request<T>(url: string, accessToken: string, init?: RequestInit): Promise<T> {
@@ -58,7 +60,16 @@ export async function dismissCampaignInvitation(invitationId: string, accessToke
   if (!response.ok) throw new Error(await readFriendlyApiError(response));
 }
 export async function removeCampaignMember(memberId: string, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-members/${memberId}`, accessToken, { method: "DELETE" })).data; }
-export async function linkCampaignCharacter(campaignId: string, characterId: string, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaigns/${campaignId}/characters`, accessToken, { method: "POST", body: JSON.stringify({ characterId }) })).data; }
+export async function requestCampaignCharacterLink(campaignId: string, characterId: string, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaigns/${campaignId}/character-link-requests`, accessToken, { method: "POST", body: JSON.stringify({ characterId }) })).data; }
+export async function fetchCampaignCharacterLinkRequests(accessToken: string): Promise<CampaignCharacterLinkRequest[]> { return (await request<CampaignCharacterLinkRequestListResponse>("/api/campaign-character-link-requests", accessToken)).data; }
+export async function acceptCampaignCharacterLinkRequest(requestId: string, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-character-link-requests/${requestId}/accept`, accessToken, { method: "POST" })).data; }
+export async function dismissCampaignCharacterLinkRequest(requestId: string, accessToken: string): Promise<void> {
+  const response = await fetch(`/api/campaign-character-link-requests/${requestId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!response.ok) throw new Error(await readFriendlyApiError(response));
+}
 export async function unlinkCampaignCharacter(linkId: string, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-characters/${linkId}`, accessToken, { method: "DELETE" })).data; }
 export async function updateCampaignCharacterSheet(linkId: string, input: UpdateCampaignCharacterSheetInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaign-characters/${linkId}/sheet`, accessToken, { method: "PUT", body: JSON.stringify(input) })).data; }
 export async function createCampaignNpc(campaignId: string, input: CreateCampaignNpcInput, accessToken: string): Promise<Campaign> { return (await request<CampaignSingleResponse>(`/api/campaigns/${campaignId}/npcs`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }

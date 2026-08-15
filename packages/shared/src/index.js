@@ -1909,6 +1909,7 @@ export const campaignInvitationIdSchema = z.string().uuid();
 export const linkCampaignCharacterSchema = z.object({
     characterId: z.string().uuid()
 });
+export const campaignCharacterLinkRequestIdSchema = z.string().uuid();
 export const createCampaignNpcSchema = z.object({
     name: z.string().min(2).max(120),
     race: z.string().max(80).default(""),

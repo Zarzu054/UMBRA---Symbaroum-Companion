@@ -1,5 +1,5 @@
 ﻿import type { Prisma } from "@prisma/client";
-import { campaignCombatParticipantSchema, createEmptyCharacterSheet, decodeCampaignDmNotes, decodeCampaignSharedNotes, encodeCampaignDmNotes, encodeCampaignSharedNotes, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CampaignInvitation, type CharacterSheet, type OwnedMysticArtifact, type UserRole } from "@umbra/shared";
+import { campaignCombatParticipantSchema, createEmptyCharacterSheet, decodeCampaignDmNotes, decodeCampaignSharedNotes, encodeCampaignDmNotes, encodeCampaignSharedNotes, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CampaignCharacterLinkRequest, type CampaignInvitation, type CharacterSheet, type OwnedMysticArtifact, type UserRole } from "@umbra/shared";
 import { Prisma as PrismaRuntime } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { getEffectiveCharacterExperienceSpent, protectGrantedCharacterExperience } from "../services/characterExperiencePolicy.js";
@@ -84,6 +84,15 @@ const campaignInclude = {
     include: {
       user: true,
       invitedBy: true
+    },
+    orderBy: {
+      createdAt: "desc"
+    }
+  },
+  characterLinkRequests: {
+    include: {
+      character: { include: { owner: true } },
+      requestedBy: true
     },
     orderBy: {
       createdAt: "desc"
@@ -239,6 +248,17 @@ function mapCampaign(
       gmEmail: invitation.invitedBy.email,
       invitedEmail: invitation.user.email,
       createdAt: invitation.createdAt.toISOString()
+    })) : [],
+    pendingCharacterLinkRequests: isDirector ? row.characterLinkRequests.map((request) => ({
+      id: request.id,
+      campaignId: request.campaignId,
+      campaignName: row.name,
+      characterId: request.characterId,
+      characterName: request.character.name,
+      ownerEmail: request.character.owner.email,
+      gmEmail: row.gm.email,
+      requestedByEmail: request.requestedBy.email,
+      createdAt: request.createdAt.toISOString()
     })) : [],
     pendingProfessionRequests: isDirector ? row.characters.flatMap((entry) => {
       const sheet = parseCampaignSheetSafely(entry.character.sheet);
@@ -599,6 +619,130 @@ export class CampaignModel {
     });
   }
 
+  async createCharacterLinkRequest(
+    campaignId: string,
+    characterId: string,
+    requestedById: string
+  ): Promise<CampaignCharacterLinkRequest> {
+    const row = await prisma.campaignCharacterLinkRequest.upsert({
+      where: { campaignId_characterId: { campaignId, characterId } },
+      update: { requestedById, createdAt: new Date() },
+      create: { campaignId, characterId, requestedById },
+      include: {
+        campaign: { include: { gm: true } },
+        character: { include: { owner: true } },
+        requestedBy: true
+      }
+    });
+
+    return {
+      id: row.id,
+      campaignId: row.campaignId,
+      campaignName: row.campaign.name,
+      characterId: row.characterId,
+      characterName: row.character.name,
+      ownerEmail: row.character.owner.email,
+      gmEmail: row.campaign.gm.email,
+      requestedByEmail: row.requestedBy.email,
+      createdAt: row.createdAt.toISOString()
+    };
+  }
+
+  async listCharacterLinkRequestsForUser(userId: string): Promise<CampaignCharacterLinkRequest[]> {
+    const rows = await prisma.campaignCharacterLinkRequest.findMany({
+      where: { character: { ownerId: userId } },
+      include: {
+        campaign: { include: { gm: true } },
+        character: { include: { owner: true } },
+        requestedBy: true
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      campaignId: row.campaignId,
+      campaignName: row.campaign.name,
+      characterId: row.characterId,
+      characterName: row.character.name,
+      ownerEmail: row.character.owner.email,
+      gmEmail: row.campaign.gm.email,
+      requestedByEmail: row.requestedBy.email,
+      createdAt: row.createdAt.toISOString()
+    }));
+  }
+
+  async findCharacterLinkRequestById(requestId: string): Promise<{
+    id: string;
+    campaignId: string;
+    characterId: string;
+    requestedById: string;
+    ownerId: string;
+  } | null> {
+    const row = await prisma.campaignCharacterLinkRequest.findUnique({
+      where: { id: requestId },
+      select: {
+        id: true,
+        campaignId: true,
+        characterId: true,
+        requestedById: true,
+        character: { select: { ownerId: true } }
+      }
+    });
+    return row ? { ...row, ownerId: row.character.ownerId } : null;
+  }
+
+  async deleteCharacterLinkRequest(requestId: string): Promise<void> {
+    await prisma.campaignCharacterLinkRequest.deleteMany({ where: { id: requestId } });
+  }
+
+  async acceptCharacterLinkRequest(requestId: string, userId: string): Promise<string | null> {
+    try {
+      return await prisma.$transaction(async (transaction) => {
+        const request = await transaction.campaignCharacterLinkRequest.findFirst({
+          where: { id: requestId, character: { ownerId: userId } },
+          select: { campaignId: true, characterId: true }
+        });
+        if (!request) return null;
+
+        const existingLink = await transaction.campaignCharacter.findUnique({
+          where: { characterId: request.characterId },
+          select: { campaignId: true }
+        });
+        if (existingLink && existingLink.campaignId !== request.campaignId) {
+          throw new AppError("CAMPAIGN_CHARACTER_ALREADY_LINKED", "El personaje ya está vinculado a otra campaña", 409);
+        }
+
+        if (!existingLink) {
+          await transaction.campaignCharacter.create({
+            data: { campaignId: request.campaignId, characterId: request.characterId }
+          });
+          const actor = await getCharacterAuditActor(transaction, userId);
+          if (actor) {
+            await recordCharacterChange(transaction, {
+              characterId: request.characterId,
+              actor,
+              campaignId: request.campaignId,
+              source: "campaign_link",
+              summary: "Aceptó vincular el personaje a la campaña",
+              changes: [{ path: "campaign", section: "Campaña", label: "Vinculación", operation: "added", after: "Personaje vinculado" }]
+            });
+          }
+        }
+
+        await transaction.campaignCharacterLinkRequest.deleteMany({
+          where: { characterId: request.characterId }
+        });
+        return request.campaignId;
+      });
+    } catch (error) {
+      if (error instanceof PrismaRuntime.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new AppError("CAMPAIGN_CHARACTER_ALREADY_LINKED", "El personaje ya está vinculado a una campaña", 409);
+      }
+      throw error;
+    }
+  }
+
   async characterLinkOwnsMysticArtifacts(linkId: string): Promise<boolean> {
     return (await prisma.mysticArtifact.count({ where: { ownerCharacterId: linkId } })) > 0;
   }
@@ -880,13 +1024,15 @@ export class CampaignModel {
   async findCharacterById(characterId: string): Promise<{
     id: string;
     ownerId: string;
+    ownerEmail: string;
     name: string;
     sheet: Prisma.JsonValue;
   } | null> {
-    return prisma.character.findUnique({
+    const row = await prisma.character.findUnique({
       where: { id: characterId },
-      select: { id: true, ownerId: true, name: true, sheet: true }
+      select: { id: true, ownerId: true, name: true, sheet: true, owner: { select: { email: true } } }
     });
+    return row ? { id: row.id, ownerId: row.ownerId, ownerEmail: row.owner.email, name: row.name, sheet: row.sheet } : null;
   }
 
   async findCharacterLinkById(linkId: string): Promise<{ id: string; campaignId: string; characterId: string } | null> {

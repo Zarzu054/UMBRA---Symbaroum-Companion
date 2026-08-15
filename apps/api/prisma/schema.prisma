@@ -131,6 +131,7 @@ model User {
   campaignMemberships CampaignMember[]
   receivedCampaignInvitations CampaignInvitation[] @relation("CampaignInvitationRecipient")
   sentCampaignInvitations CampaignInvitation[] @relation("CampaignInvitationSender")
+  sentCharacterLinkRequests CampaignCharacterLinkRequest[] @relation("CampaignCharacterLinkRequestSender")
   campaignXpGrants    CampaignXpLog[]    @relation("CampaignXpGrantUser")
   campaignChatMessages CampaignChatMessage[]
   authoredCampaignReferences CampaignReference[] @relation("CampaignReferenceAuthor")
@@ -204,6 +205,7 @@ model Character {
   changeEvents       CharacterChangeEvent[]
   changeReceipts     CharacterChangeReceipt[]
   professionMemberships CharacterProfessionMembership[]
+  campaignLinkRequests CampaignCharacterLinkRequest[]
 
   @@map("characters")
 }
@@ -363,6 +365,7 @@ model Campaign {
   gm           User                @relation("CampaignGm", fields: [gmId], references: [id], onDelete: Cascade)
   members      CampaignMember[]
   invitations  CampaignInvitation[]
+  characterLinkRequests CampaignCharacterLinkRequest[]
   characters   CampaignCharacter[]
   npcs         CampaignNpc[]
   experienceLog CampaignXpLog[]
@@ -407,6 +410,23 @@ model CampaignInvitation {
   @@index([userId, createdAt])
   @@index([invitedById])
   @@map("campaign_invitations")
+}
+
+model CampaignCharacterLinkRequest {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId    String    @map("campaign_id") @db.Uuid
+  characterId   String    @map("character_id") @db.Uuid
+  requestedById String    @map("requested_by_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  campaign      Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  character     Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  requestedBy   User      @relation("CampaignCharacterLinkRequestSender", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, characterId])
+  @@index([characterId, createdAt])
+  @@index([requestedById])
+  @@map("campaign_character_link_requests")
 }
 
 model CampaignCharacter {

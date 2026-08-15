@@ -26,7 +26,17 @@ export async function dismissCampaignInvitation(invitationId, accessToken) {
         throw new Error(await readFriendlyApiError(response));
 }
 export async function removeCampaignMember(memberId, accessToken) { return (await request(`/api/campaign-members/${memberId}`, accessToken, { method: "DELETE" })).data; }
-export async function linkCampaignCharacter(campaignId, characterId, accessToken) { return (await request(`/api/campaigns/${campaignId}/characters`, accessToken, { method: "POST", body: JSON.stringify({ characterId }) })).data; }
+export async function requestCampaignCharacterLink(campaignId, characterId, accessToken) { return (await request(`/api/campaigns/${campaignId}/character-link-requests`, accessToken, { method: "POST", body: JSON.stringify({ characterId }) })).data; }
+export async function fetchCampaignCharacterLinkRequests(accessToken) { return (await request("/api/campaign-character-link-requests", accessToken)).data; }
+export async function acceptCampaignCharacterLinkRequest(requestId, accessToken) { return (await request(`/api/campaign-character-link-requests/${requestId}/accept`, accessToken, { method: "POST" })).data; }
+export async function dismissCampaignCharacterLinkRequest(requestId, accessToken) {
+    const response = await fetch(`/api/campaign-character-link-requests/${requestId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!response.ok)
+        throw new Error(await readFriendlyApiError(response));
+}
 export async function unlinkCampaignCharacter(linkId, accessToken) { return (await request(`/api/campaign-characters/${linkId}`, accessToken, { method: "DELETE" })).data; }
 export async function updateCampaignCharacterSheet(linkId, input, accessToken) { return (await request(`/api/campaign-characters/${linkId}/sheet`, accessToken, { method: "PUT", body: JSON.stringify(input) })).data; }
 export async function createCampaignNpc(campaignId, input, accessToken) { return (await request(`/api/campaigns/${campaignId}/npcs`, accessToken, { method: "POST", body: JSON.stringify(input) })).data; }

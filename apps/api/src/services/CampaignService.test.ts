@@ -99,6 +99,94 @@ describe("CampaignService character experience", () => {
     expect(result.id).toBe("campaign-a");
   });
 
+  it("emails the owner and leaves the character unlinked until consent", async () => {
+    const requestId = "10000000-0000-4000-8000-000000000002";
+    const characterId = "20000000-0000-4000-8000-000000000002";
+    const campaign = {
+      id: "campaign-a",
+      name: "Davokar",
+      gmId: "gm-a",
+      gmEmail: "gm@example.com",
+      members: [{ userId: "player-a" }]
+    };
+    const model = {
+      findCampaignOwner: vi.fn().mockResolvedValue({ gmId: "gm-a" }),
+      findCharacterById: vi.fn().mockResolvedValue({
+        id: characterId,
+        ownerId: "player-a",
+        ownerEmail: "player@example.com",
+        name: "Alda",
+        sheet: createEmptyCharacterSheet()
+      }),
+      findAccessibleById: vi.fn().mockResolvedValue(campaign),
+      findCharacterLinkByCharacterId: vi.fn().mockResolvedValue(null),
+      createCharacterLinkRequest: vi.fn().mockResolvedValue({ id: requestId }),
+      deleteCharacterLinkRequest: vi.fn(),
+      linkCharacter: vi.fn()
+    };
+    const mailService = {
+      sendCampaignInvitationEmail: vi.fn(),
+      sendCharacterLinkRequestEmail: vi.fn().mockResolvedValue(undefined)
+    };
+
+    await new CampaignService(model as never, mailService).requestCharacterLink(
+      "gm-a",
+      "gm",
+      "campaign-a",
+      characterId
+    );
+
+    expect(model.createCharacterLinkRequest).toHaveBeenCalledWith("campaign-a", characterId, "gm-a");
+    expect(mailService.sendCharacterLinkRequestEmail).toHaveBeenCalledWith(
+      "player@example.com",
+      "Alda",
+      "Davokar",
+      "gm@example.com",
+      requestId
+    );
+    expect(model.linkCharacter).not.toHaveBeenCalled();
+  });
+
+  it("links the character only when its owner accepts the request", async () => {
+    const requestId = "10000000-0000-4000-8000-000000000003";
+    const model = {
+      findCharacterLinkRequestById: vi.fn().mockResolvedValue({
+        id: requestId,
+        campaignId: "campaign-a",
+        characterId: "20000000-0000-4000-8000-000000000003",
+        requestedById: "gm-a",
+        ownerId: "player-a"
+      }),
+      findAccessibleById: vi.fn().mockResolvedValue({ id: "campaign-a" }),
+      acceptCharacterLinkRequest: vi.fn().mockResolvedValue("campaign-a")
+    };
+
+    await new CampaignService(model as never).acceptCharacterLinkRequest("player-a", "player", requestId);
+
+    expect(model.acceptCharacterLinkRequest).toHaveBeenCalledWith(requestId, "player-a");
+  });
+
+  it("prevents a different user from accepting a character link request", async () => {
+    const requestId = "10000000-0000-4000-8000-000000000004";
+    const model = {
+      findCharacterLinkRequestById: vi.fn().mockResolvedValue({
+        id: requestId,
+        campaignId: "campaign-a",
+        characterId: "20000000-0000-4000-8000-000000000004",
+        requestedById: "gm-a",
+        ownerId: "player-a"
+      }),
+      acceptCharacterLinkRequest: vi.fn()
+    };
+
+    await expect(new CampaignService(model as never).acceptCharacterLinkRequest(
+      "player-b",
+      "player",
+      requestId
+    )).rejects.toThrow("ya no está disponible");
+    expect(model.acceptCharacterLinkRequest).not.toHaveBeenCalled();
+  });
+
   it("prevents another user from accepting the invitation", async () => {
     const model = {
       findInvitationById: vi.fn().mockResolvedValue({

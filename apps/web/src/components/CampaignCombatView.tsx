@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 import type { Campaign, CampaignCombat, CampaignCombatParticipantView, CharacterSheet, Monster } from "@umbra/shared";
 import {
   addCampaignCombatParticipant,
@@ -56,61 +56,8 @@ function monsterFromSnapshot(participant: CampaignCombatParticipantView): Monste
   };
 }
 
-function CombatInitiativeField({
-  participant,
-  disabled,
-  onCommit
-}: {
-  participant: CampaignCombatParticipantView;
-  disabled: boolean;
-  onCommit: (value: number) => Promise<void>;
-}) {
-  const currentValue = participant.initiativeOverride ?? participant.initiative;
-  const [draft, setDraft] = useState(String(currentValue));
-  const [editing, setEditing] = useState(false);
-
-  useEffect(() => {
-    if (!editing) setDraft(String(currentValue));
-  }, [currentValue, editing]);
-
-  const commit = async () => {
-    setEditing(false);
-    const parsed = Number(draft);
-    if (!Number.isInteger(parsed) || parsed < -50 || parsed > 100) {
-      setDraft(String(currentValue));
-      return;
-    }
-    if (parsed !== currentValue) await onCommit(parsed);
-  };
-
-  return (
-    <label className="campaign-combat-initiative-field">
-      <span>Iniciativa <span aria-hidden="true">✎</span></span>
-      <input
-        aria-label={`Iniciativa de ${participant.alias}`}
-        title="Escribe una iniciativa y pulsa Enter o sal del campo para guardarla"
-        type="number"
-        min={-50}
-        max={100}
-        value={draft}
-        disabled={disabled}
-        draggable={false}
-        onFocus={() => setEditing(true)}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={() => void commit()}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") event.currentTarget.blur();
-          if (event.key === "Escape") {
-            setDraft(String(currentValue));
-            event.currentTarget.blur();
-          }
-        }}
-      />
-    </label>
-  );
-}
-
 type CombatResourceTone = "health" | "temporary-corruption" | "permanent-corruption";
+type CombatDropIndicator = { participantId: string; position: "before" | "after" };
 
 function CombatResourceBar({
   alias,
@@ -189,6 +136,10 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
   const [selectedMonster, setSelectedMonster] = useState<CampaignCombatParticipantView | null>(null);
   const [selectedNpcSheet, setSelectedNpcSheet] = useState<{ name: string; sheet: CharacterSheet } | null>(null);
   const draggedId = useRef<string | null>(null);
+  const autoScrollFrame = useRef<number | null>(null);
+  const autoScrollVelocity = useRef(0);
+  const [draggedParticipantId, setDraggedParticipantId] = useState<string | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<CombatDropIndicator | null>(null);
   useBodyScrollLock(pickerOpen || Boolean(renameTarget) || Boolean(selectedMonster) || Boolean(selectedNpcSheet));
 
   const loadCombat = async (silent = false) => {
@@ -225,6 +176,19 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
       }
     })();
   }, [pickerOpen, pickerTab, officialMonsters.length]);
+
+  useEffect(() => {
+    if (!draggedParticipantId) return;
+    const handleWindowDragOver = (event: globalThis.DragEvent) => updateDragAutoScroll(event.clientY);
+    const handleWindowDrop = () => stopDragAutoScroll();
+    window.addEventListener("dragover", handleWindowDragOver);
+    window.addEventListener("drop", handleWindowDrop);
+    return () => {
+      window.removeEventListener("dragover", handleWindowDragOver);
+      window.removeEventListener("drop", handleWindowDrop);
+      stopDragAutoScroll();
+    };
+  }, [draggedParticipantId]);
 
   const linkedCharacterIds = new Set(combat?.participants.filter((entry) => entry.kind === "character").map((entry) => entry.sourceId) ?? []);
   const linkedNpcIds = new Set(combat?.participants.filter((entry) => entry.kind === "npc").map((entry) => entry.sourceId) ?? []);
@@ -272,6 +236,82 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
   async function reorderByIds(ids: string[]): Promise<void> {
     if (!combat) return;
     await mutate((token) => reorderCampaignCombat(campaign.id, { revision: combat.revision, participantIds: ids }, token));
+  }
+
+  function stopDragAutoScroll(): void {
+    autoScrollVelocity.current = 0;
+    if (autoScrollFrame.current !== null) {
+      window.cancelAnimationFrame(autoScrollFrame.current);
+      autoScrollFrame.current = null;
+    }
+  }
+
+  function runDragAutoScroll(): void {
+    if (!draggedId.current || autoScrollVelocity.current === 0) {
+      autoScrollFrame.current = null;
+      return;
+    }
+    window.scrollBy(0, autoScrollVelocity.current);
+    autoScrollFrame.current = window.requestAnimationFrame(runDragAutoScroll);
+  }
+
+  function updateDragAutoScroll(clientY: number): void {
+    const edgeSize = Math.min(120, window.innerHeight * .18);
+    const maximumSpeed = 14;
+    let velocity = 0;
+    if (clientY < edgeSize) {
+      velocity = -Math.ceil(((edgeSize - Math.max(0, clientY)) / edgeSize) * maximumSpeed);
+    } else if (clientY > window.innerHeight - edgeSize) {
+      velocity = Math.ceil(((Math.min(window.innerHeight, clientY) - (window.innerHeight - edgeSize)) / edgeSize) * maximumSpeed);
+    }
+    autoScrollVelocity.current = velocity;
+    if (velocity === 0) {
+      stopDragAutoScroll();
+    } else if (autoScrollFrame.current === null) {
+      autoScrollFrame.current = window.requestAnimationFrame(runDragAutoScroll);
+    }
+  }
+
+  function clearDragState(): void {
+    stopDragAutoScroll();
+    draggedId.current = null;
+    setDraggedParticipantId(null);
+    setDropIndicator(null);
+  }
+
+  function handleParticipantDragStart(event: DragEvent<HTMLElement>, participantId: string): void {
+    draggedId.current = participantId;
+    setDraggedParticipantId(participantId);
+    setDropIndicator(null);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", participantId);
+  }
+
+  function handleParticipantDragOver(event: DragEvent<HTMLElement>, participantId: string): void {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    updateDragAutoScroll(event.clientY);
+    if (!draggedId.current || draggedId.current === participantId) {
+      setDropIndicator(null);
+      return;
+    }
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const position = event.clientY < bounds.top + bounds.height / 2 ? "before" : "after";
+    setDropIndicator((current) => current?.participantId === participantId && current.position === position
+      ? current
+      : { participantId, position });
+  }
+
+  function handleParticipantDrop(targetId: string): void {
+    const sourceId = draggedId.current;
+    const position = dropIndicator?.participantId === targetId ? dropIndicator.position : "before";
+    clearDragState();
+    if (!sourceId || sourceId === targetId || !combat) return;
+    const participantIds = combat.participants.map((entry) => entry.id).filter((id) => id !== sourceId);
+    const targetIndex = participantIds.indexOf(targetId);
+    if (targetIndex < 0) return;
+    participantIds.splice(targetIndex + (position === "after" ? 1 : 0), 0, sourceId);
+    void reorderByIds(participantIds);
   }
 
   function openMonsterRename(participant: CampaignCombatParticipantView): void {
@@ -343,21 +383,33 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
       </header>
       {error ? <p className="error-text campaign-combat-error">{error}</p> : null}
       <div className="campaign-combat-list">
-        {combat.participants.map((participant, index) => {
+        {combat.participants.map((participant) => {
           const automaticIds = new Set(["condition-dying", "legacy-dying", "legacy-corruption"]);
+          const isDragging = draggedParticipantId === participant.id;
+          const targetDropPosition = dropIndicator?.participantId === participant.id ? dropIndicator.position : null;
           return (
-            <article key={participant.id} className="campaign-combat-card" draggable={!busy}
-              onDragStart={() => { draggedId.current = participant.id; }}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={() => { const sourceId = draggedId.current; if (!sourceId || sourceId === participant.id) return; const ids = combat.participants.map((entry) => entry.id); const from = ids.indexOf(sourceId); ids.splice(from, 1); ids.splice(index, 0, sourceId); draggedId.current = null; void reorderByIds(ids); }}>
+            <article
+              key={participant.id}
+              className={`campaign-combat-card${isDragging ? " is-dragging" : ""}${targetDropPosition ? ` is-drop-${targetDropPosition}` : ""}`}
+              draggable={!busy}
+              onDragStart={(event) => handleParticipantDragStart(event, participant.id)}
+              onDragOver={(event) => handleParticipantDragOver(event, participant.id)}
+              onDragLeave={(event) => {
+                const nextTarget = event.relatedTarget;
+                if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+                  setDropIndicator((current) => current?.participantId === participant.id ? null : current);
+                }
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                handleParticipantDrop(participant.id);
+              }}
+              onDragEnd={clearDragState}
+            >
+              {targetDropPosition ? <span className={`campaign-combat-drop-marker is-${targetDropPosition}`} aria-hidden="true" /> : null}
               <header>
                 <button className="campaign-combat-drag" type="button" aria-label={`Mover ${participant.alias}`}>⋮⋮</button>
                 <div><span>{participantTypeLabel(participant.kind)}</span><strong>{participant.alias}</strong></div>
-                <CombatInitiativeField
-                  participant={participant}
-                  disabled={busy}
-                  onCommit={async (initiativeOverride) => { await mutate((token) => updateCampaignCombatParticipant(campaign.id, participant.id, { revision: combat.revision, initiativeOverride }, token)); }}
-                />
                 <div className="campaign-combat-card-actions">
                   {participant.kind === "monster" ? (
                     <button
@@ -385,6 +437,10 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
                   onDecrease={() => void patchResources(participant, { robustnessCurrent: participant.robustnessCurrent - 1 })}
                   onIncrease={() => void patchResources(participant, { robustnessCurrent: participant.robustnessCurrent + 1 })}
                 />
+                <div className="campaign-combat-stat-initiative">
+                  <span>Iniciativa</span>
+                  <strong>{participant.initiative}</strong>
+                </div>
                 <div><span>Defensa</span><strong>{participant.defense}</strong></div><div><span>Armadura</span><strong>{participant.armor || "—"}</strong></div><div><span>Umbral de dolor</span><strong>{participant.painThreshold}</strong></div>
                 <CombatResourceBar
                   alias={participant.alias}

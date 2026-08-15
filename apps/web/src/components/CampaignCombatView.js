@@ -35,33 +35,6 @@ function monsterFromSnapshot(participant) {
         updatedAt: snapshot.updatedAt
     };
 }
-function CombatInitiativeField({ participant, disabled, onCommit }) {
-    const currentValue = participant.initiativeOverride ?? participant.initiative;
-    const [draft, setDraft] = useState(String(currentValue));
-    const [editing, setEditing] = useState(false);
-    useEffect(() => {
-        if (!editing)
-            setDraft(String(currentValue));
-    }, [currentValue, editing]);
-    const commit = async () => {
-        setEditing(false);
-        const parsed = Number(draft);
-        if (!Number.isInteger(parsed) || parsed < -50 || parsed > 100) {
-            setDraft(String(currentValue));
-            return;
-        }
-        if (parsed !== currentValue)
-            await onCommit(parsed);
-    };
-    return (_jsxs("label", { className: "campaign-combat-initiative-field", children: [_jsxs("span", { children: ["Iniciativa ", _jsx("span", { "aria-hidden": "true", children: "\u270E" })] }), _jsx("input", { "aria-label": `Iniciativa de ${participant.alias}`, title: "Escribe una iniciativa y pulsa Enter o sal del campo para guardarla", type: "number", min: -50, max: 100, value: draft, disabled: disabled, draggable: false, onFocus: () => setEditing(true), onChange: (event) => setDraft(event.target.value), onBlur: () => void commit(), onKeyDown: (event) => {
-                    if (event.key === "Enter")
-                        event.currentTarget.blur();
-                    if (event.key === "Escape") {
-                        setDraft(String(currentValue));
-                        event.currentTarget.blur();
-                    }
-                } })] }));
-}
 function CombatResourceBar({ alias, label, value, maximum, displayValue, tone, disabled, disableIncrease = false, onDecrease, onIncrease }) {
     const safeMaximum = Math.max(1, maximum);
     const progressValue = Math.min(safeMaximum, Math.max(0, value));
@@ -85,6 +58,10 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
     const [selectedMonster, setSelectedMonster] = useState(null);
     const [selectedNpcSheet, setSelectedNpcSheet] = useState(null);
     const draggedId = useRef(null);
+    const autoScrollFrame = useRef(null);
+    const autoScrollVelocity = useRef(0);
+    const [draggedParticipantId, setDraggedParticipantId] = useState(null);
+    const [dropIndicator, setDropIndicator] = useState(null);
     useBodyScrollLock(pickerOpen || Boolean(renameTarget) || Boolean(selectedMonster) || Boolean(selectedNpcSheet));
     const loadCombat = async (silent = false) => {
         if (!silent)
@@ -128,6 +105,19 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
             }
         })();
     }, [pickerOpen, pickerTab, officialMonsters.length]);
+    useEffect(() => {
+        if (!draggedParticipantId)
+            return;
+        const handleWindowDragOver = (event) => updateDragAutoScroll(event.clientY);
+        const handleWindowDrop = () => stopDragAutoScroll();
+        window.addEventListener("dragover", handleWindowDragOver);
+        window.addEventListener("drop", handleWindowDrop);
+        return () => {
+            window.removeEventListener("dragover", handleWindowDragOver);
+            window.removeEventListener("drop", handleWindowDrop);
+            stopDragAutoScroll();
+        };
+    }, [draggedParticipantId]);
     const linkedCharacterIds = new Set(combat?.participants.filter((entry) => entry.kind === "character").map((entry) => entry.sourceId) ?? []);
     const linkedNpcIds = new Set(combat?.participants.filter((entry) => entry.kind === "npc").map((entry) => entry.sourceId) ?? []);
     const filteredMonsters = useMemo(() => {
@@ -181,6 +171,79 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
             return;
         await mutate((token) => reorderCampaignCombat(campaign.id, { revision: combat.revision, participantIds: ids }, token));
     }
+    function stopDragAutoScroll() {
+        autoScrollVelocity.current = 0;
+        if (autoScrollFrame.current !== null) {
+            window.cancelAnimationFrame(autoScrollFrame.current);
+            autoScrollFrame.current = null;
+        }
+    }
+    function runDragAutoScroll() {
+        if (!draggedId.current || autoScrollVelocity.current === 0) {
+            autoScrollFrame.current = null;
+            return;
+        }
+        window.scrollBy(0, autoScrollVelocity.current);
+        autoScrollFrame.current = window.requestAnimationFrame(runDragAutoScroll);
+    }
+    function updateDragAutoScroll(clientY) {
+        const edgeSize = Math.min(120, window.innerHeight * .18);
+        const maximumSpeed = 14;
+        let velocity = 0;
+        if (clientY < edgeSize) {
+            velocity = -Math.ceil(((edgeSize - Math.max(0, clientY)) / edgeSize) * maximumSpeed);
+        }
+        else if (clientY > window.innerHeight - edgeSize) {
+            velocity = Math.ceil(((Math.min(window.innerHeight, clientY) - (window.innerHeight - edgeSize)) / edgeSize) * maximumSpeed);
+        }
+        autoScrollVelocity.current = velocity;
+        if (velocity === 0) {
+            stopDragAutoScroll();
+        }
+        else if (autoScrollFrame.current === null) {
+            autoScrollFrame.current = window.requestAnimationFrame(runDragAutoScroll);
+        }
+    }
+    function clearDragState() {
+        stopDragAutoScroll();
+        draggedId.current = null;
+        setDraggedParticipantId(null);
+        setDropIndicator(null);
+    }
+    function handleParticipantDragStart(event, participantId) {
+        draggedId.current = participantId;
+        setDraggedParticipantId(participantId);
+        setDropIndicator(null);
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", participantId);
+    }
+    function handleParticipantDragOver(event, participantId) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        updateDragAutoScroll(event.clientY);
+        if (!draggedId.current || draggedId.current === participantId) {
+            setDropIndicator(null);
+            return;
+        }
+        const bounds = event.currentTarget.getBoundingClientRect();
+        const position = event.clientY < bounds.top + bounds.height / 2 ? "before" : "after";
+        setDropIndicator((current) => current?.participantId === participantId && current.position === position
+            ? current
+            : { participantId, position });
+    }
+    function handleParticipantDrop(targetId) {
+        const sourceId = draggedId.current;
+        const position = dropIndicator?.participantId === targetId ? dropIndicator.position : "before";
+        clearDragState();
+        if (!sourceId || sourceId === targetId || !combat)
+            return;
+        const participantIds = combat.participants.map((entry) => entry.id).filter((id) => id !== sourceId);
+        const targetIndex = participantIds.indexOf(targetId);
+        if (targetIndex < 0)
+            return;
+        participantIds.splice(targetIndex + (position === "after" ? 1 : 0), 0, sourceId);
+        void reorderByIds(participantIds);
+    }
     function openMonsterRename(participant) {
         if (participant.kind !== "monster")
             return;
@@ -232,10 +295,19 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
                                 finally {
                                     setBusy(false);
                                 }
-                            }, children: "Finalizar" })] }) }), error ? _jsx("p", { className: "error-text campaign-combat-error", children: error }) : null, _jsxs("div", { className: "campaign-combat-list", children: [combat.participants.map((participant, index) => {
+                            }, children: "Finalizar" })] }) }), error ? _jsx("p", { className: "error-text campaign-combat-error", children: error }) : null, _jsxs("div", { className: "campaign-combat-list", children: [combat.participants.map((participant) => {
                         const automaticIds = new Set(["condition-dying", "legacy-dying", "legacy-corruption"]);
-                        return (_jsxs("article", { className: "campaign-combat-card", draggable: !busy, onDragStart: () => { draggedId.current = participant.id; }, onDragOver: (event) => event.preventDefault(), onDrop: () => { const sourceId = draggedId.current; if (!sourceId || sourceId === participant.id)
-                                return; const ids = combat.participants.map((entry) => entry.id); const from = ids.indexOf(sourceId); ids.splice(from, 1); ids.splice(index, 0, sourceId); draggedId.current = null; void reorderByIds(ids); }, children: [_jsxs("header", { children: [_jsx("button", { className: "campaign-combat-drag", type: "button", "aria-label": `Mover ${participant.alias}`, children: "\u22EE\u22EE" }), _jsxs("div", { children: [_jsx("span", { children: participantTypeLabel(participant.kind) }), _jsx("strong", { children: participant.alias })] }), _jsx(CombatInitiativeField, { participant: participant, disabled: busy, onCommit: async (initiativeOverride) => { await mutate((token) => updateCampaignCombatParticipant(campaign.id, participant.id, { revision: combat.revision, initiativeOverride }, token)); } }), _jsxs("div", { className: "campaign-combat-card-actions", children: [participant.kind === "monster" ? (_jsx("button", { type: "button", className: "subtle-button", "aria-label": `Renombrar a ${participant.alias}`, disabled: busy, onClick: () => openMonsterRename(participant), children: "Renombrar" })) : null, _jsx("button", { type: "button", className: "subtle-button", onClick: () => { if (participant.kind === "character")
+                        const isDragging = draggedParticipantId === participant.id;
+                        const targetDropPosition = dropIndicator?.participantId === participant.id ? dropIndicator.position : null;
+                        return (_jsxs("article", { className: `campaign-combat-card${isDragging ? " is-dragging" : ""}${targetDropPosition ? ` is-drop-${targetDropPosition}` : ""}`, draggable: !busy, onDragStart: (event) => handleParticipantDragStart(event, participant.id), onDragOver: (event) => handleParticipantDragOver(event, participant.id), onDragLeave: (event) => {
+                                const nextTarget = event.relatedTarget;
+                                if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+                                    setDropIndicator((current) => current?.participantId === participant.id ? null : current);
+                                }
+                            }, onDrop: (event) => {
+                                event.preventDefault();
+                                handleParticipantDrop(participant.id);
+                            }, onDragEnd: clearDragState, children: [targetDropPosition ? _jsx("span", { className: `campaign-combat-drop-marker is-${targetDropPosition}`, "aria-hidden": "true" }) : null, _jsxs("header", { children: [_jsx("button", { className: "campaign-combat-drag", type: "button", "aria-label": `Mover ${participant.alias}`, children: "\u22EE\u22EE" }), _jsxs("div", { children: [_jsx("span", { children: participantTypeLabel(participant.kind) }), _jsx("strong", { children: participant.alias })] }), _jsxs("div", { className: "campaign-combat-card-actions", children: [participant.kind === "monster" ? (_jsx("button", { type: "button", className: "subtle-button", "aria-label": `Renombrar a ${participant.alias}`, disabled: busy, onClick: () => openMonsterRename(participant), children: "Renombrar" })) : null, _jsx("button", { type: "button", className: "subtle-button", onClick: () => { if (participant.kind === "character")
                                                         onOpenCharacter(participant.sourceId);
                                                     else if (participant.kind === "npc") {
                                                         const npc = campaign.npcs.find((entry) => entry.id === participant.sourceId);
@@ -243,7 +315,7 @@ export function CampaignCombatView({ campaign, ensureAccessToken, onOpenCharacte
                                                             setSelectedNpcSheet({ name: npc.name, sheet: npc.sheet });
                                                     }
                                                     else
-                                                        setSelectedMonster(participant); }, children: "Ver ficha" }), _jsx("button", { type: "button", className: "danger-button", disabled: busy, onClick: () => void mutate((token) => removeCampaignCombatParticipant(campaign.id, participant.id, token)), children: "Retirar" })] })] }), _jsxs("div", { className: "campaign-combat-stats", children: [_jsx(CombatResourceBar, { alias: participant.alias, label: "Robustez", value: participant.robustnessCurrent, maximum: participant.robustnessMaximum, displayValue: `${participant.robustnessCurrent} / ${participant.robustnessMaximum}`, tone: "health", disabled: busy, disableIncrease: participant.robustnessCurrent >= participant.robustnessMaximum, onDecrease: () => void patchResources(participant, { robustnessCurrent: participant.robustnessCurrent - 1 }), onIncrease: () => void patchResources(participant, { robustnessCurrent: participant.robustnessCurrent + 1 }) }), _jsxs("div", { children: [_jsx("span", { children: "Defensa" }), _jsx("strong", { children: participant.defense })] }), _jsxs("div", { children: [_jsx("span", { children: "Armadura" }), _jsx("strong", { children: participant.armor || "—" })] }), _jsxs("div", { children: [_jsx("span", { children: "Umbral de dolor" }), _jsx("strong", { children: participant.painThreshold })] }), _jsx(CombatResourceBar, { alias: participant.alias, label: "Corrupci\u00F3n temporal", value: participant.temporaryCorruption, maximum: Number(participant.corruptionThreshold) || 0, displayValue: String(participant.temporaryCorruption), tone: "temporary-corruption", disabled: busy, onDecrease: () => void patchResources(participant, { temporaryCorruption: Math.max(0, participant.temporaryCorruption - 1) }), onIncrease: () => void patchResources(participant, { temporaryCorruption: participant.temporaryCorruption + 1 }) }), _jsx(CombatResourceBar, { alias: participant.alias, label: "Corrupci\u00F3n permanente", value: participant.permanentCorruption, maximum: Number(participant.corruptionThreshold) || 0, displayValue: String(participant.permanentCorruption), tone: "permanent-corruption", disabled: busy, onDecrease: () => void patchResources(participant, { permanentCorruption: Math.max(0, participant.permanentCorruption - 1) }), onIncrease: () => void patchResources(participant, { permanentCorruption: participant.permanentCorruption + 1 }) }), _jsxs("div", { children: [_jsx("span", { children: "Umbral de corrupci\u00F3n" }), _jsx("strong", { children: participant.corruptionThreshold })] })] }), _jsxs("div", { className: "campaign-combat-card-details", children: [_jsxs("section", { children: [_jsx("h4", { children: "Ataques" }), _jsxs("div", { className: "campaign-combat-attack-list", children: [participant.attacks.length ? participant.attacks.slice(0, 2).map((attack, attackIndex) => _jsxs("div", { className: "campaign-combat-attack", children: [_jsx("strong", { children: attack.name }), _jsxs("span", { children: [attack.attribute, " \u00B7 ", attack.damage, attack.qualities ? ` · ${attack.qualities}` : ""] })] }, `${attack.name}-${attackIndex}`)) : _jsx("span", { children: "Sin ataques registrados." }), participant.attacks.length > 2 ? _jsxs("span", { className: "campaign-combat-more-attacks", children: ["+", participant.attacks.length - 2, " ataques en la ficha"] }) : null] })] }), _jsxs("section", { children: [_jsx("h4", { children: "Condiciones" }), _jsxs("div", { className: "campaign-combat-conditions", children: [MANUAL_CONDITIONS.map(([id, name]) => { const active = participant.conditions.some((condition) => condition.id === id && condition.active); return _jsx("button", { type: "button", "aria-pressed": active, className: active ? "is-active" : "", disabled: busy, onClick: () => { const preserved = participant.conditions.filter((condition) => condition.id !== id); if (!active)
+                                                        setSelectedMonster(participant); }, children: "Ver ficha" }), _jsx("button", { type: "button", className: "danger-button", disabled: busy, onClick: () => void mutate((token) => removeCampaignCombatParticipant(campaign.id, participant.id, token)), children: "Retirar" })] })] }), _jsxs("div", { className: "campaign-combat-stats", children: [_jsx(CombatResourceBar, { alias: participant.alias, label: "Robustez", value: participant.robustnessCurrent, maximum: participant.robustnessMaximum, displayValue: `${participant.robustnessCurrent} / ${participant.robustnessMaximum}`, tone: "health", disabled: busy, disableIncrease: participant.robustnessCurrent >= participant.robustnessMaximum, onDecrease: () => void patchResources(participant, { robustnessCurrent: participant.robustnessCurrent - 1 }), onIncrease: () => void patchResources(participant, { robustnessCurrent: participant.robustnessCurrent + 1 }) }), _jsxs("div", { className: "campaign-combat-stat-initiative", children: [_jsx("span", { children: "Iniciativa" }), _jsx("strong", { children: participant.initiative })] }), _jsxs("div", { children: [_jsx("span", { children: "Defensa" }), _jsx("strong", { children: participant.defense })] }), _jsxs("div", { children: [_jsx("span", { children: "Armadura" }), _jsx("strong", { children: participant.armor || "—" })] }), _jsxs("div", { children: [_jsx("span", { children: "Umbral de dolor" }), _jsx("strong", { children: participant.painThreshold })] }), _jsx(CombatResourceBar, { alias: participant.alias, label: "Corrupci\u00F3n temporal", value: participant.temporaryCorruption, maximum: Number(participant.corruptionThreshold) || 0, displayValue: String(participant.temporaryCorruption), tone: "temporary-corruption", disabled: busy, onDecrease: () => void patchResources(participant, { temporaryCorruption: Math.max(0, participant.temporaryCorruption - 1) }), onIncrease: () => void patchResources(participant, { temporaryCorruption: participant.temporaryCorruption + 1 }) }), _jsx(CombatResourceBar, { alias: participant.alias, label: "Corrupci\u00F3n permanente", value: participant.permanentCorruption, maximum: Number(participant.corruptionThreshold) || 0, displayValue: String(participant.permanentCorruption), tone: "permanent-corruption", disabled: busy, onDecrease: () => void patchResources(participant, { permanentCorruption: Math.max(0, participant.permanentCorruption - 1) }), onIncrease: () => void patchResources(participant, { permanentCorruption: participant.permanentCorruption + 1 }) }), _jsxs("div", { children: [_jsx("span", { children: "Umbral de corrupci\u00F3n" }), _jsx("strong", { children: participant.corruptionThreshold })] })] }), _jsxs("div", { className: "campaign-combat-card-details", children: [_jsxs("section", { children: [_jsx("h4", { children: "Ataques" }), _jsxs("div", { className: "campaign-combat-attack-list", children: [participant.attacks.length ? participant.attacks.slice(0, 2).map((attack, attackIndex) => _jsxs("div", { className: "campaign-combat-attack", children: [_jsx("strong", { children: attack.name }), _jsxs("span", { children: [attack.attribute, " \u00B7 ", attack.damage, attack.qualities ? ` · ${attack.qualities}` : ""] })] }, `${attack.name}-${attackIndex}`)) : _jsx("span", { children: "Sin ataques registrados." }), participant.attacks.length > 2 ? _jsxs("span", { className: "campaign-combat-more-attacks", children: ["+", participant.attacks.length - 2, " ataques en la ficha"] }) : null] })] }), _jsxs("section", { children: [_jsx("h4", { children: "Condiciones" }), _jsxs("div", { className: "campaign-combat-conditions", children: [MANUAL_CONDITIONS.map(([id, name]) => { const active = participant.conditions.some((condition) => condition.id === id && condition.active); return _jsx("button", { type: "button", "aria-pressed": active, className: active ? "is-active" : "", disabled: busy, onClick: () => { const preserved = participant.conditions.filter((condition) => condition.id !== id); if (!active)
                                                                 preserved.push({ id, name, category: "state", active: true, severity: "minor", summary: "", notes: "" }); void patchResources(participant, { conditions: preserved }); }, children: name }, id); }), participant.conditions.filter((condition) => automaticIds.has(condition.id)).map((condition) => _jsx("span", { className: "is-automatic", children: condition.name }, condition.id))] })] })] })] }, participant.id));
                     }), combat.participants.length === 0 ? _jsx("div", { className: "panel campaign-combat-empty", children: _jsx("p", { children: "A\u00F1ade PJ, PNJ o monstruos para comenzar el orden de iniciativa." }) }) : null] }), renameTarget ? (_jsx("div", { className: "modal-backdrop", role: "presentation", onMouseDown: (event) => {
                     if (event.target === event.currentTarget && !busy)

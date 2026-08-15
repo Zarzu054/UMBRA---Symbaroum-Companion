@@ -12,12 +12,18 @@ import { AppIcon } from "./AppIcon";
 
 const FOCUSABLE_SELECTOR = "button:not([disabled]), [href], [tabindex]:not([tabindex='-1'])";
 
-export function CharacterSheetBackgroundPicker({ preferenceScope }: { preferenceScope: string }) {
+type Props = {
+  preferenceScope?: string;
+  triggerVariant?: "sheet" | "appearance";
+};
+
+export function CharacterSheetBackgroundPicker({ preferenceScope, triggerVariant = "sheet" }: Props) {
   const [selectedId, setSelectedId] = useCharacterSheetBackground(preferenceScope);
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const selectedBackground = findCharacterSheetBackground(selectedId);
+  const selectedName = selectedBackground?.name ?? "Sin ilustración";
   useBodyScrollLock(isOpen);
 
   useEffect(() => {
@@ -64,13 +70,29 @@ export function CharacterSheetBackgroundPicker({ preferenceScope }: { preference
       <button
         ref={triggerRef}
         type="button"
-        className="unified-sheet-background-trigger"
+        className={triggerVariant === "appearance" ? "appearance-background-dialog-trigger" : "unified-sheet-background-trigger"}
+        aria-label={triggerVariant === "appearance" ? `Elegir fondo de pantalla. Actual: ${selectedName}` : undefined}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         onClick={() => setIsOpen(true)}
       >
-        <AppIcon name="palette" size={16} />
-        <span>Fondo</span>
+        {triggerVariant === "appearance" ? (
+          <>
+            <span className="appearance-background-trigger-preview" aria-hidden="true">
+              {selectedBackground ? <img src={selectedBackground.thumbnailUrl} alt="" /> : <span className="appearance-background-none" />}
+            </span>
+            <span className="appearance-background-trigger-copy">
+              <strong>Elegir fondo</strong>
+              <small>Actual: {selectedName}</small>
+            </span>
+            <AppIcon name="palette" size={18} />
+          </>
+        ) : (
+          <>
+            <AppIcon name="palette" size={16} />
+            <span>Fondo</span>
+          </>
+        )}
       </button>
 
       {isOpen ? createPortal(
@@ -125,7 +147,7 @@ export function CharacterSheetBackgroundPicker({ preferenceScope }: { preference
             </div>
 
             <footer className="character-sheet-background-dialog-footer">
-              <span>{selectedBackground?.name ?? "Sin ilustración"}</span>
+              <span>{selectedName}</span>
               <button type="button" onClick={closePicker}>Aplicar y cerrar</button>
             </footer>
           </div>

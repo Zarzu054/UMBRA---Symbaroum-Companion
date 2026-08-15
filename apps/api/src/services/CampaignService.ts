@@ -1,5 +1,6 @@
 ﻿import {
   createCampaignInvitationSchema,
+  campaignCharacterLinkRequestIdSchema,
   assignCampaignSessionExperienceSchema,
   campaignInvitationIdSchema,
   createCampaignChatMessageSchema,
@@ -25,6 +26,7 @@
   type CreateCampaignInvitationInput,
   type AssignCampaignSessionExperienceInput,
   type Campaign,
+  type CampaignCharacterLinkRequest,
   type CampaignInvitation,
   type CampaignChatMessage,
   type CreateCampaignChatMessageInput,
@@ -103,6 +105,13 @@ export class CampaignService {
         campaignName: string,
         gmEmail: string,
         invitationId: string
+      ): Promise<void>;
+      sendCharacterLinkRequestEmail(
+        recipientEmail: string,
+        characterName: string,
+        campaignName: string,
+        gmEmail: string,
+        requestId: string
       ): Promise<void>;
     },
     private readonly professionModel = new ProfessionModel()
@@ -332,7 +341,9 @@ export class CampaignService {
     return this.getCampaign(userId, userRole, member.campaignId);
   }
 
-  async linkCharacter(userId: string, userRole: UserRole, campaignId: string, characterId: string): Promise<Campaign> {
+  async requestCharacterLink(userId: string, userRole: UserRole, campaignId: string, characterId: string): Promise<Campaign> {
+    requireDirectorRole(userRole);
+    await this.assertCampaignManagedBy(userId, userRole, campaignId);
     const payload = linkCampaignCharacterSchema.parse({ characterId });
     const character = await this.model.findCharacterById(payload.characterId);
 
@@ -341,12 +352,6 @@ export class CampaignService {
     }
 
     const campaign = await this.getCampaign(userId, userRole, campaignId);
-    const isDirector = userRole === "superadmin" || campaign.gmId === userId;
-    const isMember = campaign.members.some((member: Campaign["members"][number]) => member.userId === userId);
-
-    if (!isDirector && !isMember) {
-      throw new AppError("CAMPAIGN_FORBIDDEN", "Solo los miembros pueden vincular personajes a la campana", 403);
-    }
 
     const isMemberCharacter = campaign.members.some((member: Campaign["members"][number]) => member.userId === character.ownerId);
     if (!isMemberCharacter) {
@@ -357,16 +362,62 @@ export class CampaignService {
       );
     }
 
-    if (!isDirector && character.ownerId !== userId) {
-      throw new AppError("CAMPAIGN_FORBIDDEN", "Solo puedes vincular tus propios personajes", 403);
+    const existingLink = await this.model.findCharacterLinkByCharacterId(payload.characterId);
+    if (existingLink) {
+      throw new AppError("CAMPAIGN_CHARACTER_ALREADY_LINKED", "El personaje ya está vinculado a una campaña", 409);
     }
 
-    const existingLink = await this.model.findCharacterLinkByCharacterId(payload.characterId);
-    if (existingLink && existingLink.campaignId !== campaignId) {
-      throw new AppError("CAMPAIGN_CHARACTER_ALREADY_LINKED", "El personaje ya está vinculado a otra campaña", 409);
+    const request = await this.model.createCharacterLinkRequest(campaignId, payload.characterId, userId);
+    try {
+      const mailService = this.mailService ?? new (await import("./MailService.js")).MailService();
+      await mailService.sendCharacterLinkRequestEmail(
+        character.ownerEmail,
+        character.name,
+        campaign.name,
+        campaign.gmEmail,
+        request.id
+      );
+    } catch (error) {
+      await this.model.deleteCharacterLinkRequest(request.id);
+      throw error;
     }
-    if (!existingLink) await this.model.linkCharacter(campaignId, payload.characterId, userId);
+
     return this.getCampaign(userId, userRole, campaignId);
+  }
+
+  async listCharacterLinkRequests(userId: string): Promise<CampaignCharacterLinkRequest[]> {
+    return this.model.listCharacterLinkRequestsForUser(userId);
+  }
+
+  async acceptCharacterLinkRequest(userId: string, userRole: UserRole, requestId: string): Promise<Campaign> {
+    const normalizedRequestId = campaignCharacterLinkRequestIdSchema.parse(requestId);
+    const request = await this.model.findCharacterLinkRequestById(normalizedRequestId);
+    if (!request || request.ownerId !== userId) {
+      throw new AppError("CAMPAIGN_CHARACTER_LINK_REQUEST_NOT_FOUND", "La solicitud de vinculación ya no está disponible", 404);
+    }
+
+    await this.getCampaign(userId, userRole, request.campaignId);
+    const campaignId = await this.model.acceptCharacterLinkRequest(normalizedRequestId, userId);
+    if (!campaignId) {
+      throw new AppError("CAMPAIGN_CHARACTER_LINK_REQUEST_NOT_FOUND", "La solicitud de vinculación ya no está disponible", 404);
+    }
+    return this.getCampaign(userId, userRole, campaignId);
+  }
+
+  async dismissCharacterLinkRequest(userId: string, userRole: UserRole, requestId: string): Promise<void> {
+    const normalizedRequestId = campaignCharacterLinkRequestIdSchema.parse(requestId);
+    const request = await this.model.findCharacterLinkRequestById(normalizedRequestId);
+    if (!request) {
+      throw new AppError("CAMPAIGN_CHARACTER_LINK_REQUEST_NOT_FOUND", "Solicitud de vinculación no encontrada", 404);
+    }
+
+    const canDismiss = request.ownerId === userId || userRole === "superadmin" || (
+      isDirectorRole(userRole) && (await this.model.findCampaignOwner(request.campaignId))?.gmId === userId
+    );
+    if (!canDismiss) {
+      throw new AppError("CAMPAIGN_FORBIDDEN", "No puedes gestionar esta solicitud", 403);
+    }
+    await this.model.deleteCharacterLinkRequest(normalizedRequestId);
   }
 
   async unlinkCharacter(userId: string, userRole: UserRole, linkId: string): Promise<Campaign> {
