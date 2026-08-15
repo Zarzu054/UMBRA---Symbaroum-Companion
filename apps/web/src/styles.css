@@ -1692,7 +1692,7 @@ button.subtle-button {
   top: 0;
   z-index: 5;
   display: grid;
-  grid-template-columns: minmax(90px, 1fr) auto minmax(90px, 1fr);
+  grid-template-columns: minmax(90px, 1fr) auto auto minmax(130px, 1fr);
   align-items: center;
   gap: 12px;
   min-height: 64px;
@@ -1702,11 +1702,11 @@ button.subtle-button {
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
 }
 
-.pdf-page-viewer__toolbar > button {
+.pdf-page-viewer__close {
   justify-self: start;
 }
 
-.pdf-page-viewer__toolbar nav,
+.pdf-page-viewer__page-control,
 .pdf-page-viewer__zoom {
   display: flex;
   align-items: center;
@@ -1714,7 +1714,40 @@ button.subtle-button {
   gap: 8px;
 }
 
-.pdf-page-viewer__toolbar nav button,
+.pdf-page-viewer__page-control {
+  justify-self: center;
+}
+
+.pdf-page-viewer__page-control > button {
+  width: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 6px;
+  border-radius: 9px;
+  font-size: 1.05rem;
+}
+
+.pdf-page-viewer__scale-mode {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  padding: 7px;
+  border: 1px solid var(--ui-border, rgba(117, 76, 57, 0.28));
+  border-radius: 9px;
+  background: var(--ui-surface-muted, rgba(117, 76, 57, 0.08));
+  color: var(--ui-text, #231d1a);
+}
+
+.pdf-page-viewer__scale-mode:hover:not(:disabled),
+.pdf-page-viewer__scale-mode:focus-visible {
+  background: var(--ui-surface, #fffaf5);
+  box-shadow: 0 1px 5px rgba(55, 36, 26, 0.16);
+}
+
 .pdf-page-viewer__zoom button {
   min-width: 40px;
   min-height: 40px;
@@ -1723,9 +1756,29 @@ button.subtle-button {
   font-size: 1.05rem;
 }
 
-.pdf-page-viewer__toolbar nav strong {
-  min-width: 125px;
+.pdf-page-viewer__page-control label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ui-text-muted, #716660);
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.pdf-page-viewer__page-control input {
+  width: 68px;
+  min-height: 40px;
+  padding: 6px 8px;
+  color: var(--ui-text, #231d1a);
+  background: var(--ui-surface, #fffaf5);
+  font-weight: 800;
   text-align: center;
+}
+
+.pdf-page-viewer__page-control strong {
+  min-width: 52px;
+  font-size: .8rem;
+  text-align: left;
 }
 
 .pdf-page-viewer__zoom {
@@ -1740,14 +1793,22 @@ button.subtle-button {
   text-align: center;
 }
 
-.pdf-page-viewer__stage {
+.pdf-page-viewer__viewport {
   position: relative;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
+}
+
+.pdf-page-viewer__stage {
+  position: absolute;
+  inset: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 16px;
-  text-align: center;
+  /* PDF.js calcula page-width con clientWidth, que ya incluye el padding.
+     Los márgenes laterales provocarían un desbordamiento igual a su suma. */
+  padding: 16px 0 32px;
+  background: #282522;
 }
 
 .pdf-viewer-overlay {
@@ -1760,17 +1821,25 @@ button.subtle-button {
   background: #282522;
 }
 
-.pdf-page-viewer__stage canvas {
-  display: block;
-  max-width: none;
-  margin: 0 auto;
-  background: white;
+.pdf-page-viewer__pages {
+  --pdfViewer-padding-bottom: 0;
+  min-width: min-content;
+}
+
+.pdf-page-viewer__pages.removePageBorders .page {
+  margin: 0 auto 16px;
+  background: #fff;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.42);
 }
 
 .pdf-page-viewer__status {
+  position: absolute;
+  z-index: 10;
+  top: 32px;
+  left: 50%;
+  transform: translateX(-50%);
   width: min(420px, calc(100% - 32px));
-  margin: 48px auto;
+  margin: 0;
   padding: 16px;
   border-radius: 12px;
   color: var(--ui-text, #231d1a);
@@ -1784,13 +1853,26 @@ button.subtle-button {
     padding: 8px;
   }
 
-  .pdf-page-viewer__toolbar nav {
+  .pdf-page-viewer__page-control {
     justify-self: end;
   }
 
-  .pdf-page-viewer__toolbar nav strong {
-    min-width: 98px;
-    font-size: 0.78rem;
+  .pdf-page-viewer__scale-mode {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+
+  .pdf-page-viewer__page-control label > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .pdf-page-viewer__page-control input {
+    width: 58px;
+    min-height: 38px;
   }
 
   .pdf-page-viewer__zoom {
@@ -1798,8 +1880,11 @@ button.subtle-button {
   }
 
   .pdf-page-viewer__stage {
-    min-height: 0;
-    padding: 8px;
+    padding: 8px 0;
+  }
+
+  .pdf-page-viewer__pages.removePageBorders .page {
+    margin-bottom: 10px;
   }
 }
 

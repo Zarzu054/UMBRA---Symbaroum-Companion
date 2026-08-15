@@ -6286,8 +6286,15 @@ button[disabled] {
 }
 
 .compendium-explorer .compendium-reader {
-  top: calc(var(--app-top-navigation-height) + var(--compendium-module-header-height) + 10px);
   max-height: calc(100dvh - var(--app-top-navigation-height) - var(--compendium-module-header-height) - 20px);
+}
+
+@media (min-width: 901px) {
+  .compendium-explorer .compendium-reader {
+    position: relative;
+    top: auto;
+    align-self: start;
+  }
 }
 
 /* The monster workspace already owns the remaining viewport; make its fixed header denser. */

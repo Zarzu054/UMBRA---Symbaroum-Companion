@@ -1,7 +1,10 @@
 import "@testing-library/jest-dom/vitest";
+import { readFileSync } from "node:fs";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ALL_ENTRIES, canonicalizeCompendiumSourceName, type CompendiumEntry } from "../models/compendiumEntries";
+
+const modernStyles = readFileSync("src/styles/modern.css", "utf8");
 
 const serviceMocks = vi.hoisted(() => ({
   fetchCompendiumLibrary: vi.fn(),
@@ -156,6 +159,16 @@ describe("compendium search", () => {
 });
 
 describe("CompendiumView library", () => {
+  it("alinea el lector de escritorio con el inicio del listado", () => {
+    const desktopReaderRule = modernStyles.match(
+      /@media\s*\(\s*min-width\s*:\s*901px\s*\)[\s\S]*?\.compendium-explorer\s+\.compendium-reader\s*\{([^}]*)}/
+    )?.[1];
+
+    expect(desktopReaderRule).toContain("position: relative");
+    expect(desktopReaderRule).toContain("top: auto");
+    expect(desktopReaderRule).toContain("align-self: start");
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     ensureAccessToken.mockResolvedValue("access-token");
