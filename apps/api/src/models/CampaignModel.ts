@@ -1,12 +1,15 @@
 ﻿import type { Prisma } from "@prisma/client";
-import { campaignCombatParticipantSchema, createEmptyCharacterSheet, decodeCampaignDmNotes, decodeCampaignSharedNotes, encodeCampaignDmNotes, encodeCampaignSharedNotes, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CampaignInvitation, type CharacterSheet, type OwnedMysticArtifact, type UserRole } from "@umbra/shared";
+import { campaignCombatParticipantSchema, createEmptyCharacterSheet, decodeCampaignDmNotes, decodeCampaignSharedNotes, encodeCampaignDmNotes, encodeCampaignSharedNotes, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Campaign, type CampaignAvailableCharacter, type CampaignCharacterLinkRequest, type CampaignInvitation, type CharacterSheet, type OwnedMysticArtifact, type UserRole } from "@umbra/shared";
 import { Prisma as PrismaRuntime } from "@prisma/client";
 import { prisma } from "../config/prisma.js";
 import { getEffectiveCharacterExperienceSpent, protectGrantedCharacterExperience } from "../services/characterExperiencePolicy.js";
 import { mapMysticArtifact, mysticArtifactInclude } from "./MysticArtifactModel.js";
+import { campaignItemInclude, mapCampaignItem } from "./CampaignItemModel.js";
+import { removeCampaignInventoryItems, upsertCampaignInventoryItem } from "../utils/campaignItemInventory.js";
 import { buildCharacterChanges, getCharacterAuditActor, getUnreadCharacterChangeCounts, recordCharacterChange } from "./CharacterAuditModel.js";
 import { AppError } from "../utils/AppError.js";
 import { mapProfessionMembership, validateProfessionBenefitAcquisitionWithMemberships } from "./ProfessionModel.js";
+import { importLegacyCampaignItemsForCharacter } from "../utils/legacyCampaignItemImport.js";
 
 const campaignInclude = {
   gm: true,
@@ -89,8 +92,21 @@ const campaignInclude = {
       createdAt: "desc"
     }
   },
+  characterLinkRequests: {
+    include: {
+      character: { include: { owner: true } },
+      requestedBy: true
+    },
+    orderBy: {
+      createdAt: "desc"
+    }
+  },
   mysticArtifacts: {
     include: mysticArtifactInclude,
+    orderBy: { updatedAt: "desc" }
+  },
+  itemTemplates: {
+    include: campaignItemInclude,
     orderBy: { updatedAt: "desc" }
   }
 } satisfies Prisma.CampaignInclude;
@@ -240,6 +256,17 @@ function mapCampaign(
       invitedEmail: invitation.user.email,
       createdAt: invitation.createdAt.toISOString()
     })) : [],
+    pendingCharacterLinkRequests: isDirector ? row.characterLinkRequests.map((request) => ({
+      id: request.id,
+      campaignId: request.campaignId,
+      campaignName: row.name,
+      characterId: request.characterId,
+      characterName: request.character.name,
+      ownerEmail: request.character.owner.email,
+      gmEmail: row.gm.email,
+      requestedByEmail: request.requestedBy.email,
+      createdAt: request.createdAt.toISOString()
+    })) : [],
     pendingProfessionRequests: isDirector ? row.characters.flatMap((entry) => {
       const sheet = parseCampaignSheetSafely(entry.character.sheet);
       if (!sheet) return [];
@@ -266,7 +293,10 @@ function mapCampaign(
           const ownedArtifacts = row.mysticArtifacts
             .filter((artifact) => artifact.ownerCharacterId === entry.id)
             .map((artifact) => mapMysticArtifact(artifact, { characterSheet: baseSheet, concealForOwner: !isDirector }) as OwnedMysticArtifact);
-          visibleSheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(baseSheet, ownedArtifacts));
+          const withCampaignItems = row.itemTemplates
+            .filter((item) => item.isUnique && item.ownerCharacterId === entry.id)
+            .reduce((current, item) => upsertCampaignInventoryItem(current, item.id, mapCampaignItem(item).definition, true), baseSheet);
+          visibleSheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(withCampaignItems, ownedArtifacts));
         } catch {
           visibleSheet = null;
         }
@@ -307,8 +337,11 @@ function mapCampaign(
       let visibleSheet: CharacterSheet | null = null;
       if (baseSheet) {
         try {
+          const withCampaignItems = row.itemTemplates
+            .filter((item) => item.isUnique && item.ownerNpcId === npc.id)
+            .reduce((current, item) => upsertCampaignInventoryItem(current, item.id, mapCampaignItem(item).definition, true), baseSheet);
           visibleSheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(
-            baseSheet,
+            withCampaignItems,
             row.mysticArtifacts
               .filter((artifact) => artifact.ownerNpcId === npc.id)
               .map((artifact) => mapMysticArtifact(artifact, { characterSheet: baseSheet, concealForOwner: false }) as OwnedMysticArtifact)
@@ -372,7 +405,12 @@ function mapCampaign(
       updatedAt: reference.updatedAt.toISOString()
     })),
     chatMessages: visibleChatMessages.map((message) => mapChatMessage(message)),
-    mysticArtifacts: isDirector ? row.mysticArtifacts.map((artifact) => mapMysticArtifact(artifact)) : []
+    mysticArtifacts: isDirector ? row.mysticArtifacts.map((artifact) => mapMysticArtifact(artifact)) : [],
+    campaignItems: row.itemTemplates
+      .filter((item) => isDirector || !item.archivedAt || (
+        item.isUnique && item.ownerCharacter?.character.ownerId === viewerId
+      ))
+      .map(mapCampaignItem)
   };
 }
 
@@ -504,8 +542,19 @@ export class CampaignModel {
 
   async unlinkCharacter(linkId: string, actorId?: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
-      const link = await tx.campaignCharacter.findUnique({ where: { id: linkId }, select: { characterId: true, campaignId: true } });
+      const link = await tx.campaignCharacter.findUnique({
+        where: { id: linkId },
+        include: { character: { select: { sheet: true } } }
+      });
       if (!link) return;
+      const campaignItems = await tx.campaignItemTemplate.findMany({ where: { campaignId: link.campaignId }, select: { id: true } });
+      const itemIds = new Set(campaignItems.map((item) => item.id));
+      const currentSheet = parseCharacterSheet(link.character.sheet);
+      const cleanedSheet = removeCampaignInventoryItems(currentSheet, itemIds);
+      if (cleanedSheet !== currentSheet) {
+        await tx.character.update({ where: { id: link.characterId }, data: { sheet: cleanedSheet as unknown as Prisma.InputJsonValue } });
+      }
+      await tx.campaignItemTemplate.updateMany({ where: { ownerCharacterId: linkId }, data: { ownerCharacterId: null } });
       const actor = actorId ? await getCharacterAuditActor(tx, actorId) : null;
       if (actor) {
         await recordCharacterChange(tx, {
@@ -599,6 +648,134 @@ export class CampaignModel {
     });
   }
 
+  async createCharacterLinkRequest(
+    campaignId: string,
+    characterId: string,
+    requestedById: string
+  ): Promise<CampaignCharacterLinkRequest> {
+    const row = await prisma.campaignCharacterLinkRequest.upsert({
+      where: { campaignId_characterId: { campaignId, characterId } },
+      update: { requestedById, createdAt: new Date() },
+      create: { campaignId, characterId, requestedById },
+      include: {
+        campaign: { include: { gm: true } },
+        character: { include: { owner: true } },
+        requestedBy: true
+      }
+    });
+
+    return {
+      id: row.id,
+      campaignId: row.campaignId,
+      campaignName: row.campaign.name,
+      characterId: row.characterId,
+      characterName: row.character.name,
+      ownerEmail: row.character.owner.email,
+      gmEmail: row.campaign.gm.email,
+      requestedByEmail: row.requestedBy.email,
+      createdAt: row.createdAt.toISOString()
+    };
+  }
+
+  async listCharacterLinkRequestsForUser(userId: string): Promise<CampaignCharacterLinkRequest[]> {
+    const rows = await prisma.campaignCharacterLinkRequest.findMany({
+      where: { character: { ownerId: userId } },
+      include: {
+        campaign: { include: { gm: true } },
+        character: { include: { owner: true } },
+        requestedBy: true
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      campaignId: row.campaignId,
+      campaignName: row.campaign.name,
+      characterId: row.characterId,
+      characterName: row.character.name,
+      ownerEmail: row.character.owner.email,
+      gmEmail: row.campaign.gm.email,
+      requestedByEmail: row.requestedBy.email,
+      createdAt: row.createdAt.toISOString()
+    }));
+  }
+
+  async findCharacterLinkRequestById(requestId: string): Promise<{
+    id: string;
+    campaignId: string;
+    characterId: string;
+    requestedById: string;
+    ownerId: string;
+  } | null> {
+    const row = await prisma.campaignCharacterLinkRequest.findUnique({
+      where: { id: requestId },
+      select: {
+        id: true,
+        campaignId: true,
+        characterId: true,
+        requestedById: true,
+        character: { select: { ownerId: true } }
+      }
+    });
+    return row ? { ...row, ownerId: row.character.ownerId } : null;
+  }
+
+  async deleteCharacterLinkRequest(requestId: string): Promise<void> {
+    await prisma.campaignCharacterLinkRequest.deleteMany({ where: { id: requestId } });
+  }
+
+  async acceptCharacterLinkRequest(requestId: string, userId: string): Promise<string | null> {
+    try {
+      return await prisma.$transaction(async (transaction) => {
+        const request = await transaction.campaignCharacterLinkRequest.findFirst({
+          where: { id: requestId, character: { ownerId: userId } },
+          select: { campaignId: true, characterId: true }
+        });
+        if (!request) return null;
+
+        const existingLink = await transaction.campaignCharacter.findUnique({
+          where: { characterId: request.characterId },
+          select: { id: true, campaignId: true }
+        });
+        if (existingLink && existingLink.campaignId !== request.campaignId) {
+          throw new AppError("CAMPAIGN_CHARACTER_ALREADY_LINKED", "El personaje ya está vinculado a otra campaña", 409);
+        }
+
+        let linkId = existingLink?.id;
+        if (!existingLink) {
+          const createdLink = await transaction.campaignCharacter.create({
+            data: { campaignId: request.campaignId, characterId: request.characterId }
+          });
+          linkId = createdLink.id;
+          const actor = await getCharacterAuditActor(transaction, userId);
+          if (actor) {
+            await recordCharacterChange(transaction, {
+              characterId: request.characterId,
+              actor,
+              campaignId: request.campaignId,
+              source: "campaign_link",
+              summary: "Aceptó vincular el personaje a la campaña",
+              changes: [{ path: "campaign", section: "Campaña", label: "Vinculación", operation: "added", after: "Personaje vinculado" }]
+            });
+          }
+        }
+
+        if (linkId) await importLegacyCampaignItemsForCharacter(transaction, request.campaignId, request.characterId);
+
+        await transaction.campaignCharacterLinkRequest.deleteMany({
+          where: { characterId: request.characterId }
+        });
+        return request.campaignId;
+      });
+    } catch (error) {
+      if (error instanceof PrismaRuntime.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new AppError("CAMPAIGN_CHARACTER_ALREADY_LINKED", "El personaje ya está vinculado a una campaña", 409);
+      }
+      throw error;
+    }
+  }
+
   async characterLinkOwnsMysticArtifacts(linkId: string): Promise<boolean> {
     return (await prisma.mysticArtifact.count({ where: { ownerCharacterId: linkId } })) > 0;
   }
@@ -659,6 +836,7 @@ export class CampaignModel {
     await prisma.$transaction(async (tx) => {
       const npc = await tx.campaignNpc.findUnique({ where: { id: npcId }, select: { campaignId: true } });
       if (!npc) return;
+      await tx.campaignItemTemplate.updateMany({ where: { ownerNpcId: npcId }, data: { ownerNpcId: null } });
       await removeCombatParticipants(tx, npc.campaignId, (participant) => participant.kind === "npc" && participant.campaignNpcId === npcId);
       await tx.campaignNpc.delete({ where: { id: npcId } });
     });
@@ -880,13 +1058,15 @@ export class CampaignModel {
   async findCharacterById(characterId: string): Promise<{
     id: string;
     ownerId: string;
+    ownerEmail: string;
     name: string;
     sheet: Prisma.JsonValue;
   } | null> {
-    return prisma.character.findUnique({
+    const row = await prisma.character.findUnique({
       where: { id: characterId },
-      select: { id: true, ownerId: true, name: true, sheet: true }
+      select: { id: true, ownerId: true, name: true, sheet: true, owner: { select: { email: true } } }
     });
+    return row ? { id: row.id, ownerId: row.ownerId, ownerEmail: row.owner.email, name: row.name, sheet: row.sheet } : null;
   }
 
   async findCharacterLinkById(linkId: string): Promise<{ id: string; campaignId: string; characterId: string } | null> {

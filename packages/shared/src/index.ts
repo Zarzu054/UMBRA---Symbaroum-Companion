@@ -21,6 +21,8 @@ export * from "./monsterTraitRules.js";
 export * from "./actorCreation.js";
 export * from "./professionCatalog.js";
 export * from "./weaponCatalog.js";
+export * from "./equipmentCatalog.js";
+export * from "./itemCatalog.js";
 export * from "./mysticArtifacts.js";
 export * from "./mysticArtifactProjection.js";
 
@@ -280,7 +282,7 @@ const itemModifierSchema = z.object({
   notes: z.string().default("")
 });
 
-const inventoryItemSchema = z.object({
+export const inventoryItemSchema = z.object({
   id: z.string().min(1).max(120),
   name: z.string().min(1).max(160),
   category: z.enum(["weapon", "armor", "gear", "consumable", "artifact", "treasure", "other"]).default("other"),
@@ -297,6 +299,8 @@ const inventoryItemSchema = z.object({
   protectionFormula: z.string().max(80).default(""),
   qualities: z.string().max(240).default(""),
   notes: z.string().default(""),
+  officialTemplateId: z.string().max(160).optional(),
+  campaignItemId: z.string().uuid().optional(),
   managedArtifactId: z.string().max(120).optional(),
   artifactBound: z.boolean().optional(),
   artifactBindingCostLabel: z.string().max(160).optional(),
@@ -308,6 +312,63 @@ const inventoryItemSchema = z.object({
   })).max(20).optional(),
   grantedActions: z.array(actionMetadataSchema).max(20).default([]),
   modifiers: z.array(itemModifierSchema).max(20).default([])
+});
+
+export const campaignItemKindSchema = z.enum(["weapon", "armor", "item"]);
+export const campaignItemOwnerTypeSchema = z.enum(["character", "npc"]);
+
+export const campaignItemDefinitionSchema = z.object({
+  name: z.string().trim().min(2).max(160),
+  category: z.enum(["weapon", "armor", "gear", "consumable", "artifact", "treasure", "other"]),
+  stackable: z.boolean().default(false),
+  description: z.string().default(""),
+  weight: z.string().max(40).default(""),
+  value: z.string().max(80).default(""),
+  defaultQuantity: z.number().int().min(1).max(999).default(1),
+  defaultSlot: z.enum(["mainHand", "offHand", "ranged", "armor", "artifact", "worn", "none"]).default("none"),
+  attackAttribute: z.enum(ATTRIBUTE_KEYS).optional(),
+  damageFormula: z.string().max(80).default(""),
+  protectionFormula: z.string().max(80).default(""),
+  qualities: z.string().max(240).default(""),
+  notes: z.string().default(""),
+  grantedActions: z.array(actionMetadataSchema).max(20).default([]),
+  modifiers: z.array(itemModifierSchema).max(20).default([])
+});
+
+export const createCampaignItemSchema = z.object({
+  definition: campaignItemDefinitionSchema,
+  isUnique: z.boolean().default(false),
+  ownerType: campaignItemOwnerTypeSchema.optional(),
+  ownerId: z.string().uuid().optional(),
+  assignToType: campaignItemOwnerTypeSchema.optional(),
+  assignToId: z.string().uuid().optional()
+}).superRefine((input, ctx) => {
+  if (Boolean(input.ownerType) !== Boolean(input.ownerId)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ownerId"], message: "El tipo y el identificador del poseedor deben indicarse juntos" });
+  }
+  if (Boolean(input.assignToType) !== Boolean(input.assignToId)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["assignToId"], message: "El tipo y el identificador del destinatario deben indicarse juntos" });
+  }
+});
+
+export const updateCampaignItemSchema = z.object({
+  definition: campaignItemDefinitionSchema,
+  isUnique: z.boolean(),
+  ownerType: campaignItemOwnerTypeSchema.optional(),
+  ownerId: z.string().uuid().optional()
+}).superRefine((input, ctx) => {
+  if (Boolean(input.ownerType) !== Boolean(input.ownerId)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ownerId"], message: "El tipo y el identificador del poseedor deben indicarse juntos" });
+  }
+});
+
+export const assignCampaignItemOwnerSchema = z.object({
+  ownerType: campaignItemOwnerTypeSchema.nullable(),
+  ownerId: z.string().uuid().nullable()
+}).superRefine((input, ctx) => {
+  if ((input.ownerType === null) !== (input.ownerId === null)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["ownerId"], message: "El tipo y el identificador del poseedor deben indicarse juntos" });
+  }
 });
 
 const equipmentSlotsSchema = z.object({
@@ -2142,6 +2203,12 @@ export type Character = {
   artifactBindingXpExpenses?: ArtifactBindingXpExpense[];
   unreadChangeCount?: number;
   professionMemberships?: CharacterProfessionMembership[];
+  campaignContext?: {
+    campaignId: string;
+    campaignName: string;
+    characterLinkId: string;
+    campaignItems: CampaignItemTemplate[];
+  };
   createdAt: string;
   updatedAt: string;
 };
@@ -2222,6 +2289,8 @@ export const campaignInvitationIdSchema = z.string().uuid();
 export const linkCampaignCharacterSchema = z.object({
   characterId: z.string().uuid()
 });
+
+export const campaignCharacterLinkRequestIdSchema = z.string().uuid();
 
 export const createCampaignNpcSchema = z.object({
   name: z.string().min(2).max(120),
@@ -2710,6 +2779,18 @@ export type CampaignInvitation = {
   createdAt: string;
 };
 
+export type CampaignCharacterLinkRequest = {
+  id: string;
+  campaignId: string;
+  campaignName: string;
+  characterId: string;
+  characterName: string;
+  ownerEmail: string;
+  gmEmail: string;
+  requestedByEmail: string;
+  createdAt: string;
+};
+
 export type CharacterActionDefinition = {
   id: string;
   label: string;
@@ -2818,6 +2899,7 @@ export type Campaign = {
   updatedAt: string;
   members: CampaignMember[];
   pendingInvitations?: CampaignInvitation[];
+  pendingCharacterLinkRequests?: CampaignCharacterLinkRequest[];
   pendingProfessionRequests?: CampaignProfessionRequest[];
   characters: CampaignCharacter[];
   availableCharacters: CampaignAvailableCharacter[];
@@ -2827,4 +2909,24 @@ export type Campaign = {
   references: CampaignReference[];
   chatMessages: CampaignChatMessage[];
   mysticArtifacts?: MysticArtifact[];
+  campaignItems?: CampaignItemTemplate[];
+};
+
+export type CampaignItemDefinition = z.infer<typeof campaignItemDefinitionSchema>;
+export type CreateCampaignItemInput = z.infer<typeof createCampaignItemSchema>;
+export type UpdateCampaignItemInput = z.infer<typeof updateCampaignItemSchema>;
+export type AssignCampaignItemOwnerInput = z.infer<typeof assignCampaignItemOwnerSchema>;
+
+export type CampaignItemTemplate = {
+  id: string;
+  campaignId: string;
+  kind: z.infer<typeof campaignItemKindSchema>;
+  definition: CampaignItemDefinition;
+  isUnique: boolean;
+  ownerType: z.infer<typeof campaignItemOwnerTypeSchema> | null;
+  ownerId: string | null;
+  ownerName: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 };

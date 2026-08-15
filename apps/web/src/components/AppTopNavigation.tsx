@@ -50,6 +50,7 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (document.querySelector(".character-sheet-background-dialog")) return;
       if (event.key === "Escape") {
         setIsOpen(false);
         setIsCustomizationOpen(false);
@@ -70,7 +71,9 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
       }
     };
     const handlePointerDown = (event: PointerEvent) => {
-      if (menuRef.current?.contains(event.target as Node) || triggerRef.current?.contains(event.target as Node)) return;
+      const target = event.target as Node;
+      if (target instanceof Element && target.closest(".character-sheet-background-backdrop")) return;
+      if (menuRef.current?.contains(target) || triggerRef.current?.contains(target)) return;
       setIsOpen(false);
       setIsCustomizationOpen(false);
     };

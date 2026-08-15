@@ -45,11 +45,28 @@ function runSheetRepair() {
   });
 }
 
+function runCampaignItemImport() {
+  return new Promise((resolve) => {
+    const child = spawn("npx", ["tsx", "scripts/import-campaign-items.ts"], {
+      cwd: apiRoot,
+      env: process.env,
+      shell: true,
+      stdio: "inherit"
+    });
+    child.on("close", (code) => resolve(code ?? 1));
+  });
+}
+
 async function finishWithSheetRepair() {
   output("Revisando y normalizando las fichas existentes...");
   const repairCode = await runSheetRepair();
   if (repairCode !== 0) {
     fail("Las migraciones se aplicaron, pero la reparación de fichas no pudo completarse.");
+  }
+  output("Importando los objetos personalizados de personajes vinculados...");
+  const importCode = await runCampaignItemImport();
+  if (importCode !== 0) {
+    fail("Las migraciones se aplicaron, pero la importación de objetos de campaña no pudo completarse.");
   }
   process.exit(0);
 }

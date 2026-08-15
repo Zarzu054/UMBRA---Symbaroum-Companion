@@ -1,12 +1,15 @@
 import "@testing-library/jest-dom/vitest";
-import { createEmptyCharacterSheet, type AuthUser, type Campaign, type CampaignCombat, type MysticArtifact } from "@umbra/shared";
+import { createEmptyCharacterSheet, type AuthUser, type Campaign, type CampaignCharacterLinkRequest, type CampaignCombat, type MysticArtifact } from "@umbra/shared";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const serviceMocks = vi.hoisted(() => ({
   acceptCampaignInvitation: vi.fn(),
+  acceptCampaignCharacterLinkRequest: vi.fn(),
+  dismissCampaignCharacterLinkRequest: vi.fn(),
   dismissCampaignInvitation: vi.fn(),
   fetchCampaigns: vi.fn(),
+  fetchCampaignCharacterLinkRequests: vi.fn(),
   fetchCampaignInvitations: vi.fn(),
   grantCampaignExperience: vi.fn(),
   sendCampaignInvitation: vi.fn(),
@@ -14,7 +17,7 @@ const serviceMocks = vi.hoisted(() => ({
   createCampaignReference: vi.fn(),
   deleteCampaignReference: vi.fn(),
   decideProfessionRequest: vi.fn(),
-  linkCampaignCharacter: vi.fn(),
+  requestCampaignCharacterLink: vi.fn(),
   removeCampaignMember: vi.fn(),
   unlinkCampaignCharacter: vi.fn(),
   updateCampaign: vi.fn(),
@@ -46,6 +49,14 @@ const gm: AuthUser = {
   id: "gm-a",
   email: "gm@example.com",
   role: "gm",
+  status: "active",
+  mustChangePassword: false
+};
+
+const player: AuthUser = {
+  id: "player-a",
+  email: "player@example.com",
+  role: "player",
   status: "active",
   mustChangePassword: false
 };
@@ -121,6 +132,7 @@ describe("CampaignDashboardView experience grants", () => {
     window.history.replaceState(null, "", "#campaigns?id=campaign-a&section=characters");
     serviceMocks.fetchCampaigns.mockResolvedValue([buildCampaign()]);
     serviceMocks.fetchCampaignInvitations.mockResolvedValue([]);
+    serviceMocks.fetchCampaignCharacterLinkRequests.mockResolvedValue([]);
     serviceMocks.grantCampaignExperience.mockResolvedValue(buildCampaign(15));
   });
 
@@ -144,18 +156,123 @@ describe("CampaignDashboardView experience grants", () => {
       },
       "token-a"
     ));
-    expect(await screen.findByText(/PX total: 15/)).toBeInTheDocument();
+    expect(await screen.findByText("15 PX disponibles")).toBeInTheDocument();
+  });
+
+  it("places linking in a modal, highlights burdens and groups secondary character actions", async () => {
+    const campaign = buildCampaign();
+    campaign.characters[0].unreadChangeCount = 2;
+    serviceMocks.fetchCampaigns.mockResolvedValue([campaign]);
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+
+    const heading = await screen.findByRole("heading", { name: "Personajes vinculados" });
+    const summaryButton = screen.getByRole("button", { name: "Ver resumen de cargas: 0 cargas registradas" });
+    expect(summaryButton).toHaveClass("campaign-burden-summary-button");
+    expect(summaryButton.closest(".campaign-characters-heading")).toContainElement(heading);
+    const linkButton = screen.getByRole("button", { name: "Solicitar personaje" });
+    expect(linkButton.closest(".campaign-character-heading-actions")).toContainElement(summaryButton);
+    expect(document.querySelector(".campaign-character-link-toolbar")).not.toBeInTheDocument();
+    fireEvent.click(linkButton);
+    const linkDialog = screen.getByRole("dialog", { name: "Solicitar vinculación" });
+    expect(within(linkDialog).getByLabelText("Personaje disponible")).toBeDisabled();
+    expect(within(linkDialog).getByText("Todos los personajes disponibles ya están vinculados o tienen una solicitud pendiente.")).toBeInTheDocument();
+    fireEvent.click(within(linkDialog).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog", { name: "Solicitar vinculación" })).not.toBeInTheDocument();
+
+    const characterCard = screen.getByRole("article", { name: "Personaje Alda" });
+    expect(characterCard).toHaveClass("character-record-card");
+    expect(within(characterCard).getByRole("button", { name: "Abrir hoja" })).toBeInTheDocument();
+    expect(within(characterCard).getByRole("button", { name: "Conceder PX" })).toBeInTheDocument();
+    expect(within(characterCard).getByRole("button", { name: "Constructor" })).toBeInTheDocument();
+    const moreActions = characterCard.querySelector("summary");
+    expect(moreActions).toHaveTextContent("Más acciones");
+    const menuAlert = within(moreActions!).getByLabelText("2 cambios sin leer");
+    expect(menuAlert).toHaveTextContent("2");
+    fireEvent.click(moreActions!);
+    expect(moreActions?.closest("details")).toHaveAttribute("open");
+    expect(within(characterCard).getByRole("button", { name: "Solicitudes de profesión de Alda: 0 pendientes" })).toBeInTheDocument();
+    const historyButton = within(characterCard).getByRole("button", { name: "Historial de cambios de Alda" });
+    expect(within(historyButton).getByLabelText("2 cambios sin leer")).toHaveTextContent(menuAlert.textContent ?? "");
+    expect(within(characterCard).getByRole("button", { name: "Historial de PX" })).toBeInTheDocument();
+    expect(within(characterCard).getByRole("button", { name: "Desvincular" })).toBeInTheDocument();
+  });
+
+  it("requests consent from an available character owner from the header modal", async () => {
+    const campaign = buildCampaign();
+    campaign.availableCharacters = [{
+      characterId: "00000000-0000-4000-8000-000000000009",
+      name: "Karev",
+      ownerId: "player-k",
+      ownerEmail: "karev@example.com",
+      experienceTotal: 20,
+      experienceSpent: 5,
+      linked: false
+    }];
+    serviceMocks.fetchCampaigns.mockResolvedValue([campaign]);
+    serviceMocks.requestCampaignCharacterLink.mockResolvedValue(buildCampaign());
+
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+
+    await screen.findByRole("heading", { name: "Personajes vinculados" });
+    fireEvent.click(screen.getByRole("button", { name: "Solicitar personaje" }));
+    const linkDialog = screen.getByRole("dialog", { name: "Solicitar vinculación" });
+    expect(within(linkDialog).getByLabelText("Personaje disponible")).toHaveValue("00000000-0000-4000-8000-000000000009");
+    fireEvent.click(within(linkDialog).getByRole("button", { name: "Enviar solicitud" }));
+
+    await waitFor(() => expect(serviceMocks.requestCampaignCharacterLink).toHaveBeenCalledWith(
+      "campaign-a",
+      "00000000-0000-4000-8000-000000000009",
+      "token-a"
+    ));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Solicitar vinculación" })).not.toBeInTheDocument());
+  });
+
+  it("lets the owner accept a character link request opened from the email", async () => {
+    const request: CampaignCharacterLinkRequest = {
+      id: "10000000-0000-4000-8000-000000000009",
+      campaignId: "campaign-a",
+      campaignName: "Davokar",
+      characterId: "00000000-0000-4000-8000-000000000001",
+      characterName: "Alda",
+      ownerEmail: player.email,
+      gmEmail: gm.email,
+      requestedByEmail: gm.email,
+      createdAt: new Date(0).toISOString()
+    };
+    const acceptedCampaign = buildCampaign();
+    acceptedCampaign.members.push({
+      id: "member-player",
+      userId: player.id,
+      email: player.email,
+      role: "player",
+      joinedAt: new Date(0).toISOString()
+    });
+    window.history.replaceState(null, "", `#campaigns?characterRequest=${request.id}`);
+    serviceMocks.fetchCampaigns.mockResolvedValue([acceptedCampaign]);
+    serviceMocks.fetchCampaignCharacterLinkRequests.mockResolvedValue([request]);
+    serviceMocks.acceptCampaignCharacterLinkRequest.mockResolvedValue(acceptedCampaign);
+
+    render(<CampaignDashboardView user={player} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+
+    const requestDialog = await screen.findByRole("dialog", { name: "Alda" });
+    expect(within(requestDialog).getByText("Davokar")).toBeInTheDocument();
+    expect(within(requestDialog).queryByRole("button", { name: "Decidir más tarde" })).not.toBeInTheDocument();
+    fireEvent.click(within(requestDialog).getByRole("button", { name: "Aceptar vinculación" }));
+
+    await waitFor(() => expect(serviceMocks.acceptCampaignCharacterLinkRequest).toHaveBeenCalledWith(request.id, "token-a"));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Alda" })).not.toBeInTheDocument());
   });
 
   it("exposes the DM-only combat section and loads its current state", async () => {
     render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
     await screen.findByRole("heading", { name: "Personajes vinculados" });
     fireEvent.click(screen.getByRole("button", { name: "Combate" }));
-    expect(await screen.findByRole("heading", { name: "Combate" })).toBeInTheDocument();
+    const combatHeading = await screen.findByRole("heading", { name: "Combate" });
+    expect(combatHeading.closest(".campaign-main")).toHaveClass("is-combat-active");
     expect(serviceMocks.fetchCampaignCombat).toHaveBeenCalledWith("campaign-a", "token-a");
   });
 
-  it("allows editing initiative and saves only after confirming the field", async () => {
+  it("shows initiative as read-only information next to defense", async () => {
     const combat: CampaignCombat = {
       id: "00000000-0000-4000-8000-000000000010",
       campaignId: "campaign-a",
@@ -186,16 +303,17 @@ describe("CampaignDashboardView experience grants", () => {
       updatedAt: new Date(0).toISOString()
     };
     serviceMocks.fetchCampaignCombat.mockResolvedValue(combat);
-    serviceMocks.updateCampaignCombatParticipant.mockResolvedValue({
-      ...combat,
-      revision: 4,
-      participants: [{ ...combat.participants[0], initiative: 17, initiativeOverride: 17 }]
-    });
-
     render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
     await screen.findByRole("heading", { name: "Personajes vinculados" });
     fireEvent.click(screen.getByRole("button", { name: "Combate" }));
-    const initiative = await screen.findByRole("spinbutton", { name: "Iniciativa de Alda" });
+    const moveHandle = await screen.findByRole("button", { name: "Mover Alda" });
+    const combatStats = moveHandle.closest(".campaign-combat-card")?.querySelector(".campaign-combat-stats");
+    const initiative = combatStats?.children[1] as HTMLElement;
+    expect(initiative).toHaveClass("campaign-combat-stat-initiative");
+    expect(within(initiative).getByText("Iniciativa")).toBeInTheDocument();
+    expect(within(initiative).getByText("10")).toBeInTheDocument();
+    expect(within(initiative).queryByRole("spinbutton")).not.toBeInTheDocument();
+    expect(combatStats?.children[2]).toHaveTextContent("Defensa");
     const robustness = screen.getByRole("progressbar", { name: "Robustez de Alda" });
     const robustnessControls = robustness.parentElement!;
     expect(robustness).toHaveAttribute("aria-valuenow", "8");
@@ -213,15 +331,111 @@ describe("CampaignDashboardView experience grants", () => {
     expect(screen.queryByText(/^Ronda /)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Dar turno" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Turno →" })).not.toBeInTheDocument();
-    fireEvent.change(initiative, { target: { value: "17" } });
     expect(serviceMocks.updateCampaignCombatParticipant).not.toHaveBeenCalled();
-    fireEvent.blur(initiative);
-    await waitFor(() => expect(serviceMocks.updateCampaignCombatParticipant).toHaveBeenCalledWith(
+  });
+
+  it("marks the insertion point while the DM reorders combat participants", async () => {
+    const firstParticipant: CampaignCombat["participants"][number] = {
+      id: "00000000-0000-4000-8000-000000000031",
+      kind: "character",
+      sourceId: "link-a",
+      alias: "Alda",
+      initiativeOverride: null,
+      sortOrder: 0,
+      initiative: 10,
+      defense: 10,
+      armor: "Sin armadura",
+      armorDetail: "",
+      robustnessCurrent: 8,
+      robustnessMaximum: 10,
+      painThreshold: 5,
+      temporaryCorruption: 0,
+      permanentCorruption: 0,
+      corruptionThreshold: 5,
+      conditions: [],
+      attacks: []
+    };
+    const secondParticipant: CampaignCombat["participants"][number] = {
+      ...firstParticipant,
+      id: "00000000-0000-4000-8000-000000000032",
+      sourceId: "link-b",
+      alias: "Beremo",
+      sortOrder: 1,
+      initiative: 8
+    };
+    const combat: CampaignCombat = {
+      id: "00000000-0000-4000-8000-000000000030",
+      campaignId: "campaign-a",
+      round: 1,
+      activeParticipantId: firstParticipant.id,
+      revision: 3,
+      participants: [firstParticipant, secondParticipant],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString()
+    };
+    serviceMocks.fetchCampaignCombat.mockResolvedValue(combat);
+    serviceMocks.reorderCampaignCombat.mockResolvedValue({
+      ...combat,
+      revision: 4,
+      participants: [secondParticipant, firstParticipant]
+    });
+
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+    await screen.findByRole("heading", { name: "Personajes vinculados" });
+    fireEvent.click(screen.getByRole("button", { name: "Combate" }));
+    const firstCard = (await screen.findByRole("button", { name: "Mover Alda" })).closest(".campaign-combat-card") as HTMLElement;
+    const secondCard = screen.getByRole("button", { name: "Mover Beremo" }).closest(".campaign-combat-card") as HTMLElement;
+    vi.spyOn(secondCard, "getBoundingClientRect").mockReturnValue({
+      top: 100,
+      bottom: 200,
+      left: 0,
+      right: 500,
+      width: 500,
+      height: 100,
+      x: 0,
+      y: 100,
+      toJSON: () => ({})
+    } as DOMRect);
+    const dataTransfer = { effectAllowed: "", dropEffect: "", setData: vi.fn() };
+    let pendingFrame: FrameRequestCallback | null = null;
+    const requestFrame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      pendingFrame = callback;
+      return 17;
+    });
+    const cancelFrame = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+    const scrollBy = vi.spyOn(window, "scrollBy").mockImplementation(() => undefined);
+    const dispatchWindowDragOver = (clientY: number) => {
+      const event = new Event("dragover", { bubbles: true, cancelable: true });
+      Object.defineProperty(event, "clientY", { value: clientY });
+      window.dispatchEvent(event);
+    };
+
+    fireEvent.dragStart(firstCard, { dataTransfer });
+    expect(firstCard).toHaveClass("is-dragging");
+    fireEvent.dragOver(secondCard, { clientY: 190, dataTransfer });
+    expect(secondCard).toHaveClass("is-drop-after");
+    expect(secondCard.querySelector(".campaign-combat-drop-marker.is-after")).toBeInTheDocument();
+    dispatchWindowDragOver(window.innerHeight - 1);
+    expect(requestFrame).toHaveBeenCalled();
+    (pendingFrame as FrameRequestCallback)(0);
+    expect(scrollBy.mock.calls.at(-1)?.[1]).toBeGreaterThan(0);
+    dispatchWindowDragOver(1);
+    (pendingFrame as FrameRequestCallback)(1);
+    expect(scrollBy.mock.calls.at(-1)?.[1]).toBeLessThan(0);
+    dispatchWindowDragOver(window.innerHeight - 1);
+    fireEvent.drop(secondCard, { clientY: 190, dataTransfer });
+
+    await waitFor(() => expect(serviceMocks.reorderCampaignCombat).toHaveBeenCalledWith(
       "campaign-a",
-      combat.participants[0].id,
-      { revision: 3, initiativeOverride: 17 },
+      { revision: 3, participantIds: [secondParticipant.id, firstParticipant.id] },
       "token-a"
     ));
+    expect(cancelFrame).toHaveBeenCalledWith(17);
+    expect(firstCard).not.toHaveClass("is-dragging");
+    expect(secondCard).not.toHaveClass("is-drop-after");
+    requestFrame.mockRestore();
+    cancelFrame.mockRestore();
+    scrollBy.mockRestore();
   });
 
   it("permite renombrar una instancia de monstruo sin alterar su perfil", async () => {
@@ -282,23 +496,60 @@ describe("CampaignDashboardView experience grants", () => {
     expect(screen.queryByRole("dialog", { name: "Renombrar monstruo" })).not.toBeInTheDocument();
   });
 
-  it("shows and approves pending profession requests", async () => {
+  it("shows and approves only the profession requests for each character", async () => {
     const campaign = buildCampaign();
-    campaign.pendingProfessionRequests = [{
+    const secondCharacter = {
+      ...campaign.characters[0],
+      id: "link-b",
+      characterId: "00000000-0000-4000-8000-000000000002",
+      name: "Beremo",
+      ownerId: "player-b",
+      ownerEmail: "beremo@example.com"
+    };
+    campaign.characters.push(secondCharacter);
+    const aldaRequest = {
       id: "request-a", characterId: campaign.characters[0].characterId, characterName: "Alda", ownerEmail: "player@example.com",
       professionId: "juramentado-de-hierro", professionName: "Juramentado de hierro", state: "pending", effectiveState: "pending",
       campaignId: campaign.id, campaignName: campaign.name, requestedAt: new Date(0).toISOString(), reviewedAt: null, decisionNote: "",
       eligibility: { professionId: "juramentado-de-hierro", eligible: true, requirementsMet: true, masterRequirementMet: true, otherRequirementMet: true, unmetRequirements: [], requirementResults: [{ id: "estudioso", label: "Estudioso", met: true, matchedNames: ["Estudioso"], hasMaster: true }] },
       createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+    } as const;
+    campaign.pendingProfessionRequests = [aldaRequest, {
+      ...aldaRequest,
+      id: "request-b",
+      characterId: secondCharacter.characterId,
+      characterName: secondCharacter.name,
+      ownerEmail: secondCharacter.ownerEmail,
+      professionId: "cazador-de-brujas",
+      professionName: "Cazador de brujas",
+      eligibility: {
+        ...aldaRequest.eligibility,
+        professionId: "cazador-de-brujas"
+      }
     }];
     serviceMocks.fetchCampaigns.mockResolvedValue([campaign]);
     serviceMocks.decideProfessionRequest.mockResolvedValue([]);
     render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Solicitudes profesionales (1)" }));
-    expect(screen.getByRole("heading", { name: "Solicitudes de profesiones" })).toBeInTheDocument();
-    expect(screen.getByText("Juramentado de hierro")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Aprobar" }));
+
+    const aldaCard = await screen.findByRole("article", { name: "Personaje Alda" });
+    const beremoCard = screen.getByRole("article", { name: "Personaje Beremo" });
+    expect(screen.queryByRole("button", { name: "Solicitudes profesionales (2)" })).not.toBeInTheDocument();
+    expect(within(aldaCard).getByRole("button", { name: "Constructor" })).toBeInTheDocument();
+    fireEvent.click(aldaCard.querySelector("summary")!);
+    fireEvent.click(within(aldaCard).getByRole("button", { name: "Solicitudes de profesión de Alda: 1 pendiente" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Solicitudes de profesiones de Alda" });
+    expect(within(dialog).getByText("Juramentado de hierro")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Cazador de brujas")).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Aprobar" }));
     await waitFor(() => expect(serviceMocks.decideProfessionRequest).toHaveBeenCalledWith("campaign-a", "request-a", { decision: "approve", note: "" }, "token-a"));
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cerrar" }));
+    fireEvent.click(beremoCard.querySelector("summary")!);
+    fireEvent.click(within(beremoCard).getByRole("button", { name: "Solicitudes de profesión de Beremo: 1 pendiente" }));
+    const beremoDialog = screen.getByRole("dialog", { name: "Solicitudes de profesiones de Beremo" });
+    expect(within(beremoDialog).getByText("Cazador de brujas")).toBeInTheDocument();
+    expect(within(beremoDialog).queryByText("Juramentado de hierro")).not.toBeInTheDocument();
   });
 
   it("sends an invitation instead of adding a campaign member directly", async () => {
@@ -320,15 +571,21 @@ describe("CampaignDashboardView experience grants", () => {
 
     render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
 
-    await screen.findByRole("heading", { name: "Miembros" });
-    fireEvent.change(screen.getByLabelText("Email del jugador"), { target: { value: "player@example.com" } });
-    fireEvent.click(screen.getByRole("button", { name: "Enviar invitación" }));
+    const membersHeading = await screen.findByRole("heading", { name: "Miembros" });
+    expect(screen.queryByLabelText("Email del jugador")).not.toBeInTheDocument();
+    const inviteButton = screen.getByRole("button", { name: "Invitar jugador" });
+    expect(inviteButton.closest(".campaign-members-heading")).toContainElement(membersHeading);
+    fireEvent.click(inviteButton);
+    const inviteDialog = screen.getByRole("dialog", { name: "Invitar jugador" });
+    fireEvent.change(within(inviteDialog).getByLabelText("Email del jugador"), { target: { value: "player@example.com" } });
+    fireEvent.click(within(inviteDialog).getByRole("button", { name: "Enviar invitación" }));
 
     await waitFor(() => expect(serviceMocks.sendCampaignInvitation).toHaveBeenCalledWith(
       "campaign-a",
       { email: "player@example.com" },
       "token-a"
     ));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Invitar jugador" })).not.toBeInTheDocument());
     expect(await screen.findByText("Pendiente de aceptación")).toBeInTheDocument();
     expect(screen.getByText("player@example.com")).toBeInTheDocument();
   });
@@ -522,6 +779,21 @@ describe("CampaignDashboardView experience grants", () => {
     expect(screen.getByRole("article", { name: "Personaje Beremo" })).toBeInTheDocument();
   });
 
+  it("keeps shared-note search, sorting and creation in the top-right header controls", async () => {
+    window.history.replaceState(null, "", "#campaigns?id=campaign-a&section=sharedNotes");
+    serviceMocks.fetchCampaigns.mockResolvedValue([buildCampaign()]);
+
+    render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
+
+    const heading = await screen.findByRole("heading", { name: "Notas compartidas" });
+    const controls = screen.getByRole("group", { name: "Controles de notas compartidas" });
+    expect(controls).toHaveClass("campaign-notes-controls");
+    expect(controls.closest(".campaign-notes-heading")).toContainElement(heading);
+    expect(within(controls).getByPlaceholderText("Nombre de la nota")).toBeInTheDocument();
+    expect(within(controls).getByRole("combobox", { name: "Ordenar" })).toBeInTheDocument();
+    expect(within(controls).getByRole("button", { name: "Nueva nota" })).toBeInTheDocument();
+  });
+
   it("shows private GM notes as Markdown entries instead of an always-visible form", async () => {
     const campaign = buildCampaign();
     campaign.dmNoteEntries = [{
@@ -577,7 +849,8 @@ describe("CampaignDashboardView experience grants", () => {
   it("shows the GM-only artifact management section", async () => {
     render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
     await screen.findByText("Davokar");
-    fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Objetos de campaña" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Artefactos místicos" }));
     expect(screen.getByRole("heading", { name: "Artefactos místicos" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Añadir artefacto" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Seleccionar artefacto")).not.toBeInTheDocument();
@@ -586,7 +859,8 @@ describe("CampaignDashboardView experience grants", () => {
   it("opens a guided artifact creator instead of a raw JSON editor", async () => {
     render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
     await screen.findByText("Davokar");
-    fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Objetos de campaña" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Artefactos místicos" }));
     fireEvent.click(screen.getByRole("button", { name: "Añadir artefacto" }));
     fireEvent.click(screen.getByRole("button", { name: "Crear personalizado" }));
 
@@ -604,7 +878,8 @@ describe("CampaignDashboardView experience grants", () => {
 
     render(<CampaignDashboardView user={gm} ensureAccessToken={vi.fn().mockResolvedValue("token-a")} />);
     await screen.findByText("Davokar");
-    fireEvent.click(screen.getByRole("button", { name: "Artefactos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Objetos de campaña" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Artefactos místicos" }));
 
     expect(screen.getByText("Campaign artifact")).toBeInTheDocument();
     expect(screen.queryByText(/Catalog-only artifact/)).not.toBeInTheDocument();

@@ -7,6 +7,7 @@ describe("modular character sheet layout", () => {
   const stylesheet = readFileSync(resolve(process.cwd(), "src/styles/modern.css"), "utf8");
   const component = readFileSync(resolve(process.cwd(), "src/components/UnifiedCharacterSheet.tsx"), "utf8");
   const builderComponent = readFileSync(resolve(process.cwd(), "src/views/CharacterBuilderView.tsx"), "utf8");
+  const campaignComponent = readFileSync(resolve(process.cwd(), "src/views/CampaignDashboardView.tsx"), "utf8");
 
   it("keeps separated desktop modules and a real internally scrolling reader", () => {
     expect(stylesheet).toMatch(/\.character-actions-page > \.unified-sheet\s*\{[\s\S]*?gap: 20px/);
@@ -100,6 +101,11 @@ describe("modular character sheet layout", () => {
     expect(stylesheet).toMatch(/:root\[data-character-sheet-background\]\[data-theme="light"\] \.unified-sheet-resources-module \.unified-sheet-vital-card\s*\{[\s\S]*?background: color-mix\(in srgb, var\(--ui-surface\) 96%, transparent\)/);
     expect(stylesheet).toMatch(/:root\[data-character-sheet-background\]\[data-theme="dark"\] \.unified-sheet-resources-module \.unified-sheet-vital-card\s*\{[\s\S]*?background: color-mix\(in srgb, var\(--ui-surface\) 94%, transparent\)/);
     expect(stylesheet).toMatch(/:root\[data-character-sheet-background\]\[data-theme="dark"\] \.unified-sheet-status-grid :is\([\s\S]*?background: color-mix\(in srgb, var\(--ui-surface\) 94%, transparent\)/);
+  });
+
+  it("shows the selected illustration behind the sheet opened from the DM modal", () => {
+    expect(campaignComponent).toContain('" is-builder" : " is-sheet"');
+    expect(stylesheet).toMatch(/:root\[data-character-sheet-background\] \.campaign-character-sheet-modal-body\.is-sheet\s*\{[\s\S]*?var\(--character-sheet-background-image\)[\s\S]*?var\(--character-sheet-background-position, center\)[\s\S]*?cover no-repeat/);
   });
 
   it("returns the reader to natural page flow on mobile", () => {

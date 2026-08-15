@@ -6,6 +6,21 @@ import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 import { MonsterCreationWizard } from "../components/ActorCreationWizard";
 import { MonsterReferenceSheet } from "../components/MonsterReferenceSheet";
 import { useConfirmationDialog } from "../components/ConfirmationDialogProvider";
+export const MONSTER_CATALOG_SPLIT_STORAGE_KEY = "umbra:monster-catalog-split";
+export function clampMonsterCatalogSplit(value) {
+    return Math.min(75, Math.max(25, Math.round(value)));
+}
+function readMonsterCatalogSplit() {
+    if (typeof window === "undefined")
+        return 50;
+    try {
+        const stored = Number(window.localStorage.getItem(MONSTER_CATALOG_SPLIT_STORAGE_KEY));
+        return Number.isFinite(stored) && stored > 0 ? clampMonsterCatalogSplit(stored) : 50;
+    }
+    catch {
+        return 50;
+    }
+}
 function normalizeSearchValue(value) {
     return value
         .normalize("NFD")
@@ -143,6 +158,10 @@ export function MonsterDashboardView({ user, ensureAccessToken }) {
     const lastTriggerRef = useRef(null);
     const filtersTriggerRef = useRef(null);
     const filtersSearchRef = useRef(null);
+    const workspaceRef = useRef(null);
+    const splitPercentRef = useRef(readMonsterCatalogSplit());
+    const [splitPercent, setSplitPercent] = useState(splitPercentRef.current);
+    const [isResizing, setIsResizing] = useState(false);
     const isNarrow = useNarrowMonsterLayout();
     const selectedId = activeTab === "codex" ? controller.selectedCodexId : customDetailId;
     useBodyScrollLock(isFiltersOpen || (isNarrow && Boolean(selectedId)));
@@ -192,6 +211,71 @@ export function MonsterDashboardView({ user, ensureAccessToken }) {
         window.addEventListener("keydown", closeOnEscape);
         return () => window.removeEventListener("keydown", closeOnEscape);
     }, [isFiltersOpen]);
+    useEffect(() => {
+        if (!isResizing)
+            return;
+        const handlePointerMove = (event) => {
+            event.preventDefault();
+            resizeCatalogFromClientX(event.clientX);
+        };
+        const finishResize = () => {
+            setIsResizing(false);
+            persistCatalogSplit(splitPercentRef.current);
+        };
+        document.body.classList.add("is-resizing-monster-catalog");
+        window.addEventListener("pointermove", handlePointerMove);
+        window.addEventListener("pointerup", finishResize, { once: true });
+        window.addEventListener("pointercancel", finishResize, { once: true });
+        return () => {
+            document.body.classList.remove("is-resizing-monster-catalog");
+            window.removeEventListener("pointermove", handlePointerMove);
+            window.removeEventListener("pointerup", finishResize);
+            window.removeEventListener("pointercancel", finishResize);
+        };
+    }, [isResizing]);
+    function persistCatalogSplit(value) {
+        try {
+            window.localStorage.setItem(MONSTER_CATALOG_SPLIT_STORAGE_KEY, String(value));
+        }
+        catch {
+            // The selected proportion remains active for this session when storage is unavailable.
+        }
+    }
+    function applyCatalogSplit(value, persist = false) {
+        const next = clampMonsterCatalogSplit(value);
+        splitPercentRef.current = next;
+        setSplitPercent(next);
+        if (persist)
+            persistCatalogSplit(next);
+    }
+    function resizeCatalogFromClientX(clientX) {
+        const bounds = workspaceRef.current?.getBoundingClientRect();
+        if (!bounds || bounds.width <= 0)
+            return;
+        applyCatalogSplit(((clientX - bounds.left) / bounds.width) * 100);
+    }
+    function startCatalogResize(event) {
+        if (isNarrow)
+            return;
+        event.preventDefault();
+        resizeCatalogFromClientX(event.clientX);
+        setIsResizing(true);
+    }
+    function handleCatalogSplitterKeyDown(event) {
+        let next = splitPercentRef.current;
+        if (event.key === "ArrowLeft")
+            next -= 5;
+        else if (event.key === "ArrowRight")
+            next += 5;
+        else if (event.key === "Home")
+            next = 25;
+        else if (event.key === "End")
+            next = 75;
+        else
+            return;
+        event.preventDefault();
+        applyCatalogSplit(next, true);
+    }
     function closeSheet() {
         if (activeTab === "codex")
             controller.setSelectedCodexId("");
@@ -251,10 +335,10 @@ export function MonsterDashboardView({ user, ensureAccessToken }) {
         await controller.deleteSelected(monster.id);
         setCustomDetailId(null);
     }
-    return (_jsxs("div", { className: "monster-module monster-catalog-module", children: [_jsxs("section", { className: "panel monster-catalog-workspace", children: [_jsxs("aside", { className: "monster-catalog-list-pane", "aria-label": "Listado de monstruos", children: [_jsxs("nav", { className: "monster-catalog-tabs", "aria-label": "Secciones del m\u00F3dulo de monstruos", children: [_jsx("button", { type: "button", className: activeTab === "codex" ? "is-active" : "", "aria-pressed": activeTab === "codex", onClick: () => changeTab("codex"), children: "Cat\u00E1logo oficial" }), _jsx("button", { type: "button", className: activeTab === "custom" ? "is-active" : "", "aria-pressed": activeTab === "custom", onClick: () => changeTab("custom"), children: "Mis monstruos" })] }), _jsxs("div", { className: "monster-catalog-list-header", children: [_jsxs("div", { children: [_jsx("span", { className: "compendium-eyebrow", children: "Archivo del Director de Juego" }), _jsx("h1", { children: "Monstruos y adversarios" }), _jsxs("span", { children: [filteredMonsters.length, " resultados", controller.isLoading ? " · Cargando..." : ""] })] }), _jsxs("div", { className: "monster-catalog-list-actions", children: [_jsxs("button", { ref: filtersTriggerRef, type: "button", className: "subtle-button", onClick: () => setIsFiltersOpen(true), children: ["Buscar y filtrar", search || sourceFilter || categoryFilter || familyFilter || threatFilter || sortMode !== "alphabetical" ? " · Activo" : ""] }), activeTab === "custom" ? _jsx("button", { type: "button", onClick: openCreate, children: "Nuevo monstruo" }) : null] })] }), controller.loadError ? _jsx("p", { className: "error", children: controller.loadError }) : null, _jsx("div", { className: "monster-catalog-results", children: filteredMonsters.length ? filteredMonsters.map((monster, index) => {
+    return (_jsxs("div", { className: "monster-module monster-catalog-module", children: [_jsxs("section", { ref: workspaceRef, className: `panel monster-catalog-workspace${isResizing ? " is-resizing" : ""}`, style: { gridTemplateColumns: `${splitPercent}fr 10px ${100 - splitPercent}fr` }, children: [_jsxs("aside", { className: "monster-catalog-list-pane", "aria-label": "Listado de monstruos", children: [_jsxs("nav", { className: "monster-catalog-tabs", "aria-label": "Secciones del m\u00F3dulo de monstruos", children: [_jsx("button", { type: "button", className: activeTab === "codex" ? "is-active" : "", "aria-pressed": activeTab === "codex", onClick: () => changeTab("codex"), children: "Cat\u00E1logo oficial" }), _jsx("button", { type: "button", className: activeTab === "custom" ? "is-active" : "", "aria-pressed": activeTab === "custom", onClick: () => changeTab("custom"), children: "Mis monstruos" })] }), _jsxs("div", { className: "monster-catalog-list-header", children: [_jsxs("div", { children: [_jsx("span", { className: "compendium-eyebrow", children: "Archivo del Director de Juego" }), _jsx("h1", { children: "Monstruos y adversarios" }), _jsxs("span", { children: [filteredMonsters.length, " resultados", controller.isLoading ? " · Cargando..." : ""] })] }), _jsxs("div", { className: "monster-catalog-list-actions", children: [_jsxs("button", { ref: filtersTriggerRef, type: "button", className: "subtle-button", onClick: () => setIsFiltersOpen(true), children: ["Buscar y filtrar", search || sourceFilter || categoryFilter || familyFilter || threatFilter || sortMode !== "alphabetical" ? " · Activo" : ""] }), activeTab === "custom" ? _jsx("button", { type: "button", onClick: openCreate, children: "Nuevo monstruo" }) : null] })] }), controller.loadError ? _jsx("p", { className: "error", children: controller.loadError }) : null, _jsx("div", { className: "monster-catalog-results", children: filteredMonsters.length ? filteredMonsters.map((monster, index) => {
                                     const family = monster.sheet.family || monster.family || monster.name;
                                     const previousFamily = index > 0 ? filteredMonsters[index - 1]?.sheet.family || filteredMonsters[index - 1]?.family || filteredMonsters[index - 1]?.name : null;
                                     return (_jsxs("div", { className: "monster-catalog-result-group", children: [family !== previousFamily ? _jsx("h3", { children: family }) : null, _jsxs("button", { type: "button", className: `monster-catalog-result${selectedMonster?.id === monster.id ? " is-active" : ""}`, "aria-current": selectedMonster?.id === monster.id ? "true" : undefined, onClick: (event) => selectMonster(monster.id, event.currentTarget), children: [_jsxs("span", { children: [_jsx("strong", { children: monster.name }), _jsxs("small", { children: [monster.source, monster.references?.[0]?.page ? ` · p.${monster.references[0].page}` : ""] })] }), _jsxs("span", { className: "monster-catalog-result-meta", children: [_jsx("em", { children: monster.category }), _jsx("b", { children: monster.threat })] })] })] }, monster.id));
-                                }) : _jsxs("div", { className: "monster-catalog-empty", children: [_jsx("strong", { children: "No hay coincidencias." }), _jsx("p", { children: "Ajusta la b\u00FAsqueda o limpia alg\u00FAn filtro." })] }) })] }), _jsx("div", { className: `monster-catalog-detail-pane${selectedMonster ? " is-open" : ""}`, children: selectedMonster ? (_jsx(MonsterReferenceSheet, { monster: selectedMonster, backgroundPreferenceScope: `${user.id}:monster-sheets`, official: activeTab === "codex", busy: controller.isSaving, onClose: closeSheet, onDuplicate: activeTab === "codex" ? () => duplicateOfficial(selectedMonster.id) : undefined, onEdit: activeTab === "custom" ? () => openEdit(selectedMonster.id) : undefined, onDelete: activeTab === "custom" ? () => void removeCustom(selectedMonster) : undefined })) : _jsxs("div", { className: "monster-catalog-detail-empty", children: [_jsx("span", { "aria-hidden": "true", children: "\u2726" }), _jsx("h2", { children: "Selecciona un monstruo" }), _jsx("p", { children: "Su ficha aparecer\u00E1 aqu\u00ED sin abandonar el listado." })] }) })] }), isFiltersOpen ? (_jsx("div", { className: "modal-backdrop monster-filter-modal-backdrop", onMouseDown: (event) => { if (event.target === event.currentTarget)
+                                }) : _jsxs("div", { className: "monster-catalog-empty", children: [_jsx("strong", { children: "No hay coincidencias." }), _jsx("p", { children: "Ajusta la b\u00FAsqueda o limpia alg\u00FAn filtro." })] }) })] }), _jsx("div", { className: "monster-catalog-splitter", role: "separator", "aria-label": "Ajustar ancho del cat\u00E1logo y la ficha", "aria-orientation": "vertical", "aria-valuemin": 25, "aria-valuemax": 75, "aria-valuenow": splitPercent, "aria-valuetext": `Catálogo ${splitPercent}%, ficha ${100 - splitPercent}%`, tabIndex: 0, title: "Arrastra para ajustar el ancho. Tambi\u00E9n puedes usar las flechas.", onPointerDown: startCatalogResize, onKeyDown: handleCatalogSplitterKeyDown, children: _jsx("span", { "aria-hidden": "true" }) }), _jsx("div", { className: `monster-catalog-detail-pane${selectedMonster ? " is-open" : ""}`, children: selectedMonster ? (_jsx(MonsterReferenceSheet, { monster: selectedMonster, backgroundPreferenceScope: `${user.id}:monster-sheets`, official: activeTab === "codex", busy: controller.isSaving, onClose: closeSheet, onDuplicate: activeTab === "codex" ? () => duplicateOfficial(selectedMonster.id) : undefined, onEdit: activeTab === "custom" ? () => openEdit(selectedMonster.id) : undefined, onDelete: activeTab === "custom" ? () => void removeCustom(selectedMonster) : undefined })) : _jsxs("div", { className: "monster-catalog-detail-empty", children: [_jsx("span", { "aria-hidden": "true", children: "\u2726" }), _jsx("h2", { children: "Selecciona un monstruo" }), _jsx("p", { children: "Su ficha aparecer\u00E1 aqu\u00ED sin abandonar el listado." })] }) })] }), isFiltersOpen ? (_jsx("div", { className: "modal-backdrop monster-filter-modal-backdrop", onMouseDown: (event) => { if (event.target === event.currentTarget)
                     closeFilters(); }, children: _jsxs("section", { className: "monster-filter-modal", role: "dialog", "aria-modal": "true", "aria-labelledby": "monster-filter-title", children: [_jsxs("header", { children: [_jsxs("div", { children: [_jsx("span", { className: "compendium-eyebrow", children: "Cat\u00E1logo de monstruos" }), _jsx("h2", { id: "monster-filter-title", children: "Buscar y ordenar" })] }), _jsx("button", { type: "button", className: "subtle-button", onClick: closeFilters, children: "Cerrar" })] }), _jsxs("div", { className: "monster-catalog-filters", children: [_jsxs("label", { className: "field monster-catalog-search", children: [_jsx("span", { children: "Buscar" }), _jsx("input", { ref: filtersSearchRef, type: "search", value: search, onChange: (event) => setSearch(event.target.value), placeholder: "Nombre, rasgo, arma, t\u00E1ctica..." })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Orden" }), _jsxs("select", { value: sortMode, onChange: (event) => setSortMode(event.target.value), children: [_jsx("option", { value: "alphabetical", children: "Alfab\u00E9tico" }), _jsx("option", { value: "appearance", children: "Orden de los libros" })] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Manual" }), _jsxs("select", { value: sourceFilter, onChange: (event) => setSourceFilter(event.target.value), children: [_jsx("option", { value: "", children: "Todos" }), sources.map((source) => _jsx("option", { children: source }, source))] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Categor\u00EDa" }), _jsxs("select", { value: categoryFilter, onChange: (event) => setCategoryFilter(event.target.value), children: [_jsx("option", { value: "", children: "Todas" }), MONSTER_CATEGORIES.map((category) => _jsx("option", { children: category }, category))] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Familia" }), _jsxs("select", { value: familyFilter, onChange: (event) => setFamilyFilter(event.target.value), children: [_jsx("option", { value: "", children: "Todas" }), families.map((family) => _jsx("option", { children: family }, family))] })] }), _jsxs("label", { className: "field", children: [_jsx("span", { children: "Desaf\u00EDo" }), _jsxs("select", { value: threatFilter, onChange: (event) => setThreatFilter(event.target.value), children: [_jsx("option", { value: "", children: "Todos" }), MONSTER_THREATS.map((threat) => _jsx("option", { children: threat }, threat))] })] })] }), _jsxs("footer", { children: [_jsx("button", { type: "button", className: "subtle-button", onClick: clearFilters, children: "Limpiar" }), _jsxs("button", { type: "button", onClick: closeFilters, children: ["Ver ", filteredMonsters.length, " resultados"] })] })] }) })) : null, isEditorOpen ? _jsx("div", { className: "modal-backdrop", children: _jsx(MonsterCreationWizard, { controller: controller, onCancel: () => setIsEditorOpen(false) }) }) : null] }));
 }

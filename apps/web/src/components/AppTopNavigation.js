@@ -33,6 +33,8 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
         if (!isOpen)
             return;
         const handleKeyDown = (event) => {
+            if (document.querySelector(".character-sheet-background-dialog"))
+                return;
             if (event.key === "Escape") {
                 setIsOpen(false);
                 setIsCustomizationOpen(false);
@@ -56,7 +58,10 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
             }
         };
         const handlePointerDown = (event) => {
-            if (menuRef.current?.contains(event.target) || triggerRef.current?.contains(event.target))
+            const target = event.target;
+            if (target instanceof Element && target.closest(".character-sheet-background-backdrop"))
+                return;
+            if (menuRef.current?.contains(target) || triggerRef.current?.contains(target))
                 return;
             setIsOpen(false);
             setIsCustomizationOpen(false);

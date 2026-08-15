@@ -91,9 +91,24 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     controller.removeMember(request, reply)
   );
   app.post<{ Params: { campaignId: string }; Body: { characterId: string } }>(
-    "/campaigns/:campaignId/characters",
+    "/campaigns/:campaignId/character-link-requests",
     { preHandler: [requireAuth, requirePasswordChangeComplete] },
-    async (request, reply) => controller.linkCharacter(request, reply)
+    async (request, reply) => controller.requestCharacterLink(request, reply)
+  );
+  app.get(
+    "/campaign-character-link-requests",
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
+    async (request, reply) => controller.listCharacterLinkRequests(request, reply)
+  );
+  app.post<{ Params: { requestId: string } }>(
+    "/campaign-character-link-requests/:requestId/accept",
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
+    async (request, reply) => controller.acceptCharacterLinkRequest(request, reply)
+  );
+  app.delete<{ Params: { requestId: string } }>(
+    "/campaign-character-link-requests/:requestId",
+    { preHandler: [requireAuth, requirePasswordChangeComplete] },
+    async (request, reply) => controller.dismissCharacterLinkRequest(request, reply)
   );
   app.delete<{ Params: { linkId: string } }>(
     "/campaign-characters/:linkId",

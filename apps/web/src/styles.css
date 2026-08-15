@@ -1692,7 +1692,7 @@ button.subtle-button {
   top: 0;
   z-index: 5;
   display: grid;
-  grid-template-columns: minmax(90px, 1fr) auto minmax(90px, 1fr);
+  grid-template-columns: minmax(90px, 1fr) auto auto minmax(130px, 1fr);
   align-items: center;
   gap: 12px;
   min-height: 64px;
@@ -1702,11 +1702,11 @@ button.subtle-button {
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
 }
 
-.pdf-page-viewer__toolbar > button {
+.pdf-page-viewer__close {
   justify-self: start;
 }
 
-.pdf-page-viewer__toolbar nav,
+.pdf-page-viewer__page-control,
 .pdf-page-viewer__zoom {
   display: flex;
   align-items: center;
@@ -1714,7 +1714,40 @@ button.subtle-button {
   gap: 8px;
 }
 
-.pdf-page-viewer__toolbar nav button,
+.pdf-page-viewer__page-control {
+  justify-self: center;
+}
+
+.pdf-page-viewer__page-control > button {
+  width: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 6px;
+  border-radius: 9px;
+  font-size: 1.05rem;
+}
+
+.pdf-page-viewer__scale-mode {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  padding: 7px;
+  border: 1px solid var(--ui-border, rgba(117, 76, 57, 0.28));
+  border-radius: 9px;
+  background: var(--ui-surface-muted, rgba(117, 76, 57, 0.08));
+  color: var(--ui-text, #231d1a);
+}
+
+.pdf-page-viewer__scale-mode:hover:not(:disabled),
+.pdf-page-viewer__scale-mode:focus-visible {
+  background: var(--ui-surface, #fffaf5);
+  box-shadow: 0 1px 5px rgba(55, 36, 26, 0.16);
+}
+
 .pdf-page-viewer__zoom button {
   min-width: 40px;
   min-height: 40px;
@@ -1723,9 +1756,29 @@ button.subtle-button {
   font-size: 1.05rem;
 }
 
-.pdf-page-viewer__toolbar nav strong {
-  min-width: 125px;
+.pdf-page-viewer__page-control label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ui-text-muted, #716660);
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.pdf-page-viewer__page-control input {
+  width: 68px;
+  min-height: 40px;
+  padding: 6px 8px;
+  color: var(--ui-text, #231d1a);
+  background: var(--ui-surface, #fffaf5);
+  font-weight: 800;
   text-align: center;
+}
+
+.pdf-page-viewer__page-control strong {
+  min-width: 52px;
+  font-size: .8rem;
+  text-align: left;
 }
 
 .pdf-page-viewer__zoom {
@@ -1740,14 +1793,22 @@ button.subtle-button {
   text-align: center;
 }
 
-.pdf-page-viewer__stage {
+.pdf-page-viewer__viewport {
   position: relative;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
+}
+
+.pdf-page-viewer__stage {
+  position: absolute;
+  inset: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 16px;
-  text-align: center;
+  /* PDF.js calcula page-width con clientWidth, que ya incluye el padding.
+     Los márgenes laterales provocarían un desbordamiento igual a su suma. */
+  padding: 16px 0 32px;
+  background: #282522;
 }
 
 .pdf-viewer-overlay {
@@ -1760,17 +1821,25 @@ button.subtle-button {
   background: #282522;
 }
 
-.pdf-page-viewer__stage canvas {
-  display: block;
-  max-width: none;
-  margin: 0 auto;
-  background: white;
+.pdf-page-viewer__pages {
+  --pdfViewer-padding-bottom: 0;
+  min-width: min-content;
+}
+
+.pdf-page-viewer__pages.removePageBorders .page {
+  margin: 0 auto 16px;
+  background: #fff;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.42);
 }
 
 .pdf-page-viewer__status {
+  position: absolute;
+  z-index: 10;
+  top: 32px;
+  left: 50%;
+  transform: translateX(-50%);
   width: min(420px, calc(100% - 32px));
-  margin: 48px auto;
+  margin: 0;
   padding: 16px;
   border-radius: 12px;
   color: var(--ui-text, #231d1a);
@@ -1784,13 +1853,26 @@ button.subtle-button {
     padding: 8px;
   }
 
-  .pdf-page-viewer__toolbar nav {
+  .pdf-page-viewer__page-control {
     justify-self: end;
   }
 
-  .pdf-page-viewer__toolbar nav strong {
-    min-width: 98px;
-    font-size: 0.78rem;
+  .pdf-page-viewer__scale-mode {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+
+  .pdf-page-viewer__page-control label > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .pdf-page-viewer__page-control input {
+    width: 58px;
+    min-height: 38px;
   }
 
   .pdf-page-viewer__zoom {
@@ -1798,8 +1880,11 @@ button.subtle-button {
   }
 
   .pdf-page-viewer__stage {
-    min-height: 0;
-    padding: 8px;
+    padding: 8px 0;
+  }
+
+  .pdf-page-viewer__pages.removePageBorders .page {
+    margin-bottom: 10px;
   }
 }
 
@@ -2348,6 +2433,10 @@ button.subtle-button {
 
 .campaign-inline-form {
   min-width: min(540px, 100%);
+}
+
+.campaign-notes-copy .section-help {
+  min-block-size: 2.44em;
 }
 
 .campaign-inline-form .field,
@@ -3408,8 +3497,62 @@ td {
 .monster-catalog-list-pane {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--ui-border, rgba(117, 76, 57, 0.28));
   background: var(--ui-surface, rgba(255, 252, 247, 0.92));
+}
+
+.monster-catalog-splitter {
+  position: relative;
+  z-index: 4;
+  width: 10px;
+  min-width: 10px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  background: color-mix(in srgb, var(--ui-border, rgba(117, 76, 57, 0.28)) 58%, transparent);
+  transition: background .14s ease, box-shadow .14s ease;
+}
+
+.monster-catalog-splitter::before {
+  content: "";
+  position: absolute;
+  inset: 0 3px;
+  background: var(--ui-border, rgba(117, 76, 57, 0.42));
+  transition: inset .14s ease, background .14s ease;
+}
+
+.monster-catalog-splitter > span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 46px;
+  transform: translate(-50%, -50%);
+  border: 1px solid color-mix(in srgb, var(--ui-brand, #8e353b) 45%, var(--ui-border));
+  border-radius: 999px;
+  background: var(--ui-surface, #fffaf5);
+  box-shadow: 0 2px 8px rgba(31, 24, 19, .16);
+}
+
+.monster-catalog-splitter:hover,
+.monster-catalog-splitter:focus-visible,
+.monster-catalog-workspace.is-resizing .monster-catalog-splitter {
+  outline: 0;
+  background: color-mix(in srgb, var(--ui-brand, #8e353b) 26%, var(--ui-surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-brand, #8e353b) 18%, transparent);
+}
+
+.monster-catalog-splitter:hover::before,
+.monster-catalog-splitter:focus-visible::before,
+.monster-catalog-workspace.is-resizing .monster-catalog-splitter::before {
+  inset-inline: 2px;
+  background: var(--ui-brand, #8e353b);
+}
+
+body.is-resizing-monster-catalog,
+body.is-resizing-monster-catalog * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 .monster-catalog-list-header {
@@ -4195,20 +4338,25 @@ td {
 .campaign-combat-error { margin: 0; padding: 10px 14px; border-radius: 10px; background: color-mix(in srgb, var(--danger) 10%, var(--paper)); }
 .campaign-combat-list { display: grid; gap: 7px; }
 .campaign-combat-empty { text-align: center; padding: 32px; }
-.campaign-combat-card { overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); box-shadow: 0 5px 14px rgba(31, 24, 19, .07); }
-.campaign-combat-card > header { min-height: 42px; display: grid; grid-template-columns: auto minmax(130px, 1fr) 82px auto; align-items: center; gap: 7px; padding: 5px 8px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--paper-deep) 70%, transparent); }
+.campaign-combat-card { position: relative; overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: var(--paper); box-shadow: 0 5px 14px rgba(31, 24, 19, .07); transition: opacity .14s ease, transform .14s ease, box-shadow .14s ease; }
+.campaign-combat-card.is-dragging { opacity: .46; transform: scale(.995); }
+.campaign-combat-card.is-drop-before,
+.campaign-combat-card.is-drop-after { box-shadow: 0 0 0 2px color-mix(in srgb, var(--rubric) 28%, transparent), 0 7px 18px rgba(31, 24, 19, .12); }
+.campaign-combat-drop-marker { position: absolute; z-index: 8; left: 7px; right: 7px; height: 3px; border-radius: 999px; background: var(--rubric); pointer-events: none; }
+.campaign-combat-drop-marker::after { content: "Soltar aquí"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); padding: 2px 7px; border-radius: 999px; color: #fff; background: var(--rubric); box-shadow: 0 2px 7px rgba(31, 24, 19, .2); font-size: .6rem; font-weight: 800; line-height: 1.2; white-space: nowrap; }
+.campaign-combat-drop-marker.is-before { top: 0; }
+.campaign-combat-drop-marker.is-after { bottom: 0; }
+.campaign-combat-card > header { min-height: 36px; display: grid; grid-template-columns: auto minmax(130px, 1fr) auto; align-items: center; gap: 7px; padding: 3px 8px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--paper-deep) 70%, transparent); }
 .campaign-combat-card > header > div { display: grid; }
 .campaign-combat-card > header span { color: var(--ink-soft); font-size: .62rem; }
 .campaign-combat-card > header strong { font-size: .92rem; line-height: 1.05; }
-.campaign-combat-initiative-field { display: grid; gap: 1px; }
-.campaign-combat-initiative-field > span { white-space: nowrap; }
-.campaign-combat-initiative-field input { width: 100%; min-width: 0; height: 29px; padding: 3px 7px; font-weight: 700; }
-.campaign-combat-initiative-field:focus-within > span { color: var(--rubric-strong); font-weight: 700; }
 .campaign-combat-drag { min-width: 28px; min-height: 30px; padding: 3px 6px; cursor: grab; color: var(--ink-soft); background: transparent; }
+.campaign-combat-drag:active { cursor: grabbing; }
 .campaign-combat-card-actions { display: flex !important; align-items: center; justify-content: flex-end; gap: 4px; }
 .campaign-combat-card-actions button { min-height: 30px; padding: 4px 8px; white-space: nowrap; font-size: .72rem; }
-.campaign-combat-stats { display: grid; grid-template-columns: repeat(7, minmax(100px, 1fr)); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
+.campaign-combat-stats { display: grid; grid-template-columns: repeat(8, minmax(92px, 1fr)); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
 .campaign-combat-stats > div { min-height: 48px; padding: 5px 8px; display: flex; flex-direction: column; justify-content: center; gap: 1px; background: var(--paper); }
+.campaign-combat-stat-initiative { min-width: 0; }
 .campaign-combat-stats span { color: var(--ink-soft); font-size: .58rem; line-height: 1.05; text-transform: uppercase; }
 .campaign-combat-stats strong { font-size: .88rem; line-height: 1; }
 .campaign-combat-resource { min-width: 0; display: grid !important; grid-template-columns: minmax(0, 1fr); align-content: center; }
@@ -4253,7 +4401,7 @@ td {
 @media (max-width: 980px) {
   .campaign-combat-toolbar { position: sticky; top: 52px; align-items: stretch; flex-direction: column; }
   .campaign-combat-toolbar-actions { justify-content: stretch; display: grid; grid-template-columns: repeat(2, 1fr); }
-  .campaign-combat-card > header { grid-template-columns: auto 1fr 94px; }
+  .campaign-combat-card > header { grid-template-columns: auto 1fr auto; }
   .campaign-combat-card-actions { grid-column: 2 / -1; justify-content: stretch; }
   .campaign-combat-card-actions button { flex: 1 1 auto; }
   .campaign-combat-stats { grid-template-columns: repeat(2, 1fr); }
@@ -4265,7 +4413,7 @@ td {
   .campaign-combat-toolbar-actions { grid-template-columns: 1fr 1fr; }
   .campaign-combat-card { border-radius: 10px; }
   .campaign-combat-card > header { grid-template-columns: auto 1fr; }
-  .campaign-combat-initiative-field, .campaign-combat-card-actions { grid-column: 2; }
+  .campaign-combat-card-actions { grid-column: 2; }
   .campaign-combat-card-actions { display: grid !important; grid-template-columns: repeat(2, 1fr); }
   .campaign-combat-stats { grid-template-columns: 1fr 1fr; }
   .campaign-combat-monster-filter { grid-template-columns: 1fr; }
@@ -4312,6 +4460,10 @@ td {
   .monster-catalog-list-pane {
     min-height: 620px;
     border-right: 0;
+  }
+
+  .monster-catalog-splitter {
+    display: none;
   }
 
   .monster-catalog-results {

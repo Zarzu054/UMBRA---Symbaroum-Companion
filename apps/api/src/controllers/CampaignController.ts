@@ -130,13 +130,35 @@ export class CampaignController {
     reply.send({ data: campaign });
   }
 
-  async linkCharacter(
+  async requestCharacterLink(
     request: FastifyRequest<{ Params: { campaignId: string }; Body: { characterId: string } }>,
     reply: FastifyReply
   ): Promise<void> {
     const user = request.authUser!;
-    const campaign = await this.service.linkCharacter(user.id, user.role, request.params.campaignId, request.body.characterId);
-    reply.send({ data: campaign });
+    const campaign = await this.service.requestCharacterLink(user.id, user.role, request.params.campaignId, request.body.characterId);
+    reply.code(201).send({ data: campaign });
+  }
+
+  async listCharacterLinkRequests(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const user = request.authUser!;
+    reply.send({ data: await this.service.listCharacterLinkRequests(user.id) });
+  }
+
+  async acceptCharacterLinkRequest(
+    request: FastifyRequest<{ Params: { requestId: string } }>,
+    reply: FastifyReply
+  ): Promise<void> {
+    const user = request.authUser!;
+    reply.send({ data: await this.service.acceptCharacterLinkRequest(user.id, user.role, request.params.requestId) });
+  }
+
+  async dismissCharacterLinkRequest(
+    request: FastifyRequest<{ Params: { requestId: string } }>,
+    reply: FastifyReply
+  ): Promise<void> {
+    const user = request.authUser!;
+    await this.service.dismissCharacterLinkRequest(user.id, user.role, request.params.requestId);
+    reply.code(204).send();
   }
 
   async unlinkCharacter(request: FastifyRequest<{ Params: { linkId: string } }>, reply: FastifyReply): Promise<void> {

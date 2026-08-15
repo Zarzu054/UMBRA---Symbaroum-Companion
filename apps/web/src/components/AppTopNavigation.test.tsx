@@ -5,6 +5,7 @@ import { AppTopNavigation } from "./AppTopNavigation";
 
 describe("AppTopNavigation", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -16,7 +17,12 @@ describe("AppTopNavigation", () => {
     });
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    delete document.documentElement.dataset.characterSheetBackground;
+    document.documentElement.style.removeProperty("--character-sheet-background-image");
+    document.documentElement.style.removeProperty("--character-sheet-background-position");
+  });
 
   it("exposes the permitted modules and account preferences", async () => {
     const openCharacters = vi.fn();
@@ -45,7 +51,18 @@ describe("AppTopNavigation", () => {
     expect(within(navigationDialog).queryByRole("group", { name: "Tema de la interfaz" })).not.toBeInTheDocument();
     fireEvent.click(within(navigationDialog).getByRole("button", { name: "Personalización" }));
     expect(within(navigationDialog).getByRole("group", { name: "Tema de la interfaz" })).toBeInTheDocument();
-    expect(within(navigationDialog).getByRole("group", { name: "Fondo de pantalla" })).toBeInTheDocument();
+    const backgroundTrigger = within(navigationDialog).getByRole("button", { name: /Elegir fondo de pantalla/ });
+    fireEvent.click(backgroundTrigger);
+    const backgroundDialog = screen.getByRole("dialog", { name: /Elige una ilustraci/ });
+    const backgroundOption = within(backgroundDialog).getByRole("button", { name: /Ruinas del bosque/ });
+    fireEvent.pointerDown(backgroundOption);
+    fireEvent.click(backgroundOption);
+    expect(navigationDialog).toBeInTheDocument();
+    expect(backgroundDialog).toBeInTheDocument();
+    expect(backgroundOption).toHaveAttribute("aria-pressed", "true");
+    expect(window.localStorage.getItem("umbra:background")).toBe("forest-ruins");
+    fireEvent.click(within(backgroundDialog).getByRole("button", { name: "Aplicar y cerrar" }));
+    expect(screen.queryByRole("dialog", { name: /Elige una ilustraci/ })).not.toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() => expect(menuButton).toHaveFocus());
@@ -89,6 +106,6 @@ describe("AppTopNavigation", () => {
     expect(navigationDialog.querySelector('[role="group"][aria-label="Tema de la interfaz"]')).toBeNull();
     fireEvent.click(within(navigationDialog).getByRole("button", { name: "Personalización" }));
     expect(within(navigationDialog).getByRole("group", { name: "Tema de la interfaz" })).toBeInTheDocument();
-    expect(within(navigationDialog).getByRole("group", { name: "Fondo de pantalla" })).toBeInTheDocument();
+    expect(within(navigationDialog).getByRole("button", { name: /Elegir fondo de pantalla/ })).toBeInTheDocument();
   });
 });

@@ -2,6 +2,8 @@ import { Prisma } from "@prisma/client";
 import { createEmptyCharacterSheet, parseCharacterSheet, projectMysticArtifactsIntoSheet, synchronizeCharacterSheet, type Character, type CharacterSheet, type CreateCharacterInput, type OwnedMysticArtifact, type UpdateCharacterInput } from "@umbra/shared";
 import { prisma } from "../config/prisma.js";
 import { mapMysticArtifact, mysticArtifactInclude } from "./MysticArtifactModel.js";
+import { campaignItemInclude, mapCampaignItem } from "./CampaignItemModel.js";
+import { upsertCampaignInventoryItem } from "../utils/campaignItemInventory.js";
 import { buildCharacterChanges, getUnreadCharacterChangeCounts, recordCharacterChange, type CharacterAuditActor } from "./CharacterAuditModel.js";
 import { mapProfessionMembership, validateProfessionBenefitAcquisitionWithMemberships } from "./ProfessionModel.js";
 import { protectGrantedCharacterExperience } from "../services/characterExperiencePolicy.js";
@@ -10,6 +12,14 @@ const characterArtifactInclude = {
   professionMemberships: { orderBy: { createdAt: "asc" as const } },
   campaignLinks: {
     include: {
+      campaign: {
+        include: {
+          itemTemplates: {
+            include: campaignItemInclude,
+            orderBy: { updatedAt: "desc" as const }
+          }
+        }
+      },
       ownedMysticArtifacts: { include: mysticArtifactInclude },
       mysticArtifactBindings: {
         where: { paymentType: "xp" as const },
@@ -34,7 +44,13 @@ function mapRow(row: CharacterRow, unreadChangeCount = 0): Character {
   const mysticArtifacts = row.campaignLinks.flatMap((link) =>
     link.ownedMysticArtifacts.map((artifact) => mapMysticArtifact(artifact, { characterSheet: safeSheet, concealForOwner: true }) as OwnedMysticArtifact)
   );
-  const projectedSheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(safeSheet, mysticArtifacts));
+  const campaignLink = row.campaignLinks[0];
+  const withCampaignItems = campaignLink
+    ? campaignLink.campaign.itemTemplates
+      .filter((item) => item.isUnique && item.ownerCharacterId === campaignLink.id)
+      .reduce((current, item) => upsertCampaignInventoryItem(current, item.id, mapCampaignItem(item).definition, true), safeSheet)
+    : safeSheet;
+  const projectedSheet = synchronizeCharacterSheet(projectMysticArtifactsIntoSheet(withCampaignItems, mysticArtifacts));
 
   return {
     id: row.id,
@@ -56,6 +72,14 @@ function mapRow(row: CharacterRow, unreadChangeCount = 0): Character {
     })),
     unreadChangeCount,
     professionMemberships: row.professionMemberships.map((entry) => mapProfessionMembership(entry, projectedSheet)),
+    campaignContext: campaignLink ? {
+      campaignId: campaignLink.campaignId,
+      campaignName: campaignLink.campaign.name,
+      characterLinkId: campaignLink.id,
+      campaignItems: campaignLink.campaign.itemTemplates
+        .filter((item) => !item.archivedAt || (item.isUnique && item.ownerCharacterId === campaignLink.id))
+        .map(mapCampaignItem)
+    } : undefined,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()
   };

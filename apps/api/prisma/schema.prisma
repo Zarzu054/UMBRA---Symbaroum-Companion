@@ -113,35 +113,42 @@ enum MysticArtifactRequirementType {
   narrative
 }
 
+enum CampaignItemKind {
+  weapon
+  armor
+  item
+}
+
 model User {
-  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email               String             @unique
-  passwordHash        String             @map("password_hash")
-  mustChangePassword  Boolean            @default(false) @map("must_change_password")
-  role                UserRole           @default(player)
-  status              UserAccountStatus  @default(active)
-  deactivatedAt       DateTime?          @map("deactivated_at") @db.Timestamptz(6)
-  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  characters          Character[]
-  monsters            Monster[]
-  npcs                Npc[]
-  refreshTokens       RefreshToken[]
-  passwordResetTokens PasswordResetToken[]
-  gmCampaigns         Campaign[]         @relation("CampaignGm")
-  campaignMemberships CampaignMember[]
-  receivedCampaignInvitations CampaignInvitation[] @relation("CampaignInvitationRecipient")
-  sentCampaignInvitations CampaignInvitation[] @relation("CampaignInvitationSender")
-  campaignXpGrants    CampaignXpLog[]    @relation("CampaignXpGrantUser")
-  campaignChatMessages CampaignChatMessage[]
-  authoredCampaignReferences CampaignReference[] @relation("CampaignReferenceAuthor")
-  campaignReferenceShares CampaignReferenceShare[]
-  adminEventsAsActor   AdminAccountEvent[] @relation("AdminEventActor")
-  adminEventsAsTarget  AdminAccountEvent[] @relation("AdminEventTarget")
-  compendiumEntries    CompendiumUserEntry[]
-  characterChangesAsActor CharacterChangeEvent[] @relation("CharacterChangeActor")
-  characterChangeReceipts CharacterChangeReceipt[]
-  professionRequests CharacterProfessionMembership[] @relation("ProfessionRequestUser")
-  professionReviews CharacterProfessionMembership[] @relation("ProfessionReviewUser")
+  id                          String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                       String                          @unique
+  passwordHash                String                          @map("password_hash")
+  mustChangePassword          Boolean                         @default(false) @map("must_change_password")
+  role                        UserRole                        @default(player)
+  status                      UserAccountStatus               @default(active)
+  deactivatedAt               DateTime?                       @map("deactivated_at") @db.Timestamptz(6)
+  createdAt                   DateTime                        @default(now()) @map("created_at") @db.Timestamptz(6)
+  characters                  Character[]
+  monsters                    Monster[]
+  npcs                        Npc[]
+  refreshTokens               RefreshToken[]
+  passwordResetTokens         PasswordResetToken[]
+  gmCampaigns                 Campaign[]                      @relation("CampaignGm")
+  campaignMemberships         CampaignMember[]
+  receivedCampaignInvitations CampaignInvitation[]            @relation("CampaignInvitationRecipient")
+  sentCampaignInvitations     CampaignInvitation[]            @relation("CampaignInvitationSender")
+  sentCharacterLinkRequests   CampaignCharacterLinkRequest[]  @relation("CampaignCharacterLinkRequestSender")
+  campaignXpGrants            CampaignXpLog[]                 @relation("CampaignXpGrantUser")
+  campaignChatMessages        CampaignChatMessage[]
+  authoredCampaignReferences  CampaignReference[]             @relation("CampaignReferenceAuthor")
+  campaignReferenceShares     CampaignReferenceShare[]
+  adminEventsAsActor          AdminAccountEvent[]             @relation("AdminEventActor")
+  adminEventsAsTarget         AdminAccountEvent[]             @relation("AdminEventTarget")
+  compendiumEntries           CompendiumUserEntry[]
+  characterChangesAsActor     CharacterChangeEvent[]          @relation("CharacterChangeActor")
+  characterChangeReceipts     CharacterChangeReceipt[]
+  professionRequests          CharacterProfessionMembership[] @relation("ProfessionRequestUser")
+  professionReviews           CharacterProfessionMembership[] @relation("ProfessionReviewUser")
 
   @@index([status])
   @@map("users")
@@ -164,20 +171,20 @@ model CompendiumUserEntry {
 }
 
 model AdminAccountEvent {
-  id                        String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  actorId                   String                  @map("actor_id") @db.Uuid
-  targetUserId              String                  @map("target_user_id") @db.Uuid
-  targetEmail               String                  @map("target_email")
+  id                        String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId                   String                   @map("actor_id") @db.Uuid
+  targetUserId              String                   @map("target_user_id") @db.Uuid
+  targetEmail               String                   @map("target_email")
   action                    AdminAccountAction
   reason                    AdminDeactivationReason?
-  explanation               String                  @default("")
-  notificationStatus        AdminNotificationStatus @default(not_required) @map("notification_status")
-  notificationAttempts      Int                     @default(0) @map("notification_attempts")
-  notificationLastAttemptAt DateTime?               @map("notification_last_attempt_at") @db.Timestamptz(6)
-  notificationError         String                  @default("") @map("notification_error")
-  createdAt                 DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
-  actor                     User                    @relation("AdminEventActor", fields: [actorId], references: [id], onDelete: Restrict)
-  target                    User                    @relation("AdminEventTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+  explanation               String                   @default("")
+  notificationStatus        AdminNotificationStatus  @default(not_required) @map("notification_status")
+  notificationAttempts      Int                      @default(0) @map("notification_attempts")
+  notificationLastAttemptAt DateTime?                @map("notification_last_attempt_at") @db.Timestamptz(6)
+  notificationError         String                   @default("") @map("notification_error")
+  createdAt                 DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  actor                     User                     @relation("AdminEventActor", fields: [actorId], references: [id], onDelete: Restrict)
+  target                    User                     @relation("AdminEventTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
 
   @@index([targetUserId, createdAt])
   @@index([actorId])
@@ -186,24 +193,25 @@ model AdminAccountEvent {
 }
 
 model Character {
-  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ownerId           String              @map("owner_id") @db.Uuid
-  name              String
-  archetype         String
-  race              String
-  culture           String              @default("")
-  profession        String              @default("")
-  level             Int
-  sheet             Json                @default("{}")
-  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
-  owner             User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  campaignLinks     CampaignCharacter[]
-  campaignXpEntries CampaignXpLog[]
-  campaignChatEntries CampaignChatMessage[]
-  changeEvents       CharacterChangeEvent[]
-  changeReceipts     CharacterChangeReceipt[]
+  id                    String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId               String                          @map("owner_id") @db.Uuid
+  name                  String
+  archetype             String
+  race                  String
+  culture               String                          @default("")
+  profession            String                          @default("")
+  level                 Int
+  sheet                 Json                            @default("{}")
+  createdAt             DateTime                        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner                 User                            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  campaignLinks         CampaignCharacter[]
+  campaignXpEntries     CampaignXpLog[]
+  campaignChatEntries   CampaignChatMessage[]
+  changeEvents          CharacterChangeEvent[]
+  changeReceipts        CharacterChangeReceipt[]
   professionMemberships CharacterProfessionMembership[]
+  campaignLinkRequests  CampaignCharacterLinkRequest[]
 
   @@map("characters")
 }
@@ -223,23 +231,23 @@ model CampaignCombat {
 }
 
 model CharacterProfessionMembership {
-  id             String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  characterId    String                   @map("character_id") @db.Uuid
-  professionId   String                   @map("profession_id") @db.VarChar(120)
-  state          CharacterProfessionState @default(aspiration)
-  campaignId     String?                  @map("campaign_id") @db.Uuid
-  campaignName   String?                  @map("campaign_name") @db.VarChar(160)
-  requestedById  String?                  @map("requested_by_id") @db.Uuid
-  reviewedById   String?                  @map("reviewed_by_id") @db.Uuid
-  requestedAt    DateTime?                @map("requested_at") @db.Timestamptz(6)
-  reviewedAt     DateTime?                @map("reviewed_at") @db.Timestamptz(6)
-  decisionNote   String                   @default("") @map("decision_note") @db.VarChar(500)
-  createdAt      DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
-  character      Character                @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  campaign       Campaign?                @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  requestedBy    User?                    @relation("ProfessionRequestUser", fields: [requestedById], references: [id], onDelete: SetNull)
-  reviewedBy     User?                    @relation("ProfessionReviewUser", fields: [reviewedById], references: [id], onDelete: SetNull)
+  id            String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  characterId   String                   @map("character_id") @db.Uuid
+  professionId  String                   @map("profession_id") @db.VarChar(120)
+  state         CharacterProfessionState @default(aspiration)
+  campaignId    String?                  @map("campaign_id") @db.Uuid
+  campaignName  String?                  @map("campaign_name") @db.VarChar(160)
+  requestedById String?                  @map("requested_by_id") @db.Uuid
+  reviewedById  String?                  @map("reviewed_by_id") @db.Uuid
+  requestedAt   DateTime?                @map("requested_at") @db.Timestamptz(6)
+  reviewedAt    DateTime?                @map("reviewed_at") @db.Timestamptz(6)
+  decisionNote  String                   @default("") @map("decision_note") @db.VarChar(500)
+  createdAt     DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  character     Character                @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  campaign      Campaign?                @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  requestedBy   User?                    @relation("ProfessionRequestUser", fields: [requestedById], references: [id], onDelete: SetNull)
+  reviewedBy    User?                    @relation("ProfessionReviewUser", fields: [reviewedById], references: [id], onDelete: SetNull)
 
   @@unique([characterId, professionId])
   @@index([campaignId, state, requestedAt])
@@ -248,21 +256,21 @@ model CharacterProfessionMembership {
 }
 
 model CharacterChangeEvent {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  characterId    String   @map("character_id") @db.Uuid
-  actorId        String   @map("actor_id") @db.Uuid
-  actorEmail     String   @map("actor_email")
-  actorRole      UserRole @map("actor_role")
-  campaignId     String?  @map("campaign_id") @db.Uuid
-  campaignName   String?  @map("campaign_name")
-  source         String   @db.VarChar(80)
-  summary        String   @db.VarChar(300)
-  changes        Json     @default("[]")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  character      Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  actor          User      @relation("CharacterChangeActor", fields: [actorId], references: [id], onDelete: Restrict)
-  campaign       Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  receipts       CharacterChangeReceipt[]
+  id           String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  characterId  String                   @map("character_id") @db.Uuid
+  actorId      String                   @map("actor_id") @db.Uuid
+  actorEmail   String                   @map("actor_email")
+  actorRole    UserRole                 @map("actor_role")
+  campaignId   String?                  @map("campaign_id") @db.Uuid
+  campaignName String?                  @map("campaign_name")
+  source       String                   @db.VarChar(80)
+  summary      String                   @db.VarChar(300)
+  changes      Json                     @default("[]")
+  createdAt    DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  character    Character                @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  actor        User                     @relation("CharacterChangeActor", fields: [actorId], references: [id], onDelete: Restrict)
+  campaign     Campaign?                @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  receipts     CharacterChangeReceipt[]
 
   @@index([characterId, createdAt])
   @@index([campaignId, characterId, createdAt])
@@ -271,13 +279,13 @@ model CharacterChangeEvent {
 }
 
 model CharacterChangeReceipt {
-  eventId     String    @map("event_id") @db.Uuid
-  userId      String    @map("user_id") @db.Uuid
-  characterId String    @map("character_id") @db.Uuid
-  readAt      DateTime? @map("read_at") @db.Timestamptz(6)
+  eventId     String               @map("event_id") @db.Uuid
+  userId      String               @map("user_id") @db.Uuid
+  characterId String               @map("character_id") @db.Uuid
+  readAt      DateTime?            @map("read_at") @db.Timestamptz(6)
   event       CharacterChangeEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character   Character            @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
   @@id([eventId, userId])
   @@index([userId, characterId, readAt])
@@ -285,17 +293,17 @@ model CharacterChangeReceipt {
 }
 
 model Monster {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ownerId    String   @map("owner_id") @db.Uuid
-  name       String
-  category   String
-  threat     String
-  source     String   @default("")
-  summary    String   @default("")
-  sheet      Json     @default("{}")
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId   String   @map("owner_id") @db.Uuid
+  name      String
+  category  String
+  threat    String
+  source    String   @default("")
+  summary   String   @default("")
+  sheet     Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([ownerId])
   @@map("monsters")
@@ -351,28 +359,30 @@ model PasswordResetToken {
 }
 
 model Campaign {
-  id           String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gmId         String              @map("gm_id") @db.Uuid
-  name         String
-  summary      String              @default("")
-  setting      String              @default("")
-  notes        String              @default("")
-  sharedNotes  String              @default("") @map("shared_notes")
-  createdAt    DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
-  gm           User                @relation("CampaignGm", fields: [gmId], references: [id], onDelete: Cascade)
-  members      CampaignMember[]
-  invitations  CampaignInvitation[]
-  characters   CampaignCharacter[]
-  npcs         CampaignNpc[]
-  experienceLog CampaignXpLog[]
-  sessions     CampaignSession[]
-  references   CampaignReference[]
-  chatMessages CampaignChatMessage[]
-  mysticArtifacts MysticArtifact[]
+  id                    String                          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gmId                  String                          @map("gm_id") @db.Uuid
+  name                  String
+  summary               String                          @default("")
+  setting               String                          @default("")
+  notes                 String                          @default("")
+  sharedNotes           String                          @default("") @map("shared_notes")
+  createdAt             DateTime                        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  gm                    User                            @relation("CampaignGm", fields: [gmId], references: [id], onDelete: Cascade)
+  members               CampaignMember[]
+  invitations           CampaignInvitation[]
+  characterLinkRequests CampaignCharacterLinkRequest[]
+  characters            CampaignCharacter[]
+  npcs                  CampaignNpc[]
+  experienceLog         CampaignXpLog[]
+  sessions              CampaignSession[]
+  references            CampaignReference[]
+  chatMessages          CampaignChatMessage[]
+  mysticArtifacts       MysticArtifact[]
+  itemTemplates         CampaignItemTemplate[]
   characterChangeEvents CharacterChangeEvent[]
   professionMemberships CharacterProfessionMembership[]
-  combat       CampaignCombat?
+  combat                CampaignCombat?
 
   @@index([gmId])
   @@map("campaigns")
@@ -409,15 +419,33 @@ model CampaignInvitation {
   @@map("campaign_invitations")
 }
 
+model CampaignCharacterLinkRequest {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId    String    @map("campaign_id") @db.Uuid
+  characterId   String    @map("character_id") @db.Uuid
+  requestedById String    @map("requested_by_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  campaign      Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  character     Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  requestedBy   User      @relation("CampaignCharacterLinkRequestSender", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, characterId])
+  @@index([characterId, createdAt])
+  @@index([requestedById])
+  @@map("campaign_character_link_requests")
+}
+
 model CampaignCharacter {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  campaignId  String    @map("campaign_id") @db.Uuid
-  characterId String    @map("character_id") @db.Uuid
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  ownedMysticArtifacts MysticArtifact[] @relation("MysticArtifactCharacterOwner")
+  id                     String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId             String                  @map("campaign_id") @db.Uuid
+  characterId            String                  @map("character_id") @db.Uuid
+  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  campaign               Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  character              Character               @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  ownedMysticArtifacts   MysticArtifact[]        @relation("MysticArtifactCharacterOwner")
   mysticArtifactBindings MysticArtifactBinding[] @relation("MysticArtifactBindingCharacter")
+  ownedUniqueItems       CampaignItemTemplate[]  @relation("CampaignItemCharacterOwner")
 
   @@unique([campaignId, characterId])
   @@unique([characterId])
@@ -425,61 +453,83 @@ model CampaignCharacter {
 }
 
 model CampaignNpc {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  campaignId String   @map("campaign_id") @db.Uuid
-  name       String
-  race       String   @default("")
-  archetype  String   @default("")
-  occupation String   @default("")
-  threat     String   @default("")
-  summary    String   @default("")
-  notes      String   @default("")
-  statBlock  String   @default("") @map("stat_block")
-  sheet      Json?
-  isGenerated Boolean @default(false) @map("is_generated")
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  ownedMysticArtifacts MysticArtifact[] @relation("MysticArtifactNpcOwner")
+  id                     String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId             String                  @map("campaign_id") @db.Uuid
+  name                   String
+  race                   String                  @default("")
+  archetype              String                  @default("")
+  occupation             String                  @default("")
+  threat                 String                  @default("")
+  summary                String                  @default("")
+  notes                  String                  @default("")
+  statBlock              String                  @default("") @map("stat_block")
+  sheet                  Json?
+  isGenerated            Boolean                 @default(false) @map("is_generated")
+  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  campaign               Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  ownedMysticArtifacts   MysticArtifact[]        @relation("MysticArtifactNpcOwner")
   mysticArtifactBindings MysticArtifactBinding[] @relation("MysticArtifactBindingNpc")
+  ownedUniqueItems       CampaignItemTemplate[]  @relation("CampaignItemNpcOwner")
 
   @@index([campaignId])
   @@map("campaign_npcs")
 }
 
+model CampaignItemTemplate {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId       String             @map("campaign_id") @db.Uuid
+  kind             CampaignItemKind
+  definition       Json
+  isUnique         Boolean            @default(false) @map("is_unique")
+  ownerCharacterId String?            @map("owner_character_id") @db.Uuid
+  ownerNpcId       String?            @map("owner_npc_id") @db.Uuid
+  archivedAt       DateTime?          @map("archived_at") @db.Timestamptz(6)
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  campaign         Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  ownerCharacter   CampaignCharacter? @relation("CampaignItemCharacterOwner", fields: [ownerCharacterId], references: [id], onDelete: SetNull)
+  ownerNpc         CampaignNpc?       @relation("CampaignItemNpcOwner", fields: [ownerNpcId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId, kind, archivedAt])
+  @@index([ownerCharacterId])
+  @@index([ownerNpcId])
+  @@map("campaign_item_templates")
+}
+
 model MysticArtifact {
-  id                    String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  scope                 MysticArtifactScope
-  campaignId            String?             @map("campaign_id") @db.Uuid
-  presetSourceId        String?             @map("preset_source_id") @db.Uuid
-  slug                  String?             @unique @db.VarChar(200)
-  name                  String              @db.VarChar(160)
-  description           String              @default("") @db.Text
-  kind                  MysticArtifactKind  @default(object)
-  sourceTitle           String              @default("") @map("source_title") @db.VarChar(200)
-  sourcePage            Int?                @map("source_page")
-  weaponAttackAttribute String?             @map("weapon_attack_attribute") @db.VarChar(40)
-  weaponAttackFormula   String              @default("1d20") @map("weapon_attack_formula") @db.VarChar(80)
-  weaponDamageFormula   String              @default("") @map("weapon_damage_formula") @db.VarChar(80)
-  weaponTags            Json                @default("[]") @map("weapon_tags")
-  weaponQualities       Json                @default("[]") @map("weapon_qualities")
-  weaponRequiresBinding Boolean             @default(true) @map("weapon_requires_binding")
-  armorProtectionFormula String             @default("") @map("armor_protection_formula") @db.VarChar(80)
-  armorQualities        Json                @default("[]") @map("armor_qualities")
-  armorRequiresBinding  Boolean             @default(true) @map("armor_requires_binding")
-  ownerCharacterId      String?             @map("owner_character_id") @db.Uuid
-  ownerNpcId            String?             @map("owner_npc_id") @db.Uuid
-  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
-  campaign              Campaign?           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  presetSource          MysticArtifact?     @relation("MysticArtifactPresetCopies", fields: [presetSourceId], references: [id], onDelete: SetNull)
-  copies                MysticArtifact[]    @relation("MysticArtifactPresetCopies")
-  ownerCharacter        CampaignCharacter?  @relation("MysticArtifactCharacterOwner", fields: [ownerCharacterId], references: [id], onDelete: Restrict)
-  ownerNpc              CampaignNpc?        @relation("MysticArtifactNpcOwner", fields: [ownerNpcId], references: [id], onDelete: Restrict)
-  bindingCosts          MysticArtifactBindingCost[]
-  abilities             MysticArtifactAbility[]
-  resources             MysticArtifactResource[]
-  bindings              MysticArtifactBinding[]
+  id                     String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scope                  MysticArtifactScope
+  campaignId             String?                     @map("campaign_id") @db.Uuid
+  presetSourceId         String?                     @map("preset_source_id") @db.Uuid
+  slug                   String?                     @unique @db.VarChar(200)
+  name                   String                      @db.VarChar(160)
+  description            String                      @default("") @db.Text
+  kind                   MysticArtifactKind          @default(object)
+  sourceTitle            String                      @default("") @map("source_title") @db.VarChar(200)
+  sourcePage             Int?                        @map("source_page")
+  weaponAttackAttribute  String?                     @map("weapon_attack_attribute") @db.VarChar(40)
+  weaponAttackFormula    String                      @default("1d20") @map("weapon_attack_formula") @db.VarChar(80)
+  weaponDamageFormula    String                      @default("") @map("weapon_damage_formula") @db.VarChar(80)
+  weaponTags             Json                        @default("[]") @map("weapon_tags")
+  weaponQualities        Json                        @default("[]") @map("weapon_qualities")
+  weaponRequiresBinding  Boolean                     @default(true) @map("weapon_requires_binding")
+  armorProtectionFormula String                      @default("") @map("armor_protection_formula") @db.VarChar(80)
+  armorQualities         Json                        @default("[]") @map("armor_qualities")
+  armorRequiresBinding   Boolean                     @default(true) @map("armor_requires_binding")
+  ownerCharacterId       String?                     @map("owner_character_id") @db.Uuid
+  ownerNpcId             String?                     @map("owner_npc_id") @db.Uuid
+  createdAt              DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  campaign               Campaign?                   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  presetSource           MysticArtifact?             @relation("MysticArtifactPresetCopies", fields: [presetSourceId], references: [id], onDelete: SetNull)
+  copies                 MysticArtifact[]            @relation("MysticArtifactPresetCopies")
+  ownerCharacter         CampaignCharacter?          @relation("MysticArtifactCharacterOwner", fields: [ownerCharacterId], references: [id], onDelete: Restrict)
+  ownerNpc               CampaignNpc?                @relation("MysticArtifactNpcOwner", fields: [ownerNpcId], references: [id], onDelete: Restrict)
+  bindingCosts           MysticArtifactBindingCost[]
+  abilities              MysticArtifactAbility[]
+  resources              MysticArtifactResource[]
+  bindings               MysticArtifactBinding[]
 
   @@index([scope, sourceTitle])
   @@index([campaignId])
@@ -500,18 +550,18 @@ model MysticArtifactBindingCost {
 }
 
 model MysticArtifactAbility {
-  id                String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  artifactId        String                   @map("artifact_id") @db.Uuid
-  name              String                   @db.VarChar(160)
-  description       String                   @default("") @db.Text
-  activation        MysticArtifactActivation @default(active)
-  actionCost        String?                  @map("action_cost") @db.VarChar(40)
-  corruptionFormula String                   @default("") @map("corruption_formula") @db.VarChar(80)
-  requiresBinding   Boolean                  @default(true) @map("requires_binding")
-  perSceneLimit     Int?                     @map("per_scene_limit")
-  perSceneNote      String                   @default("") @map("per_scene_note") @db.VarChar(300)
-  sortOrder         Int                      @default(0) @map("sort_order")
-  artifact          MysticArtifact           @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  id                String                              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  artifactId        String                              @map("artifact_id") @db.Uuid
+  name              String                              @db.VarChar(160)
+  description       String                              @default("") @db.Text
+  activation        MysticArtifactActivation            @default(active)
+  actionCost        String?                             @map("action_cost") @db.VarChar(40)
+  corruptionFormula String                              @default("") @map("corruption_formula") @db.VarChar(80)
+  requiresBinding   Boolean                             @default(true) @map("requires_binding")
+  perSceneLimit     Int?                                @map("per_scene_limit")
+  perSceneNote      String                              @default("") @map("per_scene_note") @db.VarChar(300)
+  sortOrder         Int                                 @default(0) @map("sort_order")
+  artifact          MysticArtifact                      @relation(fields: [artifactId], references: [id], onDelete: Cascade)
   rolls             MysticArtifactAbilityRoll[]
   requirements      MysticArtifactAbilityRequirement[]
   resourceCosts     MysticArtifactAbilityResourceCost[]
@@ -537,28 +587,28 @@ model MysticArtifactAbilityRoll {
 }
 
 model MysticArtifactAbilityRequirement {
-  id             String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  abilityId      String                         @map("ability_id") @db.Uuid
+  id             String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  abilityId      String                        @map("ability_id") @db.Uuid
   type           MysticArtifactRequirementType
-  capabilityName String                         @default("") @map("capability_name") @db.VarChar(160)
-  minimumLevel   String?                        @map("minimum_level") @db.VarChar(40)
-  description    String                         @default("") @db.VarChar(400)
-  ability        MysticArtifactAbility          @relation(fields: [abilityId], references: [id], onDelete: Cascade)
+  capabilityName String                        @default("") @map("capability_name") @db.VarChar(160)
+  minimumLevel   String?                       @map("minimum_level") @db.VarChar(40)
+  description    String                        @default("") @db.VarChar(400)
+  ability        MysticArtifactAbility         @relation(fields: [abilityId], references: [id], onDelete: Cascade)
 
   @@index([abilityId])
   @@map("mystic_artifact_ability_requirements")
 }
 
 model MysticArtifactResource {
-  id                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  artifactId          String         @map("artifact_id") @db.Uuid
-  key                 String         @db.VarChar(120)
-  name                String         @db.VarChar(160)
-  suggestedMaxFormula String         @default("") @map("suggested_max_formula") @db.VarChar(80)
+  id                  String                              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  artifactId          String                              @map("artifact_id") @db.Uuid
+  key                 String                              @db.VarChar(120)
+  name                String                              @db.VarChar(160)
+  suggestedMaxFormula String                              @default("") @map("suggested_max_formula") @db.VarChar(80)
   maximum             Int?
   current             Int?
-  sortOrder           Int            @default(0) @map("sort_order")
-  artifact            MysticArtifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  sortOrder           Int                                 @default(0) @map("sort_order")
+  artifact            MysticArtifact                      @relation(fields: [artifactId], references: [id], onDelete: Cascade)
   abilityCosts        MysticArtifactAbilityResourceCost[]
 
   @@unique([artifactId, key])
@@ -567,11 +617,11 @@ model MysticArtifactResource {
 }
 
 model MysticArtifactAbilityResourceCost {
-  abilityId String                        @map("ability_id") @db.Uuid
-  resourceId String                       @map("resource_id") @db.Uuid
-  amount     Int                          @default(1)
-  ability    MysticArtifactAbility        @relation(fields: [abilityId], references: [id], onDelete: Cascade)
-  resource   MysticArtifactResource       @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  abilityId  String                 @map("ability_id") @db.Uuid
+  resourceId String                 @map("resource_id") @db.Uuid
+  amount     Int                    @default(1)
+  ability    MysticArtifactAbility  @relation(fields: [abilityId], references: [id], onDelete: Cascade)
+  resource   MysticArtifactResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 
   @@id([abilityId, resourceId])
   @@map("mystic_artifact_ability_resource_costs")
@@ -597,22 +647,22 @@ model MysticArtifactBinding {
 }
 
 model CampaignChatMessage {
-  id           String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  campaignId   String                  @map("campaign_id") @db.Uuid
-  userId       String                  @map("user_id") @db.Uuid
-  characterId  String?                 @map("character_id") @db.Uuid
-  visibility   CampaignChatVisibility  @default(all)
-  messageType  CampaignChatMessageType @default(text) @map("message_type")
-  text         String                  @default("")
-  actionId     String?                 @map("action_id")
-  actionLabel  String?                 @map("action_label")
-  actionCost   String?                 @map("action_cost")
-  actionSummary String?                @map("action_summary")
-  rolls        Json                    @default("[]")
-  createdAt    DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
-  campaign     Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  character    Character?              @relation(fields: [characterId], references: [id], onDelete: SetNull)
+  id            String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId    String                  @map("campaign_id") @db.Uuid
+  userId        String                  @map("user_id") @db.Uuid
+  characterId   String?                 @map("character_id") @db.Uuid
+  visibility    CampaignChatVisibility  @default(all)
+  messageType   CampaignChatMessageType @default(text) @map("message_type")
+  text          String                  @default("")
+  actionId      String?                 @map("action_id")
+  actionLabel   String?                 @map("action_label")
+  actionCost    String?                 @map("action_cost")
+  actionSummary String?                 @map("action_summary")
+  rolls         Json                    @default("[]")
+  createdAt     DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  campaign      Campaign                @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user          User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  character     Character?              @relation(fields: [characterId], references: [id], onDelete: SetNull)
 
   @@index([campaignId, createdAt])
   @@index([userId])
@@ -621,18 +671,18 @@ model CampaignChatMessage {
 }
 
 model CampaignXpLog {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  campaignId  String    @map("campaign_id") @db.Uuid
-  sessionId   String?   @map("session_id") @db.Uuid
-  characterId String    @map("character_id") @db.Uuid
-  grantedById String    @map("granted_by_id") @db.Uuid
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId  String           @map("campaign_id") @db.Uuid
+  sessionId   String?          @map("session_id") @db.Uuid
+  characterId String           @map("character_id") @db.Uuid
+  grantedById String           @map("granted_by_id") @db.Uuid
   amount      Int
   reason      String
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  campaign    Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   session     CampaignSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  grantedBy   User      @relation("CampaignXpGrantUser", fields: [grantedById], references: [id], onDelete: Cascade)
+  character   Character        @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  grantedBy   User             @relation("CampaignXpGrantUser", fields: [grantedById], references: [id], onDelete: Cascade)
 
   @@index([campaignId])
   @@index([sessionId])
@@ -662,19 +712,19 @@ model CampaignSession {
 }
 
 model CampaignReference {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  campaignId String   @map("campaign_id") @db.Uuid
-  authorId   String   @map("author_id") @db.Uuid
+  id         String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  campaignId String                      @map("campaign_id") @db.Uuid
+  authorId   String                      @map("author_id") @db.Uuid
   name       String
   label      String
-  aliases    Json     @default("[]")
-  summary    String   @default("")
-  content    String   @default("")
+  aliases    Json                        @default("[]")
+  summary    String                      @default("")
+  content    String                      @default("")
   visibility CampaignReferenceVisibility @default(gm_only)
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  author     User     @relation("CampaignReferenceAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt  DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  campaign   Campaign                    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  author     User                        @relation("CampaignReferenceAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   sharedWith CampaignReferenceShare[]
 
   @@index([campaignId])

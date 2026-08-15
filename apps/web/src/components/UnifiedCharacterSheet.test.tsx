@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createEmptyCharacterSheet } from "@umbra/shared";
+import { createEmptyCharacterSheet, type CampaignItemTemplate } from "@umbra/shared";
 import { UnifiedCharacterSheet } from "./UnifiedCharacterSheet";
 
 describe("UnifiedCharacterSheet mobile navigation", () => {
@@ -665,6 +665,62 @@ describe("UnifiedCharacterSheet weapon catalog", () => {
       "Escudo de acero1d4",
       "Rodela1d4"
     ]);
+  });
+
+  it("shows unique campaign pieces as informative and reserves custom editors for the DJ", () => {
+    const sheet = createEmptyCharacterSheet();
+    const campaignItem: CampaignItemTemplate = {
+      id: "11111111-1111-4111-8111-111111111111",
+      campaignId: "22222222-2222-4222-8222-222222222222",
+      kind: "weapon",
+      definition: {
+        name: "Espada de la Reina",
+        category: "weapon",
+        stackable: false,
+        description: "Una hoja con nombre propio.",
+        weight: "1",
+        value: "Incalculable",
+        defaultQuantity: 1,
+        defaultSlot: "mainHand",
+        attackAttribute: "diestro",
+        damageFormula: "1d10",
+        protectionFormula: "",
+        qualities: "Precisa",
+        notes: "",
+        grantedActions: [],
+        modifiers: []
+      },
+      isUnique: true,
+      ownerType: "character",
+      ownerId: "33333333-3333-4333-8333-333333333333",
+      ownerName: "Arold",
+      archivedAt: null,
+      createdAt: "2026-08-15T12:00:00.000Z",
+      updatedAt: "2026-08-15T12:00:00.000Z"
+    };
+    const { unmount } = render(
+      <UnifiedCharacterSheet title="Inventario" sheet={sheet} editable campaignItems={[campaignItem]} />
+    );
+
+    const mobileTabs = screen.getByRole("navigation", { name: "Secciones de la ficha" });
+    fireEvent.click(within(mobileTabs).getByRole("button", { name: "Inventario" }));
+    fireEvent.click(screen.getByRole("button", { name: "Armas" }));
+    expect(screen.queryByRole("button", { name: "Arma personalizada" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Agregar arma" }));
+    const modal = screen.getByRole("heading", { name: "Agregar arma" }).closest(".modal-panel") as HTMLElement;
+    fireEvent.change(within(modal).getByRole("combobox", { name: "Buscar arma" }), { target: { value: "Espada de la Reina" } });
+    fireEvent.click(within(modal).getByRole("option", { name: /Espada de la Reina/ }));
+    expect(within(modal).getByText("Pieza única")).toBeInTheDocument();
+    expect(within(modal).getByText("Poseedor: Arold")).toBeInTheDocument();
+    expect(within(modal).getByRole("button", { name: "Solo el DJ puede asignarlo" })).toBeDisabled();
+
+    unmount();
+    render(
+      <UnifiedCharacterSheet title="Inventario DJ" sheet={sheet} editable campaignItems={[campaignItem]} canManageCampaignItems />
+    );
+    fireEvent.click(within(screen.getByRole("navigation", { name: "Secciones de la ficha" })).getByRole("button", { name: "Inventario" }));
+    fireEvent.click(screen.getByRole("button", { name: "Armas" }));
+    expect(screen.getByRole("button", { name: "Arma personalizada" })).toBeInTheDocument();
   });
 
   it("uses icon filters and a text-searchable armor selector with the full catalog", () => {

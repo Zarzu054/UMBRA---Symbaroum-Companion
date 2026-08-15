@@ -15,6 +15,8 @@ export function AppearancePopover({ compact = false }) {
         if (!isOpen)
             return;
         const handleKeyDown = (event) => {
+            if (document.querySelector(".character-sheet-background-dialog"))
+                return;
             if (event.key === "Escape") {
                 event.preventDefault();
                 closeAndRestoreFocus();
@@ -38,6 +40,8 @@ export function AppearancePopover({ compact = false }) {
         };
         const handlePointerDown = (event) => {
             const target = event.target;
+            if (target instanceof Element && target.closest(".character-sheet-background-backdrop"))
+                return;
             if (panelRef.current?.contains(target) || triggerRef.current?.contains(target))
                 return;
             setIsOpen(false);

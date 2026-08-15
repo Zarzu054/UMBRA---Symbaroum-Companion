@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import {
   getDerivedMonsterSheetStats,
   MONSTER_ATTRIBUTE_KEYS,
@@ -21,6 +21,22 @@ type Props = {
 
 type MonsterTableViewModel = Pick<Monster, "name" | "category" | "threat" | "source" | "summary" | "sheet">;
 type MonsterModuleTab = "codex" | "custom";
+
+export const MONSTER_CATALOG_SPLIT_STORAGE_KEY = "umbra:monster-catalog-split";
+
+export function clampMonsterCatalogSplit(value: number): number {
+  return Math.min(75, Math.max(25, Math.round(value)));
+}
+
+function readMonsterCatalogSplit(): number {
+  if (typeof window === "undefined") return 50;
+  try {
+    const stored = Number(window.localStorage.getItem(MONSTER_CATALOG_SPLIT_STORAGE_KEY));
+    return Number.isFinite(stored) && stored > 0 ? clampMonsterCatalogSplit(stored) : 50;
+  } catch {
+    return 50;
+  }
+}
 
 function normalizeSearchValue(value: string): string {
   return value
@@ -656,6 +672,10 @@ export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
   const lastTriggerRef = useRef<HTMLButtonElement | null>(null);
   const filtersTriggerRef = useRef<HTMLButtonElement | null>(null);
   const filtersSearchRef = useRef<HTMLInputElement | null>(null);
+  const workspaceRef = useRef<HTMLElement | null>(null);
+  const splitPercentRef = useRef(readMonsterCatalogSplit());
+  const [splitPercent, setSplitPercent] = useState(splitPercentRef.current);
+  const [isResizing, setIsResizing] = useState(false);
   const isNarrow = useNarrowMonsterLayout();
   const selectedId = activeTab === "codex" ? controller.selectedCodexId : customDetailId;
   useBodyScrollLock(isFiltersOpen || (isNarrow && Boolean(selectedId)));
@@ -700,6 +720,67 @@ export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [isFiltersOpen]);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const handlePointerMove = (event: PointerEvent) => {
+      event.preventDefault();
+      resizeCatalogFromClientX(event.clientX);
+    };
+    const finishResize = () => {
+      setIsResizing(false);
+      persistCatalogSplit(splitPercentRef.current);
+    };
+    document.body.classList.add("is-resizing-monster-catalog");
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", finishResize, { once: true });
+    window.addEventListener("pointercancel", finishResize, { once: true });
+    return () => {
+      document.body.classList.remove("is-resizing-monster-catalog");
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", finishResize);
+      window.removeEventListener("pointercancel", finishResize);
+    };
+  }, [isResizing]);
+
+  function persistCatalogSplit(value: number): void {
+    try {
+      window.localStorage.setItem(MONSTER_CATALOG_SPLIT_STORAGE_KEY, String(value));
+    } catch {
+      // The selected proportion remains active for this session when storage is unavailable.
+    }
+  }
+
+  function applyCatalogSplit(value: number, persist = false): void {
+    const next = clampMonsterCatalogSplit(value);
+    splitPercentRef.current = next;
+    setSplitPercent(next);
+    if (persist) persistCatalogSplit(next);
+  }
+
+  function resizeCatalogFromClientX(clientX: number): void {
+    const bounds = workspaceRef.current?.getBoundingClientRect();
+    if (!bounds || bounds.width <= 0) return;
+    applyCatalogSplit(((clientX - bounds.left) / bounds.width) * 100);
+  }
+
+  function startCatalogResize(event: ReactPointerEvent<HTMLDivElement>): void {
+    if (isNarrow) return;
+    event.preventDefault();
+    resizeCatalogFromClientX(event.clientX);
+    setIsResizing(true);
+  }
+
+  function handleCatalogSplitterKeyDown(event: ReactKeyboardEvent<HTMLDivElement>): void {
+    let next = splitPercentRef.current;
+    if (event.key === "ArrowLeft") next -= 5;
+    else if (event.key === "ArrowRight") next += 5;
+    else if (event.key === "Home") next = 25;
+    else if (event.key === "End") next = 75;
+    else return;
+    event.preventDefault();
+    applyCatalogSplit(next, true);
+  }
 
   function closeSheet(): void {
     if (activeTab === "codex") controller.setSelectedCodexId("");
@@ -764,7 +845,11 @@ export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
 
   return (
     <div className="monster-module monster-catalog-module">
-      <section className="panel monster-catalog-workspace">
+      <section
+        ref={workspaceRef}
+        className={`panel monster-catalog-workspace${isResizing ? " is-resizing" : ""}`}
+        style={{ gridTemplateColumns: `${splitPercent}fr 10px ${100 - splitPercent}fr` }}
+      >
         <aside className="monster-catalog-list-pane" aria-label="Listado de monstruos">
           <nav className="monster-catalog-tabs" aria-label="Secciones del módulo de monstruos">
             <button type="button" className={activeTab === "codex" ? "is-active" : ""} aria-pressed={activeTab === "codex"} onClick={() => changeTab("codex")}>Catálogo oficial</button>
@@ -806,6 +891,23 @@ export function MonsterDashboardView({ user, ensureAccessToken }: Props) {
             }) : <div className="monster-catalog-empty"><strong>No hay coincidencias.</strong><p>Ajusta la búsqueda o limpia algún filtro.</p></div>}
           </div>
         </aside>
+
+        <div
+          className="monster-catalog-splitter"
+          role="separator"
+          aria-label="Ajustar ancho del catálogo y la ficha"
+          aria-orientation="vertical"
+          aria-valuemin={25}
+          aria-valuemax={75}
+          aria-valuenow={splitPercent}
+          aria-valuetext={`Catálogo ${splitPercent}%, ficha ${100 - splitPercent}%`}
+          tabIndex={0}
+          title="Arrastra para ajustar el ancho. También puedes usar las flechas."
+          onPointerDown={startCatalogResize}
+          onKeyDown={handleCatalogSplitterKeyDown}
+        >
+          <span aria-hidden="true" />
+        </div>
 
         <div className={`monster-catalog-detail-pane${selectedMonster ? " is-open" : ""}`}>
           {selectedMonster ? (
