@@ -6887,6 +6887,29 @@ button[disabled] {
 
 /* Mobile navigation refinements shared by character, campaign and compendium views. */
 @media (width <= 900px) {
+  .character-actions-page,
+  .character-builder-page,
+  .character-builder-shell,
+  .character-builder-sticky-controls,
+  .character-builder-header-band,
+  .character-builder-stage,
+  .character-builder-layout,
+  .character-builder-panel {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .module-theme .character-builder-shell.campaign-sheet-card {
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+
+  .character-builder-sticky-controls {
+    overflow-x: clip;
+  }
+
   .campaign-module-header .campaign-header-actions {
     overflow-x: visible;
     scrollbar-width: none;
@@ -6932,8 +6955,14 @@ button[disabled] {
   }
 
   .character-builder-header-band.is-mobile-back-hidden {
-    grid-template-columns: 52px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto;
+  }
+
+  .character-builder-header-band.is-mobile-back-hidden .character-builder-identity {
+    grid-column: 1;
+    width: 100%;
+    min-width: 0;
   }
 
   .character-builder-header-band.is-mobile-back-hidden .character-builder-toolbar.is-mobile-two-actions {
@@ -6954,6 +6983,9 @@ button[disabled] {
   }
 
   .character-builder-sticky-controls > .character-builder-tabs {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     display: flex;
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -6961,7 +6993,17 @@ button[disabled] {
     overscroll-behavior-x: contain;
     scrollbar-width: thin;
     touch-action: pan-x;
+    contain: inline-size;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .character-builder-sticky-controls > .character-builder-tabs button {
+    flex: 0 0 auto;
+  }
+
+  .character-builder-panel > .row-actions {
+    min-width: 0;
+    flex-wrap: wrap;
   }
 
   .unified-sheet-actions-heading {
