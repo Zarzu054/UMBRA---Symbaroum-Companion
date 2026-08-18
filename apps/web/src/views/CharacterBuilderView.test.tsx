@@ -103,6 +103,8 @@ it("hides only the main builder back action on mobile and keeps the two controls
   expect(mobileBuilderStyles).toContain("overflow-x: clip");
   expect(mobileBuilderStyles).toContain("contain: inline-size");
   expect(mobileBuilderStyles).toContain("flex: 0 0 auto");
+  expect(mobileBuilderStyles).toContain("minmax(0, 0.86fr) minmax(0, 1.14fr)");
+  expect(mobileBuilderStyles).toContain("font-size: clamp(0.68rem, 3.25vw, 0.82rem)");
 
   view.unmount();
   installMatchMedia(false);
