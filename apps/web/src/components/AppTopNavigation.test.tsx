@@ -104,8 +104,6 @@ describe("AppTopNavigation", () => {
     const navigationDialog = screen.getByRole("dialog", { name: "Navegación y preferencias" });
     expect(navigationDialog).toBeInTheDocument();
     expect(navigationDialog.querySelector('[role="group"][aria-label="Tema de la interfaz"]')).toBeNull();
-    fireEvent.click(within(navigationDialog).getByRole("button", { name: "Personalización" }));
-    expect(within(navigationDialog).getByRole("group", { name: "Tema de la interfaz" })).toBeInTheDocument();
-    expect(within(navigationDialog).getByRole("button", { name: /Elegir fondo de pantalla/ })).toBeInTheDocument();
+    expect(within(navigationDialog).queryByRole("button", { name: "Personalización" })).not.toBeInTheDocument();
   });
 });

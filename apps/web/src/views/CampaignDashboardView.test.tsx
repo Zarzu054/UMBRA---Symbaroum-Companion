@@ -45,6 +45,24 @@ vi.mock("../services/mysticArtifactService", () => artifactServiceMocks);
 
 import { CampaignDashboardView } from "./CampaignDashboardView";
 
+const originalMatchMedia = window.matchMedia;
+
+function installMatchMedia(matches: boolean): void {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(max-width: 900px)" ? matches : false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn()
+    }))
+  });
+}
+
+afterEach(() => {
+  Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
+});
+
 const gm: AuthUser = {
   id: "gm-a",
   email: "gm@example.com",
@@ -692,6 +710,53 @@ describe("CampaignDashboardView experience grants", () => {
     await screen.findByRole("heading", { name: "Personajes vinculados" });
     const characterCard = screen.getByRole("article", { name: "Personaje Alda" });
     expect(within(characterCard).getByRole("button", { name: "Historial de cambios de Alda" })).toBeInTheDocument();
+  });
+
+  it("simplifies player character actions on mobile according to ownership", async () => {
+    installMatchMedia(true);
+    const campaign = buildCampaign();
+    const otherSheet = createEmptyCharacterSheet();
+    otherSheet.identidad.nombrePersonaje = "Beremo";
+    campaign.members.push({
+      id: "member-player-a",
+      userId: player.id,
+      email: player.email,
+      role: "player",
+      joinedAt: new Date(0).toISOString()
+    });
+    campaign.characters.push({
+      ...campaign.characters[0],
+      id: "link-b",
+      characterId: "00000000-0000-4000-8000-000000000002",
+      name: "Beremo",
+      ownerId: "player-b",
+      ownerEmail: "beremo@example.com",
+      sheet: otherSheet
+    });
+    serviceMocks.fetchCampaigns.mockResolvedValue([campaign]);
+
+    render(<CampaignDashboardView user={player} ensureAccessToken={vi.fn().mockResolvedValue("token-player")} />);
+
+    await screen.findByRole("heading", { name: "Personajes vinculados" });
+    expect(screen.getByRole("button", { name: "Volver" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Volver a campañas" })).not.toBeInTheDocument();
+
+    const ownedCard = screen.getByRole("article", { name: "Personaje Alda" });
+    expect(within(ownedCard).getByRole("button", { name: "Historial de cambios de Alda" })).toBeInTheDocument();
+    const ownedMoreActions = ownedCard.querySelector("summary");
+    expect(ownedMoreActions).toHaveTextContent("Más acciones");
+    fireEvent.click(ownedMoreActions!);
+    expect(within(ownedCard).getByRole("button", { name: "Historial de PX" })).toBeInTheDocument();
+    expect(within(ownedCard).getByRole("button", { name: "Desvincular" })).toBeInTheDocument();
+
+    const otherCard = screen.getByRole("article", { name: "Personaje Beremo" });
+    expect(within(otherCard).getByRole("button", { name: "Historial de PX" })).toBeInTheDocument();
+    expect(otherCard.querySelector("summary")).not.toBeInTheDocument();
+    expect(within(otherCard).queryByRole("button", { name: /Historial de cambios/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Volver" }));
+    expect(screen.getByRole("heading", { name: "Campañas" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Recargar" })).not.toBeInTheDocument();
   });
 
   it("shows each character experience history in its own modal", async () => {

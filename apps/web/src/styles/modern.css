@@ -6884,3 +6884,150 @@ button[disabled] {
     grid-column: 1;
   }
 }
+
+/* Mobile navigation refinements shared by character, campaign and compendium views. */
+@media (width <= 900px) {
+  .campaign-module-header .campaign-header-actions {
+    overflow-x: visible;
+    scrollbar-width: none;
+  }
+
+  .campaign-module-header .campaign-header-actions button {
+    min-width: 0;
+  }
+
+  .character-record-card .character-history-button,
+  .campaign-character-direct-action,
+  .character-record-actions-menu > summary {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .character-record-actions-menu {
+    width: 100%;
+  }
+
+  .character-record-secondary-actions,
+  .campaign-character-card .character-record-secondary-actions {
+    position: static;
+    width: 100%;
+    margin-top: 6px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding: 5px;
+  }
+
+  .character-record-secondary-actions button {
+    min-height: 44px;
+    justify-content: center;
+    border: 0;
+    border-bottom: 1px solid var(--ui-border);
+    border-radius: 0;
+    text-align: center;
+  }
+
+  .character-record-secondary-actions button:last-child {
+    border-bottom: 0;
+  }
+
+  .character-builder-header-band.is-mobile-back-hidden {
+    grid-template-columns: 52px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+  }
+
+  .character-builder-header-band.is-mobile-back-hidden .character-builder-toolbar.is-mobile-two-actions {
+    grid-column: 1 / -1;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    justify-self: stretch;
+    overflow: visible;
+  }
+
+  .character-builder-toolbar.is-mobile-two-actions button {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .character-builder-sticky-controls > .character-builder-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .unified-sheet-actions-heading {
+    display: none;
+  }
+
+  .unified-sheet-reader.unified-sheet-stage.unified-sheet-dynamic-column > .unified-sheet-stage-subtabs.is-actions {
+    position: sticky;
+    top: calc(var(--app-top-navigation-height) + 57px);
+    z-index: 19;
+    background: color-mix(in srgb, var(--ui-surface) 96%, transparent);
+    box-shadow: 0 5px 12px color-mix(in srgb, var(--ui-text) 8%, transparent);
+    backdrop-filter: blur(12px);
+  }
+
+  .compendium-library-hero.module-sticky-header {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas:
+      "title"
+      "back"
+      "shortcuts"
+      "search"
+      "error";
+    align-items: stretch;
+    gap: 7px;
+  }
+
+  .compendium-library-hero-copy {
+    grid-area: title;
+  }
+
+  .compendium-library-hero.module-sticky-header .compendium-library-hero-actions {
+    display: contents;
+  }
+
+  .compendium-library-hero.module-sticky-header .compendium-library-back-button {
+    grid-area: back;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .compendium-library-hero.module-sticky-header .compendium-library-shortcuts {
+    grid-area: shortcuts;
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-self: stretch;
+  }
+
+  .compendium-library-hero.module-sticky-header .compendium-library-shortcuts button {
+    width: 100%;
+  }
+
+  .compendium-library-hero.module-sticky-header .compendium-hero-search {
+    grid-area: search;
+    width: 100%;
+  }
+
+  .compendium-library-hero.module-sticky-header .compendium-global-search,
+  .compendium-library-hero.module-sticky-header .compendium-global-search input {
+    width: 100%;
+  }
+
+  .compendium-library-hero.module-sticky-header .compendium-library-error {
+    grid-area: error;
+  }
+}

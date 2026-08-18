@@ -204,7 +204,7 @@ describe("UnifiedCharacterSheet mobile navigation", () => {
     expect(narrativeContent).toHaveAttribute("tabindex", "0");
     expect(mechanicalContent).toHaveAttribute("tabindex", "0");
     expect(within(narrativeReader).getByRole("heading", { name: "Trasfondo" })).toBeInTheDocument();
-    expect(within(mechanicalReader).getByRole("heading", { name: "Acciones disponibles" })).toBeInTheDocument();
+    expect(within(mechanicalReader).getByRole("heading", { name: "Acciones disponibles" }).closest(".unified-sheet-actions-heading")).toBeInTheDocument();
     const actionSubNavigation = within(mechanicalReader).getByRole("navigation", { name: "Filtros de acciones" });
     expect(mechanicalNavigation.nextElementSibling).toBe(actionSubNavigation);
     expect(within(mechanicalReader).queryByRole("navigation", { name: "Secciones del inventario" })).not.toBeInTheDocument();

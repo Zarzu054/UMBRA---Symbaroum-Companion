@@ -3,6 +3,7 @@ import { AppIcon } from "./AppIcon";
 import { AppearancePopover } from "./AppearancePopover";
 import { AppearanceSelector } from "./AppearanceSelector";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 
 export type AppNavigationItem = {
   id: string;
@@ -21,31 +22,18 @@ type Props = {
 
 const MOBILE_QUERY = "(max-width: 900px)";
 
-function isMobileViewport(): boolean {
-  return typeof window !== "undefined" && window.matchMedia?.(MOBILE_QUERY).matches === true;
-}
-
 export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, onLogout }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(isMobileViewport);
+  const isMobile = useMediaQuery(MOBILE_QUERY);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   useBodyScrollLock(isOpen && isMobile);
 
   useEffect(() => {
-    if (typeof window.matchMedia !== "function") return;
-    const media = window.matchMedia(MOBILE_QUERY);
-    const sync = (matches: boolean) => {
-      setIsMobile(matches);
-      setIsOpen(false);
-      setIsCustomizationOpen(false);
-    };
-    sync(media.matches);
-    const handleChange = (event: MediaQueryListEvent) => sync(event.matches);
-    media.addEventListener?.("change", handleChange);
-    return () => media.removeEventListener?.("change", handleChange);
-  }, []);
+    setIsOpen(false);
+    setIsCustomizationOpen(false);
+  }, [isMobile]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -158,20 +146,24 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
               ))}
             </nav>
           ) : null}
-          <button
-            type="button"
-            className="subtle-button app-navigation-customization-trigger"
-            aria-expanded={isCustomizationOpen}
-            aria-controls="session-customization-controls"
-            onClick={() => setIsCustomizationOpen((current) => !current)}
-          >
-            <AppIcon name="palette" />
-            <span>Personalización</span>
-          </button>
-          {isCustomizationOpen ? (
-            <div id="session-customization-controls" className="app-navigation-menu-section">
-              <AppearanceSelector />
-            </div>
+          {!isMobile ? (
+            <>
+              <button
+                type="button"
+                className="subtle-button app-navigation-customization-trigger"
+                aria-expanded={isCustomizationOpen}
+                aria-controls="session-customization-controls"
+                onClick={() => setIsCustomizationOpen((current) => !current)}
+              >
+                <AppIcon name="palette" />
+                <span>Personalización</span>
+              </button>
+              {isCustomizationOpen ? (
+                <div id="session-customization-controls" className="app-navigation-menu-section">
+                  <AppearanceSelector />
+                </div>
+              ) : null}
+            </>
           ) : null}
           <button type="button" className="app-logout-button" onClick={() => void onLogout()}>
             Cerrar sesión

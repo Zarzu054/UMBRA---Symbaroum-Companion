@@ -40,6 +40,7 @@ import { leaveProfession } from "../services/characterService";
 import { CharacterBuilderView } from "./CharacterBuilderView";
 import { MysticArtifactEditorWizard } from "../components/MysticArtifactEditorWizard";
 import { MysticArtifactDetailsModal } from "../components/MysticArtifactDetailsModal";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import {
   assignMysticArtifactOwner,
   bindMysticArtifact,
@@ -564,6 +565,7 @@ function normalizeCompendiumName(value: string): string {
 export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
   const initialHash = parseCampaignHash();
   const isDirector = user.role === "gm" || user.role === "superadmin";
+  const isMobile = useMediaQuery("(max-width: 900px)");
   const defaultSection: CampaignSection = isDirector ? "dmNotes" : "sharedNotes";
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [invitations, setInvitations] = useState<CampaignInvitation[]>([]);
@@ -1660,9 +1662,11 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     Nueva campaña
                   </button>
                 ) : null}
-                <button type="button" disabled={isLoading} onClick={() => void refresh()}>
-                  Recargar
-                </button>
+                {!isMobile ? (
+                  <button type="button" disabled={isLoading} onClick={() => void refresh()}>
+                    Recargar
+                  </button>
+                ) : null}
               </div>
             </div>
           </header>
@@ -1744,7 +1748,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                     setActiveSection(isDirector ? "dmNotes" : "sharedNotes");
                   }}
                 >
-                  Volver a campañas
+                  {isMobile ? "Volver" : "Volver a campañas"}
                 </button>
                 {isDirector ? (
                   <button
@@ -2085,6 +2089,7 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
 
               <div className="cards character-record-grid campaign-character-record-grid">
                 {selectedCampaign.characters.map((entry) => {
+                  const isCharacterOwner = entry.ownerId === user.id;
                   const canManageLink = isDirector || entry.ownerId === user.id;
                   const canViewChangeLog =
                     entry.ownerId === user.id ||
@@ -2159,58 +2164,98 @@ export function CampaignDashboardView({ user, ensureAccessToken }: Props) {
                             Constructor
                           </button>
                         ) : null}
-                        <details className="character-record-actions-menu">
-                          <summary>
-                            <span>Más acciones</span>
-                            {unreadChangeCount > 0 ? (
-                              <span className="character-history-badge" aria-label={`${unreadChangeCount} cambios sin leer`}>
-                                {unreadChangeCount}
-                              </span>
-                            ) : null}
-                          </summary>
-                          <div className="character-record-secondary-actions">
-                            {isDirector ? (
+                        {!isDirector && isMobile ? (
+                          <>
+                            {isCharacterOwner ? (
                               <button
                                 type="button"
-                                className="campaign-character-profession-action"
-                                aria-label={`Solicitudes de profesión de ${entry.name}: ${pendingProfessionRequestCount} ${pendingProfessionRequestCount === 1 ? "pendiente" : "pendientes"}`}
-                                onClick={() => {
-                                  setFormError(null);
-                                  setProfessionRequestsCharacterId(entry.characterId);
-                                }}
-                              >
-                                <span>Solicitudes de profesión</span>
-                                <strong>{pendingProfessionRequestCount}</strong>
-                              </button>
-                            ) : null}
-                            {canViewChangeLog ? (
-                              <button
-                                type="button"
-                                className="character-history-button"
+                                className="character-history-button campaign-character-direct-action"
                                 aria-label={`Historial de cambios de ${entry.name}`}
                                 onClick={() => setChangeLogCharacterId(entry.characterId)}
                               >
                                 Historial de cambios{unreadChangeCount > 0 ? <span className="character-history-badge" aria-label={`${unreadChangeCount} cambios sin leer`}>{unreadChangeCount}</span> : null}
                               </button>
-                            ) : null}
-                            <button type="button" onClick={() => setExperienceHistoryCharacterId(entry.characterId)}>
-                              Historial de PX
-                            </button>
-                            {canManageLink ? (
-                              <button
-                                type="button"
-                                className="danger"
-                                disabled={isSaving}
-                                onClick={() => {
-                                  setFormError(null);
-                                  setPendingUnlinkCharacter(entry);
-                                }}
-                              >
-                                Desvincular
+                            ) : (
+                              <button type="button" className="campaign-character-direct-action" onClick={() => setExperienceHistoryCharacterId(entry.characterId)}>
+                                Historial de PX
                               </button>
+                            )}
+                            {isCharacterOwner ? (
+                              <details className="character-record-actions-menu">
+                                <summary>Más acciones</summary>
+                                <div className="character-record-secondary-actions">
+                                  <button type="button" onClick={() => setExperienceHistoryCharacterId(entry.characterId)}>
+                                    Historial de PX
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="danger"
+                                    disabled={isSaving}
+                                    onClick={() => {
+                                      setFormError(null);
+                                      setPendingUnlinkCharacter(entry);
+                                    }}
+                                  >
+                                    Desvincular
+                                  </button>
+                                </div>
+                              </details>
                             ) : null}
-                          </div>
-                        </details>
+                          </>
+                        ) : (
+                          <details className="character-record-actions-menu">
+                            <summary>
+                              <span>Más acciones</span>
+                              {unreadChangeCount > 0 ? (
+                                <span className="character-history-badge" aria-label={`${unreadChangeCount} cambios sin leer`}>
+                                  {unreadChangeCount}
+                                </span>
+                              ) : null}
+                            </summary>
+                            <div className="character-record-secondary-actions">
+                              {isDirector ? (
+                                <button
+                                  type="button"
+                                  className="campaign-character-profession-action"
+                                  aria-label={`Solicitudes de profesión de ${entry.name}: ${pendingProfessionRequestCount} ${pendingProfessionRequestCount === 1 ? "pendiente" : "pendientes"}`}
+                                  onClick={() => {
+                                    setFormError(null);
+                                    setProfessionRequestsCharacterId(entry.characterId);
+                                  }}
+                                >
+                                  <span>Solicitudes de profesión</span>
+                                  <strong>{pendingProfessionRequestCount}</strong>
+                                </button>
+                              ) : null}
+                              {canViewChangeLog ? (
+                                <button
+                                  type="button"
+                                  className="character-history-button"
+                                  aria-label={`Historial de cambios de ${entry.name}`}
+                                  onClick={() => setChangeLogCharacterId(entry.characterId)}
+                                >
+                                  Historial de cambios{unreadChangeCount > 0 ? <span className="character-history-badge" aria-label={`${unreadChangeCount} cambios sin leer`}>{unreadChangeCount}</span> : null}
+                                </button>
+                              ) : null}
+                              <button type="button" onClick={() => setExperienceHistoryCharacterId(entry.characterId)}>
+                                Historial de PX
+                              </button>
+                              {canManageLink ? (
+                                <button
+                                  type="button"
+                                  className="danger"
+                                  disabled={isSaving}
+                                  onClick={() => {
+                                    setFormError(null);
+                                    setPendingUnlinkCharacter(entry);
+                                  }}
+                                >
+                                  Desvincular
+                                </button>
+                              ) : null}
+                            </div>
+                          </details>
+                        )}
                       </div>
                     </article>
                   );

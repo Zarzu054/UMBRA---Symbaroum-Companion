@@ -13,6 +13,7 @@ import {
   type RuleCategory
 } from "../models/compendiumEntries";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { SourceReferenceLink } from "../components/SourceReferenceLink";
 import {
   fetchCompendiumLibrary,
@@ -271,12 +272,6 @@ function parseMonsterTraitTiers(text: string): { tiers: CapabilityTier[]; refere
   };
 }
 
-function isMobileDetailViewport(): boolean {
-  return typeof window !== "undefined" && typeof window.matchMedia === "function"
-    ? window.matchMedia(MOBILE_DETAIL_QUERY).matches
-    : false;
-}
-
 function MobileCompendiumReaderPortal({ enabled, children }: { enabled: boolean; children: ReactNode }) {
   if (!enabled || typeof document === "undefined") return children;
   return createPortal(
@@ -310,7 +305,7 @@ export function CompendiumView({
   const [isLibraryLoading, setIsLibraryLoading] = useState(true);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [savingFavoriteIds, setSavingFavoriteIds] = useState<Set<string>>(new Set());
-  const [isMobileDetail, setIsMobileDetail] = useState(isMobileDetailViewport);
+  const isMobileDetail = useMediaQuery(MOBILE_DETAIL_QUERY);
   const [libraryModal, setLibraryModal] = useState<CompendiumLibraryModal | null>(null);
   const [quickSearchPosition, setQuickSearchPosition] = useState<QuickSearchPosition | null>(null);
   const lastEntryTriggerRef = useRef<HTMLElement | null>(null);
@@ -423,15 +418,6 @@ export function CompendiumView({
     : null;
 
   useBodyScrollLock(Boolean(libraryModal || (selectedEntry && isMobileDetail)));
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia?.(MOBILE_DETAIL_QUERY);
-    if (!mediaQuery) return;
-    const handleChange = (event: MediaQueryListEvent) => setIsMobileDetail(event.matches);
-    setIsMobileDetail(mediaQuery.matches);
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
 
   useEffect(() => {
     if (!isQuickSearchOpen || !quickSearchAnchorRef.current) {
@@ -606,6 +592,17 @@ export function CompendiumView({
     if (restoreFocus) window.setTimeout(() => libraryModalTriggerRef.current?.focus(), 0);
   }
 
+  function openLibraryEntry(entryId: string): void {
+    const trigger = libraryModalTriggerRef.current ?? undefined;
+    closeLibraryModal(false);
+    setQuery("");
+    setIsQueryExplorerOpen(false);
+    setTypeFilter("all");
+    setRuleCategoryFilter("all");
+    setSourceFilter("all");
+    openEntry(entryId, trigger);
+  }
+
   function openRelatedEntry(entryId: string, trigger: HTMLElement): void {
     const target = findCompendiumEntryById(entryId);
     if (!target) return;
@@ -710,10 +707,7 @@ export function CompendiumView({
             key={entry.id}
             type="button"
             className={`compendium-shelf-entry app-card-accent app-card-accent--${entry.tipo}${entry.ruleCategory ? ` rule-category--${entry.ruleCategory}` : ""}`}
-            onClick={() => {
-              closeLibraryModal(false);
-              openEntry(entry.id, libraryModalTriggerRef.current ?? undefined);
-            }}
+            onClick={() => openLibraryEntry(entry.id)}
           >
             <span className="compendium-shelf-entry-title">{entry.nombre}</span>
             <span>{getEntryTypeLabel(entry)} · {canonicalizeCompendiumSourceName(entry.fuente)}</span>
@@ -780,13 +774,15 @@ export function CompendiumView({
           </button>
         </div>
         <div className="compendium-library-hero-actions">
-          <button
-            type="button"
-            className="subtle-button compendium-library-back-button"
-            onClick={isExplorerOpen ? clearFilters : onBackToCharacters}
-          >
-            {isExplorerOpen ? "← Volver al compendio" : "Volver a personajes"}
-          </button>
+          {isExplorerOpen || !isMobileDetail ? (
+            <button
+              type="button"
+              className="subtle-button compendium-library-back-button"
+              onClick={isExplorerOpen ? clearFilters : onBackToCharacters}
+            >
+              {isExplorerOpen ? "← Volver al compendio" : "Volver a personajes"}
+            </button>
+          ) : null}
           <div ref={quickSearchAnchorRef} className="compendium-hero-search">
             <label className="field compendium-global-search">
               <span>Búsqueda global</span>
@@ -937,7 +933,7 @@ export function CompendiumView({
               <span aria-hidden="true">/</span>
               <span>{ruleCategoryFilter !== "all" ? RULE_CATEGORY_LABELS[ruleCategoryFilter] : typeFilter !== "all" ? TYPE_LABELS[typeFilter] : sourceFilter !== "all" ? sourceFilter : "Resultados"}</span>
             </nav>
-            <div className="compendium-explorer-controls">
+            {!isMobileDetail ? <div className="compendium-explorer-controls">
               <label className="field">
                 <span>Tipo</span>
                 <select value={typeFilter} onChange={(event) => {
@@ -967,7 +963,7 @@ export function CompendiumView({
                 </select>
               </label>
               <button type="button" className="subtle-button compendium-clear-button" onClick={clearFilters}>Limpiar</button>
-            </div>
+            </div> : null}
             <div className="compendium-results-heading">
               <h3>Resultados</h3>
               <span className="meta-text" aria-live="polite">{visibleEntries.length} coincidencias</span>

@@ -5,9 +5,24 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CharacterBuilderView } from "./CharacterBuilderView";
 import { ConfirmationDialogProvider } from "../components/ConfirmationDialogProvider";
 
+const originalMatchMedia = window.matchMedia;
+
+function installMatchMedia(matches: boolean): void {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(max-width: 900px)" ? matches : false,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn()
+    }))
+  });
+}
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
 });
 
 function makeArtifact(): OwnedMysticArtifact {
@@ -59,6 +74,43 @@ function makeRevealedArtifact(): OwnedMysticArtifact {
     bindingPaymentAmount: 1
   };
 }
+
+it("hides only the main builder back action on mobile and keeps the two controls aligned", () => {
+  installMatchMedia(true);
+  const character: Character = {
+    id: "character-mobile", name: "Urmak", archetype: "Guerrero", race: "Humano", culture: "Ambriano", profession: "",
+    level: 1, sheet: createEmptyCharacterSheet(), createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString()
+  };
+
+  const view = render(
+    <CharacterBuilderView
+      character={character}
+      hideBackActionOnMobile
+      onBackToCharacters={vi.fn()}
+      onOpenSheet={vi.fn()}
+      onSave={vi.fn()}
+    />
+  );
+
+  expect(screen.queryByRole("button", { name: "Volver a personajes" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Abrir hoja" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Guardar constructor" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Abrir hoja" }).closest(".character-builder-toolbar")).toHaveClass("is-mobile-two-actions");
+  expect(document.querySelector(".character-builder-tabs")).toBeInTheDocument();
+
+  view.unmount();
+  installMatchMedia(false);
+  render(
+    <CharacterBuilderView
+      character={character}
+      hideBackActionOnMobile
+      onBackToCharacters={vi.fn()}
+      onOpenSheet={vi.fn()}
+      onSave={vi.fn()}
+    />
+  );
+  expect(screen.getByRole("button", { name: "Volver a personajes" })).toBeInTheDocument();
+});
 
 it("uses the persisted XP total without adding burden bonuses a second time", () => {
   const sheet = createEmptyCharacterSheet();

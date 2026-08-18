@@ -1,34 +1,22 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useRef, useState } from "react";
 import { AppIcon } from "./AppIcon";
 import { AppearancePopover } from "./AppearancePopover";
 import { AppearanceSelector } from "./AppearanceSelector";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 const MOBILE_QUERY = "(max-width: 900px)";
-function isMobileViewport() {
-    return typeof window !== "undefined" && window.matchMedia?.(MOBILE_QUERY).matches === true;
-}
 export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, onLogout }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isCustomizationOpen, setIsCustomizationOpen] = useState(false);
-    const [isMobile, setIsMobile] = useState(isMobileViewport);
+    const isMobile = useMediaQuery(MOBILE_QUERY);
     const triggerRef = useRef(null);
     const menuRef = useRef(null);
     useBodyScrollLock(isOpen && isMobile);
     useEffect(() => {
-        if (typeof window.matchMedia !== "function")
-            return;
-        const media = window.matchMedia(MOBILE_QUERY);
-        const sync = (matches) => {
-            setIsMobile(matches);
-            setIsOpen(false);
-            setIsCustomizationOpen(false);
-        };
-        sync(media.matches);
-        const handleChange = (event) => sync(event.matches);
-        media.addEventListener?.("change", handleChange);
-        return () => media.removeEventListener?.("change", handleChange);
-    }, []);
+        setIsOpen(false);
+        setIsCustomizationOpen(false);
+    }, [isMobile]);
     useEffect(() => {
         if (!isOpen)
             return;
@@ -83,5 +71,5 @@ export function AppTopNavigation({ items, currentTitle, userEmail, roleLabel, on
                             if (current)
                                 setIsCustomizationOpen(false);
                             return !current;
-                        }), children: [_jsx(AppIcon, { name: isMobile ? "menu" : "user" }), _jsx("span", { children: isMobile ? "Menú" : userEmail })] })] }), isOpen ? (_jsxs("div", { ref: menuRef, className: "app-navigation-menu", role: "dialog", "aria-label": "Navegaci\u00F3n y preferencias", children: [_jsxs("div", { className: "app-navigation-menu-heading", children: [_jsxs("div", { children: [_jsx("strong", { children: userEmail }), _jsx("span", { children: roleLabel })] }), _jsx("button", { type: "button", className: "icon-button", "aria-label": "Cerrar navegaci\u00F3n", onClick: () => { setIsOpen(false); setIsCustomizationOpen(false); }, children: _jsx(AppIcon, { name: "close" }) })] }), isMobile ? (_jsx("nav", { className: "app-navigation-menu-modules", "aria-label": "M\u00F3dulos", children: items.map((item) => (_jsx("button", { type: "button", className: item.active ? "is-active" : "", "aria-current": item.active ? "page" : undefined, onClick: () => selectItem(item), children: item.label }, item.id))) })) : null, _jsxs("button", { type: "button", className: "subtle-button app-navigation-customization-trigger", "aria-expanded": isCustomizationOpen, "aria-controls": "session-customization-controls", onClick: () => setIsCustomizationOpen((current) => !current), children: [_jsx(AppIcon, { name: "palette" }), _jsx("span", { children: "Personalizaci\u00F3n" })] }), isCustomizationOpen ? (_jsx("div", { id: "session-customization-controls", className: "app-navigation-menu-section", children: _jsx(AppearanceSelector, {}) })) : null, _jsx("button", { type: "button", className: "app-logout-button", onClick: () => void onLogout(), children: "Cerrar sesi\u00F3n" })] })) : null] }));
+                        }), children: [_jsx(AppIcon, { name: isMobile ? "menu" : "user" }), _jsx("span", { children: isMobile ? "Menú" : userEmail })] })] }), isOpen ? (_jsxs("div", { ref: menuRef, className: "app-navigation-menu", role: "dialog", "aria-label": "Navegaci\u00F3n y preferencias", children: [_jsxs("div", { className: "app-navigation-menu-heading", children: [_jsxs("div", { children: [_jsx("strong", { children: userEmail }), _jsx("span", { children: roleLabel })] }), _jsx("button", { type: "button", className: "icon-button", "aria-label": "Cerrar navegaci\u00F3n", onClick: () => { setIsOpen(false); setIsCustomizationOpen(false); }, children: _jsx(AppIcon, { name: "close" }) })] }), isMobile ? (_jsx("nav", { className: "app-navigation-menu-modules", "aria-label": "M\u00F3dulos", children: items.map((item) => (_jsx("button", { type: "button", className: item.active ? "is-active" : "", "aria-current": item.active ? "page" : undefined, onClick: () => selectItem(item), children: item.label }, item.id))) })) : null, !isMobile ? (_jsxs(_Fragment, { children: [_jsxs("button", { type: "button", className: "subtle-button app-navigation-customization-trigger", "aria-expanded": isCustomizationOpen, "aria-controls": "session-customization-controls", onClick: () => setIsCustomizationOpen((current) => !current), children: [_jsx(AppIcon, { name: "palette" }), _jsx("span", { children: "Personalizaci\u00F3n" })] }), isCustomizationOpen ? (_jsx("div", { id: "session-customization-controls", className: "app-navigation-menu-section", children: _jsx(AppearanceSelector, {}) })) : null] })) : null, _jsx("button", { type: "button", className: "app-logout-button", onClick: () => void onLogout(), children: "Cerrar sesi\u00F3n" })] })) : null] }));
 }
