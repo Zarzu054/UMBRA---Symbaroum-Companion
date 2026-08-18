@@ -21,6 +21,19 @@ import {
 } from "./CompendiumView";
 
 const ensureAccessToken = vi.fn().mockResolvedValue("access-token");
+const originalMatchMedia = window.matchMedia;
+
+function installMobileMatchMedia(): void {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(max-width: 900px)",
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn()
+    }))
+  });
+}
 
 function entry(overrides: Partial<CompendiumEntry>): CompendiumEntry {
   return {
@@ -178,7 +191,10 @@ describe("CompendiumView library", () => {
     window.history.replaceState(null, "", "#compendium");
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: originalMatchMedia });
+  });
 
   it("starts on the section cover and switches between type and source catalogues", async () => {
     renderCompendium();
@@ -209,6 +225,44 @@ describe("CompendiumView library", () => {
     expect(screen.getByRole("button", { name: /Reglas UMBRA.*entradas/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Resumen de Reglas.*entradas/ })).not.toBeInTheDocument();
     await waitFor(() => expect(serviceMocks.fetchCompendiumLibrary).toHaveBeenCalledWith("access-token"));
+  });
+
+  it("uses the full mobile cover width without a back-to-characters action", () => {
+    installMobileMatchMedia();
+    renderCompendium();
+
+    const hero = screen.getByRole("heading", { name: "Compendio Central" }).closest(".compendium-library-hero") as HTMLElement;
+    expect(within(hero).queryByRole("button", { name: "Volver a personajes" })).not.toBeInTheDocument();
+    expect(within(hero).getByRole("searchbox", { name: "Búsqueda global" })).toBeInTheDocument();
+    expect(within(hero).getByRole("button", { name: /Favoritos/ })).toBeInTheDocument();
+    expect(within(hero).getByRole("button", { name: /Recientes/ })).toBeInTheDocument();
+  });
+
+  it.each([
+    { libraryLabel: "Favoritos", favorite: true },
+    { libraryLabel: "Recientes", favorite: false }
+  ])("opens $libraryLabel entries from an incompatible mobile category without closing them", async ({ libraryLabel, favorite }) => {
+    installMobileMatchMedia();
+    const target = ALL_ENTRIES.find((candidate) => candidate.tipo === "habilidad")!;
+    serviceMocks.fetchCompendiumLibrary.mockResolvedValue({
+      favoriteEntryIds: favorite ? [target.id] : [],
+      recentEntryIds: favorite ? [] : [target.id]
+    });
+
+    renderCompendium({ initialTypeFilter: "profesion" });
+
+    expect(screen.getByRole("button", { name: "← Volver al compendio" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Tipo")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Fuente")).not.toBeInTheDocument();
+
+    const libraryButton = await screen.findByRole("button", { name: new RegExp(libraryLabel) });
+    fireEvent.click(libraryButton);
+    const libraryDialog = screen.getByRole("dialog", { name: favorite ? "Favoritos" : "Consultado recientemente" });
+    fireEvent.click(within(libraryDialog).getByRole("button", { name: new RegExp(`^${target.nombre}`) }));
+
+    const reader = await screen.findByRole("dialog", { name: target.nombre });
+    await waitFor(() => expect(reader).toBeInTheDocument());
+    expect(screen.queryByRole("dialog", { name: favorite ? "Favoritos" : "Consultado recientemente" })).not.toBeInTheDocument();
   });
 
   it("shows the equipment group and renders structured facts, variants and source links", async () => {

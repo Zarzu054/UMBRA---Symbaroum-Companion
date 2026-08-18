@@ -22,6 +22,7 @@ import { AppIcon } from "../components/AppIcon";
 import { UnifiedCharacterSheet } from "../components/UnifiedCharacterSheet";
 import { CharacterCreationWizard } from "../components/ActorCreationWizard";
 import { useConfirmationDialog } from "../components/ConfirmationDialogProvider";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { getRoleLabel, useCharacterController } from "../controllers/characterController";
 import {
   RULE_CATEGORY_LABELS,
@@ -137,6 +138,7 @@ function parseHash(): { module: AppModule; focus?: Omit<CompendiumFocus, "token"
 }
 
 export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Props) {
+  const isMobile = useMediaQuery("(max-width: 900px)");
   const confirm = useConfirmationDialog();
   const controller = useCharacterController(ensureAccessToken);
   const dashboardRef = useRef<HTMLElement | null>(null);
@@ -328,7 +330,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
         onLogout={onLogout}
       />
       <section className={`app-content module-theme module-theme--${activeModule}`}>
-          {selectedCharacterSheet && activeModule === "characters" && selectedCharacterPageMode === "sheet" ? (
+          {selectedCharacterSheet && activeModule === "characters" && selectedCharacterPageMode === "sheet" && !isMobile ? (
             <div className="app-context-navigation">
               <button type="button" className="text-button character-sheet-back-button" onClick={closeCharacterSheet}>
                 <AppIcon name="arrow-left" />
@@ -361,6 +363,7 @@ export function CharacterDashboardView({ user, ensureAccessToken, onLogout }: Pr
               {selectedCharacterPageMode === "builder" ? (
                 <CharacterBuilderView
                   character={selectedCharacterSheet}
+                  hideBackActionOnMobile
                   onBackToCharacters={closeCharacterSheet}
                   onOpenSheet={() => openCharacterSheet(selectedCharacterSheet.id)}
                   onBindMysticArtifact={async (artifactId, paymentType) => {

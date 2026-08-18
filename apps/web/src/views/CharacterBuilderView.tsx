@@ -22,6 +22,7 @@ import { getCharacterExperienceSummary } from "../models/characterExperience";
 import { ALL_ENTRIES, SYMBAROUM_BLESSINGS, SYMBAROUM_BURDENS, SYMBAROUM_CHARACTER_TRAITS, type CompendiumEntry } from "../models/compendiumEntries";
 import { useConfirmationDialog } from "../components/ConfirmationDialogProvider";
 import { MysticArtifactDetailsModal } from "../components/MysticArtifactDetailsModal";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 
 type RatedSection = "habilidades" | "rasgosMonstruosos" | "poderesMisticos" | "rituales";
 type StoredRatedSection = "habilidades" | "poderesMisticos" | "rituales";
@@ -62,6 +63,7 @@ type Props = {
   onOpenSheet: () => void;
   onSave: (sheet: CharacterSheet) => Promise<void>;
   backLabel?: string;
+  hideBackActionOnMobile?: boolean;
   sheetLabel?: string;
   saveLabel?: string;
   onBindMysticArtifact?: (artifactId: string, paymentType: MysticArtifactPaymentType) => Promise<void>;
@@ -368,6 +370,7 @@ export function CharacterBuilderView({
   onOpenSheet,
   onSave,
   backLabel = "Volver a personajes",
+  hideBackActionOnMobile = false,
   sheetLabel = "Abrir hoja",
   saveLabel = "Guardar constructor",
   onBindMysticArtifact,
@@ -380,6 +383,7 @@ export function CharacterBuilderView({
   professionRemovalLabel = "Abandonar profesión"
 }: Props) {
   const confirm = useConfirmationDialog();
+  const isMobile = useMediaQuery("(max-width: 900px)");
   const [draft, setDraft] = useState<CharacterSheet>(() => parseCharacterSheet(character.sheet));
   const [catalogSelections, setCatalogSelections] = useState<CatalogSelections>(INITIAL_CATALOG_SELECTIONS);
   const [historicalRerollSpent, setHistoricalRerollSpent] = useState(0);
@@ -962,7 +966,7 @@ export function CharacterBuilderView({
     <section className="character-builder-page unified-sheet">
       <section className="character-builder-shell campaign-sheet-card">
         <div className="character-builder-sticky-controls">
-          <header className="character-builder-header-band module-sticky-header module-sticky-header--single-row">
+          <header className={`character-builder-header-band module-sticky-header module-sticky-header--single-row${hideBackActionOnMobile ? " is-mobile-back-hidden" : ""}`}>
             <div className="unified-sheet-portrait">
               <div className="unified-sheet-portrait-ring" />
               <div className="unified-sheet-portrait-content">
@@ -973,10 +977,12 @@ export function CharacterBuilderView({
               <h2 className="unified-sheet-title">{draft.identidad.nombrePersonaje || character.name}</h2>
               <p className="unified-sheet-inline-subtitle">{subtitle}</p>
             </div>
-            <div className="toolbar character-builder-toolbar">
-              <button type="button" className="subtle-button" onClick={onBackToCharacters}>{backLabel}</button>
-              <button type="button" className="subtle-button" onClick={onOpenSheet}>{sheetLabel}</button>
-              <button type="button" onClick={() => void handleSave()} disabled={busy || isSaving || bindingArtifactId !== null}>
+            <div className={`toolbar character-builder-toolbar${hideBackActionOnMobile && isMobile ? " is-mobile-two-actions" : ""}`}>
+              {!hideBackActionOnMobile || !isMobile ? (
+                <button type="button" className="subtle-button character-builder-back-action" onClick={onBackToCharacters}>{backLabel}</button>
+              ) : null}
+              <button type="button" className="subtle-button character-builder-sheet-action" onClick={onOpenSheet}>{sheetLabel}</button>
+              <button type="button" className="character-builder-save-action" onClick={() => void handleSave()} disabled={busy || isSaving || bindingArtifactId !== null}>
                 {isSaving ? "Guardando..." : saveLabel}
               </button>
             </div>

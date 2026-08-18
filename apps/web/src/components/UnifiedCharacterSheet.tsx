@@ -3234,7 +3234,7 @@ export function UnifiedCharacterSheet({
           {stageActiveTab === "actions" ? (
             <section className="unified-sheet-panel">
               <article className="campaign-sheet-card">
-                <div className="row-actions">
+                <div className="row-actions unified-sheet-actions-heading">
                   <h3>Acciones disponibles</h3>
                 </div>
                 {artifactUseError ? <p className="error-text">{artifactUseError}</p> : null}

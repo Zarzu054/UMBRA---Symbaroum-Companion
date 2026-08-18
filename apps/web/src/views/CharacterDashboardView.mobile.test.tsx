@@ -105,7 +105,7 @@ describe("CharacterDashboardView mobile navigation", () => {
     expect(menuButton).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("offers contextual navigation back to the character directory", async () => {
+  it("places the character sheet directly below the mobile navigation", async () => {
     controller.characters = [{
       id: "char-1",
       name: "Arold",
@@ -125,12 +125,8 @@ describe("CharacterDashboardView mobile navigation", () => {
     );
 
     expect(screen.getByText("Hoja de personaje")).toBeInTheDocument();
-    const backButton = screen.getByRole("button", { name: "Volver" });
-    expect(backButton).toHaveClass("character-sheet-back-button");
-    fireEvent.click(backButton);
-
-    expect(await screen.findByRole("heading", { name: "Archivo de personajes" })).toBeInTheDocument();
-    expect(window.location.hash).toBe("#characters");
+    expect(screen.queryByRole("button", { name: "Volver" })).not.toBeInTheDocument();
+    expect(document.querySelector(".app-context-navigation")).not.toBeInTheDocument();
   });
 
   it("excludes game fields from Bitwarden autofill overlays", () => {
