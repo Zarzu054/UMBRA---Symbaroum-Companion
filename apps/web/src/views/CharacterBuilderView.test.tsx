@@ -1,9 +1,12 @@
 import "@testing-library/jest-dom/vitest";
+import { readFileSync } from "node:fs";
 import { createEmptyCharacterSheet, type Character, type OwnedMysticArtifact } from "@umbra/shared";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CharacterBuilderView } from "./CharacterBuilderView";
 import { ConfirmationDialogProvider } from "../components/ConfirmationDialogProvider";
+
+const mobileBuilderStyles = readFileSync("src/styles/modern.css", "utf8").split("/* Mobile navigation refinements")[1] ?? "";
 
 const originalMatchMedia = window.matchMedia;
 
@@ -97,6 +100,9 @@ it("hides only the main builder back action on mobile and keeps the two controls
   expect(screen.getByRole("button", { name: "Guardar constructor" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Abrir hoja" }).closest(".character-builder-toolbar")).toHaveClass("is-mobile-two-actions");
   expect(document.querySelector(".character-builder-tabs")).toBeInTheDocument();
+  expect(mobileBuilderStyles).toContain("overflow-x: clip");
+  expect(mobileBuilderStyles).toContain("contain: inline-size");
+  expect(mobileBuilderStyles).toContain("flex: 0 0 auto");
 
   view.unmount();
   installMatchMedia(false);
